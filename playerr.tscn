@@ -4,31 +4,45 @@
 [ext_resource type="Texture2D" uid="uid://doltym6qyoyc8" path="res://icon.svg" id="2_bhprk"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_65urh"]
-size = Vector2(6.34375, 6.28125)
+size = Vector2(20, 28)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_dv54c"]
+size = Vector2(34, 18)
 
 [node name="Playerr" type="CharacterBody2D"]
 collision_mask = 2
 script = ExtResource("1_8x1c5")
 
 [node name="Sprite2D" type="Sprite2D" parent="."]
-position = Vector2(1.5, -0.5)
-scale = Vector2(1.60156, 1.58594)
+position = Vector2(0, -14)
+scale = Vector2(0.3, 0.3)
 texture = ExtResource("2_bhprk")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
-position = Vector2(1.5, -1.5)
-scale = Vector2(32, 32)
+position = Vector2(0, -14)
 shape = SubResource("RectangleShape2D_65urh")
 
 [node name="Pivot" type="Node2D" parent="."]
+position = Vector2(10, -18)
 
 [node name="Hitbox" type="Area2D" parent="Pivot"]
+collision_layer = 4
+collision_mask = 8
+monitoring = false
+monitorable = false
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="Pivot/Hitbox"]
-scale = Vector2(10, 10)
+position = Vector2(20, 0)
+disabled = true
 shape = SubResource("RectangleShape2D_dv54c")
 
+[node name="SlashVisual" type="Polygon2D" parent="Pivot"]
+visible = false
+position = Vector2(18, 0)
+color = Color(1, 1, 1, 0)
+polygon = PackedVector2Array(-4, -10, 26, -4, 20, 8, -8, 4)
+
 [node name="Camera2D" type="Camera2D" parent="."]
-zoom = Vector2(0.502, 0.502)
+zoom = Vector2(0.85, 0.85)
+position_smoothing_enabled = true
+position_smoothing_speed = 8.0

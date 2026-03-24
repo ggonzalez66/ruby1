@@ -1,43 +1,147 @@
-[gd_scene load_steps=3 format=3 uid="uid://bsjw318ojxwhy"]
+[gd_scene load_steps=8 format=3 uid="uid://bsjw318ojxwhy"]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_41u7p"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_2ax5n"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_86scs"]
-size = Vector2(33.035, 11.72)
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
+size = Vector2(760, 80)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_platform_long"]
+size = Vector2(260, 28)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_platform_medium"]
+size = Vector2(180, 24)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
+size = Vector2(48, 220)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_block"]
+size = Vector2(100, 100)
 
 [node name="Main" type="Node2D"]
 
-[node name="StaticBody2D" type="StaticBody2D" parent="."]
-position = Vector2(-326, 580)
+[node name="Background" type="Polygon2D" parent="."]
+color = Color(0.941176, 0.94902, 0.917647, 1)
+polygon = PackedVector2Array(-1000, -500, 2200, -500, 2200, 700, -1000, 700)
+
+[node name="Sun" type="Polygon2D" parent="."]
+position = Vector2(1280, -180)
+color = Color(0.980392, 0.752941, 0.321569, 0.9)
+polygon = PackedVector2Array(-70, -70, 70, -70, 70, 70, -70, 70)
+
+[node name="GroundWest" type="StaticBody2D" parent="."]
+position = Vector2(-320, 300)
 collision_layer = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D"]
-position = Vector2(271.75, 754)
-scale = Vector2(100, 100)
-shape = SubResource("RectangleShape2D_86scs")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundWest"]
+shape = SubResource("RectangleShape2D_ground")
 
-[node name="ColorRect" type="ColorRect" parent="StaticBody2D"]
-offset_left = -1377.0
-offset_top = 165.0
-offset_right = 1925.0
-offset_bottom = 1324.0
-color = Color(0.72549, 0, 0, 1)
+[node name="Visual" type="Polygon2D" parent="GroundWest"]
+color = Color(0.701961, 0.352941, 0.239216, 1)
+polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
 
-[node name="StaticBody2D2" type="StaticBody2D" parent="."]
-position = Vector2(-326, 580)
+[node name="GroundEast" type="StaticBody2D" parent="."]
+position = Vector2(620, 300)
 collision_layer = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="StaticBody2D2"]
-position = Vector2(3965, 357)
-scale = Vector2(100, 100)
-shape = SubResource("RectangleShape2D_86scs")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundEast"]
+shape = SubResource("RectangleShape2D_ground")
 
-[node name="ColorRect" type="ColorRect" parent="StaticBody2D2"]
-offset_left = 2295.0
-offset_top = -247.0
-offset_right = 5490.0
-offset_bottom = 966.0
-color = Color(0.72549, 0, 0, 1)
+[node name="Visual" type="Polygon2D" parent="GroundEast"]
+color = Color(0.701961, 0.352941, 0.239216, 1)
+polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
+
+[node name="Bridge" type="StaticBody2D" parent="."]
+position = Vector2(150, 190)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Bridge"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="Bridge"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="LowPlatform" type="StaticBody2D" parent="."]
+position = Vector2(420, 140)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="LowPlatform"]
+shape = SubResource("RectangleShape2D_platform_long")
+
+[node name="Visual" type="Polygon2D" parent="LowPlatform"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
+
+[node name="StepPlatform" type="StaticBody2D" parent="."]
+position = Vector2(780, 70)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="StepPlatform"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="StepPlatform"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="TallWall" type="StaticBody2D" parent="."]
+position = Vector2(1140, 190)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="TallWall"]
+shape = SubResource("RectangleShape2D_wall")
+
+[node name="Visual" type="Polygon2D" parent="TallWall"]
+color = Color(0.509804, 0.247059, 0.160784, 1)
+polygon = PackedVector2Array(-24, -110, 24, -110, 24, 110, -24, 110)
+
+[node name="WallTop" type="StaticBody2D" parent="."]
+position = Vector2(1140, 50)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="WallTop"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="WallTop"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="FarPlatform" type="StaticBody2D" parent="."]
+position = Vector2(1460, -10)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="FarPlatform"]
+shape = SubResource("RectangleShape2D_platform_long")
+
+[node name="Visual" type="Polygon2D" parent="FarPlatform"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
+
+[node name="FinalBlock" type="StaticBody2D" parent="."]
+position = Vector2(1790, 140)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="FinalBlock"]
+shape = SubResource("RectangleShape2D_block")
+
+[node name="Visual" type="Polygon2D" parent="FinalBlock"]
+color = Color(0.611765, 0.301961, 0.188235, 1)
+polygon = PackedVector2Array(-50, -50, 50, -50, 50, 50, -50, 50)
 
 [node name="Playerr" parent="." instance=ExtResource("1_41u7p")]
-position = Vector2(-5, -755)
+position = Vector2(-620, 220)
+
+[node name="DummyStart" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(-420, 260)
+
+[node name="DummyBridge" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(150, 178)
+
+[node name="DummyHigh" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(420, 126)
+
+[node name="DummyTop" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(1140, 38)
+
+[node name="DummyFar" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(1460, -24)
