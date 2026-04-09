@@ -4,10 +4,12 @@ const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
 const ATTACK_GROUND_CHARGED := 2
 const ATTACK_AIR_CHARGED := 3
+const ATTACK_SPIN := 4
 
 const DAMAGE_SLASH := 1
 const DAMAGE_GROUND_CHARGED := 3
 const DAMAGE_AIR_CHARGED := 2
+const DAMAGE_SPIN := 2
 
 @export var max_speed := 320.0
 @export var ground_acceleration := 2200.0
@@ -31,10 +33,12 @@ const DAMAGE_AIR_CHARGED := 2
 @export var charged_ground_duration := 0.22
 @export var charged_ground_lunge_speed := 980.0
 @export var charged_ground_end_speed := 260.0
+@export var charged_ground_jump_cancel_velocity := -540.0
 @export var charged_air_forward_speed := 760.0
 @export var charged_air_forward_drift := 520.0
 @export var charged_air_drag := 1600.0
 @export var charged_air_gravity_multiplier := 1.18
+@export var spin_attack_duration := 0.34
 @export var dash_speed := 760.0
 @export var dash_duration := 0.14
 @export var dash_cooldown := 0.42
@@ -104,7 +108,10 @@ func _physics_process(delta: float) -> void:
 		air_jumps_remaining = max_air_jumps
 
 	if Input.is_action_just_pressed("jump"):
-		jump_buffer_timer = jump_buffer_time
+		if attack_mode == ATTACK_GROUND_CHARGED:
+			_start_spin_attack()
+		else:
+			jump_buffer_timer = jump_buffer_time
 
 	if Input.is_action_just_pressed("attack"):
 		_begin_attack_charge()
@@ -129,6 +136,8 @@ func _physics_process(delta: float) -> void:
 		_apply_ground_charged_movement()
 	elif attack_mode == ATTACK_AIR_CHARGED:
 		_apply_air_charged_movement(delta)
+	elif attack_mode == ATTACK_SPIN:
+		_apply_spin_attack_movement(delta)
 	else:
 		_apply_gravity(delta)
 		_consume_jump_buffer()
@@ -182,7 +191,7 @@ func _consume_jump_buffer() -> void:
 	if jump_buffer_timer <= 0.0:
 		return
 
-	if dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_AIR_CHARGED:
+	if dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_AIR_CHARGED or attack_mode == ATTACK_SPIN:
 		return
 
 	var can_ground_jump: bool = is_on_floor() or coyote_timer > 0.0
@@ -228,6 +237,9 @@ func _apply_air_charged_movement(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, facing * charged_air_forward_drift, charged_air_drag * delta)
 	_apply_gravity(delta)
 
+func _apply_spin_attack_movement(delta: float) -> void:
+	_apply_gravity(delta)
+
 func _begin_attack_charge() -> void:
 	if is_charging_attack or _is_attack_active() or dash_timer > 0.0 or attack_cooldown_timer > 0.0:
 		return
@@ -243,6 +255,10 @@ func _update_attack_charge(delta: float) -> void:
 func _release_attack_charge(was_on_floor: bool) -> void:
 	is_charging_attack = false
 	_set_charge_visual_active(false)
+
+	if dash_timer > 0.0:
+		dash_timer = 0.0
+		_end_dash()
 
 	var fully_charged: bool = charge_timer >= attack_charge_time
 	charge_timer = 0.0
@@ -273,6 +289,8 @@ func _start_ground_charged_attack() -> void:
 	attack_timer = charged_ground_duration
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
+	velocity.x = facing * charged_ground_lunge_speed
+	velocity.y = 0.0
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
@@ -284,6 +302,19 @@ func _start_air_charged_attack() -> void:
 	attack_targets_hit.clear()
 	velocity.x = facing * charged_air_forward_speed
 	velocity.y = 0.0
+	_set_attack_active(true)
+	_update_attack_animation()
+	_refresh_attack_hits()
+
+func _start_spin_attack() -> void:
+	if attack_mode != ATTACK_GROUND_CHARGED:
+		return
+
+	attack_mode = ATTACK_SPIN
+	attack_timer = spin_attack_duration
+	attack_targets_hit.clear()
+	velocity.x = max(abs(velocity.x), charged_ground_lunge_speed) * facing
+	velocity.y = charged_ground_jump_cancel_velocity
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
@@ -334,6 +365,8 @@ func _update_attack_animation() -> void:
 			_animate_ground_charged_attack()
 		ATTACK_AIR_CHARGED:
 			_animate_air_charged_attack()
+		ATTACK_SPIN:
+			_animate_spin_attack()
 
 func _animate_normal_slash() -> void:
 	var progress: float = 1.0 - (attack_timer / attack_duration)
@@ -400,6 +433,27 @@ func _animate_air_charged_attack() -> void:
 	slash_area_visual.color = Color(0.4, 0.89, 1.0, 0.34)
 	slash_outline.default_color = Color(0.74, 0.98, 1.0, 0.82)
 
+func _animate_spin_attack() -> void:
+	var progress: float = 1.0 - (attack_timer / spin_attack_duration)
+	var spin_angle: float = progress * TAU * 1.6
+	var pulse: float = 1.0 + 0.12 * sin(progress * PI * 4.0)
+
+	hitbox_shape.position = Vector2(-10.0, 4.0)
+	hitbox_shape.scale = Vector2(2.9, 2.1)
+	slash_visual.position = Vector2(0.0, 4.0)
+	slash_area_visual.position = Vector2(0.0, 4.0)
+	slash_outline.position = Vector2(0.0, 4.0)
+	hitbox.rotation = spin_angle
+	slash_visual.rotation = spin_angle
+	slash_area_visual.rotation = spin_angle
+	slash_outline.rotation = spin_angle
+	slash_visual.scale = Vector2(2.2 * pulse, 1.55 * pulse)
+	slash_area_visual.scale = Vector2(2.75, 1.95)
+	slash_outline.scale = slash_area_visual.scale
+	slash_visual.color = Color(0.98, 0.95, 1.0, 0.82)
+	slash_area_visual.color = Color(1.0, 0.84, 0.36, 0.3)
+	slash_outline.default_color = Color(1.0, 0.97, 0.78, 0.92)
+
 func _refresh_attack_hits() -> void:
 	if not _is_attack_active():
 		return
@@ -450,7 +504,7 @@ func _update_charge_visual() -> void:
 	charge_outline.default_color = Color(1.0, lerp(0.95, 0.82, progress), lerp(1.0, 0.3, progress), outline_alpha)
 
 func _start_dash() -> void:
-	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active() or is_charging_attack:
+	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
 		return
 
 	var move_input: float = Input.get_axis("move_left", "move_right")
@@ -482,7 +536,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_AIR_CHARGED
+	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_AIR_CHARGED or attack_mode == ATTACK_SPIN
 
 func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE
@@ -493,6 +547,8 @@ func _get_attack_damage() -> int:
 			return DAMAGE_GROUND_CHARGED
 		ATTACK_AIR_CHARGED:
 			return DAMAGE_AIR_CHARGED
+		ATTACK_SPIN:
+			return DAMAGE_SPIN
 		_:
 			return DAMAGE_SLASH
 
