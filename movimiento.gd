@@ -3,13 +3,15 @@ extends CharacterBody2D
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
 const ATTACK_GROUND_CHARGED := 2
-const ATTACK_AIR_CHARGED := 3
+const ATTACK_HEAVY := 3
 const ATTACK_SPIN := 4
+const ATTACK_LIGHT_CHARGED_AIR := 5
 
 const DAMAGE_SLASH := 1
 const DAMAGE_GROUND_CHARGED := 3
-const DAMAGE_AIR_CHARGED := 2
+const DAMAGE_HEAVY := 2
 const DAMAGE_SPIN := 2
+const DAMAGE_LIGHT_CHARGED_AIR := 3
 
 @export var max_speed := 320.0
 @export var ground_acceleration := 2200.0
@@ -42,7 +44,8 @@ const DAMAGE_SPIN := 2
 @export var charged_air_drag := 1600.0
 @export var charged_air_gravity_multiplier := 1.18
 @export var charged_air_bounce_back_speed := 220.0
-@export var charged_air_bounce_up_speed := -180.0
+@export var heavy_bounce_vertical_ratio := 0.8
+@export var light_hit_stall_up_speed := -95.0
 @export var spin_attack_duration := 0.34
 @export var dash_speed := 760.0
 @export var dash_duration := 0.14
@@ -119,13 +122,16 @@ func _physics_process(delta: float) -> void:
 		air_jumps_remaining = max_air_jumps
 
 	if Input.is_action_just_pressed("jump"):
-		if attack_mode == ATTACK_GROUND_CHARGED:
+		if attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
 			_start_spin_attack()
 		else:
 			jump_buffer_timer = jump_buffer_time
 
 	if Input.is_action_just_pressed("attack"):
 		_begin_attack_charge()
+
+	if Input.is_action_just_pressed("heavy_attack"):
+		_start_heavy_attack()
 
 	if Input.is_action_just_pressed("respawn"):
 		_respawn_player()
@@ -149,8 +155,10 @@ func _physics_process(delta: float) -> void:
 		_apply_dash_movement()
 	elif attack_mode == ATTACK_GROUND_CHARGED:
 		_apply_ground_charged_movement()
-	elif attack_mode == ATTACK_AIR_CHARGED:
-		_apply_air_charged_movement(delta)
+	elif attack_mode == ATTACK_HEAVY:
+		_apply_heavy_attack_movement(delta)
+	elif attack_mode == ATTACK_LIGHT_CHARGED_AIR:
+		_apply_light_charged_air_movement()
 	elif attack_mode == ATTACK_SPIN:
 		_apply_spin_attack_movement(delta)
 	else:
@@ -165,10 +173,10 @@ func _physics_process(delta: float) -> void:
 	_update_wall_state()
 	_refresh_attack_hits()
 
-	if attack_mode == ATTACK_AIR_CHARGED and is_on_floor():
+	if attack_mode == ATTACK_HEAVY and is_on_floor():
 		_end_attack()
-	elif attack_mode == ATTACK_AIR_CHARGED and is_on_wall():
-		_bounce_out_of_air_charged_attack()
+	elif attack_mode == ATTACK_HEAVY and is_on_wall():
+		_bounce_out_of_heavy_attack()
 
 	if is_on_floor():
 		air_jumps_remaining = max_air_jumps
@@ -198,7 +206,7 @@ func _apply_gravity(delta: float) -> void:
 		return
 
 	var gravity_scale: float = fall_gravity_multiplier if velocity.y > 0.0 else 1.0
-	if attack_mode == ATTACK_AIR_CHARGED:
+	if attack_mode == ATTACK_HEAVY:
 		gravity_scale = charged_air_gravity_multiplier
 
 	var target_fall_speed: float = max_fall_speed
@@ -207,14 +215,14 @@ func _apply_gravity(delta: float) -> void:
 
 	velocity.y = min(velocity.y + gravity * gravity_scale * delta, target_fall_speed)
 
-	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_AIR_CHARGED:
+	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_HEAVY:
 		velocity.y = jump_cut_velocity
 
 func _consume_jump_buffer() -> void:
 	if jump_buffer_timer <= 0.0:
 		return
 
-	if dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_AIR_CHARGED or attack_mode == ATTACK_SPIN:
+	if dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
 		return
 
 	var can_ground_jump: bool = is_on_floor() or coyote_timer > 0.0
@@ -269,9 +277,13 @@ func _apply_ground_charged_movement() -> void:
 	velocity.x = facing * charged_ground_lunge_speed
 	velocity.y = 0.0
 
-func _apply_air_charged_movement(delta: float) -> void:
+func _apply_heavy_attack_movement(delta: float) -> void:
 	velocity.x = move_toward(velocity.x, facing * charged_air_forward_drift, charged_air_drag * delta)
 	_apply_gravity(delta)
+
+func _apply_light_charged_air_movement() -> void:
+	velocity.x = facing * charged_ground_lunge_speed
+	velocity.y = 0.0
 
 func _apply_spin_attack_movement(delta: float) -> void:
 	_apply_gravity(delta)
@@ -309,7 +321,7 @@ func _release_attack_charge(was_on_floor: bool, was_wall_sliding: bool) -> void:
 		elif was_wall_sliding:
 			_start_wall_spin_attack()
 		else:
-			_start_air_charged_attack()
+			_start_light_charged_air_attack()
 		return
 
 	if _is_attack_active():
@@ -341,8 +353,15 @@ func _start_ground_charged_attack() -> void:
 	_update_attack_animation()
 	_refresh_attack_hits()
 
-func _start_air_charged_attack() -> void:
-	attack_mode = ATTACK_AIR_CHARGED
+func _start_heavy_attack() -> void:
+	if is_on_floor() or dash_timer > 0.0 or _is_attack_active() or is_charging_attack or attack_cooldown_timer > 0.0:
+		return
+
+	if _is_wall_sliding():
+		facing = wall_contact_direction
+		_update_facing_visual()
+
+	attack_mode = ATTACK_HEAVY
 	attack_timer = 0.0
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
@@ -352,8 +371,19 @@ func _start_air_charged_attack() -> void:
 	_update_attack_animation()
 	_refresh_attack_hits()
 
+func _start_light_charged_air_attack() -> void:
+	attack_mode = ATTACK_LIGHT_CHARGED_AIR
+	attack_timer = charged_ground_duration
+	attack_cooldown_timer = charged_attack_cooldown
+	attack_targets_hit.clear()
+	velocity.x = facing * charged_ground_lunge_speed
+	velocity.y = 0.0
+	_set_attack_active(true)
+	_update_attack_animation()
+	_refresh_attack_hits()
+
 func _start_spin_attack() -> void:
-	if attack_mode != ATTACK_GROUND_CHARGED:
+	if attack_mode != ATTACK_GROUND_CHARGED and attack_mode != ATTACK_LIGHT_CHARGED_AIR:
 		return
 
 	attack_mode = ATTACK_SPIN
@@ -367,7 +397,7 @@ func _start_spin_attack() -> void:
 
 func _start_wall_spin_attack() -> void:
 	if wall_contact_direction == 0:
-		_start_air_charged_attack()
+		_start_heavy_attack()
 		return
 
 	attack_mode = ATTACK_SPIN
@@ -398,7 +428,7 @@ func _end_attack() -> void:
 	_set_attack_active(false)
 	_reset_attack_pose()
 
-	if ending_mode == ATTACK_GROUND_CHARGED:
+	if ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
 		velocity.x = facing * charged_ground_end_speed
 
 func _reset_attack_pose() -> void:
@@ -434,10 +464,12 @@ func _update_attack_animation() -> void:
 			_animate_normal_slash()
 		ATTACK_GROUND_CHARGED:
 			_animate_ground_charged_attack()
-		ATTACK_AIR_CHARGED:
-			_animate_air_charged_attack()
+		ATTACK_HEAVY:
+			_animate_heavy_attack()
 		ATTACK_SPIN:
 			_animate_spin_attack()
+		ATTACK_LIGHT_CHARGED_AIR:
+			_animate_light_charged_air_attack()
 
 func _animate_normal_slash() -> void:
 	var progress: float = 1.0 - (attack_timer / attack_duration)
@@ -457,9 +489,9 @@ func _animate_normal_slash() -> void:
 	slash_visual.scale = Vector2(slash_scale, slash_scale)
 	slash_area_visual.scale = Vector2(lerp(0.98, 1.04, progress), lerp(0.92, 1.08, progress))
 	slash_outline.scale = slash_area_visual.scale
-	slash_visual.color = Color(slash_base_color.r, slash_base_color.g, slash_base_color.b, alpha)
-	slash_area_visual.color = Color(slash_area_base_color.r, slash_area_base_color.g, slash_area_base_color.b, lerp(0.42, 0.16, progress))
-	slash_outline.default_color = Color(slash_outline_base_color.r, slash_outline_base_color.g, slash_outline_base_color.b, lerp(0.95, 0.35, progress))
+	slash_visual.color = Color(1.0, 0.95, 0.72, alpha)
+	slash_area_visual.color = Color(1.0, 0.82, 0.32, lerp(0.42, 0.16, progress))
+	slash_outline.default_color = Color(1.0, 0.94, 0.62, lerp(0.95, 0.35, progress))
 
 func _animate_ground_charged_attack() -> void:
 	var progress: float = 1.0 - (attack_timer / charged_ground_duration)
@@ -483,7 +515,7 @@ func _animate_ground_charged_attack() -> void:
 	slash_area_visual.color = Color(1.0, 0.72, 0.28, lerp(0.52, 0.24, progress))
 	slash_outline.default_color = Color(1.0, 0.93, 0.65, lerp(1.0, 0.45, progress))
 
-func _animate_air_charged_attack() -> void:
+func _animate_heavy_attack() -> void:
 	var fall_ratio: float = clamp(velocity.y / max_fall_speed, 0.0, 1.0)
 	var tilt: float = lerp(-0.18, 0.28, fall_ratio)
 	var pulse: float = 0.92 + 0.08 * sin(Time.get_ticks_msec() / 70.0)
@@ -503,6 +535,9 @@ func _animate_air_charged_attack() -> void:
 	slash_visual.color = Color(0.9, 0.97, 1.0, 0.88)
 	slash_area_visual.color = Color(0.4, 0.89, 1.0, 0.34)
 	slash_outline.default_color = Color(0.74, 0.98, 1.0, 0.82)
+
+func _animate_light_charged_air_attack() -> void:
+	_animate_ground_charged_attack()
 
 func _animate_spin_attack() -> void:
 	var progress: float = 1.0 - (attack_timer / spin_attack_duration)
@@ -544,8 +579,10 @@ func _hit_area(area: Area2D) -> void:
 	if area.has_method("take_hit"):
 		area.take_hit(global_position, facing, _get_attack_damage())
 
-	if attack_mode == ATTACK_AIR_CHARGED:
-		_bounce_out_of_air_charged_attack()
+	if attack_mode == ATTACK_HEAVY:
+		_bounce_out_of_heavy_attack()
+	elif attack_mode == ATTACK_SLASH and not is_on_floor():
+		_apply_light_hit_stall()
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
@@ -571,8 +608,8 @@ func _update_charge_visual() -> void:
 
 	charge_visual.scale = Vector2(glow_scale, glow_scale)
 	charge_outline.scale = charge_visual.scale
-	charge_visual.color = Color(lerp(0.5, 1.0, progress), lerp(0.76, 0.9, progress), lerp(1.0, 0.36, progress), alpha)
-	charge_outline.default_color = Color(1.0, lerp(0.95, 0.82, progress), lerp(1.0, 0.3, progress), outline_alpha)
+	charge_visual.color = Color(1.0, lerp(0.82, 0.96, progress), lerp(0.42, 0.22, progress), alpha)
+	charge_outline.default_color = Color(1.0, lerp(0.96, 0.9, progress), lerp(0.72, 0.4, progress), outline_alpha)
 
 func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
@@ -607,7 +644,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_AIR_CHARGED or attack_mode == ATTACK_SPIN
+	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -623,27 +660,32 @@ func _can_wall_jump() -> bool:
 	return wall_contact_direction != 0 and not is_on_floor()
 
 func _is_wall_sliding() -> bool:
-	return _can_wall_jump() and velocity.y > 0.0 and attack_mode != ATTACK_AIR_CHARGED and attack_mode != ATTACK_SPIN and dash_timer <= 0.0
+	return _can_wall_jump() and velocity.y > 0.0 and attack_mode != ATTACK_HEAVY and attack_mode != ATTACK_SPIN and attack_mode != ATTACK_LIGHT_CHARGED_AIR and dash_timer <= 0.0
 
 func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE
 
-func _bounce_out_of_air_charged_attack() -> void:
-	if attack_mode != ATTACK_AIR_CHARGED:
+func _bounce_out_of_heavy_attack() -> void:
+	if attack_mode != ATTACK_HEAVY:
 		return
 
 	_cancel_attack_for_chain()
 	velocity.x = -facing * charged_air_bounce_back_speed
-	velocity.y = charged_air_bounce_up_speed
+	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
+
+func _apply_light_hit_stall() -> void:
+	velocity.y = min(velocity.y, light_hit_stall_up_speed)
 
 func _get_attack_damage() -> int:
 	match attack_mode:
 		ATTACK_GROUND_CHARGED:
 			return DAMAGE_GROUND_CHARGED
-		ATTACK_AIR_CHARGED:
-			return DAMAGE_AIR_CHARGED
+		ATTACK_HEAVY:
+			return DAMAGE_HEAVY
 		ATTACK_SPIN:
 			return DAMAGE_SPIN
+		ATTACK_LIGHT_CHARGED_AIR:
+			return DAMAGE_LIGHT_CHARGED_AIR
 		_:
 			return DAMAGE_SLASH
 

@@ -63,7 +63,7 @@ position_smoothing_speed = 8.0
 [node name="ChargeVisual" type="Polygon2D" parent="."]
 visible = false
 position = Vector2(0, -14)
-color = Color(0.501961, 0.756863, 1, 0)
+color = Color(1, 0.866667, 0.380392, 0)
 polygon = PackedVector2Array(-18, -18, 18, -18, 18, 18, -18, 18)
 
 [node name="ChargeOutline" type="Line2D" parent="."]
