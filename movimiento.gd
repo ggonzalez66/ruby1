@@ -5,6 +5,10 @@ const ATTACK_SLASH := 1
 const ATTACK_GROUND_CHARGED := 2
 const ATTACK_AIR_CHARGED := 3
 
+const DAMAGE_SLASH := 1
+const DAMAGE_GROUND_CHARGED := 3
+const DAMAGE_AIR_CHARGED := 2
+
 @export var max_speed := 320.0
 @export var ground_acceleration := 2200.0
 @export var air_acceleration := 1400.0
@@ -413,7 +417,7 @@ func _hit_area(area: Area2D) -> void:
 	attack_targets_hit.append(area)
 
 	if area.has_method("take_hit"):
-		area.take_hit(global_position, facing)
+		area.take_hit(global_position, facing, _get_attack_damage())
 
 	if attack_mode == ATTACK_AIR_CHARGED:
 		_end_attack()
@@ -482,6 +486,15 @@ func _locks_facing() -> bool:
 
 func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE
+
+func _get_attack_damage() -> int:
+	match attack_mode:
+		ATTACK_GROUND_CHARGED:
+			return DAMAGE_GROUND_CHARGED
+		ATTACK_AIR_CHARGED:
+			return DAMAGE_AIR_CHARGED
+		_:
+			return DAMAGE_SLASH
 
 func _update_facing_visual() -> void:
 	pivot.scale.x = facing

@@ -23,3 +23,15 @@ polygon = PackedVector2Array(-14, -56, 14, -56, 14, 0, -14, 0)
 [node name="Stand" type="Polygon2D" parent="."]
 color = Color(0.411765, 0.223529, 0.12549, 1)
 polygon = PackedVector2Array(-22, 0, 22, 0, 14, 12, -14, 12)
+
+[node name="HealthBarPivot" type="Node2D" parent="."]
+position = Vector2(0, -68)
+
+[node name="HealthBarBack" type="Polygon2D" parent="HealthBarPivot"]
+visible = false
+color = Color(0.164706, 0.14902, 0.156863, 0.8)
+polygon = PackedVector2Array(-17, -4, 17, -4, 17, 4, -17, 4)
+
+[node name="HealthBarFill" type="Polygon2D" parent="HealthBarPivot"]
+color = Color(0.313726, 0.862745, 0.431373, 1)
+polygon = PackedVector2Array(-16, -3, 16, -3, 16, 3, -16, 3)
