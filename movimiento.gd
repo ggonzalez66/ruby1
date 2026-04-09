@@ -222,6 +222,7 @@ func _consume_jump_buffer() -> void:
 	if _can_wall_jump():
 		jump_buffer_timer = 0.0
 		coyote_timer = 0.0
+		air_jumps_remaining = max_air_jumps
 		velocity.x = wall_contact_direction * wall_jump_horizontal_speed
 		velocity.y = wall_jump_vertical_speed
 		facing = wall_contact_direction
