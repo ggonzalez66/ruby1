@@ -25,14 +25,13 @@ const DAMAGE_SPIN := 2
 @export var wall_slide_speed := 120.0
 @export var wall_jump_horizontal_speed := 440.0
 @export var wall_jump_vertical_speed := -560.0
-@export var wall_jump_control_lock_time := 0.14
+@export var wall_jump_control_lock_time := 0.07
 @export var coyote_time := 0.12
 @export var jump_buffer_time := 0.14
 @export var attack_duration := 0.16
 @export var attack_cooldown := 0.22
 @export var attack_move_multiplier := 0.7
 @export var attack_charge_time := 0.55
-@export var charge_move_multiplier := 0.58
 @export var charged_attack_cooldown := 0.5
 @export var charged_ground_duration := 0.22
 @export var charged_ground_lunge_speed := 980.0
@@ -85,6 +84,7 @@ var hitbox_base_position := Vector2.ZERO
 var slash_visual_base_position := Vector2.ZERO
 var slash_area_base_position := Vector2.ZERO
 var slash_outline_base_position := Vector2.ZERO
+var spawn_position := Vector2.ZERO
 
 func _ready() -> void:
 	floor_snap_length = 10.0
@@ -99,6 +99,7 @@ func _ready() -> void:
 	slash_visual_base_position = slash_visual.position
 	slash_area_base_position = slash_area_visual.position
 	slash_outline_base_position = slash_outline.position
+	spawn_position = global_position
 	hitbox.area_entered.connect(_on_hitbox_area_entered)
 	_update_facing_visual()
 	_set_attack_active(false)
@@ -121,6 +122,10 @@ func _physics_process(delta: float) -> void:
 
 	if Input.is_action_just_pressed("attack"):
 		_begin_attack_charge()
+
+	if Input.is_action_just_pressed("respawn"):
+		_respawn_player()
+		return
 
 	if is_charging_attack:
 		_update_attack_charge(delta)
@@ -238,8 +243,6 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	var control_multiplier: float = 1.0
 	if attack_mode == ATTACK_SLASH:
 		control_multiplier = attack_move_multiplier
-	elif is_charging_attack:
-		control_multiplier = charge_move_multiplier
 
 	var target_speed: float = move_input * max_speed * control_multiplier
 
@@ -613,3 +616,27 @@ func _update_facing_visual() -> void:
 	pivot.scale.x = facing
 	dash_visual.position.x = -10.0 * facing
 	dash_visual.scale.x = abs(dash_visual.scale.x) * facing
+
+func _respawn_player() -> void:
+	global_position = spawn_position
+	velocity = Vector2.ZERO
+	facing = 1
+	air_jumps_remaining = max_air_jumps
+	coyote_timer = 0.0
+	jump_buffer_timer = 0.0
+	attack_timer = 0.0
+	attack_cooldown_timer = 0.0
+	charge_timer = 0.0
+	dash_timer = 0.0
+	dash_cooldown_timer = 0.0
+	dash_direction = 1
+	wall_jump_lock_timer = 0.0
+	wall_contact_direction = 0
+	attack_mode = ATTACK_NONE
+	is_charging_attack = false
+	attack_targets_hit.clear()
+	_set_attack_active(false)
+	_set_charge_visual_active(false)
+	_set_dash_visual_active(false)
+	_reset_attack_pose()
+	_update_facing_visual()
