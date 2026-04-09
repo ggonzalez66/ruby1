@@ -22,6 +22,10 @@ const DAMAGE_SPIN := 2
 @export var gravity := 1500.0
 @export var fall_gravity_multiplier := 1.45
 @export var max_fall_speed := 980.0
+@export var wall_slide_speed := 120.0
+@export var wall_jump_horizontal_speed := 440.0
+@export var wall_jump_vertical_speed := -560.0
+@export var wall_jump_control_lock_time := 0.14
 @export var coyote_time := 0.12
 @export var jump_buffer_time := 0.14
 @export var attack_duration := 0.16
@@ -64,6 +68,8 @@ var charge_timer := 0.0
 var dash_timer := 0.0
 var dash_cooldown_timer := 0.0
 var dash_direction := 1
+var wall_jump_lock_timer := 0.0
+var wall_contact_direction := 0
 var attack_mode := ATTACK_NONE
 var is_charging_attack := false
 var attack_targets_hit: Array[Area2D] = []
@@ -147,6 +153,7 @@ func _physics_process(delta: float) -> void:
 	_update_charge_visual()
 	_update_dash_visual()
 	move_and_slide()
+	_update_wall_state()
 	_refresh_attack_hits()
 
 	if attack_mode == ATTACK_AIR_CHARGED and is_on_floor():
@@ -162,6 +169,7 @@ func _update_timers(delta: float) -> void:
 	jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
 	attack_cooldown_timer = max(attack_cooldown_timer - delta, 0.0)
 	dash_cooldown_timer = max(dash_cooldown_timer - delta, 0.0)
+	wall_jump_lock_timer = max(wall_jump_lock_timer - delta, 0.0)
 
 	if attack_timer > 0.0:
 		attack_timer = max(attack_timer - delta, 0.0)
@@ -182,7 +190,11 @@ func _apply_gravity(delta: float) -> void:
 	if attack_mode == ATTACK_AIR_CHARGED:
 		gravity_scale = charged_air_gravity_multiplier
 
-	velocity.y = min(velocity.y + gravity * gravity_scale * delta, max_fall_speed)
+	var target_fall_speed: float = max_fall_speed
+	if _is_wall_sliding():
+		target_fall_speed = wall_slide_speed
+
+	velocity.y = min(velocity.y + gravity * gravity_scale * delta, target_fall_speed)
 
 	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_AIR_CHARGED:
 		velocity.y = jump_cut_velocity
@@ -198,7 +210,18 @@ func _consume_jump_buffer() -> void:
 	if can_ground_jump:
 		jump_buffer_timer = 0.0
 		coyote_timer = 0.0
+		wall_contact_direction = 0
 		velocity.y = jump_velocity
+		return
+
+	if _can_wall_jump():
+		jump_buffer_timer = 0.0
+		coyote_timer = 0.0
+		velocity.x = wall_contact_direction * wall_jump_horizontal_speed
+		velocity.y = wall_jump_vertical_speed
+		facing = wall_contact_direction
+		wall_jump_lock_timer = wall_jump_control_lock_time
+		_update_facing_visual()
 		return
 
 	if air_jumps_remaining <= 0:
@@ -209,6 +232,9 @@ func _consume_jump_buffer() -> void:
 	velocity.y = jump_velocity
 
 func _apply_horizontal_movement(move_input: float, delta: float) -> void:
+	if wall_jump_lock_timer > 0.0 and not is_on_floor():
+		return
+
 	var control_multiplier: float = 1.0
 	if attack_mode == ATTACK_SLASH:
 		control_multiplier = attack_move_multiplier
@@ -241,11 +267,12 @@ func _apply_spin_attack_movement(delta: float) -> void:
 	_apply_gravity(delta)
 
 func _begin_attack_charge() -> void:
-	if is_charging_attack or _is_attack_active() or dash_timer > 0.0 or attack_cooldown_timer > 0.0:
+	if is_charging_attack or dash_timer > 0.0 or (attack_cooldown_timer > 0.0 and not _is_attack_active()):
 		return
 
 	is_charging_attack = true
-	charge_timer = 0.0
+	if charge_timer <= 0.0:
+		charge_timer = 0.0
 	_set_charge_visual_active(true)
 	_update_charge_visual()
 
@@ -264,10 +291,17 @@ func _release_attack_charge(was_on_floor: bool) -> void:
 	charge_timer = 0.0
 
 	if fully_charged:
+		if _is_attack_active():
+			_cancel_attack_for_chain()
+
 		if was_on_floor:
 			_start_ground_charged_attack()
 		else:
 			_start_air_charged_attack()
+		return
+
+	if _is_attack_active():
+		charge_timer = 0.0
 		return
 
 	_start_attack()
@@ -318,6 +352,13 @@ func _start_spin_attack() -> void:
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
+
+func _cancel_attack_for_chain() -> void:
+	attack_mode = ATTACK_NONE
+	attack_timer = 0.0
+	attack_targets_hit.clear()
+	_set_attack_active(false)
+	_reset_attack_pose()
 
 func _end_attack() -> void:
 	var ending_mode: int = attack_mode
@@ -537,6 +578,22 @@ func _update_dash_visual() -> void:
 
 func _locks_facing() -> bool:
 	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_AIR_CHARGED or attack_mode == ATTACK_SPIN
+
+func _update_wall_state() -> void:
+	if is_on_floor():
+		wall_contact_direction = 0
+		return
+
+	if is_on_wall():
+		wall_contact_direction = int(sign(get_wall_normal().x))
+	else:
+		wall_contact_direction = 0
+
+func _can_wall_jump() -> bool:
+	return wall_contact_direction != 0 and not is_on_floor()
+
+func _is_wall_sliding() -> bool:
+	return _can_wall_jump() and velocity.y > 0.0 and attack_mode != ATTACK_AIR_CHARGED and attack_mode != ATTACK_SPIN and dash_timer <= 0.0
 
 func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE

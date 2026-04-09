@@ -18,6 +18,12 @@ size = Vector2(48, 220)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_block"]
 size = Vector2(100, 100)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_vertical"]
+size = Vector2(60, 2200)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_horizontal"]
+size = Vector2(3800, 60)
+
 [node name="Main" type="Node2D"]
 
 [node name="Background" type="Polygon2D" parent="."]
@@ -127,6 +133,50 @@ shape = SubResource("RectangleShape2D_block")
 [node name="Visual" type="Polygon2D" parent="FinalBlock"]
 color = Color(0.611765, 0.301961, 0.188235, 1)
 polygon = PackedVector2Array(-50, -50, 50, -50, 50, 50, -50, 50)
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-1200, 390)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryLeft"]
+shape = SubResource("RectangleShape2D_boundary_vertical")
+
+[node name="Visual" type="Polygon2D" parent="BoundaryLeft"]
+color = Color(0.54902, 0.258824, 0.172549, 1)
+polygon = PackedVector2Array(-30, -1100, 30, -1100, 30, 1100, -30, 1100)
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(2320, 390)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryRight"]
+shape = SubResource("RectangleShape2D_boundary_vertical")
+
+[node name="Visual" type="Polygon2D" parent="BoundaryRight"]
+color = Color(0.54902, 0.258824, 0.172549, 1)
+polygon = PackedVector2Array(-30, -1100, 30, -1100, 30, 1100, -30, 1100)
+
+[node name="BoundaryTop" type="StaticBody2D" parent="."]
+position = Vector2(560, -820)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryTop"]
+shape = SubResource("RectangleShape2D_boundary_horizontal")
+
+[node name="Visual" type="Polygon2D" parent="BoundaryTop"]
+color = Color(0.54902, 0.258824, 0.172549, 1)
+polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
+
+[node name="BoundaryBottom" type="StaticBody2D" parent="."]
+position = Vector2(560, 1320)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottom"]
+shape = SubResource("RectangleShape2D_boundary_horizontal")
+
+[node name="Visual" type="Polygon2D" parent="BoundaryBottom"]
+color = Color(0.54902, 0.258824, 0.172549, 1)
+polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
 
 [node name="Playerr" parent="." instance=ExtResource("1_41u7p")]
 position = Vector2(-620, 220)
