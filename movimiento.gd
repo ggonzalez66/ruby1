@@ -41,6 +41,8 @@ const DAMAGE_SPIN := 2
 @export var charged_air_forward_drift := 520.0
 @export var charged_air_drag := 1600.0
 @export var charged_air_gravity_multiplier := 1.18
+@export var charged_air_bounce_back_speed := 220.0
+@export var charged_air_bounce_up_speed := -180.0
 @export var spin_attack_duration := 0.34
 @export var dash_speed := 760.0
 @export var dash_duration := 0.14
@@ -108,6 +110,8 @@ func _ready() -> void:
 
 func _physics_process(delta: float) -> void:
 	var was_on_floor: bool = is_on_floor()
+	_update_wall_state()
+	var was_wall_sliding: bool = _is_wall_sliding()
 	_update_timers(delta)
 
 	if was_on_floor:
@@ -130,7 +134,7 @@ func _physics_process(delta: float) -> void:
 	if is_charging_attack:
 		_update_attack_charge(delta)
 		if Input.is_action_just_released("attack"):
-			_release_attack_charge(was_on_floor)
+			_release_attack_charge(was_on_floor, was_wall_sliding)
 
 	if Input.is_action_just_pressed("dash"):
 		_start_dash()
@@ -163,6 +167,8 @@ func _physics_process(delta: float) -> void:
 
 	if attack_mode == ATTACK_AIR_CHARGED and is_on_floor():
 		_end_attack()
+	elif attack_mode == ATTACK_AIR_CHARGED and is_on_wall():
+		_bounce_out_of_air_charged_attack()
 
 	if is_on_floor():
 		air_jumps_remaining = max_air_jumps
@@ -283,7 +289,7 @@ func _begin_attack_charge() -> void:
 func _update_attack_charge(delta: float) -> void:
 	charge_timer = min(charge_timer + delta, attack_charge_time)
 
-func _release_attack_charge(was_on_floor: bool) -> void:
+func _release_attack_charge(was_on_floor: bool, was_wall_sliding: bool) -> void:
 	is_charging_attack = false
 	_set_charge_visual_active(false)
 
@@ -300,6 +306,8 @@ func _release_attack_charge(was_on_floor: bool) -> void:
 
 		if was_on_floor:
 			_start_ground_charged_attack()
+		elif was_wall_sliding:
+			_start_wall_spin_attack()
 		else:
 			_start_air_charged_attack()
 		return
@@ -354,6 +362,24 @@ func _start_spin_attack() -> void:
 	velocity.x = max(abs(velocity.x), charged_ground_lunge_speed) * facing
 	velocity.y = charged_ground_jump_cancel_velocity
 	_set_attack_active(true)
+	_update_attack_animation()
+	_refresh_attack_hits()
+
+func _start_wall_spin_attack() -> void:
+	if wall_contact_direction == 0:
+		_start_air_charged_attack()
+		return
+
+	attack_mode = ATTACK_SPIN
+	attack_timer = spin_attack_duration
+	attack_cooldown_timer = charged_attack_cooldown
+	attack_targets_hit.clear()
+	facing = wall_contact_direction
+	velocity.x = charged_ground_lunge_speed * facing
+	velocity.y = charged_ground_jump_cancel_velocity
+	wall_jump_lock_timer = wall_jump_control_lock_time
+	_set_attack_active(true)
+	_update_facing_visual()
 	_update_attack_animation()
 	_refresh_attack_hits()
 
@@ -519,7 +545,7 @@ func _hit_area(area: Area2D) -> void:
 		area.take_hit(global_position, facing, _get_attack_damage())
 
 	if attack_mode == ATTACK_AIR_CHARGED:
-		_end_attack()
+		_bounce_out_of_air_charged_attack()
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
@@ -601,6 +627,14 @@ func _is_wall_sliding() -> bool:
 
 func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE
+
+func _bounce_out_of_air_charged_attack() -> void:
+	if attack_mode != ATTACK_AIR_CHARGED:
+		return
+
+	_cancel_attack_for_chain()
+	velocity.x = -facing * charged_air_bounce_back_speed
+	velocity.y = charged_air_bounce_up_speed
 
 func _get_attack_damage() -> int:
 	match attack_mode:
