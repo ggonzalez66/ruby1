@@ -39,10 +39,11 @@ const DAMAGE_LIGHT_CHARGED_AIR := 3
 @export var charged_ground_lunge_speed := 980.0
 @export var charged_ground_end_speed := 260.0
 @export var charged_ground_jump_cancel_velocity := -540.0
-@export var charged_air_forward_speed := 760.0
-@export var charged_air_forward_drift := 520.0
+@export var charged_air_forward_speed := 430.0
+@export var charged_air_forward_drift := 250.0
 @export var charged_air_drag := 1600.0
 @export var charged_air_gravity_multiplier := 1.18
+@export var heavy_attack_start_upward_speed := -150.0
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
 @export var light_hit_stall_up_speed := -95.0
@@ -366,7 +367,7 @@ func _start_heavy_attack() -> void:
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
 	velocity.x = facing * charged_air_forward_speed
-	velocity.y = 0.0
+	velocity.y = heavy_attack_start_upward_speed
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
@@ -517,24 +518,24 @@ func _animate_ground_charged_attack() -> void:
 
 func _animate_heavy_attack() -> void:
 	var fall_ratio: float = clamp(velocity.y / max_fall_speed, 0.0, 1.0)
-	var tilt: float = lerp(-0.18, 0.28, fall_ratio)
-	var pulse: float = 0.92 + 0.08 * sin(Time.get_ticks_msec() / 70.0)
+	var tilt: float = lerp(-0.75, 0.8, fall_ratio)
+	var pulse: float = 0.96 + 0.05 * sin(Time.get_ticks_msec() / 70.0)
 
-	hitbox_shape.position = Vector2(hitbox_base_position.x + 14.0, hitbox_base_position.y + 2.0)
-	hitbox_shape.scale = Vector2(2.0, 1.35)
-	slash_visual.position = slash_visual_base_position + Vector2(14.0, 2.0)
-	slash_area_visual.position = slash_area_base_position + Vector2(16.0, 2.0)
-	slash_outline.position = slash_outline_base_position + Vector2(16.0, 2.0)
+	hitbox_shape.position = Vector2(hitbox_base_position.x + 6.0, hitbox_base_position.y + 14.0)
+	hitbox_shape.scale = Vector2(1.15, 2.05)
+	slash_visual.position = slash_visual_base_position + Vector2(7.0, 16.0)
+	slash_area_visual.position = slash_area_base_position + Vector2(8.0, 18.0)
+	slash_outline.position = slash_outline_base_position + Vector2(8.0, 18.0)
 	hitbox.rotation = tilt
 	slash_visual.rotation = tilt
 	slash_area_visual.rotation = tilt
 	slash_outline.rotation = tilt
-	slash_visual.scale = Vector2(1.7 * pulse, 1.15 * pulse)
-	slash_area_visual.scale = Vector2(1.95, 1.32)
+	slash_visual.scale = Vector2(1.1 * pulse, 1.85 * pulse)
+	slash_area_visual.scale = Vector2(1.2, 2.2)
 	slash_outline.scale = slash_area_visual.scale
-	slash_visual.color = Color(0.9, 0.97, 1.0, 0.88)
-	slash_area_visual.color = Color(0.4, 0.89, 1.0, 0.34)
-	slash_outline.default_color = Color(0.74, 0.98, 1.0, 0.82)
+	slash_visual.color = Color(0.88, 0.96, 1.0, 0.92)
+	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)
+	slash_outline.default_color = Color(0.7, 0.97, 1.0, 0.9)
 
 func _animate_light_charged_air_attack() -> void:
 	_animate_ground_charged_attack()
