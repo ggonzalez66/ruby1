@@ -39,15 +39,15 @@ const DAMAGE_LIGHT_CHARGED_AIR := 3
 @export var charged_ground_lunge_speed := 980.0
 @export var charged_ground_end_speed := 260.0
 @export var charged_ground_jump_cancel_velocity := -540.0
-@export var charged_air_forward_speed := 430.0
-@export var charged_air_forward_drift := 250.0
-@export var charged_air_drag := 1600.0
-@export var heavy_attack_rise_gravity_multiplier := 1.0
+@export var charged_air_forward_speed := 170.0
+@export var charged_air_forward_drift := 140.0
+@export var charged_air_drag := 900.0
+@export var heavy_attack_rise_gravity_multiplier := 1.2
 @export var heavy_attack_fall_gravity_multiplier := 2.35
 @export var heavy_attack_max_fall_speed := 1320.0
 @export var heavy_attack_start_upward_speed := -330.0
-@export var heavy_attack_arc_radius_x := 24.0
-@export var heavy_attack_arc_radius_y := 36.0
+@export var heavy_attack_arc_radius_x := 28.0
+@export var heavy_attack_arc_radius_y := 42.0
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
 @export var light_hit_stall_up_speed := -95.0
@@ -285,7 +285,10 @@ func _apply_ground_charged_movement() -> void:
 	velocity.y = 0.0
 
 func _apply_heavy_attack_movement(delta: float) -> void:
-	velocity.x = move_toward(velocity.x, facing * charged_air_forward_drift, charged_air_drag * delta)
+	var forward_drift_speed := facing * charged_air_forward_drift
+	var is_moving_forward: bool = sign(velocity.x) == facing or is_zero_approx(velocity.x)
+	if not is_moving_forward or abs(velocity.x) < abs(forward_drift_speed):
+		velocity.x = move_toward(velocity.x, forward_drift_speed, charged_air_drag * delta)
 	_apply_gravity(delta)
 
 func _apply_light_charged_air_movement() -> void:
@@ -372,7 +375,7 @@ func _start_heavy_attack() -> void:
 	attack_timer = 0.0
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
-	velocity.x = facing * charged_air_forward_speed
+	velocity.x += facing * charged_air_forward_speed
 	velocity.y = heavy_attack_start_upward_speed
 	_set_attack_active(true)
 	_update_attack_animation()
@@ -528,22 +531,22 @@ func _animate_heavy_attack() -> void:
 		0.0,
 		1.0
 	)
-	var arc_angle: float = lerp(-1.68, 0.92, arc_progress)
+	var arc_angle: float = lerp(-1.58, 0.98, arc_progress)
 	var arc_offset := Vector2(cos(arc_angle) * heavy_attack_arc_radius_x, sin(arc_angle) * heavy_attack_arc_radius_y)
 	var blade_rotation: float = arc_angle + 1.08
 	var pulse: float = 0.96 + 0.05 * sin(Time.get_ticks_msec() / 70.0)
 
-	hitbox_shape.position = Vector2(2.0, 2.0) + arc_offset
-	hitbox_shape.scale = Vector2(0.95, 2.35)
-	slash_visual.position = Vector2(2.0, 4.0) + arc_offset
-	slash_area_visual.position = Vector2(3.0, 6.0) + arc_offset
-	slash_outline.position = Vector2(3.0, 6.0) + arc_offset
+	hitbox_shape.position = Vector2(4.0, 4.0) + arc_offset
+	hitbox_shape.scale = Vector2(1.08, 2.58)
+	slash_visual.position = Vector2(4.0, 6.0) + arc_offset
+	slash_area_visual.position = Vector2(5.0, 8.0) + arc_offset
+	slash_outline.position = Vector2(5.0, 8.0) + arc_offset
 	hitbox.rotation = blade_rotation
 	slash_visual.rotation = blade_rotation
 	slash_area_visual.rotation = blade_rotation
 	slash_outline.rotation = blade_rotation
-	slash_visual.scale = Vector2(0.95 * pulse, 2.05 * pulse)
-	slash_area_visual.scale = Vector2(1.05, 2.45)
+	slash_visual.scale = Vector2(1.05 * pulse, 2.2 * pulse)
+	slash_area_visual.scale = Vector2(1.16, 2.68)
 	slash_outline.scale = slash_area_visual.scale
 	slash_visual.color = Color(0.88, 0.96, 1.0, 0.92)
 	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)
