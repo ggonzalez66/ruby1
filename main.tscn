@@ -24,6 +24,18 @@ size = Vector2(60, 2200)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_horizontal"]
 size = Vector2(3800, 60)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground_spawn"]
+size = Vector2(220, 80)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground_exit"]
+size = Vector2(360, 80)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_wall"]
+size = Vector2(42, 620)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_floor"]
+size = Vector2(210, 40)
+
 [node name="Main" type="Node2D"]
 
 [node name="Background" type="Polygon2D" parent="."]
@@ -35,16 +47,60 @@ position = Vector2(1280, -180)
 color = Color(0.980392, 0.752941, 0.321569, 0.9)
 polygon = PackedVector2Array(-70, -70, 70, -70, 70, 70, -70, 70)
 
-[node name="GroundWest" type="StaticBody2D" parent="."]
-position = Vector2(-320, 300)
+[node name="GroundSpawn" type="StaticBody2D" parent="."]
+position = Vector2(-620, 300)
 collision_layer = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundWest"]
-shape = SubResource("RectangleShape2D_ground")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundSpawn"]
+shape = SubResource("RectangleShape2D_ground_spawn")
 
-[node name="Visual" type="Polygon2D" parent="GroundWest"]
+[node name="Visual" type="Polygon2D" parent="GroundSpawn"]
 color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
+polygon = PackedVector2Array(-110, -40, 110, -40, 110, 40, -110, 40)
+
+[node name="GroundPitExit" type="StaticBody2D" parent="."]
+position = Vector2(-120, 300)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundPitExit"]
+shape = SubResource("RectangleShape2D_ground_exit")
+
+[node name="Visual" type="Polygon2D" parent="GroundPitExit"]
+color = Color(0.701961, 0.352941, 0.239216, 1)
+polygon = PackedVector2Array(-180, -40, 180, -40, 180, 40, -180, 40)
+
+[node name="PitWallLeft" type="StaticBody2D" parent="."]
+position = Vector2(-510, 570)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallLeft"]
+shape = SubResource("RectangleShape2D_pit_wall")
+
+[node name="Visual" type="Polygon2D" parent="PitWallLeft"]
+color = Color(0.552941, 0.266667, 0.176471, 1)
+polygon = PackedVector2Array(-21, -310, 21, -310, 21, 310, -21, 310)
+
+[node name="PitWallRight" type="StaticBody2D" parent="."]
+position = Vector2(-300, 570)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallRight"]
+shape = SubResource("RectangleShape2D_pit_wall")
+
+[node name="Visual" type="Polygon2D" parent="PitWallRight"]
+color = Color(0.552941, 0.266667, 0.176471, 1)
+polygon = PackedVector2Array(-21, -310, 21, -310, 21, 310, -21, 310)
+
+[node name="PitFloor" type="StaticBody2D" parent="."]
+position = Vector2(-405, 920)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="PitFloor"]
+shape = SubResource("RectangleShape2D_pit_floor")
+
+[node name="Visual" type="Polygon2D" parent="PitFloor"]
+color = Color(0.611765, 0.301961, 0.188235, 1)
+polygon = PackedVector2Array(-105, -20, 105, -20, 105, 20, -105, 20)
 
 [node name="GroundEast" type="StaticBody2D" parent="."]
 position = Vector2(620, 300)
@@ -182,7 +238,7 @@ polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
 position = Vector2(-620, 220)
 
 [node name="DummyStart" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(-420, 260)
+position = Vector2(-170, 260)
 
 [node name="DummyBridge" parent="." instance=ExtResource("2_2ax5n")]
 position = Vector2(150, 178)
