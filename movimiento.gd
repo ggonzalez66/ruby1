@@ -45,7 +45,9 @@ const DAMAGE_LIGHT_CHARGED_AIR := 3
 @export var heavy_attack_rise_gravity_multiplier := 1.0
 @export var heavy_attack_fall_gravity_multiplier := 2.35
 @export var heavy_attack_max_fall_speed := 1320.0
-@export var heavy_attack_start_upward_speed := -245.0
+@export var heavy_attack_start_upward_speed := -330.0
+@export var heavy_attack_arc_radius_x := 24.0
+@export var heavy_attack_arc_radius_y := 36.0
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
 @export var light_hit_stall_up_speed := -95.0
@@ -521,21 +523,27 @@ func _animate_ground_charged_attack() -> void:
 	slash_outline.default_color = Color(1.0, 0.93, 0.65, lerp(1.0, 0.45, progress))
 
 func _animate_heavy_attack() -> void:
-	var fall_ratio: float = clamp(velocity.y / max_fall_speed, 0.0, 1.0)
-	var tilt: float = lerp(-0.75, 0.8, fall_ratio)
+	var arc_progress: float = clamp(
+		inverse_lerp(heavy_attack_start_upward_speed, heavy_attack_max_fall_speed * 0.55, velocity.y),
+		0.0,
+		1.0
+	)
+	var arc_angle: float = lerp(-1.68, 0.92, arc_progress)
+	var arc_offset := Vector2(cos(arc_angle) * heavy_attack_arc_radius_x, sin(arc_angle) * heavy_attack_arc_radius_y)
+	var blade_rotation: float = arc_angle + 1.08
 	var pulse: float = 0.96 + 0.05 * sin(Time.get_ticks_msec() / 70.0)
 
-	hitbox_shape.position = Vector2(hitbox_base_position.x + 6.0, hitbox_base_position.y + 14.0)
-	hitbox_shape.scale = Vector2(1.15, 2.05)
-	slash_visual.position = slash_visual_base_position + Vector2(7.0, 16.0)
-	slash_area_visual.position = slash_area_base_position + Vector2(8.0, 18.0)
-	slash_outline.position = slash_outline_base_position + Vector2(8.0, 18.0)
-	hitbox.rotation = tilt
-	slash_visual.rotation = tilt
-	slash_area_visual.rotation = tilt
-	slash_outline.rotation = tilt
-	slash_visual.scale = Vector2(1.1 * pulse, 1.85 * pulse)
-	slash_area_visual.scale = Vector2(1.2, 2.2)
+	hitbox_shape.position = Vector2(2.0, 2.0) + arc_offset
+	hitbox_shape.scale = Vector2(0.95, 2.35)
+	slash_visual.position = Vector2(2.0, 4.0) + arc_offset
+	slash_area_visual.position = Vector2(3.0, 6.0) + arc_offset
+	slash_outline.position = Vector2(3.0, 6.0) + arc_offset
+	hitbox.rotation = blade_rotation
+	slash_visual.rotation = blade_rotation
+	slash_area_visual.rotation = blade_rotation
+	slash_outline.rotation = blade_rotation
+	slash_visual.scale = Vector2(0.95 * pulse, 2.05 * pulse)
+	slash_area_visual.scale = Vector2(1.05, 2.45)
 	slash_outline.scale = slash_area_visual.scale
 	slash_visual.color = Color(0.88, 0.96, 1.0, 0.92)
 	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)

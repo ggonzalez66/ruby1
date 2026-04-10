@@ -24,6 +24,12 @@ size = Vector2(60, 2200)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_horizontal"]
 size = Vector2(3800, 60)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_bottom_left"]
+size = Vector2(620, 60)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_bottom_right"]
+size = Vector2(2910, 60)
+
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ground_spawn"]
 size = Vector2(220, 80)
 
@@ -209,16 +215,27 @@ shape = SubResource("RectangleShape2D_boundary_horizontal")
 color = Color(0.54902, 0.258824, 0.172549, 1)
 polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
 
-[node name="BoundaryBottom" type="StaticBody2D" parent="."]
-position = Vector2(560, 1320)
+[node name="BoundaryBottomLeft" type="StaticBody2D" parent="."]
+position = Vector2(-890, 1320)
 collision_layer = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottom"]
-shape = SubResource("RectangleShape2D_boundary_horizontal")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottomLeft"]
+shape = SubResource("RectangleShape2D_boundary_bottom_left")
 
-[node name="Visual" type="Polygon2D" parent="BoundaryBottom"]
+[node name="Visual" type="Polygon2D" parent="BoundaryBottomLeft"]
 color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
+polygon = PackedVector2Array(-310, -30, 310, -30, 310, 30, -310, 30)
+
+[node name="BoundaryBottomRight" type="StaticBody2D" parent="."]
+position = Vector2(965, 1320)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottomRight"]
+shape = SubResource("RectangleShape2D_boundary_bottom_right")
+
+[node name="Visual" type="Polygon2D" parent="BoundaryBottomRight"]
+color = Color(0.54902, 0.258824, 0.172549, 1)
+polygon = PackedVector2Array(-1455, -30, 1455, -30, 1455, 30, -1455, 30)
 
 [node name="Playerr" parent="." instance=ExtResource("1_41u7p")]
 position = Vector2(-620, 220)
