@@ -6,12 +6,16 @@ const ATTACK_GROUND_CHARGED := 2
 const ATTACK_HEAVY := 3
 const ATTACK_SPIN := 4
 const ATTACK_LIGHT_CHARGED_AIR := 5
+const ATTACK_HEAVY_GROUND := 6
+const ATTACK_UPPERCUT := 7
 
 const DAMAGE_SLASH := 1
 const DAMAGE_GROUND_CHARGED := 3
 const DAMAGE_HEAVY := 2
 const DAMAGE_SPIN := 2
 const DAMAGE_LIGHT_CHARGED_AIR := 3
+const DAMAGE_HEAVY_GROUND := 3
+const DAMAGE_UPPERCUT := 3
 
 @export var max_speed := 320.0
 @export var ground_acceleration := 2200.0
@@ -52,6 +56,14 @@ const DAMAGE_LIGHT_CHARGED_AIR := 3
 @export var heavy_bounce_vertical_ratio := 0.8
 @export var light_hit_stall_up_speed := -95.0
 @export var spin_attack_duration := 0.34
+@export var spin_heavy_cancel_window := 0.12
+@export var light_uppercut_duration := 0.24
+@export var light_uppercut_velocity := -640.0
+@export var light_uppercut_forward_speed := 190.0
+@export var ground_heavy_duration := 0.14
+@export var ground_heavy_speed := 1240.0
+@export var ground_heavy_end_speed := 320.0
+@export var ground_heavy_reuse_cooldown := 1.0
 @export var dash_speed := 760.0
 @export var dash_duration := 0.14
 @export var dash_cooldown := 0.42
@@ -73,6 +85,7 @@ var coyote_timer := 0.0
 var jump_buffer_timer := 0.0
 var attack_timer := 0.0
 var attack_cooldown_timer := 0.0
+var ground_heavy_cooldown_timer := 0.0
 var charge_timer := 0.0
 var dash_timer := 0.0
 var dash_cooldown_timer := 0.0
@@ -81,6 +94,7 @@ var wall_jump_lock_timer := 0.0
 var wall_contact_direction := 0
 var attack_mode := ATTACK_NONE
 var is_charging_attack := false
+var air_uppercut_available := true
 var attack_targets_hit: Array[Area2D] = []
 
 var slash_base_color := Color(1.0, 1.0, 1.0, 0.0)
@@ -125,10 +139,13 @@ func _physics_process(delta: float) -> void:
 	if was_on_floor:
 		coyote_timer = coyote_time
 		air_jumps_remaining = max_air_jumps
+		air_uppercut_available = true
 
 	if Input.is_action_just_pressed("jump"):
 		if attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
 			_start_spin_attack()
+		elif _try_start_spin_jump_cancel():
+			pass
 		else:
 			jump_buffer_timer = jump_buffer_time
 
@@ -162,10 +179,14 @@ func _physics_process(delta: float) -> void:
 		_apply_ground_charged_movement()
 	elif attack_mode == ATTACK_HEAVY:
 		_apply_heavy_attack_movement(delta)
+	elif attack_mode == ATTACK_HEAVY_GROUND:
+		_apply_ground_heavy_movement()
 	elif attack_mode == ATTACK_LIGHT_CHARGED_AIR:
 		_apply_light_charged_air_movement()
 	elif attack_mode == ATTACK_SPIN:
 		_apply_spin_attack_movement(delta)
+	elif attack_mode == ATTACK_UPPERCUT:
+		_apply_uppercut_movement(delta)
 	else:
 		_apply_gravity(delta)
 		_consume_jump_buffer()
@@ -185,6 +206,7 @@ func _physics_process(delta: float) -> void:
 
 	if is_on_floor():
 		air_jumps_remaining = max_air_jumps
+		air_uppercut_available = true
 		if jump_buffer_timer > 0.0:
 			_consume_jump_buffer()
 
@@ -192,6 +214,7 @@ func _update_timers(delta: float) -> void:
 	coyote_timer = max(coyote_timer - delta, 0.0)
 	jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
 	attack_cooldown_timer = max(attack_cooldown_timer - delta, 0.0)
+	ground_heavy_cooldown_timer = max(ground_heavy_cooldown_timer - delta, 0.0)
 	dash_cooldown_timer = max(dash_cooldown_timer - delta, 0.0)
 	wall_jump_lock_timer = max(wall_jump_lock_timer - delta, 0.0)
 
@@ -229,7 +252,7 @@ func _consume_jump_buffer() -> void:
 	if jump_buffer_timer <= 0.0:
 		return
 
-	if dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
+	if dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT:
 		return
 
 	var can_ground_jump: bool = is_on_floor() or coyote_timer > 0.0
@@ -244,6 +267,7 @@ func _consume_jump_buffer() -> void:
 		jump_buffer_timer = 0.0
 		coyote_timer = 0.0
 		air_jumps_remaining = max_air_jumps
+		air_uppercut_available = true
 		velocity.x = wall_contact_direction * wall_jump_horizontal_speed
 		velocity.y = wall_jump_vertical_speed
 		facing = wall_contact_direction
@@ -291,11 +315,22 @@ func _apply_heavy_attack_movement(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, forward_drift_speed, charged_air_drag * delta)
 	_apply_gravity(delta)
 
+func _apply_ground_heavy_movement() -> void:
+	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
+	velocity.y = 0.0
+
 func _apply_light_charged_air_movement() -> void:
 	velocity.x = facing * charged_ground_lunge_speed
 	velocity.y = 0.0
 
 func _apply_spin_attack_movement(delta: float) -> void:
+	_apply_gravity(delta)
+
+func _apply_uppercut_movement(delta: float) -> void:
+	var forward_speed := facing * light_uppercut_forward_speed
+	var is_moving_forward: bool = sign(velocity.x) == facing or is_zero_approx(velocity.x)
+	if not is_moving_forward or abs(velocity.x) < abs(forward_speed):
+		velocity.x = move_toward(velocity.x, forward_speed, air_acceleration * delta)
 	_apply_gravity(delta)
 
 func _begin_attack_charge() -> void:
@@ -326,10 +361,17 @@ func _release_attack_charge(was_on_floor: bool, was_wall_sliding: bool) -> void:
 		if _is_attack_active():
 			_cancel_attack_for_chain()
 
-		if was_on_floor:
-			_start_ground_charged_attack()
-		elif was_wall_sliding:
+		if was_wall_sliding:
 			_start_wall_spin_attack()
+		elif _wants_uppercut_attack():
+			if was_on_floor or _can_start_air_uppercut():
+				_start_uppercut_attack(not was_on_floor)
+			elif was_on_floor:
+				_start_ground_charged_attack()
+			else:
+				_start_light_charged_air_attack()
+		elif was_on_floor:
+			_start_ground_charged_attack()
 		else:
 			_start_light_charged_air_attack()
 		return
@@ -364,7 +406,17 @@ func _start_ground_charged_attack() -> void:
 	_refresh_attack_hits()
 
 func _start_heavy_attack() -> void:
-	if is_on_floor() or dash_timer > 0.0 or _is_attack_active() or is_charging_attack or attack_cooldown_timer > 0.0:
+	var canceling_from_spin: bool = attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window
+	if dash_timer > 0.0 or is_charging_attack:
+		return
+
+	if canceling_from_spin:
+		_cancel_attack_for_chain()
+	elif _is_attack_active() or attack_cooldown_timer > 0.0:
+		return
+
+	if is_on_floor():
+		_start_ground_heavy_attack()
 		return
 
 	if _is_wall_sliding():
@@ -381,6 +433,21 @@ func _start_heavy_attack() -> void:
 	_update_attack_animation()
 	_refresh_attack_hits()
 
+func _start_ground_heavy_attack() -> void:
+	if ground_heavy_cooldown_timer > 0.0:
+		return
+
+	attack_mode = ATTACK_HEAVY_GROUND
+	attack_timer = ground_heavy_duration
+	attack_cooldown_timer = attack_cooldown
+	ground_heavy_cooldown_timer = ground_heavy_reuse_cooldown
+	attack_targets_hit.clear()
+	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
+	velocity.y = 0.0
+	_set_attack_active(true)
+	_update_attack_animation()
+	_refresh_attack_hits()
+
 func _start_light_charged_air_attack() -> void:
 	attack_mode = ATTACK_LIGHT_CHARGED_AIR
 	attack_timer = charged_ground_duration
@@ -388,6 +455,20 @@ func _start_light_charged_air_attack() -> void:
 	attack_targets_hit.clear()
 	velocity.x = facing * charged_ground_lunge_speed
 	velocity.y = 0.0
+	_set_attack_active(true)
+	_update_attack_animation()
+	_refresh_attack_hits()
+
+func _start_uppercut_attack(from_air: bool) -> void:
+	attack_mode = ATTACK_UPPERCUT
+	attack_timer = light_uppercut_duration
+	attack_cooldown_timer = charged_attack_cooldown
+	attack_targets_hit.clear()
+	if from_air:
+		air_jumps_remaining = max(air_jumps_remaining - 1, 0)
+		air_uppercut_available = false
+	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
+	velocity.y = light_uppercut_velocity
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
@@ -414,6 +495,8 @@ func _start_wall_spin_attack() -> void:
 	attack_timer = spin_attack_duration
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
+	air_jumps_remaining = max_air_jumps
+	air_uppercut_available = true
 	facing = wall_contact_direction
 	velocity.x = charged_ground_lunge_speed * facing
 	velocity.y = charged_ground_jump_cancel_velocity
@@ -440,6 +523,8 @@ func _end_attack() -> void:
 
 	if ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
 		velocity.x = facing * charged_ground_end_speed
+	elif ending_mode == ATTACK_HEAVY_GROUND:
+		velocity.x = facing * ground_heavy_end_speed
 
 func _reset_attack_pose() -> void:
 	hitbox.rotation = 0.0
@@ -476,10 +561,14 @@ func _update_attack_animation() -> void:
 			_animate_ground_charged_attack()
 		ATTACK_HEAVY:
 			_animate_heavy_attack()
+		ATTACK_HEAVY_GROUND:
+			_animate_ground_heavy_attack()
 		ATTACK_SPIN:
 			_animate_spin_attack()
 		ATTACK_LIGHT_CHARGED_AIR:
 			_animate_light_charged_air_attack()
+		ATTACK_UPPERCUT:
+			_animate_uppercut_attack()
 
 func _animate_normal_slash() -> void:
 	var progress: float = 1.0 - (attack_timer / attack_duration)
@@ -552,6 +641,27 @@ func _animate_heavy_attack() -> void:
 	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)
 	slash_outline.default_color = Color(0.7, 0.97, 1.0, 0.9)
 
+func _animate_ground_heavy_attack() -> void:
+	var progress: float = 1.0 - (attack_timer / ground_heavy_duration)
+	var drive_angle: float = lerp(-0.16, 0.08, progress)
+	var stretch: float = lerp(1.35, 1.05, progress)
+
+	hitbox_shape.position = Vector2(hitbox_base_position.x + 24.0, hitbox_base_position.y + 2.0)
+	hitbox_shape.scale = Vector2(2.65, 1.18)
+	slash_visual.position = slash_visual_base_position + Vector2(28.0, 2.0)
+	slash_area_visual.position = slash_area_base_position + Vector2(30.0, 2.0)
+	slash_outline.position = slash_outline_base_position + Vector2(30.0, 2.0)
+	hitbox.rotation = drive_angle
+	slash_visual.rotation = drive_angle
+	slash_area_visual.rotation = drive_angle
+	slash_outline.rotation = drive_angle
+	slash_visual.scale = Vector2(2.1 * stretch, 1.0)
+	slash_area_visual.scale = Vector2(2.45, 1.16)
+	slash_outline.scale = slash_area_visual.scale
+	slash_visual.color = Color(0.88, 0.96, 1.0, 0.98)
+	slash_area_visual.color = Color(0.3, 0.84, 1.0, 0.42)
+	slash_outline.default_color = Color(0.74, 0.98, 1.0, 0.95)
+
 func _animate_light_charged_air_attack() -> void:
 	_animate_ground_charged_attack()
 
@@ -575,6 +685,28 @@ func _animate_spin_attack() -> void:
 	slash_visual.color = Color(0.98, 0.95, 1.0, 0.82)
 	slash_area_visual.color = Color(1.0, 0.84, 0.36, 0.3)
 	slash_outline.default_color = Color(1.0, 0.97, 0.78, 0.92)
+
+func _animate_uppercut_attack() -> void:
+	var progress: float = 1.0 - (attack_timer / light_uppercut_duration)
+	var arc_angle: float = lerp(-0.35, -1.6, progress)
+	var vertical_offset: float = lerp(2.0, -30.0, progress)
+	var pulse: float = 1.0 + 0.08 * sin(progress * PI * 3.0)
+
+	hitbox_shape.position = Vector2(8.0, vertical_offset)
+	hitbox_shape.scale = Vector2(1.4, 2.45)
+	slash_visual.position = Vector2(10.0, vertical_offset - 2.0)
+	slash_area_visual.position = Vector2(12.0, vertical_offset - 2.0)
+	slash_outline.position = Vector2(12.0, vertical_offset - 2.0)
+	hitbox.rotation = arc_angle
+	slash_visual.rotation = arc_angle
+	slash_area_visual.rotation = arc_angle
+	slash_outline.rotation = arc_angle
+	slash_visual.scale = Vector2(1.15 * pulse, 2.05 * pulse)
+	slash_area_visual.scale = Vector2(1.38, 2.4)
+	slash_outline.scale = slash_area_visual.scale
+	slash_visual.color = Color(1.0, 0.94, 0.72, 0.96)
+	slash_area_visual.color = Color(1.0, 0.8, 0.24, 0.36)
+	slash_outline.default_color = Color(1.0, 0.96, 0.72, 0.95)
 
 func _refresh_attack_hits() -> void:
 	if not _is_attack_active():
@@ -660,7 +792,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR
+	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -676,7 +808,7 @@ func _can_wall_jump() -> bool:
 	return wall_contact_direction != 0 and not is_on_floor()
 
 func _is_wall_sliding() -> bool:
-	return _can_wall_jump() and velocity.y > 0.0 and attack_mode != ATTACK_HEAVY and attack_mode != ATTACK_SPIN and attack_mode != ATTACK_LIGHT_CHARGED_AIR and dash_timer <= 0.0
+	return _can_wall_jump() and velocity.y > 0.0 and attack_mode != ATTACK_HEAVY and attack_mode != ATTACK_SPIN and attack_mode != ATTACK_LIGHT_CHARGED_AIR and attack_mode != ATTACK_UPPERCUT and dash_timer <= 0.0
 
 func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE
@@ -698,10 +830,14 @@ func _get_attack_damage() -> int:
 			return DAMAGE_GROUND_CHARGED
 		ATTACK_HEAVY:
 			return DAMAGE_HEAVY
+		ATTACK_HEAVY_GROUND:
+			return DAMAGE_HEAVY_GROUND
 		ATTACK_SPIN:
 			return DAMAGE_SPIN
 		ATTACK_LIGHT_CHARGED_AIR:
 			return DAMAGE_LIGHT_CHARGED_AIR
+		ATTACK_UPPERCUT:
+			return DAMAGE_UPPERCUT
 		_:
 			return DAMAGE_SLASH
 
@@ -709,6 +845,21 @@ func _update_facing_visual() -> void:
 	pivot.scale.x = facing
 	dash_visual.position.x = -10.0 * facing
 	dash_visual.scale.x = abs(dash_visual.scale.x) * facing
+
+func _try_start_spin_jump_cancel() -> bool:
+	if attack_mode != ATTACK_SPIN or is_on_floor() or air_jumps_remaining <= 0:
+		return false
+
+	_cancel_attack_for_chain()
+	air_jumps_remaining -= 1
+	velocity.y = jump_velocity
+	return true
+
+func _wants_uppercut_attack() -> bool:
+	return Input.is_action_pressed("move_up")
+
+func _can_start_air_uppercut() -> bool:
+	return air_uppercut_available and air_jumps_remaining > 0
 
 func _respawn_player() -> void:
 	global_position = spawn_position
@@ -719,6 +870,7 @@ func _respawn_player() -> void:
 	jump_buffer_timer = 0.0
 	attack_timer = 0.0
 	attack_cooldown_timer = 0.0
+	ground_heavy_cooldown_timer = 0.0
 	charge_timer = 0.0
 	dash_timer = 0.0
 	dash_cooldown_timer = 0.0
@@ -727,6 +879,7 @@ func _respawn_player() -> void:
 	wall_contact_direction = 0
 	attack_mode = ATTACK_NONE
 	is_charging_attack = false
+	air_uppercut_available = true
 	attack_targets_hit.clear()
 	_set_attack_active(false)
 	_set_charge_visual_active(false)

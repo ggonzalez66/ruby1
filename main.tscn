@@ -37,7 +37,7 @@ size = Vector2(220, 80)
 size = Vector2(360, 80)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_wall"]
-size = Vector2(42, 1020)
+size = Vector2(42, 760)
 
 [node name="Main" type="Node2D"]
 
@@ -73,7 +73,7 @@ color = Color(0.701961, 0.352941, 0.239216, 1)
 polygon = PackedVector2Array(-180, -40, 180, -40, 180, 40, -180, 40)
 
 [node name="PitWallLeft" type="StaticBody2D" parent="."]
-position = Vector2(-510, 770)
+position = Vector2(-510, 640)
 collision_layer = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallLeft"]
@@ -81,10 +81,10 @@ shape = SubResource("RectangleShape2D_pit_wall")
 
 [node name="Visual" type="Polygon2D" parent="PitWallLeft"]
 color = Color(0.552941, 0.266667, 0.176471, 1)
-polygon = PackedVector2Array(-21, -510, 21, -510, 21, 510, -21, 510)
+polygon = PackedVector2Array(-21, -380, 21, -380, 21, 380, -21, 380)
 
 [node name="PitWallRight" type="StaticBody2D" parent="."]
-position = Vector2(-300, 770)
+position = Vector2(-300, 640)
 collision_layer = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallRight"]
@@ -92,7 +92,7 @@ shape = SubResource("RectangleShape2D_pit_wall")
 
 [node name="Visual" type="Polygon2D" parent="PitWallRight"]
 color = Color(0.552941, 0.266667, 0.176471, 1)
-polygon = PackedVector2Array(-21, -510, 21, -510, 21, 510, -21, 510)
+polygon = PackedVector2Array(-21, -380, 21, -380, 21, 380, -21, 380)
 
 [node name="GroundEast" type="StaticBody2D" parent="."]
 position = Vector2(620, 300)
@@ -215,27 +215,16 @@ shape = SubResource("RectangleShape2D_boundary_horizontal")
 color = Color(0.54902, 0.258824, 0.172549, 1)
 polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
 
-[node name="BoundaryBottomLeft" type="StaticBody2D" parent="."]
-position = Vector2(-890, 1320)
+[node name="BoundaryBottom" type="StaticBody2D" parent="."]
+position = Vector2(560, 1320)
 collision_layer = 2
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottomLeft"]
-shape = SubResource("RectangleShape2D_boundary_bottom_left")
+[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottom"]
+shape = SubResource("RectangleShape2D_boundary_horizontal")
 
-[node name="Visual" type="Polygon2D" parent="BoundaryBottomLeft"]
+[node name="Visual" type="Polygon2D" parent="BoundaryBottom"]
 color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-310, -30, 310, -30, 310, 30, -310, 30)
-
-[node name="BoundaryBottomRight" type="StaticBody2D" parent="."]
-position = Vector2(965, 1320)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottomRight"]
-shape = SubResource("RectangleShape2D_boundary_bottom_right")
-
-[node name="Visual" type="Polygon2D" parent="BoundaryBottomRight"]
-color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-1455, -30, 1455, -30, 1455, 30, -1455, 30)
+polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
 
 [node name="Playerr" parent="." instance=ExtResource("1_41u7p")]
 position = Vector2(-620, 220)
