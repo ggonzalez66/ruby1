@@ -42,8 +42,10 @@ const DAMAGE_LIGHT_CHARGED_AIR := 3
 @export var charged_air_forward_speed := 430.0
 @export var charged_air_forward_drift := 250.0
 @export var charged_air_drag := 1600.0
-@export var charged_air_gravity_multiplier := 1.18
-@export var heavy_attack_start_upward_speed := -150.0
+@export var heavy_attack_rise_gravity_multiplier := 1.0
+@export var heavy_attack_fall_gravity_multiplier := 2.35
+@export var heavy_attack_max_fall_speed := 1320.0
+@export var heavy_attack_start_upward_speed := -245.0
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
 @export var light_hit_stall_up_speed := -95.0
@@ -208,11 +210,13 @@ func _apply_gravity(delta: float) -> void:
 
 	var gravity_scale: float = fall_gravity_multiplier if velocity.y > 0.0 else 1.0
 	if attack_mode == ATTACK_HEAVY:
-		gravity_scale = charged_air_gravity_multiplier
+		gravity_scale = heavy_attack_fall_gravity_multiplier if velocity.y > 0.0 else heavy_attack_rise_gravity_multiplier
 
 	var target_fall_speed: float = max_fall_speed
 	if _is_wall_sliding():
 		target_fall_speed = wall_slide_speed
+	elif attack_mode == ATTACK_HEAVY:
+		target_fall_speed = heavy_attack_max_fall_speed
 
 	velocity.y = min(velocity.y + gravity * gravity_scale * delta, target_fall_speed)
 

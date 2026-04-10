@@ -31,10 +31,7 @@ size = Vector2(220, 80)
 size = Vector2(360, 80)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_wall"]
-size = Vector2(42, 620)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_floor"]
-size = Vector2(210, 40)
+size = Vector2(42, 1020)
 
 [node name="Main" type="Node2D"]
 
@@ -70,7 +67,7 @@ color = Color(0.701961, 0.352941, 0.239216, 1)
 polygon = PackedVector2Array(-180, -40, 180, -40, 180, 40, -180, 40)
 
 [node name="PitWallLeft" type="StaticBody2D" parent="."]
-position = Vector2(-510, 570)
+position = Vector2(-510, 770)
 collision_layer = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallLeft"]
@@ -78,10 +75,10 @@ shape = SubResource("RectangleShape2D_pit_wall")
 
 [node name="Visual" type="Polygon2D" parent="PitWallLeft"]
 color = Color(0.552941, 0.266667, 0.176471, 1)
-polygon = PackedVector2Array(-21, -310, 21, -310, 21, 310, -21, 310)
+polygon = PackedVector2Array(-21, -510, 21, -510, 21, 510, -21, 510)
 
 [node name="PitWallRight" type="StaticBody2D" parent="."]
-position = Vector2(-300, 570)
+position = Vector2(-300, 770)
 collision_layer = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallRight"]
@@ -89,18 +86,7 @@ shape = SubResource("RectangleShape2D_pit_wall")
 
 [node name="Visual" type="Polygon2D" parent="PitWallRight"]
 color = Color(0.552941, 0.266667, 0.176471, 1)
-polygon = PackedVector2Array(-21, -310, 21, -310, 21, 310, -21, 310)
-
-[node name="PitFloor" type="StaticBody2D" parent="."]
-position = Vector2(-405, 920)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PitFloor"]
-shape = SubResource("RectangleShape2D_pit_floor")
-
-[node name="Visual" type="Polygon2D" parent="PitFloor"]
-color = Color(0.611765, 0.301961, 0.188235, 1)
-polygon = PackedVector2Array(-105, -20, 105, -20, 105, 20, -105, 20)
+polygon = PackedVector2Array(-21, -510, 21, -510, 21, 510, -21, 510)
 
 [node name="GroundEast" type="StaticBody2D" parent="."]
 position = Vector2(620, 300)
