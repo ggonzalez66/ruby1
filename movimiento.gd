@@ -465,7 +465,7 @@ func _start_uppercut_attack(from_air: bool) -> void:
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
 	if from_air:
-		air_jumps_remaining = max(air_jumps_remaining - 1, 0)
+		air_jumps_remaining = 0
 		air_uppercut_available = false
 	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
 	velocity.y = light_uppercut_velocity
@@ -861,7 +861,7 @@ func _wants_uppercut_attack() -> bool:
 	return Input.is_action_pressed("move_up")
 
 func _can_start_air_uppercut() -> bool:
-	return air_uppercut_available and air_jumps_remaining > 0
+	return air_uppercut_available
 
 func _respawn_player() -> void:
 	global_position = spawn_position
