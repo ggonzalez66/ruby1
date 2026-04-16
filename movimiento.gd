@@ -95,6 +95,7 @@ var wall_contact_direction := 0
 var attack_mode := ATTACK_NONE
 var is_charging_attack := false
 var air_uppercut_available := true
+var heavy_attack_visual_progress := 0.0
 var attack_targets_hit: Array[Area2D] = []
 
 var slash_base_color := Color(1.0, 1.0, 1.0, 0.0)
@@ -309,10 +310,8 @@ func _apply_ground_charged_movement() -> void:
 	velocity.y = 0.0
 
 func _apply_heavy_attack_movement(delta: float) -> void:
-	var forward_drift_speed := facing * charged_air_forward_drift
-	var is_moving_forward: bool = sign(velocity.x) == facing or is_zero_approx(velocity.x)
-	if not is_moving_forward or abs(velocity.x) < abs(forward_drift_speed):
-		velocity.x = move_toward(velocity.x, forward_drift_speed, charged_air_drag * delta)
+	heavy_attack_visual_progress = min(heavy_attack_visual_progress + (delta / ground_heavy_duration), 1.0)
+	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
 	_apply_gravity(delta)
 
 func _apply_ground_heavy_movement() -> void:
@@ -427,8 +426,9 @@ func _start_heavy_attack() -> void:
 	attack_timer = 0.0
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
-	velocity.x += facing * charged_air_forward_speed
-	velocity.y = heavy_attack_start_upward_speed
+	heavy_attack_visual_progress = 0.0
+	velocity.x = facing * max(abs(velocity.x + facing * charged_air_forward_speed), ground_heavy_speed)
+	velocity.y = max(velocity.y, 60.0)
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
@@ -509,6 +509,7 @@ func _start_wall_spin_attack() -> void:
 func _cancel_attack_for_chain() -> void:
 	attack_mode = ATTACK_NONE
 	attack_timer = 0.0
+	heavy_attack_visual_progress = 0.0
 	attack_targets_hit.clear()
 	_set_attack_active(false)
 	_reset_attack_pose()
@@ -517,6 +518,7 @@ func _end_attack() -> void:
 	var ending_mode: int = attack_mode
 	attack_mode = ATTACK_NONE
 	attack_timer = 0.0
+	heavy_attack_visual_progress = 0.0
 	attack_targets_hit.clear()
 	_set_attack_active(false)
 	_reset_attack_pose()
@@ -615,29 +617,25 @@ func _animate_ground_charged_attack() -> void:
 	slash_outline.default_color = Color(1.0, 0.93, 0.65, lerp(1.0, 0.45, progress))
 
 func _animate_heavy_attack() -> void:
-	var arc_progress: float = clamp(
-		inverse_lerp(heavy_attack_start_upward_speed, heavy_attack_max_fall_speed * 0.55, velocity.y),
-		0.0,
-		1.0
-	)
-	var arc_angle: float = lerp(-1.58, 0.98, arc_progress)
-	var arc_offset := Vector2(cos(arc_angle) * heavy_attack_arc_radius_x, sin(arc_angle) * heavy_attack_arc_radius_y)
-	var blade_rotation: float = arc_angle + 1.08
-	var pulse: float = 0.96 + 0.05 * sin(Time.get_ticks_msec() / 70.0)
+	var progress: float = heavy_attack_visual_progress
+	var arc_angle: float = lerp(-1.42, 0.22, progress)
+	var arc_offset := Vector2(cos(arc_angle) * 22.0, sin(arc_angle) * 30.0 - 6.0)
+	var blade_rotation: float = arc_angle + 1.02
+	var pulse: float = 1.0 + 0.05 * sin(Time.get_ticks_msec() / 55.0)
 
-	hitbox_shape.position = Vector2(4.0, 4.0) + arc_offset
-	hitbox_shape.scale = Vector2(1.08, 2.58)
-	slash_visual.position = Vector2(4.0, 6.0) + arc_offset
-	slash_area_visual.position = Vector2(5.0, 8.0) + arc_offset
-	slash_outline.position = Vector2(5.0, 8.0) + arc_offset
+	hitbox_shape.position = Vector2(8.0, -2.0) + arc_offset
+	hitbox_shape.scale = Vector2(1.28, 2.2)
+	slash_visual.position = Vector2(10.0, 0.0) + arc_offset
+	slash_area_visual.position = Vector2(12.0, 2.0) + arc_offset
+	slash_outline.position = Vector2(12.0, 2.0) + arc_offset
 	hitbox.rotation = blade_rotation
 	slash_visual.rotation = blade_rotation
 	slash_area_visual.rotation = blade_rotation
 	slash_outline.rotation = blade_rotation
-	slash_visual.scale = Vector2(1.05 * pulse, 2.2 * pulse)
-	slash_area_visual.scale = Vector2(1.16, 2.68)
+	slash_visual.scale = Vector2(1.18 * pulse, 2.0 * pulse)
+	slash_area_visual.scale = Vector2(1.34, 2.32)
 	slash_outline.scale = slash_area_visual.scale
-	slash_visual.color = Color(0.88, 0.96, 1.0, 0.92)
+	slash_visual.color = Color(0.88, 0.96, 1.0, 0.96)
 	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)
 	slash_outline.default_color = Color(0.7, 0.97, 1.0, 0.9)
 
@@ -882,6 +880,7 @@ func _respawn_player() -> void:
 	attack_mode = ATTACK_NONE
 	is_charging_attack = false
 	air_uppercut_available = true
+	heavy_attack_visual_progress = 0.0
 	attack_targets_hit.clear()
 	_set_attack_active(false)
 	_set_charge_visual_active(false)
