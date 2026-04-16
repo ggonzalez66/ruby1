@@ -78,3 +78,29 @@ visible = false
 position = Vector2(-10, -14)
 color = Color(0.588235, 0.882353, 0.976471, 0)
 polygon = PackedVector2Array(-30, -10, 8, -16, 20, 0, 8, 16, -30, 10)
+
+[node name="ImpactWaveLeft" type="Polygon2D" parent="."]
+visible = false
+position = Vector2(-6, 2)
+color = Color(0.454902, 0.890196, 1, 0)
+polygon = PackedVector2Array(0, -6, -34, -2, -52, 0, -34, 2, 0, 6)
+
+[node name="ImpactWaveRight" type="Polygon2D" parent="."]
+visible = false
+position = Vector2(6, 2)
+color = Color(0.454902, 0.890196, 1, 0)
+polygon = PackedVector2Array(0, -6, 34, -2, 52, 0, 34, 2, 0, 6)
+
+[node name="ImpactWaveLeftOutline" type="Line2D" parent="."]
+visible = false
+position = Vector2(-6, 2)
+width = 2.0
+default_color = Color(0.796078, 0.980392, 1, 0)
+points = PackedVector2Array(0, -6, -34, -2, -52, 0, -34, 2, 0, 6)
+
+[node name="ImpactWaveRightOutline" type="Line2D" parent="."]
+visible = false
+position = Vector2(6, 2)
+width = 2.0
+default_color = Color(0.796078, 0.980392, 1, 0)
+points = PackedVector2Array(0, -6, 34, -2, 52, 0, 34, 2, 0, 6)

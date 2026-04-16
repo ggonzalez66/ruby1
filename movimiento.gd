@@ -64,6 +64,8 @@ const DAMAGE_UPPERCUT := 3
 @export var ground_heavy_speed := 1240.0
 @export var ground_heavy_end_speed := 320.0
 @export var ground_heavy_reuse_cooldown := 1.0
+@export var heavy_ground_impact_slide_speed := 210.0
+@export var heavy_ground_impact_wave_duration := 0.2
 @export var dash_speed := 760.0
 @export var dash_duration := 0.14
 @export var dash_cooldown := 0.42
@@ -78,6 +80,10 @@ const DAMAGE_UPPERCUT := 3
 @onready var charge_visual: Polygon2D = $ChargeVisual
 @onready var charge_outline: Line2D = $ChargeOutline
 @onready var dash_visual: Polygon2D = $DashVisual
+@onready var impact_wave_left: Polygon2D = $ImpactWaveLeft
+@onready var impact_wave_right: Polygon2D = $ImpactWaveRight
+@onready var impact_wave_left_outline: Line2D = $ImpactWaveLeftOutline
+@onready var impact_wave_right_outline: Line2D = $ImpactWaveRightOutline
 
 var facing := 1
 var air_jumps_remaining := 0
@@ -96,6 +102,7 @@ var attack_mode := ATTACK_NONE
 var is_charging_attack := false
 var air_uppercut_available := true
 var heavy_attack_visual_progress := 0.0
+var heavy_ground_impact_wave_timer := 0.0
 var attack_targets_hit: Array[Area2D] = []
 
 var slash_base_color := Color(1.0, 1.0, 1.0, 0.0)
@@ -104,11 +111,17 @@ var slash_outline_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var charge_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var charge_outline_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var dash_visual_base_color := Color(1.0, 1.0, 1.0, 0.0)
+var impact_wave_base_color := Color(1.0, 1.0, 1.0, 0.0)
+var impact_wave_outline_base_color := Color(1.0, 1.0, 1.0, 0.0)
 
 var hitbox_base_position := Vector2.ZERO
 var slash_visual_base_position := Vector2.ZERO
 var slash_area_base_position := Vector2.ZERO
 var slash_outline_base_position := Vector2.ZERO
+var impact_wave_left_base_position := Vector2.ZERO
+var impact_wave_right_base_position := Vector2.ZERO
+var impact_wave_left_outline_base_position := Vector2.ZERO
+var impact_wave_right_outline_base_position := Vector2.ZERO
 var spawn_position := Vector2.ZERO
 
 func _ready() -> void:
@@ -120,16 +133,23 @@ func _ready() -> void:
 	charge_base_color = charge_visual.color
 	charge_outline_base_color = charge_outline.default_color
 	dash_visual_base_color = dash_visual.color
+	impact_wave_base_color = impact_wave_left.color
+	impact_wave_outline_base_color = impact_wave_left_outline.default_color
 	hitbox_base_position = hitbox_shape.position
 	slash_visual_base_position = slash_visual.position
 	slash_area_base_position = slash_area_visual.position
 	slash_outline_base_position = slash_outline.position
+	impact_wave_left_base_position = impact_wave_left.position
+	impact_wave_right_base_position = impact_wave_right.position
+	impact_wave_left_outline_base_position = impact_wave_left_outline.position
+	impact_wave_right_outline_base_position = impact_wave_right_outline.position
 	spawn_position = global_position
 	hitbox.area_entered.connect(_on_hitbox_area_entered)
 	_update_facing_visual()
 	_set_attack_active(false)
 	_set_charge_visual_active(false)
 	_set_dash_visual_active(false)
+	_set_impact_wave_active(false)
 
 func _physics_process(delta: float) -> void:
 	var was_on_floor: bool = is_on_floor()
@@ -196,12 +216,13 @@ func _physics_process(delta: float) -> void:
 	_update_attack_animation()
 	_update_charge_visual()
 	_update_dash_visual()
+	_update_impact_wave_visual()
 	move_and_slide()
 	_update_wall_state()
 	_refresh_attack_hits()
 
 	if attack_mode == ATTACK_HEAVY and is_on_floor():
-		_end_attack()
+		_land_heavy_attack_on_floor()
 	elif attack_mode == ATTACK_HEAVY and is_on_wall():
 		_bounce_out_of_heavy_attack()
 
@@ -218,6 +239,7 @@ func _update_timers(delta: float) -> void:
 	ground_heavy_cooldown_timer = max(ground_heavy_cooldown_timer - delta, 0.0)
 	dash_cooldown_timer = max(dash_cooldown_timer - delta, 0.0)
 	wall_jump_lock_timer = max(wall_jump_lock_timer - delta, 0.0)
+	heavy_ground_impact_wave_timer = max(heavy_ground_impact_wave_timer - delta, 0.0)
 
 	if attack_timer > 0.0:
 		attack_timer = max(attack_timer - delta, 0.0)
@@ -542,6 +564,42 @@ func _reset_attack_pose() -> void:
 	slash_area_visual.scale = Vector2.ONE
 	slash_outline.scale = Vector2.ONE
 
+func _set_impact_wave_active(active: bool) -> void:
+	impact_wave_left.visible = active
+	impact_wave_right.visible = active
+	impact_wave_left_outline.visible = active
+	impact_wave_right_outline.visible = active
+	if not active:
+		impact_wave_left.color = Color(impact_wave_base_color.r, impact_wave_base_color.g, impact_wave_base_color.b, 0.0)
+		impact_wave_right.color = impact_wave_left.color
+		impact_wave_left_outline.default_color = Color(impact_wave_outline_base_color.r, impact_wave_outline_base_color.g, impact_wave_outline_base_color.b, 0.0)
+		impact_wave_right_outline.default_color = impact_wave_left_outline.default_color
+
+func _update_impact_wave_visual() -> void:
+	if heavy_ground_impact_wave_timer <= 0.0:
+		if impact_wave_left.visible:
+			_set_impact_wave_active(false)
+		return
+
+	var progress: float = 1.0 - (heavy_ground_impact_wave_timer / heavy_ground_impact_wave_duration)
+	var width_scale: float = lerp(0.5, 1.7, progress)
+	var height_scale: float = lerp(0.65, 1.15, progress)
+	var alpha: float = lerp(0.65, 0.0, progress)
+	var rise: float = lerp(0.0, -10.0, progress)
+
+	impact_wave_left.position = impact_wave_left_base_position + Vector2(-16.0 * progress, rise)
+	impact_wave_right.position = impact_wave_right_base_position + Vector2(16.0 * progress, rise)
+	impact_wave_left_outline.position = impact_wave_left_outline_base_position + Vector2(-16.0 * progress, rise)
+	impact_wave_right_outline.position = impact_wave_right_outline_base_position + Vector2(16.0 * progress, rise)
+	impact_wave_left.scale = Vector2(width_scale, height_scale)
+	impact_wave_right.scale = Vector2(width_scale, height_scale)
+	impact_wave_left_outline.scale = Vector2(width_scale, height_scale)
+	impact_wave_right_outline.scale = Vector2(width_scale, height_scale)
+	impact_wave_left.color = Color(impact_wave_base_color.r, impact_wave_base_color.g, impact_wave_base_color.b, alpha)
+	impact_wave_right.color = impact_wave_left.color
+	impact_wave_left_outline.default_color = Color(impact_wave_outline_base_color.r, impact_wave_outline_base_color.g, impact_wave_outline_base_color.b, alpha * 1.1)
+	impact_wave_right_outline.default_color = impact_wave_left_outline.default_color
+
 func _set_attack_active(active: bool) -> void:
 	hitbox.monitoring = active
 	hitbox_shape.disabled = not active
@@ -821,6 +879,17 @@ func _bounce_out_of_heavy_attack() -> void:
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
 
+func _land_heavy_attack_on_floor() -> void:
+	if attack_mode != ATTACK_HEAVY:
+		return
+
+	_cancel_attack_for_chain()
+	velocity.x = facing * heavy_ground_impact_slide_speed
+	velocity.y = 0.0
+	heavy_ground_impact_wave_timer = heavy_ground_impact_wave_duration
+	_set_impact_wave_active(true)
+	_update_impact_wave_visual()
+
 func _apply_light_hit_stall() -> void:
 	velocity.y = min(velocity.y, light_hit_stall_up_speed)
 
@@ -885,5 +954,11 @@ func _respawn_player() -> void:
 	_set_attack_active(false)
 	_set_charge_visual_active(false)
 	_set_dash_visual_active(false)
+	heavy_ground_impact_wave_timer = 0.0
+	_set_impact_wave_active(false)
+	impact_wave_left.position = impact_wave_left_base_position
+	impact_wave_right.position = impact_wave_right_base_position
+	impact_wave_left_outline.position = impact_wave_left_outline_base_position
+	impact_wave_right_outline.position = impact_wave_right_outline_base_position
 	_reset_attack_pose()
 	_update_facing_visual()
