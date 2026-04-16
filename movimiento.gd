@@ -57,9 +57,9 @@ const DAMAGE_UPPERCUT := 3
 @export var light_hit_stall_up_speed := -95.0
 @export var spin_attack_duration := 0.34
 @export var spin_heavy_cancel_window := 0.12
-@export var light_uppercut_duration := 0.12
-@export var light_uppercut_velocity := -720.0
-@export var light_uppercut_forward_speed := 190.0
+@export var light_uppercut_duration := 0.08
+@export var light_uppercut_velocity := -980.0
+@export var light_uppercut_forward_speed := 260.0
 @export var ground_heavy_duration := 0.14
 @export var ground_heavy_speed := 1240.0
 @export var ground_heavy_end_speed := 320.0
@@ -329,7 +329,7 @@ func _apply_uppercut_movement(delta: float) -> void:
 	var forward_speed := facing * light_uppercut_forward_speed
 	var is_moving_forward: bool = sign(velocity.x) == facing or is_zero_approx(velocity.x)
 	if not is_moving_forward or abs(velocity.x) < abs(forward_speed):
-		velocity.x = move_toward(velocity.x, forward_speed, air_acceleration * delta)
+		velocity.x = move_toward(velocity.x, forward_speed, air_acceleration * 3.2 * delta)
 	_apply_gravity(delta)
 
 func _begin_attack_charge() -> void:
