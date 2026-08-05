@@ -6,15 +6,20 @@ const AERIAL_SPINNING_SHEET: Texture2D = preload("res://assets/sprites/player/re
 const UPPERCUT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_uppercut-sheet.png")
 const WALLJUMP_SHEET: Texture2D = preload("res://assets/sprites/player/reng_walljump-sheet.png")
 const CHARGE_LIGHT_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_charge_light.png")
+const HEAVY_AERIAL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_heavy_aerial.png")
+const AERIAL_STALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_aerial-stall.png")
 
-const CHARACTER_VISUAL_SCALE := 0.12
+const CHARACTER_VISUAL_SCALE := 0.18
 const ANIMATION_IDLE := &"idle"
 const ANIMATION_WALK := &"walk"
 const ANIMATION_JUMP := &"jump"
 const ANIMATION_SPIN := &"spin"
 const ANIMATION_UPPERCUT := &"uppercut"
-const ANIMATION_WALLJUMP := &"walljump"
+const ANIMATION_WALL_SLIDE := &"wall_slide"
+const ANIMATION_WALL_JUMP := &"wall_jump"
 const ANIMATION_CHARGE := &"charge"
+const ANIMATION_HEAVY_AERIAL := &"heavy_aerial"
+const ANIMATION_FALL := &"fall"
 
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
@@ -48,6 +53,7 @@ const DAMAGE_UPPERCUT := 3
 @export var wall_jump_horizontal_speed := 440.0
 @export var wall_jump_vertical_speed := -560.0
 @export var wall_jump_control_lock_time := 0.07
+@export var wall_jump_animation_duration := 0.18
 @export var coyote_time := 0.12
 @export var jump_buffer_time := 0.14
 @export var attack_duration := 0.16
@@ -115,6 +121,7 @@ var dash_timer := 0.0
 var dash_cooldown_timer := 0.0
 var dash_direction := 1
 var wall_jump_lock_timer := 0.0
+var wall_jump_animation_timer := 0.0
 var wall_contact_direction := 0
 var attack_mode := ATTACK_NONE
 var is_charging_attack := false
@@ -262,13 +269,19 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_JUMP, JUMPING_SHEET, 3, 10.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPIN, AERIAL_SPINNING_SHEET, 3, 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_SHEET, 3, 30.0, false)
-	_add_sheet_animation(frames, ANIMATION_WALLJUMP, WALLJUMP_SHEET, 2, 6.0, true)
-	frames.add_animation(ANIMATION_CHARGE)
-	frames.set_animation_speed(ANIMATION_CHARGE, 1.0)
-	frames.set_animation_loop(ANIMATION_CHARGE, false)
-	frames.add_frame(ANIMATION_CHARGE, CHARGE_LIGHT_TEXTURE)
+	_add_sheet_animation(frames, ANIMATION_WALL_SLIDE, WALLJUMP_SHEET, 2, 1.0, false, [0])
+	_add_sheet_animation(frames, ANIMATION_WALL_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
+	_add_single_frame_animation(frames, ANIMATION_CHARGE, CHARGE_LIGHT_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_FALL, AERIAL_STALL_TEXTURE)
 	animated_sprite.sprite_frames = frames
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
+
+func _add_single_frame_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D) -> void:
+	frames.add_animation(animation_name)
+	frames.set_animation_speed(animation_name, 1.0)
+	frames.set_animation_loop(animation_name, false)
+	frames.add_frame(animation_name, texture)
 
 func _add_sheet_animation(
 	frames: SpriteFrames,
@@ -300,12 +313,16 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_SPIN
 	elif attack_mode == ATTACK_UPPERCUT:
 		next_animation = ANIMATION_UPPERCUT
+	elif attack_mode == ATTACK_HEAVY:
+		next_animation = ANIMATION_HEAVY_AERIAL
 	elif _is_attack_active() or is_charging_attack or dash_timer > 0.0:
 		next_animation = ANIMATION_CHARGE
+	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
+		next_animation = ANIMATION_WALL_JUMP
 	elif _is_wall_sliding():
-		next_animation = ANIMATION_WALLJUMP
+		next_animation = ANIMATION_WALL_SLIDE
 	elif not is_on_floor():
-		next_animation = ANIMATION_JUMP
+		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
 	elif abs(velocity.x) > 10.0:
 		next_animation = ANIMATION_WALK
 	else:
@@ -327,10 +344,14 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = AERIAL_SPINNING_SHEET.get_height()
 		ANIMATION_UPPERCUT:
 			texture_height = UPPERCUT_SHEET.get_height()
-		ANIMATION_WALLJUMP:
+		ANIMATION_WALL_SLIDE, ANIMATION_WALL_JUMP:
 			texture_height = WALLJUMP_SHEET.get_height()
 		ANIMATION_CHARGE:
 			texture_height = CHARGE_LIGHT_TEXTURE.get_height()
+		ANIMATION_HEAVY_AERIAL:
+			texture_height = HEAVY_AERIAL_TEXTURE.get_height()
+		ANIMATION_FALL:
+			texture_height = AERIAL_STALL_TEXTURE.get_height()
 	animated_sprite.position = Vector2(0.0, -texture_height * CHARACTER_VISUAL_SCALE * 0.5)
 
 func _update_timers(delta: float) -> void:
@@ -340,6 +361,7 @@ func _update_timers(delta: float) -> void:
 	ground_heavy_cooldown_timer = max(ground_heavy_cooldown_timer - delta, 0.0)
 	dash_cooldown_timer = max(dash_cooldown_timer - delta, 0.0)
 	wall_jump_lock_timer = max(wall_jump_lock_timer - delta, 0.0)
+	wall_jump_animation_timer = max(wall_jump_animation_timer - delta, 0.0)
 	heavy_ground_impact_wave_timer = max(heavy_ground_impact_wave_timer - delta, 0.0)
 
 	if attack_timer > 0.0:
@@ -396,6 +418,7 @@ func _consume_jump_buffer() -> void:
 		velocity.y = wall_jump_vertical_speed
 		facing = wall_contact_direction
 		wall_jump_lock_timer = wall_jump_control_lock_time
+		wall_jump_animation_timer = wall_jump_animation_duration
 		_update_facing_visual()
 		return
 
@@ -1048,6 +1071,7 @@ func _respawn_player() -> void:
 	dash_cooldown_timer = 0.0
 	dash_direction = 1
 	wall_jump_lock_timer = 0.0
+	wall_jump_animation_timer = 0.0
 	wall_contact_direction = 0
 	attack_mode = ATTACK_NONE
 	is_charging_attack = false

@@ -16,13 +16,13 @@ script = ExtResource("1_8x1c5")
 [node name="Shadow" type="Sprite2D" parent="."]
 z_index = -1
 position = Vector2(0, -1)
-scale = Vector2(0.22, 0.22)
+scale = Vector2(0.33, 0.33)
 texture = ExtResource("2_shadow")
 modulate = Color(1, 1, 1, 0.58)
 
 [node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
-position = Vector2(0, -22.08)
-scale = Vector2(0.12, 0.12)
+position = Vector2(0, -33.12)
+scale = Vector2(0.18, 0.18)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -14)
