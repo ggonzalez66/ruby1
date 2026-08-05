@@ -123,6 +123,7 @@ var dash_direction := 1
 var wall_jump_lock_timer := 0.0
 var wall_jump_animation_timer := 0.0
 var wall_contact_direction := 0
+var wall_visual_direction := 0
 var attack_mode := ATTACK_NONE
 var is_charging_attack := false
 var air_uppercut_available := true
@@ -331,7 +332,16 @@ func _update_character_animation() -> void:
 	if animated_sprite.animation != next_animation:
 		animated_sprite.play(next_animation)
 	_align_character_animation(next_animation)
+	_update_character_orientation(next_animation)
 	shadow.visible = is_on_floor()
+
+func _update_character_orientation(animation_name: StringName) -> void:
+	if animation_name == ANIMATION_WALL_SLIDE or animation_name == ANIMATION_WALL_JUMP:
+		# Ambos frames representan una secuencia desde una pared situada a la izquierda:
+		# el primero mira hacia ella y el segundo salta en dirección contraria.
+		animated_sprite.flip_h = wall_visual_direction < 0
+		return
+	animated_sprite.flip_h = facing < 0
 
 func _align_character_animation(animation_name: StringName) -> void:
 	var texture_height: float
@@ -417,6 +427,7 @@ func _consume_jump_buffer() -> void:
 		velocity.x = wall_contact_direction * wall_jump_horizontal_speed
 		velocity.y = wall_jump_vertical_speed
 		facing = wall_contact_direction
+		wall_visual_direction = wall_contact_direction
 		wall_jump_lock_timer = wall_jump_control_lock_time
 		wall_jump_animation_timer = wall_jump_animation_duration
 		_update_facing_visual()
@@ -630,6 +641,7 @@ func _start_spin_attack() -> void:
 	velocity.x = max(abs(velocity.x), charged_ground_lunge_speed) * facing
 	velocity.y = charged_ground_jump_cancel_velocity
 	_set_attack_active(true)
+	animated_sprite.play(ANIMATION_SPIN)
 	_update_attack_animation()
 	_refresh_attack_hits()
 
@@ -650,6 +662,7 @@ func _start_wall_spin_attack() -> void:
 	wall_jump_lock_timer = wall_jump_control_lock_time
 	_set_attack_active(true)
 	_update_facing_visual()
+	animated_sprite.play(ANIMATION_SPIN)
 	_update_attack_animation()
 	_refresh_attack_hits()
 
@@ -984,6 +997,7 @@ func _update_wall_state() -> void:
 
 	if is_on_wall():
 		wall_contact_direction = int(sign(get_wall_normal().x))
+		wall_visual_direction = wall_contact_direction
 	else:
 		wall_contact_direction = 0
 
@@ -1073,6 +1087,7 @@ func _respawn_player() -> void:
 	wall_jump_lock_timer = 0.0
 	wall_jump_animation_timer = 0.0
 	wall_contact_direction = 0
+	wall_visual_direction = 0
 	attack_mode = ATTACK_NONE
 	is_charging_attack = false
 	air_uppercut_available = true
