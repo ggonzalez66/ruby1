@@ -18,6 +18,7 @@ const ANIMATION_UPPERCUT := &"uppercut"
 const ANIMATION_WALL_SLIDE := &"wall_slide"
 const ANIMATION_WALL_JUMP := &"wall_jump"
 const ANIMATION_CHARGE := &"charge"
+const ANIMATION_CHARGE_IDLE := &"charge_idle"
 const ANIMATION_HEAVY_AERIAL := &"heavy_aerial"
 const ANIMATION_FALL := &"fall"
 
@@ -130,6 +131,7 @@ var air_uppercut_available := true
 var heavy_attack_visual_progress := 0.0
 var heavy_ground_impact_wave_timer := 0.0
 var attack_targets_hit: Array[Area2D] = []
+var hitbox_visuals_visible := true
 
 var slash_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var slash_area_base_color := Color(1.0, 1.0, 1.0, 0.0)
@@ -189,6 +191,10 @@ func _physics_process(delta: float) -> void:
 		coyote_timer = coyote_time
 		air_jumps_remaining = max_air_jumps
 		air_uppercut_available = true
+
+	if Input.is_action_just_pressed("toggle_hitbox_visuals"):
+		hitbox_visuals_visible = not hitbox_visuals_visible
+		_update_hitbox_visual_visibility()
 
 	if Input.is_action_just_pressed("jump"):
 		if attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
@@ -272,6 +278,7 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_SHEET, 3, 30.0, false)
 	_add_sheet_animation(frames, ANIMATION_WALL_SLIDE, WALLJUMP_SHEET, 2, 1.0, false, [0])
 	_add_sheet_animation(frames, ANIMATION_WALL_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
+	_add_sheet_animation(frames, ANIMATION_CHARGE_IDLE, UPPERCUT_SHEET, 3, 1.0, false, [0])
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, CHARGE_LIGHT_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_FALL, AERIAL_STALL_TEXTURE)
@@ -316,12 +323,14 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_UPPERCUT
 	elif attack_mode == ATTACK_HEAVY:
 		next_animation = ANIMATION_HEAVY_AERIAL
-	elif _is_attack_active() or is_charging_attack or dash_timer > 0.0:
+	elif _is_attack_active() or dash_timer > 0.0:
 		next_animation = ANIMATION_CHARGE
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
 		next_animation = ANIMATION_WALL_JUMP
 	elif _is_wall_sliding():
 		next_animation = ANIMATION_WALL_SLIDE
+	elif is_charging_attack and is_on_floor() and abs(velocity.x) <= 10.0:
+		next_animation = ANIMATION_CHARGE_IDLE
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
 	elif abs(velocity.x) > 10.0:
@@ -352,7 +361,7 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = JUMPING_SHEET.get_height()
 		ANIMATION_SPIN:
 			texture_height = AERIAL_SPINNING_SHEET.get_height()
-		ANIMATION_UPPERCUT:
+		ANIMATION_UPPERCUT, ANIMATION_CHARGE_IDLE:
 			texture_height = UPPERCUT_SHEET.get_height()
 		ANIMATION_WALL_SLIDE, ANIMATION_WALL_JUMP:
 			texture_height = WALLJUMP_SHEET.get_height()
@@ -741,12 +750,16 @@ func _update_impact_wave_visual() -> void:
 func _set_attack_active(active: bool) -> void:
 	hitbox.monitoring = active
 	hitbox_shape.disabled = not active
-	slash_visual.visible = active
-	slash_area_visual.visible = active
-	slash_outline.visible = active
+	_update_hitbox_visual_visibility()
 	slash_visual.color = slash_base_color if active else Color(slash_base_color.r, slash_base_color.g, slash_base_color.b, 0.0)
 	slash_area_visual.color = slash_area_base_color if active else Color(slash_area_base_color.r, slash_area_base_color.g, slash_area_base_color.b, 0.0)
 	slash_outline.default_color = slash_outline_base_color if active else Color(slash_outline_base_color.r, slash_outline_base_color.g, slash_outline_base_color.b, 0.0)
+
+func _update_hitbox_visual_visibility() -> void:
+	var should_show := hitbox_visuals_visible and _is_attack_active()
+	slash_visual.visible = should_show
+	slash_area_visual.visible = should_show
+	slash_outline.visible = should_show
 
 func _update_attack_animation() -> void:
 	if not _is_attack_active():
