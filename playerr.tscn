@@ -1,7 +1,7 @@
 [gd_scene load_steps=5 format=3 uid="uid://b50evv40bm1pk"]
 
 [ext_resource type="Script" path="res://movimiento.gd" id="1_8x1c5"]
-[ext_resource type="Texture2D" uid="uid://doltym6qyoyc8" path="res://icon.svg" id="2_bhprk"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/reng_shadow.png" id="2_shadow"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_65urh"]
 size = Vector2(20, 28)
@@ -13,10 +13,16 @@ size = Vector2(34, 18)
 collision_mask = 2
 script = ExtResource("1_8x1c5")
 
-[node name="Sprite2D" type="Sprite2D" parent="."]
-position = Vector2(0, -14)
-scale = Vector2(0.3, 0.3)
-texture = ExtResource("2_bhprk")
+[node name="Shadow" type="Sprite2D" parent="."]
+z_index = -1
+position = Vector2(0, -1)
+scale = Vector2(0.22, 0.22)
+texture = ExtResource("2_shadow")
+modulate = Color(1, 1, 1, 0.58)
+
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="."]
+position = Vector2(0, -22.08)
+scale = Vector2(0.12, 0.12)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
 position = Vector2(0, -14)

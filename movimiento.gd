@@ -1,5 +1,21 @@
 extends CharacterBody2D
 
+const STANDING_AND_WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_standing_and_walking-sheet.png")
+const JUMPING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumping-sheet.png")
+const AERIAL_SPINNING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_aerial_spinning-sheet.png")
+const UPPERCUT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_uppercut-sheet.png")
+const WALLJUMP_SHEET: Texture2D = preload("res://assets/sprites/player/reng_walljump-sheet.png")
+const CHARGE_LIGHT_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_charge_light.png")
+
+const CHARACTER_VISUAL_SCALE := 0.12
+const ANIMATION_IDLE := &"idle"
+const ANIMATION_WALK := &"walk"
+const ANIMATION_JUMP := &"jump"
+const ANIMATION_SPIN := &"spin"
+const ANIMATION_UPPERCUT := &"uppercut"
+const ANIMATION_WALLJUMP := &"walljump"
+const ANIMATION_CHARGE := &"charge"
+
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
 const ATTACK_GROUND_CHARGED := 2
@@ -72,6 +88,8 @@ const DAMAGE_UPPERCUT := 3
 @export var dash_end_speed := 230.0
 
 @onready var pivot: Node2D = $Pivot
+@onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
+@onready var shadow: Sprite2D = $Shadow
 @onready var hitbox: Area2D = $Pivot/Hitbox
 @onready var hitbox_shape: CollisionShape2D = $Pivot/Hitbox/CollisionShape2D
 @onready var slash_visual: Polygon2D = $Pivot/SlashVisual
@@ -126,6 +144,7 @@ var spawn_position := Vector2.ZERO
 
 func _ready() -> void:
 	floor_snap_length = 10.0
+	_configure_character_animations()
 	air_jumps_remaining = max_air_jumps
 	slash_base_color = slash_visual.color
 	slash_area_base_color = slash_area_visual.color
@@ -150,6 +169,7 @@ func _ready() -> void:
 	_set_charge_visual_active(false)
 	_set_dash_visual_active(false)
 	_set_impact_wave_active(false)
+	_update_character_animation()
 
 func _physics_process(delta: float) -> void:
 	var was_on_floor: bool = is_on_floor()
@@ -232,6 +252,87 @@ func _physics_process(delta: float) -> void:
 		if jump_buffer_timer > 0.0:
 			_consume_jump_buffer()
 
+	_update_character_animation()
+
+func _configure_character_animations() -> void:
+	var frames := SpriteFrames.new()
+	frames.remove_animation(&"default")
+	_add_sheet_animation(frames, ANIMATION_IDLE, STANDING_AND_WALKING_SHEET, 3, 5.0, true, [0])
+	_add_sheet_animation(frames, ANIMATION_WALK, STANDING_AND_WALKING_SHEET, 3, 8.0, true)
+	_add_sheet_animation(frames, ANIMATION_JUMP, JUMPING_SHEET, 3, 10.0, false)
+	_add_sheet_animation(frames, ANIMATION_SPIN, AERIAL_SPINNING_SHEET, 3, 12.0, true)
+	_add_sheet_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_SHEET, 3, 30.0, false)
+	_add_sheet_animation(frames, ANIMATION_WALLJUMP, WALLJUMP_SHEET, 2, 6.0, true)
+	frames.add_animation(ANIMATION_CHARGE)
+	frames.set_animation_speed(ANIMATION_CHARGE, 1.0)
+	frames.set_animation_loop(ANIMATION_CHARGE, false)
+	frames.add_frame(ANIMATION_CHARGE, CHARGE_LIGHT_TEXTURE)
+	animated_sprite.sprite_frames = frames
+	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
+
+func _add_sheet_animation(
+	frames: SpriteFrames,
+	animation_name: StringName,
+	texture: Texture2D,
+	columns: int,
+	fps: float,
+	loops: bool,
+	frame_order: Array[int] = []
+) -> void:
+	frames.add_animation(animation_name)
+	frames.set_animation_speed(animation_name, fps)
+	frames.set_animation_loop(animation_name, loops)
+	var frame_width: float = texture.get_width() / float(columns)
+	var indexes: Array[int] = frame_order
+	if indexes.is_empty():
+		for index in range(columns):
+			indexes.append(index)
+	for index in indexes:
+		var atlas_frame := AtlasTexture.new()
+		atlas_frame.atlas = texture
+		atlas_frame.region = Rect2(frame_width * index, 0.0, frame_width, texture.get_height())
+		atlas_frame.filter_clip = true
+		frames.add_frame(animation_name, atlas_frame)
+
+func _update_character_animation() -> void:
+	var next_animation: StringName
+	if attack_mode == ATTACK_SPIN:
+		next_animation = ANIMATION_SPIN
+	elif attack_mode == ATTACK_UPPERCUT:
+		next_animation = ANIMATION_UPPERCUT
+	elif _is_attack_active() or is_charging_attack or dash_timer > 0.0:
+		next_animation = ANIMATION_CHARGE
+	elif _is_wall_sliding():
+		next_animation = ANIMATION_WALLJUMP
+	elif not is_on_floor():
+		next_animation = ANIMATION_JUMP
+	elif abs(velocity.x) > 10.0:
+		next_animation = ANIMATION_WALK
+	else:
+		next_animation = ANIMATION_IDLE
+
+	if animated_sprite.animation != next_animation:
+		animated_sprite.play(next_animation)
+	_align_character_animation(next_animation)
+	shadow.visible = is_on_floor()
+
+func _align_character_animation(animation_name: StringName) -> void:
+	var texture_height: float
+	match animation_name:
+		ANIMATION_IDLE, ANIMATION_WALK:
+			texture_height = STANDING_AND_WALKING_SHEET.get_height()
+		ANIMATION_JUMP:
+			texture_height = JUMPING_SHEET.get_height()
+		ANIMATION_SPIN:
+			texture_height = AERIAL_SPINNING_SHEET.get_height()
+		ANIMATION_UPPERCUT:
+			texture_height = UPPERCUT_SHEET.get_height()
+		ANIMATION_WALLJUMP:
+			texture_height = WALLJUMP_SHEET.get_height()
+		ANIMATION_CHARGE:
+			texture_height = CHARGE_LIGHT_TEXTURE.get_height()
+	animated_sprite.position = Vector2(0.0, -texture_height * CHARACTER_VISUAL_SCALE * 0.5)
+
 func _update_timers(delta: float) -> void:
 	coyote_timer = max(coyote_timer - delta, 0.0)
 	jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
@@ -304,6 +405,7 @@ func _consume_jump_buffer() -> void:
 	jump_buffer_timer = 0.0
 	air_jumps_remaining -= 1
 	velocity.y = jump_velocity
+	animated_sprite.play(ANIMATION_JUMP)
 
 func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	if wall_jump_lock_timer > 0.0 and not is_on_floor():
@@ -912,6 +1014,7 @@ func _get_attack_damage() -> int:
 
 func _update_facing_visual() -> void:
 	pivot.scale.x = facing
+	animated_sprite.flip_h = facing < 0
 	dash_visual.position.x = -10.0 * facing
 	dash_visual.scale.x = abs(dash_visual.scale.x) * facing
 
