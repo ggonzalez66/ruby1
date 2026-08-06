@@ -8,6 +8,10 @@ const WALLJUMP_SHEET: Texture2D = preload("res://assets/sprites/player/reng_wall
 const CHARGE_LIGHT_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_charge_light.png")
 const HEAVY_AERIAL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_heavy_aerial.png")
 const AERIAL_STALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_aerial-stall.png")
+const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dash_1.png")
+const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/reng_light_hits-sheet.png")
+const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-heavy.png")
+const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
 
 const CHARACTER_VISUAL_SCALE := 0.18
 const ANIMATION_IDLE := &"idle"
@@ -21,6 +25,11 @@ const ANIMATION_CHARGE := &"charge"
 const ANIMATION_CHARGE_IDLE := &"charge_idle"
 const ANIMATION_HEAVY_AERIAL := &"heavy_aerial"
 const ANIMATION_FALL := &"fall"
+const ANIMATION_DASH := &"dash"
+const ANIMATION_LIGHT_HIT := &"light_hit"
+const ANIMATION_GROUND_HEAVY := &"ground_heavy"
+const ANIMATION_SPRINT := &"sprint"
+const ANIMATION_LONG_JUMP := &"long_jump"
 
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
@@ -93,6 +102,14 @@ const DAMAGE_UPPERCUT := 3
 @export var dash_duration := 0.14
 @export var dash_cooldown := 0.42
 @export var dash_end_speed := 230.0
+@export var sprint_speed := 560.0
+@export var sprint_turn_duration := 0.28
+@export var sprint_brake_deceleration := 2600.0
+@export var long_jump_squat_duration := 0.12
+@export var long_jump_horizontal_speed := 680.0
+@export var long_jump_vertical_speed := -500.0
+@export var backflip_horizontal_speed := 520.0
+@export var backflip_vertical_speed := -720.0
 
 @onready var pivot: Node2D = $Pivot
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -121,6 +138,13 @@ var charge_timer := 0.0
 var dash_timer := 0.0
 var dash_cooldown_timer := 0.0
 var dash_direction := 1
+var is_sprinting := false
+var sprint_direction := 1
+var sprint_turn_timer := 0.0
+var sprint_turn_direction := 0
+var long_jump_squat_timer := 0.0
+var long_jump_active := false
+var backflip_active := false
 var wall_jump_lock_timer := 0.0
 var wall_jump_animation_timer := 0.0
 var wall_contact_direction := 0
@@ -186,6 +210,7 @@ func _physics_process(delta: float) -> void:
 	_update_wall_state()
 	var was_wall_sliding: bool = _is_wall_sliding()
 	_update_timers(delta)
+	var move_input: float = Input.get_axis("move_left", "move_right")
 
 	if was_on_floor:
 		coyote_timer = coyote_time
@@ -200,6 +225,8 @@ func _physics_process(delta: float) -> void:
 		if attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
 			_start_spin_attack()
 		elif _try_start_spin_jump_cancel():
+			pass
+		elif _try_start_sprint_jump(move_input):
 			pass
 		else:
 			jump_buffer_timer = jump_buffer_time
@@ -222,7 +249,8 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("dash"):
 		_start_dash()
 
-	var move_input: float = Input.get_axis("move_left", "move_right")
+	if Input.is_action_just_released("dash") and dash_timer <= 0.0:
+		_stop_sprint()
 
 	if move_input != 0.0 and not _locks_facing():
 		facing = 1 if move_input > 0.0 else -1
@@ -242,6 +270,8 @@ func _physics_process(delta: float) -> void:
 		_apply_spin_attack_movement(delta)
 	elif attack_mode == ATTACK_UPPERCUT:
 		_apply_uppercut_movement(delta)
+	elif _uses_sprint_movement():
+		_apply_sprint_movement(move_input, delta)
 	else:
 		_apply_gravity(delta)
 		_consume_jump_buffer()
@@ -260,7 +290,19 @@ func _physics_process(delta: float) -> void:
 	elif attack_mode == ATTACK_HEAVY and is_on_wall():
 		_bounce_out_of_heavy_attack()
 
+	if is_on_wall() and not is_on_floor() and _uses_sprint_movement():
+		long_jump_active = false
+		backflip_active = false
+		_stop_sprint()
+
 	if is_on_floor():
+		long_jump_active = false
+		backflip_active = false
+		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active():
+			if not is_sprinting:
+				_start_sprint(sprint_direction)
+		elif not Input.is_action_pressed("dash"):
+			_stop_sprint()
 		air_jumps_remaining = max_air_jumps
 		air_uppercut_available = true
 		if jump_buffer_timer > 0.0:
@@ -279,9 +321,14 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_WALL_SLIDE, WALLJUMP_SHEET, 2, 1.0, false, [0])
 	_add_sheet_animation(frames, ANIMATION_WALL_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
 	_add_sheet_animation(frames, ANIMATION_CHARGE_IDLE, UPPERCUT_SHEET, 3, 1.0, false, [0])
+	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_HITS_SHEET, 2, 12.5, false)
+	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
+	_add_sheet_animation(frames, ANIMATION_SPRINT, SPRINTING_SHEET, 3, 12.0, true)
+	_add_sheet_animation(frames, ANIMATION_LONG_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, CHARGE_LIGHT_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_FALL, AERIAL_STALL_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
 	animated_sprite.sprite_frames = frames
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
 
@@ -323,16 +370,26 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_UPPERCUT
 	elif attack_mode == ATTACK_HEAVY:
 		next_animation = ANIMATION_HEAVY_AERIAL
-	elif _is_attack_active() or dash_timer > 0.0:
+	elif attack_mode == ATTACK_HEAVY_GROUND:
+		next_animation = ANIMATION_GROUND_HEAVY
+	elif attack_mode == ATTACK_SLASH:
+		next_animation = ANIMATION_LIGHT_HIT
+	elif dash_timer > 0.0:
+		next_animation = ANIMATION_DASH
+	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
 		next_animation = ANIMATION_WALL_JUMP
 	elif _is_wall_sliding():
 		next_animation = ANIMATION_WALL_SLIDE
+	elif long_jump_squat_timer > 0.0 or long_jump_active:
+		next_animation = ANIMATION_LONG_JUMP
 	elif is_charging_attack and is_on_floor() and abs(velocity.x) <= 10.0:
 		next_animation = ANIMATION_CHARGE_IDLE
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
+	elif is_sprinting:
+		next_animation = ANIMATION_SPRINT
 	elif abs(velocity.x) > 10.0:
 		next_animation = ANIMATION_WALK
 	else:
@@ -371,6 +428,16 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = HEAVY_AERIAL_TEXTURE.get_height()
 		ANIMATION_FALL:
 			texture_height = AERIAL_STALL_TEXTURE.get_height()
+		ANIMATION_DASH:
+			texture_height = DASH_TEXTURE.get_height()
+		ANIMATION_LIGHT_HIT:
+			texture_height = LIGHT_HITS_SHEET.get_height()
+		ANIMATION_GROUND_HEAVY:
+			texture_height = GROUND_HEAVY_SHEET.get_height()
+		ANIMATION_SPRINT:
+			texture_height = SPRINTING_SHEET.get_height()
+		ANIMATION_LONG_JUMP:
+			texture_height = WALLJUMP_SHEET.get_height()
 	animated_sprite.position = Vector2(0.0, -texture_height * CHARACTER_VISUAL_SCALE * 0.5)
 
 func _update_timers(delta: float) -> void:
@@ -392,6 +459,11 @@ func _update_timers(delta: float) -> void:
 		dash_timer = max(dash_timer - delta, 0.0)
 		if dash_timer == 0.0:
 			_end_dash()
+
+	if long_jump_squat_timer > 0.0:
+		long_jump_squat_timer = max(long_jump_squat_timer - delta, 0.0)
+		if long_jump_squat_timer == 0.0:
+			_launch_long_jump()
 
 func _apply_gravity(delta: float) -> void:
 	if is_on_floor() and velocity.y >= 0.0:
@@ -417,7 +489,7 @@ func _consume_jump_buffer() -> void:
 	if jump_buffer_timer <= 0.0:
 		return
 
-	if dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT:
+	if dash_timer > 0.0 or _uses_sprint_movement() or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT:
 		return
 
 	var can_ground_jump: bool = is_on_floor() or coyote_timer > 0.0
@@ -467,6 +539,126 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 
 	var acceleration: float = ground_acceleration if is_on_floor() else air_acceleration
 	velocity.x = move_toward(velocity.x, target_speed, acceleration * delta)
+
+func _try_start_sprint_jump(move_input: float) -> bool:
+	if not is_sprinting or (not is_on_floor() and coyote_timer <= 0.0) or _is_attack_active() or dash_timer > 0.0:
+		return false
+
+	var input_direction := int(sign(move_input))
+	var reversing: bool = sprint_turn_timer > 0.0 or (input_direction != 0 and input_direction != sprint_direction)
+	jump_buffer_timer = 0.0
+	coyote_timer = 0.0
+	if reversing:
+		var backflip_direction := sprint_turn_direction
+		if backflip_direction == 0:
+			backflip_direction = input_direction
+		_start_backflip(backflip_direction)
+	else:
+		_start_long_jump_squat()
+	return true
+
+func _start_long_jump_squat() -> void:
+	long_jump_squat_timer = long_jump_squat_duration
+	long_jump_active = false
+	backflip_active = false
+	sprint_turn_timer = 0.0
+	sprint_turn_direction = 0
+	velocity.y = 0.0
+
+func _launch_long_jump() -> void:
+	long_jump_active = true
+	backflip_active = false
+	velocity.x = sprint_direction * long_jump_horizontal_speed
+	velocity.y = long_jump_vertical_speed
+	facing = sprint_direction
+	_update_facing_visual()
+
+func _start_backflip(direction: int) -> void:
+	var target_direction := direction
+	if target_direction == 0:
+		target_direction = -sprint_direction
+	sprint_direction = 1 if target_direction > 0 else -1
+	facing = sprint_direction
+	long_jump_squat_timer = 0.0
+	long_jump_active = false
+	backflip_active = true
+	sprint_turn_timer = 0.0
+	sprint_turn_direction = 0
+	velocity.x = sprint_direction * backflip_horizontal_speed
+	velocity.y = backflip_vertical_speed
+	_update_facing_visual()
+
+func _uses_sprint_movement() -> bool:
+	return is_sprinting or long_jump_squat_timer > 0.0 or long_jump_active or backflip_active
+
+func _apply_sprint_movement(move_input: float, delta: float) -> void:
+	if long_jump_squat_timer > 0.0:
+		velocity.x = sprint_direction * sprint_speed
+		velocity.y = 0.0
+		return
+
+	if long_jump_active:
+		velocity.x = sprint_direction * long_jump_horizontal_speed
+		_apply_gravity(delta)
+		return
+
+	if backflip_active:
+		velocity.x = sprint_direction * backflip_horizontal_speed
+		_apply_gravity(delta)
+		return
+
+	if not is_on_floor():
+		velocity.x = sprint_direction * sprint_speed
+		_apply_gravity(delta)
+		return
+
+	if sprint_turn_timer > 0.0:
+		sprint_turn_timer = max(sprint_turn_timer - delta, 0.0)
+		velocity.x = move_toward(velocity.x, 0.0, sprint_brake_deceleration * delta)
+		velocity.y = 0.0
+		if sprint_turn_timer == 0.0:
+			_complete_sprint_turn()
+		return
+
+	var input_direction := int(sign(move_input))
+	if input_direction != 0 and input_direction != sprint_direction:
+		_start_sprint_turn(input_direction)
+		velocity.x = move_toward(velocity.x, 0.0, sprint_brake_deceleration * delta)
+		velocity.y = 0.0
+		return
+
+	velocity.x = sprint_direction * sprint_speed
+	velocity.y = 0.0
+
+func _start_sprint(direction: int) -> void:
+	var target_direction := direction
+	if target_direction == 0:
+		target_direction = facing
+	is_sprinting = true
+	sprint_direction = 1 if target_direction > 0 else -1
+	sprint_turn_timer = 0.0
+	sprint_turn_direction = 0
+	facing = sprint_direction
+	_update_facing_visual()
+
+func _stop_sprint() -> void:
+	is_sprinting = false
+	sprint_turn_timer = 0.0
+	sprint_turn_direction = 0
+	long_jump_squat_timer = 0.0
+
+func _start_sprint_turn(direction: int) -> void:
+	sprint_turn_direction = 1 if direction > 0 else -1
+	sprint_turn_timer = sprint_turn_duration
+
+func _complete_sprint_turn() -> void:
+	if sprint_turn_direction == 0:
+		return
+	sprint_direction = sprint_turn_direction
+	sprint_turn_direction = 0
+	facing = sprint_direction
+	velocity.x = sprint_direction * sprint_speed
+	_update_facing_visual()
 
 func _apply_dash_movement() -> void:
 	velocity.x = dash_direction * dash_speed
@@ -972,8 +1164,12 @@ func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
 		return
 
+	_stop_sprint()
+	long_jump_active = false
+	backflip_active = false
 	var move_input: float = Input.get_axis("move_left", "move_right")
 	dash_direction = facing if move_input == 0.0 else (1 if move_input > 0.0 else -1)
+	sprint_direction = dash_direction
 	facing = dash_direction
 	_update_facing_visual()
 	dash_timer = dash_duration
@@ -982,8 +1178,12 @@ func _start_dash() -> void:
 	_update_dash_visual()
 
 func _end_dash() -> void:
-	velocity.x = dash_direction * dash_end_speed
 	_set_dash_visual_active(false)
+	if Input.is_action_pressed("dash") and is_on_floor():
+		_start_sprint(dash_direction)
+		velocity.x = sprint_direction * sprint_speed
+		return
+	velocity.x = dash_direction * dash_end_speed
 
 func _set_dash_visual_active(active: bool) -> void:
 	dash_visual.visible = active
@@ -1001,7 +1201,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
+	return dash_timer > 0.0 or _uses_sprint_movement() or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -1097,6 +1297,13 @@ func _respawn_player() -> void:
 	dash_timer = 0.0
 	dash_cooldown_timer = 0.0
 	dash_direction = 1
+	is_sprinting = false
+	sprint_direction = 1
+	sprint_turn_timer = 0.0
+	sprint_turn_direction = 0
+	long_jump_squat_timer = 0.0
+	long_jump_active = false
+	backflip_active = false
 	wall_jump_lock_timer = 0.0
 	wall_jump_animation_timer = 0.0
 	wall_contact_direction = 0
