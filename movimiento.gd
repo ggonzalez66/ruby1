@@ -35,6 +35,27 @@ const ANIMATION_SPRINT := &"sprint"
 const ANIMATION_LONG_JUMP := &"long_jump"
 const ANIMATION_BACKFLIP := &"backflip"
 
+# Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
+const ANIMATION_VISUAL_SCALES := {
+	ANIMATION_IDLE: 1.0,
+	ANIMATION_WALK: 1.0,
+	ANIMATION_JUMP: 1.0,
+	ANIMATION_SPIN: 1.05,
+	ANIMATION_UPPERCUT: 1.2,
+	ANIMATION_CHARGE_IDLE: 1.2,
+	ANIMATION_WALL_SLIDE: 0.92,
+	ANIMATION_WALL_JUMP: 0.92,
+	ANIMATION_LONG_JUMP: 0.92,
+	ANIMATION_CHARGE: 0.62,
+	ANIMATION_HEAVY_AERIAL: 0.48,
+	ANIMATION_FALL: 0.8,
+	ANIMATION_DASH: 1.2,
+	ANIMATION_LIGHT_HIT: 1.25,
+	ANIMATION_GROUND_HEAVY: 1.3,
+	ANIMATION_SPRINT: 1.15,
+	ANIMATION_BACKFLIP: 0.8,
+}
+
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
 const ATTACK_GROUND_CHARGED := 2
@@ -478,7 +499,9 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = WALLJUMP_SHEET.get_height()
 		ANIMATION_BACKFLIP:
 			texture_height = BACKFLIP_TEXTURE.get_height()
-	animated_sprite.position = Vector2(0.0, -texture_height * CHARACTER_VISUAL_SCALE * 0.5)
+	var visual_scale: float = CHARACTER_VISUAL_SCALE * ANIMATION_VISUAL_SCALES.get(animation_name, 1.0)
+	animated_sprite.scale = Vector2.ONE * visual_scale
+	animated_sprite.position = Vector2(0.0, -texture_height * visual_scale * 0.5)
 
 func _update_timers(delta: float) -> void:
 	coyote_timer = max(coyote_timer - delta, 0.0)
