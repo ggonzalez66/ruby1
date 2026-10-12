@@ -1,5 +1,7 @@
 extends CharacterBody2D
 
+signal health_changed(current: int, maximum: int)
+
 const STANDING_AND_WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_standing_and_walking-sheet.png")
 const JUMPING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumping-sheet.png")
 const AERIAL_SPINNING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_aerial_spinning-sheet.png")
@@ -148,10 +150,18 @@ const DAMAGE_UPPERCUT := 3
 @export var long_jump_horizontal_speed := 680.0
 @export var long_jump_vertical_speed := -500.0
 @export var long_jump_chain_window := 0.12
-@export var afterimage_interval := 0.07
-@export var afterimage_lifetime := 0.22
-@export var afterimage_color := Color(0.62, 0.48, 1.0, 1.0)
-@export var afterimage_alpha := 0.42
+@export var max_health := 100
+@export var hurt_invulnerability_time := 1.0
+@export var hurt_control_lock_time := 0.25
+@export var hurt_knockback := Vector2(380.0, -320.0)
+@export var running_wall_cling_time := 0.35
+@export var running_wall_cling_slide_speed := 40.0
+@export var running_wall_jump_vertical_speed := -620.0
+@export var afterimage_interval := 0.06
+@export var afterimage_lifetime := 0.42
+@export var afterimage_color := Color(0.56, 0.24, 1.0, 1.0)
+@export var afterimage_tint := 0.85
+@export var afterimage_alpha := 0.7
 @export var backflip_horizontal_speed := 520.0
 @export var backflip_vertical_speed := -720.0
 @export var backflip_chain_window := 0.16
@@ -195,6 +205,11 @@ var backflip_elapsed := 0.0
 var backflip_rotation_duration := 0.0
 var backflip_chain_timer := 0.0
 var frontflip_active := false
+var current_health := 0
+var invulnerability_timer := 0.0
+var hurt_lock_timer := 0.0
+var wall_cling_timer := 0.0
+var wall_cling_direction := 0
 var frontflip_elapsed := 0.0
 var frontflip_rotation_duration := 0.0
 var afterimage_timer := 0.0
@@ -238,6 +253,8 @@ var slash_outline_base_points := PackedVector2Array()
 var claw_hitbox_polygon := PackedVector2Array()
 
 func _ready() -> void:
+	add_to_group(&"player")
+	current_health = max_health
 	floor_snap_length = 10.0
 	_configure_character_animations()
 	charge_glow_material = ShaderMaterial.new()
@@ -295,6 +312,8 @@ func _physics_process(delta: float) -> void:
 			_start_spin_attack()
 		elif _try_start_spin_jump_cancel():
 			pass
+		elif _try_start_running_wall_jump():
+			pass
 		elif _try_start_backflip_chain(move_input):
 			pass
 		elif _try_start_backflip_air_jump(move_input):
@@ -349,6 +368,8 @@ func _physics_process(delta: float) -> void:
 		_apply_spin_attack_movement(delta)
 	elif attack_mode == ATTACK_UPPERCUT:
 		_apply_uppercut_movement(delta)
+	elif wall_cling_timer > 0.0:
+		_apply_running_wall_cling_movement(delta)
 	elif _uses_sprint_movement():
 		_apply_sprint_movement(move_input, delta)
 	else:
@@ -374,6 +395,10 @@ func _physics_process(delta: float) -> void:
 		frontflip_active = false
 		backflip_active = false
 		_stop_sprint()
+		if Input.is_action_pressed("dash") and not _is_attack_active():
+			_start_running_wall_cling()
+	elif wall_cling_timer > 0.0 and (is_on_floor() or not is_on_wall() or not Input.is_action_pressed("dash")):
+		wall_cling_timer = 0.0
 
 	if is_on_floor():
 		if long_jump_active:
@@ -392,6 +417,7 @@ func _physics_process(delta: float) -> void:
 
 	_update_afterimages(delta)
 	_update_character_animation()
+	_update_hurt_visual()
 
 func _configure_character_animations() -> void:
 	var frames := SpriteFrames.new()
@@ -551,6 +577,9 @@ func _update_timers(delta: float) -> void:
 	dash_cooldown_timer = max(dash_cooldown_timer - delta, 0.0)
 	wall_jump_lock_timer = max(wall_jump_lock_timer - delta, 0.0)
 	wall_jump_animation_timer = max(wall_jump_animation_timer - delta, 0.0)
+	wall_cling_timer = max(wall_cling_timer - delta, 0.0)
+	invulnerability_timer = max(invulnerability_timer - delta, 0.0)
+	hurt_lock_timer = max(hurt_lock_timer - delta, 0.0)
 	heavy_ground_impact_wave_timer = max(heavy_ground_impact_wave_timer - delta, 0.0)
 	backflip_chain_timer = max(backflip_chain_timer - delta, 0.0)
 	long_jump_chain_timer = max(long_jump_chain_timer - delta, 0.0)
@@ -633,6 +662,10 @@ func _consume_jump_buffer() -> void:
 
 func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	if wall_jump_lock_timer > 0.0 and not is_on_floor():
+		return
+	if hurt_lock_timer > 0.0:
+		# Tras recibir daño el retroceso manda y solo se frena con la fricción del aire.
+		velocity.x = move_toward(velocity.x, 0.0, air_friction * delta)
 		return
 
 	var control_multiplier: float = 1.0
@@ -755,6 +788,85 @@ func _try_start_frontflip() -> bool:
 	velocity.y = jump_velocity
 	return true
 
+func _start_running_wall_cling() -> void:
+	# Llegar a una pared con impulso de carrera y correr mantenido engancha sin pulsar hacia ella.
+	wall_cling_direction = int(sign(get_wall_normal().x))
+	if wall_cling_direction == 0:
+		return
+	wall_cling_timer = running_wall_cling_time
+	wall_contact_direction = wall_cling_direction
+	wall_visual_direction = wall_cling_direction
+	velocity = Vector2(-wall_cling_direction * 60.0, 0.0)
+	if jump_buffer_timer > 0.0:
+		_try_start_running_wall_jump()
+
+func _apply_running_wall_cling_movement(delta: float) -> void:
+	# Empuja contra la pared para seguir en contacto y se desliza muy despacio.
+	velocity.x = -wall_cling_direction * 60.0
+	velocity.y = move_toward(velocity.y, running_wall_cling_slide_speed, gravity * delta)
+
+func _try_start_running_wall_jump() -> bool:
+	if wall_cling_timer <= 0.0 or is_on_floor() or _is_attack_active() or dash_timer > 0.0:
+		return false
+
+	# Sale como un salto largo desde la pared: más lejos que el walljump normal y encadenable.
+	var direction := wall_cling_direction
+	wall_cling_timer = 0.0
+	wall_contact_direction = 0
+	is_sprinting = true
+	sprint_direction = direction
+	wall_visual_direction = direction
+	wall_jump_animation_timer = wall_jump_animation_duration
+	air_jumps_remaining = max_air_jumps
+	air_uppercut_available = true
+	_launch_long_jump()
+	velocity.y = running_wall_jump_vertical_speed
+	return true
+
+func take_damage(amount: int, source_position: Vector2) -> void:
+	if invulnerability_timer > 0.0 or current_health <= 0:
+		return
+
+	current_health = max(current_health - amount, 0)
+	health_changed.emit(current_health, max_health)
+	if current_health == 0:
+		_respawn_player()
+		return
+
+	invulnerability_timer = hurt_invulnerability_time
+	hurt_lock_timer = hurt_control_lock_time
+	# Interrumpe cualquier estado de movimiento o ataque y empuja lejos del origen del daño.
+	_stop_sprint()
+	long_jump_active = false
+	frontflip_active = false
+	backflip_active = false
+	wall_cling_timer = 0.0
+	if dash_timer > 0.0:
+		dash_timer = 0.0
+		_set_dash_visual_active(false)
+	if is_charging_attack:
+		is_charging_attack = false
+		charge_timer = 0.0
+		_set_charge_visual_active(false)
+	if _is_attack_active():
+		_cancel_attack_for_chain()
+	var push_direction: float = sign(global_position.x - source_position.x)
+	if push_direction == 0.0:
+		push_direction = -facing
+	velocity = Vector2(push_direction * hurt_knockback.x, hurt_knockback.y)
+
+func _update_hurt_visual() -> void:
+	if invulnerability_timer <= 0.0:
+		animated_sprite.modulate = Color.WHITE
+		return
+	var elapsed: float = hurt_invulnerability_time - invulnerability_timer
+	if elapsed < 0.12:
+		animated_sprite.modulate = Color(1.0, 0.35, 0.35)
+	else:
+		# Parpadeo mientras dura la invulnerabilidad.
+		var visible_phase: bool = int(invulnerability_timer * 16.0) % 2 == 0
+		animated_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0 if visible_phase else 0.35)
+
 func _get_sprint_start_direction(move_input: float) -> int:
 	if move_input != 0.0:
 		return 1 if move_input > 0.0 else -1
@@ -767,7 +879,7 @@ func _create_afterimage_container() -> void:
 	afterimage_material = ShaderMaterial.new()
 	afterimage_material.shader = CHARGE_GLOW_SHADER
 	afterimage_material.set_shader_parameter("glow_color", afterimage_color)
-	afterimage_material.set_shader_parameter("glow_amount", 0.6)
+	afterimage_material.set_shader_parameter("glow_amount", afterimage_tint)
 
 func _attach_afterimage_container() -> void:
 	# Vive en el nivel, justo antes del jugador: las sombras se quedan donde se crearon
@@ -782,8 +894,9 @@ func _exit_tree() -> void:
 
 func _update_afterimages(delta: float) -> void:
 	afterimage_timer = max(afterimage_timer - delta, 0.0)
-	# Sombras estilo Alucard solo a partir de la velocidad de carrera.
-	if abs(velocity.x) < sprint_speed - 1.0 or afterimage_timer > 0.0 or not afterimage_container.is_inside_tree():
+	# Sombras estilo Alucard a partir de la velocidad de carrera; el backflip es la excepción.
+	var fast_enough: bool = abs(velocity.x) >= sprint_speed - 1.0 or backflip_active
+	if not fast_enough or afterimage_timer > 0.0 or not afterimage_container.is_inside_tree():
 		return
 	afterimage_timer = afterimage_interval
 	_spawn_afterimage()
@@ -1611,6 +1724,7 @@ func _start_dash() -> void:
 	long_jump_chain_timer = 0.0
 	backflip_active = false
 	backflip_chain_timer = 0.0
+	wall_cling_timer = 0.0
 	var move_input: float = Input.get_axis("move_left", "move_right")
 	dash_direction = facing if move_input == 0.0 else (1 if move_input > 0.0 else -1)
 	sprint_direction = dash_direction
@@ -1645,7 +1759,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
+	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or wall_cling_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -1755,6 +1869,13 @@ func _respawn_player() -> void:
 	backflip_chain_timer = 0.0
 	frontflip_active = false
 	frontflip_elapsed = 0.0
+	wall_cling_timer = 0.0
+	wall_cling_direction = 0
+	current_health = max_health
+	invulnerability_timer = 0.0
+	hurt_lock_timer = 0.0
+	animated_sprite.modulate = Color.WHITE
+	health_changed.emit(current_health, max_health)
 	afterimage_timer = 0.0
 	for ghost in afterimage_container.get_children():
 		ghost.queue_free()
