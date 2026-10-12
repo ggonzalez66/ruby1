@@ -12,6 +12,7 @@ const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dash_1
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/reng_light_hits-sheet.png")
 const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-heavy.png")
 const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
+const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
 
 const CHARACTER_VISUAL_SCALE := 0.18
 const ANIMATION_IDLE := &"idle"
@@ -30,6 +31,7 @@ const ANIMATION_LIGHT_HIT := &"light_hit"
 const ANIMATION_GROUND_HEAVY := &"ground_heavy"
 const ANIMATION_SPRINT := &"sprint"
 const ANIMATION_LONG_JUMP := &"long_jump"
+const ANIMATION_BACKFLIP := &"backflip"
 
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
@@ -110,6 +112,7 @@ const DAMAGE_UPPERCUT := 3
 @export var long_jump_vertical_speed := -500.0
 @export var backflip_horizontal_speed := 520.0
 @export var backflip_vertical_speed := -720.0
+@export var backflip_chain_window := 0.16
 
 @onready var pivot: Node2D = $Pivot
 @onready var animated_sprite: AnimatedSprite2D = $AnimatedSprite2D
@@ -145,6 +148,10 @@ var sprint_turn_direction := 0
 var long_jump_squat_timer := 0.0
 var long_jump_active := false
 var backflip_active := false
+var backflip_direction := 0
+var backflip_elapsed := 0.0
+var backflip_rotation_duration := 0.0
+var backflip_chain_timer := 0.0
 var wall_jump_lock_timer := 0.0
 var wall_jump_animation_timer := 0.0
 var wall_contact_direction := 0
@@ -226,6 +233,8 @@ func _physics_process(delta: float) -> void:
 			_start_spin_attack()
 		elif _try_start_spin_jump_cancel():
 			pass
+		elif _try_start_backflip_chain(move_input):
+			pass
 		elif _try_start_sprint_jump(move_input):
 			pass
 		else:
@@ -255,6 +264,8 @@ func _physics_process(delta: float) -> void:
 	if move_input != 0.0 and not _locks_facing():
 		facing = 1 if move_input > 0.0 else -1
 		_update_facing_visual()
+
+	_try_backflip_instant_run(move_input)
 
 	if dash_timer > 0.0:
 		_apply_dash_movement()
@@ -297,8 +308,9 @@ func _physics_process(delta: float) -> void:
 
 	if is_on_floor():
 		long_jump_active = false
-		backflip_active = false
-		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active():
+		if backflip_active:
+			_land_backflip(move_input)
+		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0:
 			if not is_sprinting:
 				_start_sprint(sprint_direction)
 		elif not Input.is_action_pressed("dash"):
@@ -329,6 +341,7 @@ func _configure_character_animations() -> void:
 	_add_single_frame_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_FALL, AERIAL_STALL_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_BACKFLIP, BACKFLIP_TEXTURE)
 	animated_sprite.sprite_frames = frames
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
 
@@ -378,6 +391,8 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_DASH
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
+	elif backflip_active:
+		next_animation = ANIMATION_BACKFLIP
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
 		next_animation = ANIMATION_WALL_JUMP
 	elif _is_wall_sliding():
@@ -402,6 +417,7 @@ func _update_character_animation() -> void:
 	shadow.visible = is_on_floor()
 
 func _update_character_orientation(animation_name: StringName) -> void:
+	animated_sprite.rotation = _get_backflip_rotation() if animation_name == ANIMATION_BACKFLIP else 0.0
 	if animation_name == ANIMATION_WALL_SLIDE or animation_name == ANIMATION_WALL_JUMP:
 		# Ambos frames representan una secuencia desde una pared situada a la izquierda:
 		# el primero mira hacia ella y el segundo salta en dirección contraria.
@@ -438,6 +454,8 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = SPRINTING_SHEET.get_height()
 		ANIMATION_LONG_JUMP:
 			texture_height = WALLJUMP_SHEET.get_height()
+		ANIMATION_BACKFLIP:
+			texture_height = BACKFLIP_TEXTURE.get_height()
 	animated_sprite.position = Vector2(0.0, -texture_height * CHARACTER_VISUAL_SCALE * 0.5)
 
 func _update_timers(delta: float) -> void:
@@ -449,6 +467,9 @@ func _update_timers(delta: float) -> void:
 	wall_jump_lock_timer = max(wall_jump_lock_timer - delta, 0.0)
 	wall_jump_animation_timer = max(wall_jump_animation_timer - delta, 0.0)
 	heavy_ground_impact_wave_timer = max(heavy_ground_impact_wave_timer - delta, 0.0)
+	backflip_chain_timer = max(backflip_chain_timer - delta, 0.0)
+	if backflip_active:
+		backflip_elapsed += delta
 
 	if attack_timer > 0.0:
 		attack_timer = max(attack_timer - delta, 0.0)
@@ -482,7 +503,7 @@ func _apply_gravity(delta: float) -> void:
 
 	velocity.y = min(velocity.y + gravity * gravity_scale * delta, target_fall_speed)
 
-	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_HEAVY:
+	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_HEAVY and not backflip_active:
 		velocity.y = jump_cut_velocity
 
 func _consume_jump_buffer() -> void:
@@ -545,14 +566,13 @@ func _try_start_sprint_jump(move_input: float) -> bool:
 		return false
 
 	var input_direction := int(sign(move_input))
-	var reversing: bool = sprint_turn_timer > 0.0 or (input_direction != 0 and input_direction != sprint_direction)
 	jump_buffer_timer = 0.0
 	coyote_timer = 0.0
-	if reversing:
-		var backflip_direction := sprint_turn_direction
-		if backflip_direction == 0:
-			backflip_direction = input_direction
-		_start_backflip(backflip_direction)
+	if input_direction == -sprint_direction:
+		# Frenando con el input mantenido hacia atrás: backflip sin girarse.
+		facing = sprint_direction
+		_update_facing_visual()
+		_start_backflip()
 	else:
 		_start_long_jump_squat()
 	return true
@@ -573,20 +593,62 @@ func _launch_long_jump() -> void:
 	facing = sprint_direction
 	_update_facing_visual()
 
-func _start_backflip(direction: int) -> void:
-	var target_direction := direction
-	if target_direction == 0:
-		target_direction = -sprint_direction
-	sprint_direction = 1 if target_direction > 0 else -1
-	facing = sprint_direction
+func _start_backflip() -> void:
+	# El backflip viaja en contra del facing; el personaje sigue mirando hacia delante.
+	backflip_direction = -facing
+	sprint_direction = facing
 	long_jump_squat_timer = 0.0
 	long_jump_active = false
 	backflip_active = true
+	backflip_elapsed = 0.0
+	backflip_rotation_duration = _get_backflip_airtime()
+	backflip_chain_timer = 0.0
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
-	velocity.x = sprint_direction * backflip_horizontal_speed
+	jump_buffer_timer = 0.0
+	coyote_timer = 0.0
+	velocity.x = backflip_direction * backflip_horizontal_speed
 	velocity.y = backflip_vertical_speed
-	_update_facing_visual()
+
+func _get_backflip_airtime() -> float:
+	var rise_time: float = -backflip_vertical_speed / gravity
+	var apex_height: float = backflip_vertical_speed * backflip_vertical_speed / (2.0 * gravity)
+	var fall_time: float = sqrt(2.0 * apex_height / (gravity * fall_gravity_multiplier))
+	return max(rise_time + fall_time, 0.01)
+
+func _get_backflip_rotation() -> float:
+	var progress: float = clamp(backflip_elapsed / backflip_rotation_duration, 0.0, 1.0)
+	# Rotación hacia atrás: antihoraria mirando a la derecha, horaria mirando a la izquierda.
+	return -facing * TAU * smoothstep(0.0, 1.0, progress)
+
+func _land_backflip(move_input: float) -> void:
+	backflip_active = false
+	backflip_direction = 0
+	_stop_sprint()
+	backflip_chain_timer = backflip_chain_window
+	if jump_buffer_timer > 0.0 and _try_start_backflip_chain(move_input):
+		return
+	_try_backflip_instant_run(move_input)
+
+func _try_start_backflip_chain(move_input: float) -> bool:
+	if backflip_chain_timer <= 0.0 or not is_on_floor() or _is_attack_active() or dash_timer > 0.0:
+		return false
+	if int(sign(move_input)) != -facing:
+		return false
+	_start_backflip()
+	return true
+
+func _try_backflip_instant_run(move_input: float) -> void:
+	if backflip_chain_timer <= 0.0 or not is_on_floor() or _is_attack_active() or dash_timer > 0.0:
+		return
+	if int(sign(move_input)) != facing:
+		return
+	backflip_chain_timer = 0.0
+	if Input.is_action_pressed("dash"):
+		_start_sprint(facing)
+		velocity.x = facing * sprint_speed
+	else:
+		velocity.x = facing * max_speed
 
 func _uses_sprint_movement() -> bool:
 	return is_sprinting or long_jump_squat_timer > 0.0 or long_jump_active or backflip_active
@@ -603,7 +665,7 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 		return
 
 	if backflip_active:
-		velocity.x = sprint_direction * backflip_horizontal_speed
+		velocity.x = backflip_direction * backflip_horizontal_speed
 		_apply_gravity(delta)
 		return
 
@@ -1167,6 +1229,7 @@ func _start_dash() -> void:
 	_stop_sprint()
 	long_jump_active = false
 	backflip_active = false
+	backflip_chain_timer = 0.0
 	var move_input: float = Input.get_axis("move_left", "move_right")
 	dash_direction = facing if move_input == 0.0 else (1 if move_input > 0.0 else -1)
 	sprint_direction = dash_direction
@@ -1201,7 +1264,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or _uses_sprint_movement() or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
+	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -1304,6 +1367,9 @@ func _respawn_player() -> void:
 	long_jump_squat_timer = 0.0
 	long_jump_active = false
 	backflip_active = false
+	backflip_direction = 0
+	backflip_elapsed = 0.0
+	backflip_chain_timer = 0.0
 	wall_jump_lock_timer = 0.0
 	wall_jump_animation_timer = 0.0
 	wall_contact_direction = 0
