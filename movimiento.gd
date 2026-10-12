@@ -17,6 +17,11 @@ const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backfli
 
 const CHARACTER_VISUAL_SCALE := 0.18
 const CLAW_ARC_SEGMENTS := 14
+const EFFECT_STROKE_COUNT := 3
+const EFFECT_ARC_SEGMENTS := 16
+# Capas de cada trazo de efecto: contorno, cuerpo y núcleo brillante.
+const EFFECT_PALETTE_SILVER: Array[Color] = [Color(0.2, 0.22, 0.3), Color(0.74, 0.79, 0.88), Color(1.0, 1.0, 1.0)]
+const EFFECT_PALETTE_GOLD: Array[Color] = [Color(0.32, 0.16, 0.03), Color(1.0, 0.7, 0.14), Color(1.0, 0.97, 0.72)]
 const ANIMATION_IDLE := &"idle"
 const ANIMATION_WALK := &"walk"
 const ANIMATION_JUMP := &"jump"
@@ -191,7 +196,10 @@ var air_uppercut_available := true
 var heavy_attack_visual_progress := 0.0
 var heavy_ground_impact_wave_timer := 0.0
 var attack_targets_hit: Array[Area2D] = []
-var hitbox_visuals_visible := true
+# H alterna entre los efectos de ataque (por defecto) y las hitboxes de depuración.
+var show_hitbox_debug := false
+var attack_effects: Node2D
+var effect_strokes: Array = []
 
 var slash_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var slash_area_base_color := Color(1.0, 1.0, 1.0, 0.0)
@@ -237,6 +245,7 @@ func _ready() -> void:
 	slash_outline_base_points = slash_outline.points
 	claw_hitbox_polygon = _build_claw_arc_polygon(claw_start_angle_degrees, claw_end_angle_degrees, 0.35)
 	claw_hitbox_shape.polygon = claw_hitbox_polygon
+	_create_attack_effects()
 	impact_wave_left_base_position = impact_wave_left.position
 	impact_wave_right_base_position = impact_wave_right.position
 	impact_wave_left_outline_base_position = impact_wave_left_outline.position
@@ -263,7 +272,7 @@ func _physics_process(delta: float) -> void:
 		air_uppercut_available = true
 
 	if Input.is_action_just_pressed("toggle_hitbox_visuals"):
-		hitbox_visuals_visible = not hitbox_visuals_visible
+		show_hitbox_debug = not show_hitbox_debug
 		_update_hitbox_visual_visibility()
 
 	if Input.is_action_just_pressed("jump"):
@@ -1104,10 +1113,13 @@ func _set_attack_active(active: bool) -> void:
 	slash_outline.default_color = slash_outline_base_color if active else Color(slash_outline_base_color.r, slash_outline_base_color.g, slash_outline_base_color.b, 0.0)
 
 func _update_hitbox_visual_visibility() -> void:
-	var should_show := hitbox_visuals_visible and _is_attack_active()
-	slash_visual.visible = should_show
-	slash_area_visual.visible = should_show
-	slash_outline.visible = should_show
+	var attacking := _is_attack_active()
+	var show_hitboxes := show_hitbox_debug and attacking
+	slash_visual.visible = show_hitboxes
+	slash_area_visual.visible = show_hitboxes
+	slash_outline.visible = show_hitboxes
+	if attack_effects:
+		attack_effects.visible = attacking and not show_hitbox_debug
 
 func _update_attack_animation() -> void:
 	if not _is_attack_active():
@@ -1128,6 +1140,168 @@ func _update_attack_animation() -> void:
 			_animate_light_charged_air_attack()
 		ATTACK_UPPERCUT:
 			_animate_uppercut_attack()
+	_update_attack_effects()
+
+func _create_attack_effects() -> void:
+	attack_effects = Node2D.new()
+	attack_effects.name = "AttackEffects"
+	attack_effects.visible = false
+	pivot.add_child(attack_effects)
+
+	# Media luna afilada: nace de la nada, engorda y termina en punta.
+	var width_curve := Curve.new()
+	width_curve.add_point(Vector2(0.0, 0.0))
+	width_curve.add_point(Vector2(0.55, 1.0))
+	width_curve.add_point(Vector2(0.85, 0.75))
+	width_curve.add_point(Vector2(1.0, 0.12))
+
+	for index in range(EFFECT_STROKE_COUNT):
+		effect_strokes.append([])
+	# Todos los contornos primero, luego cuerpos y núcleos, para que no se tapen entre trazos.
+	for layer in range(3):
+		for index in range(EFFECT_STROKE_COUNT):
+			var line := Line2D.new()
+			line.width_curve = width_curve
+			line.joint_mode = Line2D.LINE_JOINT_ROUND
+			line.gradient = Gradient.new()
+			line.visible = false
+			attack_effects.add_child(line)
+			effect_strokes[index].append(line)
+
+func _set_effect_stroke(index: int, points: PackedVector2Array, width: float, palette: Array[Color], alpha: float) -> void:
+	var layers: Array = effect_strokes[index]
+	if points.size() < 2 or alpha <= 0.0:
+		for line in layers:
+			line.visible = false
+		return
+
+	var widths: Array[float] = [width + 2.0, width, max(width * 0.35, 1.0)]
+	for layer in range(3):
+		var line: Line2D = layers[layer]
+		var color: Color = palette[layer]
+		line.visible = true
+		line.points = points
+		line.width = widths[layer]
+		# La cola se desvanece hacia la parte más antigua del trazo.
+		line.gradient.set_color(0, Color(color.r, color.g, color.b, 0.0))
+		line.gradient.set_color(1, Color(color.r, color.g, color.b, alpha))
+
+func _hide_effect_strokes(from_index: int) -> void:
+	for index in range(from_index, EFFECT_STROKE_COUNT):
+		_set_effect_stroke(index, PackedVector2Array(), 0.0, EFFECT_PALETTE_SILVER, 0.0)
+
+func _effect_arc_points(center: Vector2, radius: Vector2, from_angle: float, to_angle: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for index in range(EFFECT_ARC_SEGMENTS + 1):
+		var angle: float = lerp(from_angle, to_angle, float(index) / float(EFFECT_ARC_SEGMENTS))
+		points.append(center + Vector2(cos(angle) * radius.x, sin(angle) * radius.y))
+	return points
+
+func _effect_fade(progress: float, fade_start: float) -> float:
+	if progress <= fade_start:
+		return 1.0
+	return clamp(1.0 - (progress - fade_start) / (1.0 - fade_start), 0.0, 1.0)
+
+func _update_attack_effects() -> void:
+	match attack_mode:
+		ATTACK_SLASH:
+			_effect_claw_slash()
+		ATTACK_GROUND_CHARGED, ATTACK_LIGHT_CHARGED_AIR:
+			_effect_charged_lunge()
+		ATTACK_UPPERCUT:
+			_effect_uppercut()
+		ATTACK_SPIN:
+			_effect_spin()
+		ATTACK_HEAVY:
+			_effect_heavy_arc(heavy_attack_visual_progress, true)
+		ATTACK_HEAVY_GROUND:
+			_effect_heavy_arc(1.0 - (attack_timer / ground_heavy_duration), false)
+
+func _effect_claw_slash() -> void:
+	# Tres zarpazos plateados paralelos siguiendo el arco de la hitbox.
+	var progress: float = 1.0 - (attack_timer / attack_duration)
+	var sweep: float = 1.0 - pow(1.0 - progress, 2.4)
+	var alpha: float = _effect_fade(progress, 0.55)
+	var start_angle: float = deg_to_rad(claw_start_angle_degrees)
+	var end_angle: float = deg_to_rad(claw_end_angle_degrees)
+	var mid_radius: float = (claw_inner_radius + claw_outer_radius) * 0.5
+	var spacing: float = (claw_outer_radius - claw_inner_radius) * 0.3
+	for index in range(3):
+		var lead: float = (index - 1) * 0.06
+		var head: float = lerp(start_angle, end_angle, clamp(sweep + lead, 0.08, 1.0))
+		var tail: float = lerp(start_angle, head, clamp(progress * 1.3 - 0.35, 0.0, 0.8))
+		var radius: float = mid_radius + (index - 1) * spacing
+		var width: float = 5.5 if index == 1 else 4.5
+		_set_effect_stroke(index, _effect_arc_points(claw_arc_center, Vector2(radius, radius), tail, head), width, EFFECT_PALETTE_SILVER, alpha)
+
+func _effect_charged_lunge() -> void:
+	# Estocada: tres garras horizontales que convergen hacia la punta.
+	var progress: float = 1.0 - (attack_timer / charged_ground_duration)
+	var reveal: float = 1.0 - pow(1.0 - progress, 3.0)
+	var alpha: float = _effect_fade(progress, 0.6)
+	var head_x: float = lerp(14.0, 84.0, reveal)
+	var tail_x: float = lerp(-14.0, head_x - 24.0, clamp(progress * 1.5 - 0.5, 0.0, 1.0))
+	for index in range(3):
+		var base_y: float = (index - 1) * 10.0
+		var points := PackedVector2Array()
+		for step in range(9):
+			var t: float = step / 8.0
+			var x: float = lerp(tail_x, head_x, t)
+			var y: float = base_y * lerp(1.0, 0.45, t) - sin(t * PI) * 3.0
+			points.append(Vector2(x, y))
+		var width: float = 6.0 if index == 1 else 4.5
+		_set_effect_stroke(index, points, width, EFFECT_PALETTE_SILVER, alpha)
+
+func _effect_uppercut() -> void:
+	# Media luna vertical que sube por delante del personaje.
+	var progress: float = 1.0 - (attack_timer / light_uppercut_duration)
+	var sweep: float = 1.0 - pow(1.0 - progress, 2.0)
+	var start_angle: float = deg_to_rad(60.0)
+	var head: float = lerp(start_angle, deg_to_rad(-110.0), max(sweep, 0.15))
+	for index in range(2):
+		var radius: float = 30.0 + index * 10.0
+		var width: float = 6.0 if index == 0 else 4.5
+		_set_effect_stroke(index, _effect_arc_points(Vector2(6.0, -12.0), Vector2(radius, radius), start_angle, head - index * 0.12), width, EFFECT_PALETTE_SILVER, 1.0)
+	_hide_effect_strokes(2)
+
+func _effect_spin() -> void:
+	# Anillo de cortes plateados que gira junto con la hitbox.
+	var progress: float = 1.0 - (attack_timer / spin_attack_duration)
+	var head: float = progress * TAU * 1.6
+	var alpha: float = _effect_fade(progress, 0.75)
+	for index in range(2):
+		var radius: float = 36.0 + index * 10.0
+		var stroke_head: float = head - index * 0.35
+		var width: float = 6.0 if index == 0 else 4.5
+		_set_effect_stroke(index, _effect_arc_points(Vector2(0.0, 4.0), Vector2(radius, radius), stroke_head - deg_to_rad(230.0), stroke_head), width, EFFECT_PALETTE_SILVER, alpha)
+	_hide_effect_strokes(2)
+
+func _effect_heavy_arc(progress: float, aerial: bool) -> void:
+	# Gran tajo dorado siguiendo la elipse de la hitbox pesada.
+	var start_angle := -1.42
+	# Barrido rápido al principio para que el tajo se vea entero aunque el ataque dure poco.
+	var sweep: float = 1.0 - pow(1.0 - clamp(progress, 0.0, 1.0), 2.5)
+	var head: float = lerp(start_angle, 0.35, max(sweep, 0.2))
+	var alpha: float = 1.0
+	if aerial and progress >= 1.0:
+		alpha = 0.85 + 0.15 * sin(Time.get_ticks_msec() / 55.0)
+	elif not aerial:
+		alpha = _effect_fade(progress, 0.7)
+	var center := Vector2(10.0, -6.0)
+	_set_effect_stroke(0, _effect_arc_points(center, Vector2(48.0, 56.0), start_angle - 0.2, head), 14.0, EFFECT_PALETTE_GOLD, alpha)
+	_set_effect_stroke(1, _effect_arc_points(center, Vector2(34.0, 42.0), start_angle, head - 0.1), 8.0, EFFECT_PALETTE_GOLD, alpha)
+
+	if aerial and velocity.y > 0.0:
+		# Estela de la caída en picado, apuntando en contra de la velocidad.
+		var local_velocity := Vector2(velocity.x * facing, velocity.y)
+		var trail_direction: Vector2 = -local_velocity.normalized()
+		var streak_length: float = min(local_velocity.length() * 0.045, 64.0)
+		var points := PackedVector2Array()
+		for step in range(7):
+			points.append(Vector2(-4.0, 4.0) + trail_direction * streak_length * (1.0 - step / 6.0))
+		_set_effect_stroke(2, points, 8.0, EFFECT_PALETTE_GOLD, 0.8)
+	else:
+		_hide_effect_strokes(2)
 
 func _animate_normal_slash() -> void:
 	var progress: float = 1.0 - (attack_timer / attack_duration)
