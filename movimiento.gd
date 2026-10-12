@@ -11,6 +11,7 @@ const AERIAL_STALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/ren
 const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dash_1.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/reng_light_hits-sheet.png")
 const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-heavy.png")
+const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
 const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
 
@@ -130,8 +131,6 @@ const DAMAGE_UPPERCUT := 3
 @onready var slash_visual: Polygon2D = $Pivot/SlashVisual
 @onready var slash_area_visual: Polygon2D = $Pivot/SlashAreaVisual
 @onready var slash_outline: Line2D = $Pivot/SlashOutline
-@onready var charge_visual: Polygon2D = $ChargeVisual
-@onready var charge_outline: Line2D = $ChargeOutline
 @onready var dash_visual: Polygon2D = $DashVisual
 @onready var impact_wave_left: Polygon2D = $ImpactWaveLeft
 @onready var impact_wave_right: Polygon2D = $ImpactWaveRight
@@ -176,8 +175,7 @@ var hitbox_visuals_visible := true
 var slash_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var slash_area_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var slash_outline_base_color := Color(1.0, 1.0, 1.0, 0.0)
-var charge_base_color := Color(1.0, 1.0, 1.0, 0.0)
-var charge_outline_base_color := Color(1.0, 1.0, 1.0, 0.0)
+var charge_glow_material: ShaderMaterial
 var dash_visual_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var impact_wave_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var impact_wave_outline_base_color := Color(1.0, 1.0, 1.0, 0.0)
@@ -199,12 +197,13 @@ var claw_hitbox_polygon := PackedVector2Array()
 func _ready() -> void:
 	floor_snap_length = 10.0
 	_configure_character_animations()
+	charge_glow_material = ShaderMaterial.new()
+	charge_glow_material.shader = CHARGE_GLOW_SHADER
+	animated_sprite.material = charge_glow_material
 	air_jumps_remaining = max_air_jumps
 	slash_base_color = slash_visual.color
 	slash_area_base_color = slash_area_visual.color
 	slash_outline_base_color = slash_outline.default_color
-	charge_base_color = charge_visual.color
-	charge_outline_base_color = charge_outline.default_color
 	dash_visual_base_color = dash_visual.color
 	impact_wave_base_color = impact_wave_left.color
 	impact_wave_outline_base_color = impact_wave_left_outline.default_color
@@ -1292,28 +1291,19 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
 
 func _set_charge_visual_active(active: bool) -> void:
-	charge_visual.visible = active
-	charge_outline.visible = active
-	charge_visual.color = charge_base_color if active else Color(charge_base_color.r, charge_base_color.g, charge_base_color.b, 0.0)
-	charge_outline.default_color = charge_outline_base_color if active else Color(charge_outline_base_color.r, charge_outline_base_color.g, charge_outline_base_color.b, 0.0)
+	if not active:
+		charge_glow_material.set_shader_parameter("glow_amount", 0.0)
 
 func _update_charge_visual() -> void:
 	if not is_charging_attack:
 		return
 
 	var progress: float = clamp(charge_timer / attack_charge_time, 0.0, 1.0)
-	var pulse: float = 1.0
+	# El sprite se va iluminando mientras carga y late al estar cargado del todo.
+	var glow: float = lerp(0.05, 0.6, progress * progress)
 	if progress >= 1.0:
-		pulse = 1.0 + 0.1 * sin(Time.get_ticks_msec() / 55.0)
-
-	var alpha: float = lerp(0.12, 0.56, progress)
-	var glow_scale: float = lerp(0.55, 1.12, progress) * pulse
-	var outline_alpha: float = lerp(0.35, 0.95, progress)
-
-	charge_visual.scale = Vector2(glow_scale, glow_scale)
-	charge_outline.scale = charge_visual.scale
-	charge_visual.color = Color(1.0, lerp(0.82, 0.96, progress), lerp(0.42, 0.22, progress), alpha)
-	charge_outline.default_color = Color(1.0, lerp(0.96, 0.9, progress), lerp(0.72, 0.4, progress), outline_alpha)
+		glow = 0.7 + 0.2 * sin(Time.get_ticks_msec() / 55.0)
+	charge_glow_material.set_shader_parameter("glow_amount", glow)
 
 func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
