@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3 uid="uid://bsjw318ojxwhy"]
+[gd_scene load_steps=17 format=3 uid="uid://bsjw318ojxwhy"]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_41u7p"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_2ax5n"]
@@ -22,7 +22,7 @@ size = Vector2(100, 100)
 size = Vector2(60, 2200)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_horizontal"]
-size = Vector2(3800, 60)
+size = Vector2(6400, 60)
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_bottom_left"]
 size = Vector2(620, 60)
@@ -39,11 +39,17 @@ size = Vector2(360, 80)
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_wall"]
 size = Vector2(42, 760)
 
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground_arena"]
+size = Vector2(900, 80)
+
+[sub_resource type="RectangleShape2D" id="RectangleShape2D_climb_wall"]
+size = Vector2(48, 420)
+
 [node name="Main" type="Node2D"]
 
 [node name="Background" type="Polygon2D" parent="."]
 color = Color(0.941176, 0.94902, 0.917647, 1)
-polygon = PackedVector2Array(-1000, -500, 2200, -500, 2200, 700, -1000, 700)
+polygon = PackedVector2Array(-1000, -500, 5000, -500, 5000, 700, -1000, 700)
 
 [node name="Sun" type="Polygon2D" parent="."]
 position = Vector2(1280, -180)
@@ -194,7 +200,7 @@ color = Color(0.54902, 0.258824, 0.172549, 1)
 polygon = PackedVector2Array(-30, -1100, 30, -1100, 30, 1100, -30, 1100)
 
 [node name="BoundaryRight" type="StaticBody2D" parent="."]
-position = Vector2(2320, 390)
+position = Vector2(5000, 390)
 collision_layer = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryRight"]
@@ -205,7 +211,7 @@ color = Color(0.54902, 0.258824, 0.172549, 1)
 polygon = PackedVector2Array(-30, -1100, 30, -1100, 30, 1100, -30, 1100)
 
 [node name="BoundaryTop" type="StaticBody2D" parent="."]
-position = Vector2(560, -820)
+position = Vector2(1900, -820)
 collision_layer = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryTop"]
@@ -213,10 +219,10 @@ shape = SubResource("RectangleShape2D_boundary_horizontal")
 
 [node name="Visual" type="Polygon2D" parent="BoundaryTop"]
 color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
+polygon = PackedVector2Array(-3200, -30, 3200, -30, 3200, 30, -3200, 30)
 
 [node name="BoundaryBottom" type="StaticBody2D" parent="."]
-position = Vector2(560, 1320)
+position = Vector2(1900, 1320)
 collision_layer = 2
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottom"]
@@ -224,7 +230,128 @@ shape = SubResource("RectangleShape2D_boundary_horizontal")
 
 [node name="Visual" type="Polygon2D" parent="BoundaryBottom"]
 color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-1900, -30, 1900, -30, 1900, 30, -1900, 30)
+polygon = PackedVector2Array(-3200, -30, 3200, -30, 3200, 30, -3200, 30)
+
+[node name="ArenaGround" type="StaticBody2D" parent="."]
+position = Vector2(2450, 300)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaGround"]
+shape = SubResource("RectangleShape2D_ground_arena")
+
+[node name="Visual" type="Polygon2D" parent="ArenaGround"]
+color = Color(0.701961, 0.352941, 0.239216, 1)
+polygon = PackedVector2Array(-450, -40, 450, -40, 450, 40, -450, 40)
+
+[node name="ArenaPlatformLeft" type="StaticBody2D" parent="."]
+position = Vector2(2200, 120)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaPlatformLeft"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="ArenaPlatformLeft"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="ArenaPlatformRight" type="StaticBody2D" parent="."]
+position = Vector2(2700, 120)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaPlatformRight"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="ArenaPlatformRight"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="ArenaHighPlatform" type="StaticBody2D" parent="."]
+position = Vector2(2450, -40)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaHighPlatform"]
+shape = SubResource("RectangleShape2D_platform_long")
+
+[node name="Visual" type="Polygon2D" parent="ArenaHighPlatform"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
+
+[node name="ClimbGround" type="StaticBody2D" parent="."]
+position = Vector2(3480, 300)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbGround"]
+shape = SubResource("RectangleShape2D_ground")
+
+[node name="Visual" type="Polygon2D" parent="ClimbGround"]
+color = Color(0.701961, 0.352941, 0.239216, 1)
+polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
+
+[node name="ClimbStepLow" type="StaticBody2D" parent="."]
+position = Vector2(3620, 140)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbStepLow"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="ClimbStepLow"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="ClimbStepMid" type="StaticBody2D" parent="."]
+position = Vector2(3400, 10)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbStepMid"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="ClimbStepMid"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="ClimbStepHigh" type="StaticBody2D" parent="."]
+position = Vector2(3660, -110)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbStepHigh"]
+shape = SubResource("RectangleShape2D_platform_medium")
+
+[node name="Visual" type="Polygon2D" parent="ClimbStepHigh"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
+
+[node name="ClimbWall" type="StaticBody2D" parent="."]
+position = Vector2(3880, 50)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbWall"]
+shape = SubResource("RectangleShape2D_climb_wall")
+
+[node name="Visual" type="Polygon2D" parent="ClimbWall"]
+color = Color(0.509804, 0.247059, 0.160784, 1)
+polygon = PackedVector2Array(-24, -210, 24, -210, 24, 210, -24, 210)
+
+[node name="SummitPlatform" type="StaticBody2D" parent="."]
+position = Vector2(4034, -172)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="SummitPlatform"]
+shape = SubResource("RectangleShape2D_platform_long")
+
+[node name="Visual" type="Polygon2D" parent="SummitPlatform"]
+color = Color(0.521569, 0.278431, 0.184314, 1)
+polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
+
+[node name="FinalGround" type="StaticBody2D" parent="."]
+position = Vector2(4400, 300)
+collision_layer = 2
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="FinalGround"]
+shape = SubResource("RectangleShape2D_ground")
+
+[node name="Visual" type="Polygon2D" parent="FinalGround"]
+color = Color(0.701961, 0.352941, 0.239216, 1)
+polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
 
 [node name="Playerr" parent="." instance=ExtResource("1_41u7p")]
 position = Vector2(-620, 220)
@@ -243,3 +370,75 @@ position = Vector2(1140, 38)
 
 [node name="DummyFar" parent="." instance=ExtResource("2_2ax5n")]
 position = Vector2(1460, -24)
+
+[node name="DummyArenaPatrolA" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(2160, 260)
+base_color = Color(0.913725, 0.462745, 0.270588, 1)
+move_offset = Vector2(240, 0)
+move_period = 3.2
+
+[node name="DummyArenaPatrolB" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(2740, 260)
+base_color = Color(0.913725, 0.462745, 0.270588, 1)
+move_offset = Vector2(-220, 0)
+move_period = 2.6
+move_phase = 0.5
+
+[node name="DummyArenaAirStill" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(2450, 170)
+base_color = Color(0.45098, 0.701961, 0.94902, 1)
+aerial = true
+
+[node name="DummyArenaAirHigh" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(2450, -110)
+base_color = Color(0.45098, 0.701961, 0.94902, 1)
+aerial = true
+
+[node name="DummyArenaAirSweep" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(2150, 30)
+base_color = Color(0.45098, 0.701961, 0.94902, 1)
+aerial = true
+move_offset = Vector2(600, 0)
+move_period = 4.5
+
+[node name="DummyClimbPatrol" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(3220, 260)
+base_color = Color(0.913725, 0.462745, 0.270588, 1)
+move_offset = Vector2(320, 0)
+move_period = 3.0
+
+[node name="DummyClimbAirLift" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(3250, 190)
+base_color = Color(0.45098, 0.701961, 0.94902, 1)
+aerial = true
+move_offset = Vector2(0, -280)
+move_period = 3.6
+
+[node name="DummyClimbAirOrbit" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(3520, -120)
+base_color = Color(0.45098, 0.701961, 0.94902, 1)
+aerial = true
+orbit_radius = 90.0
+move_period = 3.0
+
+[node name="DummySummit" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(4034, -186)
+
+[node name="DummyFinalPatrol" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(4200, 260)
+base_color = Color(0.913725, 0.462745, 0.270588, 1)
+move_offset = Vector2(360, 0)
+move_period = 2.4
+
+[node name="DummyFinalAirStill" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(4620, 140)
+base_color = Color(0.45098, 0.701961, 0.94902, 1)
+aerial = true
+
+[node name="DummyFinalAirDiagonal" parent="." instance=ExtResource("2_2ax5n")]
+position = Vector2(4150, 120)
+base_color = Color(0.45098, 0.701961, 0.94902, 1)
+aerial = true
+move_offset = Vector2(380, -180)
+move_period = 3.8
+move_phase = 0.25

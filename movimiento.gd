@@ -15,6 +15,7 @@ const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_spr
 const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
 
 const CHARACTER_VISUAL_SCALE := 0.18
+const CLAW_ARC_SEGMENTS := 14
 const ANIMATION_IDLE := &"idle"
 const ANIMATION_WALK := &"walk"
 const ANIMATION_JUMP := &"jump"
@@ -71,6 +72,11 @@ const DAMAGE_UPPERCUT := 3
 @export var attack_duration := 0.16
 @export var attack_cooldown := 0.22
 @export var attack_move_multiplier := 0.7
+@export var claw_arc_center := Vector2(4.0, 0.0)
+@export var claw_inner_radius := 24.0
+@export var claw_outer_radius := 60.0
+@export var claw_start_angle_degrees := -80.0
+@export var claw_end_angle_degrees := 65.0
 @export var attack_charge_time := 0.55
 @export var charged_attack_cooldown := 0.5
 @export var charged_ground_duration := 0.22
@@ -107,9 +113,10 @@ const DAMAGE_UPPERCUT := 3
 @export var sprint_speed := 560.0
 @export var sprint_turn_duration := 0.28
 @export var sprint_brake_deceleration := 2600.0
-@export var long_jump_squat_duration := 0.12
+@export var long_jump_squat_duration := 0.0
 @export var long_jump_horizontal_speed := 680.0
 @export var long_jump_vertical_speed := -500.0
+@export var long_jump_chain_window := 0.12
 @export var backflip_horizontal_speed := 520.0
 @export var backflip_vertical_speed := -720.0
 @export var backflip_chain_window := 0.16
@@ -119,6 +126,7 @@ const DAMAGE_UPPERCUT := 3
 @onready var shadow: Sprite2D = $Shadow
 @onready var hitbox: Area2D = $Pivot/Hitbox
 @onready var hitbox_shape: CollisionShape2D = $Pivot/Hitbox/CollisionShape2D
+@onready var claw_hitbox_shape: CollisionPolygon2D = $Pivot/Hitbox/ClawShape
 @onready var slash_visual: Polygon2D = $Pivot/SlashVisual
 @onready var slash_area_visual: Polygon2D = $Pivot/SlashAreaVisual
 @onready var slash_outline: Line2D = $Pivot/SlashOutline
@@ -147,6 +155,7 @@ var sprint_turn_timer := 0.0
 var sprint_turn_direction := 0
 var long_jump_squat_timer := 0.0
 var long_jump_active := false
+var long_jump_chain_timer := 0.0
 var backflip_active := false
 var backflip_direction := 0
 var backflip_elapsed := 0.0
@@ -182,6 +191,10 @@ var impact_wave_right_base_position := Vector2.ZERO
 var impact_wave_left_outline_base_position := Vector2.ZERO
 var impact_wave_right_outline_base_position := Vector2.ZERO
 var spawn_position := Vector2.ZERO
+var slash_visual_base_polygon := PackedVector2Array()
+var slash_area_base_polygon := PackedVector2Array()
+var slash_outline_base_points := PackedVector2Array()
+var claw_hitbox_polygon := PackedVector2Array()
 
 func _ready() -> void:
 	floor_snap_length = 10.0
@@ -199,6 +212,11 @@ func _ready() -> void:
 	slash_visual_base_position = slash_visual.position
 	slash_area_base_position = slash_area_visual.position
 	slash_outline_base_position = slash_outline.position
+	slash_visual_base_polygon = slash_visual.polygon
+	slash_area_base_polygon = slash_area_visual.polygon
+	slash_outline_base_points = slash_outline.points
+	claw_hitbox_polygon = _build_claw_arc_polygon(claw_start_angle_degrees, claw_end_angle_degrees, 0.35)
+	claw_hitbox_shape.polygon = claw_hitbox_polygon
 	impact_wave_left_base_position = impact_wave_left.position
 	impact_wave_right_base_position = impact_wave_right.position
 	impact_wave_left_outline_base_position = impact_wave_left_outline.position
@@ -234,6 +252,10 @@ func _physics_process(delta: float) -> void:
 		elif _try_start_spin_jump_cancel():
 			pass
 		elif _try_start_backflip_chain(move_input):
+			pass
+		elif _try_start_backflip_air_jump(move_input):
+			pass
+		elif _try_start_long_jump_chain(move_input):
 			pass
 		elif _try_start_sprint_jump(move_input):
 			pass
@@ -307,7 +329,8 @@ func _physics_process(delta: float) -> void:
 		_stop_sprint()
 
 	if is_on_floor():
-		long_jump_active = false
+		if long_jump_active:
+			_land_long_jump(move_input)
 		if backflip_active:
 			_land_backflip(move_input)
 		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0:
@@ -468,6 +491,7 @@ func _update_timers(delta: float) -> void:
 	wall_jump_animation_timer = max(wall_jump_animation_timer - delta, 0.0)
 	heavy_ground_impact_wave_timer = max(heavy_ground_impact_wave_timer - delta, 0.0)
 	backflip_chain_timer = max(backflip_chain_timer - delta, 0.0)
+	long_jump_chain_timer = max(long_jump_chain_timer - delta, 0.0)
 	if backflip_active:
 		backflip_elapsed += delta
 
@@ -503,7 +527,7 @@ func _apply_gravity(delta: float) -> void:
 
 	velocity.y = min(velocity.y + gravity * gravity_scale * delta, target_fall_speed)
 
-	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_HEAVY and not backflip_active:
+	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_HEAVY and not backflip_active and not long_jump_active:
 		velocity.y = jump_cut_velocity
 
 func _consume_jump_buffer() -> void:
@@ -584,14 +608,38 @@ func _start_long_jump_squat() -> void:
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
 	velocity.y = 0.0
+	if long_jump_squat_duration <= 0.0:
+		long_jump_squat_timer = 0.0
+		_launch_long_jump()
 
 func _launch_long_jump() -> void:
 	long_jump_active = true
+	long_jump_chain_timer = 0.0
 	backflip_active = false
+	jump_buffer_timer = 0.0
+	coyote_timer = 0.0
 	velocity.x = sprint_direction * long_jump_horizontal_speed
 	velocity.y = long_jump_vertical_speed
 	facing = sprint_direction
 	_update_facing_visual()
+
+func _land_long_jump(move_input: float) -> void:
+	long_jump_active = false
+	long_jump_chain_timer = long_jump_chain_window
+	if jump_buffer_timer > 0.0:
+		_try_start_long_jump_chain(move_input)
+
+func _try_start_long_jump_chain(move_input: float) -> bool:
+	# Bunnyhop: saltar justo al aterrizar de un salto largo encadena otro al instante.
+	if long_jump_chain_timer <= 0.0 or not is_on_floor() or _is_attack_active() or dash_timer > 0.0:
+		return false
+	if int(sign(move_input)) == -sprint_direction:
+		return false
+	long_jump_squat_timer = 0.0
+	sprint_turn_timer = 0.0
+	sprint_turn_direction = 0
+	_launch_long_jump()
+	return true
 
 func _start_backflip() -> void:
 	# El backflip viaja en contra del facing; el personaje sigue mirando hacia delante.
@@ -636,6 +684,25 @@ func _try_start_backflip_chain(move_input: float) -> bool:
 	if int(sign(move_input)) != -facing:
 		return false
 	_start_backflip()
+	return true
+
+func _try_start_backflip_air_jump(move_input: float) -> bool:
+	if not backflip_active or is_on_floor() or air_jumps_remaining <= 0 or _is_attack_active() or dash_timer > 0.0:
+		return false
+
+	air_jumps_remaining -= 1
+	if int(sign(move_input)) == -facing:
+		# Doble backflip: mantiene el facing y reinicia el giro.
+		_start_backflip()
+		return true
+
+	# Doble salto normal: sale del backflip conservando el impulso hacia atrás.
+	backflip_active = false
+	backflip_direction = 0
+	_stop_sprint()
+	jump_buffer_timer = 0.0
+	velocity.y = jump_velocity
+	animated_sprite.play(ANIMATION_JUMP)
 	return true
 
 func _try_backflip_instant_run(move_input: float) -> void:
@@ -952,6 +1019,10 @@ func _end_attack() -> void:
 		velocity.x = facing * ground_heavy_end_speed
 
 func _reset_attack_pose() -> void:
+	claw_hitbox_shape.disabled = true
+	slash_visual.polygon = slash_visual_base_polygon
+	slash_area_visual.polygon = slash_area_base_polygon
+	slash_outline.points = slash_outline_base_points
 	hitbox.rotation = 0.0
 	hitbox_shape.position = hitbox_base_position
 	hitbox_shape.scale = Vector2.ONE
@@ -1004,6 +1075,7 @@ func _update_impact_wave_visual() -> void:
 func _set_attack_active(active: bool) -> void:
 	hitbox.monitoring = active
 	hitbox_shape.disabled = not active
+	claw_hitbox_shape.disabled = true
 	_update_hitbox_visual_visibility()
 	slash_visual.color = slash_base_color if active else Color(slash_base_color.r, slash_base_color.g, slash_base_color.b, 0.0)
 	slash_area_visual.color = slash_area_base_color if active else Color(slash_area_base_color.r, slash_area_base_color.g, slash_area_base_color.b, 0.0)
@@ -1037,25 +1109,46 @@ func _update_attack_animation() -> void:
 
 func _animate_normal_slash() -> void:
 	var progress: float = 1.0 - (attack_timer / attack_duration)
-	var slash_angle: float = lerp(-0.95, 0.35, progress)
-	var slash_scale: float = lerp(0.92, 1.08, sin(progress * PI))
-	var alpha: float = lerp(0.9, 0.2, progress)
+	# El zarpazo barre rápido al principio y se desvanece al final.
+	var sweep: float = 1.0 - pow(1.0 - progress, 2.4)
+	var sweep_end: float = lerp(claw_start_angle_degrees, claw_end_angle_degrees, max(sweep, 0.12))
+	var sweep_start: float = lerp(claw_start_angle_degrees, sweep_end, clamp(progress * 1.4 - 0.4, 0.0, 0.85))
+	var alpha: float = lerp(0.95, 0.15, progress)
 
-	hitbox_shape.position = hitbox_base_position + Vector2(28.0, 0.0)
-	hitbox_shape.scale = Vector2(2.0, 1.18)
-	slash_visual.position = slash_visual_base_position + Vector2(30.0, 0.0)
-	slash_area_visual.position = slash_area_base_position + Vector2(32.0, 0.0)
-	slash_outline.position = slash_outline_base_position + Vector2(32.0, 0.0)
-	hitbox.rotation = slash_angle
-	slash_visual.rotation = slash_angle
-	slash_area_visual.rotation = slash_angle
-	slash_outline.rotation = slash_angle
-	slash_visual.scale = Vector2(slash_scale * 1.85, slash_scale * 1.05)
-	slash_area_visual.scale = Vector2(lerp(1.95, 2.1, progress), lerp(1.0, 1.14, progress))
-	slash_outline.scale = slash_area_visual.scale
+	# La hitbox cubre todo el arco desde el primer frame para que el golpe no falle.
+	hitbox_shape.disabled = true
+	claw_hitbox_shape.disabled = false
+	hitbox.rotation = 0.0
+	for visual in [slash_visual, slash_area_visual, slash_outline]:
+		visual.position = Vector2.ZERO
+		visual.rotation = 0.0
+		visual.scale = Vector2.ONE
+
+	slash_visual.polygon = _build_claw_arc_polygon(sweep_start, sweep_end, 0.85)
+	slash_area_visual.polygon = claw_hitbox_polygon
+	var outline_points := claw_hitbox_polygon.duplicate()
+	outline_points.append(claw_hitbox_polygon[0])
+	slash_outline.points = outline_points
 	slash_visual.color = Color(1.0, 0.95, 0.72, alpha)
 	slash_area_visual.color = Color(1.0, 0.82, 0.32, lerp(0.42, 0.16, progress))
 	slash_outline.default_color = Color(1.0, 0.94, 0.62, lerp(0.95, 0.35, progress))
+
+func _build_claw_arc_polygon(from_degrees: float, to_degrees: float, taper: float) -> PackedVector2Array:
+	# Media luna: borde exterior de ida y borde interior de vuelta, más fina en las puntas.
+	var outer_points := PackedVector2Array()
+	var inner_points := PackedVector2Array()
+	var mid_radius: float = (claw_inner_radius + claw_outer_radius) * 0.5
+	var half_thickness: float = (claw_outer_radius - claw_inner_radius) * 0.5
+	for index in range(CLAW_ARC_SEGMENTS + 1):
+		var t: float = float(index) / float(CLAW_ARC_SEGMENTS)
+		var angle: float = deg_to_rad(lerp(from_degrees, to_degrees, t))
+		var thickness: float = half_thickness * lerp(1.0, max(sin(t * PI), 0.06), taper)
+		var direction := Vector2(cos(angle), sin(angle))
+		outer_points.append(claw_arc_center + direction * (mid_radius + thickness))
+		inner_points.append(claw_arc_center + direction * (mid_radius - thickness))
+	inner_points.reverse()
+	outer_points.append_array(inner_points)
+	return outer_points
 
 func _animate_ground_charged_attack() -> void:
 	var progress: float = 1.0 - (attack_timer / charged_ground_duration)
@@ -1228,6 +1321,7 @@ func _start_dash() -> void:
 
 	_stop_sprint()
 	long_jump_active = false
+	long_jump_chain_timer = 0.0
 	backflip_active = false
 	backflip_chain_timer = 0.0
 	var move_input: float = Input.get_axis("move_left", "move_right")
@@ -1347,6 +1441,7 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	get_tree().call_group(&"training_dummies", &"reset_dummy")
 	global_position = spawn_position
 	velocity = Vector2.ZERO
 	facing = 1
@@ -1366,6 +1461,7 @@ func _respawn_player() -> void:
 	sprint_turn_direction = 0
 	long_jump_squat_timer = 0.0
 	long_jump_active = false
+	long_jump_chain_timer = 0.0
 	backflip_active = false
 	backflip_direction = 0
 	backflip_elapsed = 0.0

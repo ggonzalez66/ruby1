@@ -42,6 +42,9 @@ position = Vector2(20, 0)
 disabled = true
 shape = SubResource("RectangleShape2D_dv54c")
 
+[node name="ClawShape" type="CollisionPolygon2D" parent="Pivot/Hitbox"]
+disabled = true
+
 [node name="SlashVisual" type="Polygon2D" parent="Pivot"]
 visible = false
 position = Vector2(18, 0)
