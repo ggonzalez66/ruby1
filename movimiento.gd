@@ -39,6 +39,8 @@ const ANIMATION_GROUND_HEAVY := &"ground_heavy"
 const ANIMATION_SPRINT := &"sprint"
 const ANIMATION_LONG_JUMP := &"long_jump"
 const ANIMATION_BACKFLIP := &"backflip"
+const ANIMATION_FRONTFLIP := &"frontflip"
+const ANIMATION_SPRINT_BRAKE := &"sprint_brake"
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
@@ -59,6 +61,8 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_GROUND_HEAVY: 1.3,
 	ANIMATION_SPRINT: 1.15,
 	ANIMATION_BACKFLIP: 0.8,
+	ANIMATION_FRONTFLIP: 1.0,
+	ANIMATION_SPRINT_BRAKE: 1.2,
 }
 
 const ATTACK_NONE := 0
@@ -144,6 +148,10 @@ const DAMAGE_UPPERCUT := 3
 @export var long_jump_horizontal_speed := 680.0
 @export var long_jump_vertical_speed := -500.0
 @export var long_jump_chain_window := 0.12
+@export var afterimage_interval := 0.07
+@export var afterimage_lifetime := 0.22
+@export var afterimage_color := Color(0.62, 0.48, 1.0, 1.0)
+@export var afterimage_alpha := 0.42
 @export var backflip_horizontal_speed := 520.0
 @export var backflip_vertical_speed := -720.0
 @export var backflip_chain_window := 0.16
@@ -186,6 +194,12 @@ var backflip_direction := 0
 var backflip_elapsed := 0.0
 var backflip_rotation_duration := 0.0
 var backflip_chain_timer := 0.0
+var frontflip_active := false
+var frontflip_elapsed := 0.0
+var frontflip_rotation_duration := 0.0
+var afterimage_timer := 0.0
+var afterimage_container: Node2D
+var afterimage_material: ShaderMaterial
 var wall_jump_lock_timer := 0.0
 var wall_jump_animation_timer := 0.0
 var wall_contact_direction := 0
@@ -229,6 +243,7 @@ func _ready() -> void:
 	charge_glow_material = ShaderMaterial.new()
 	charge_glow_material.shader = CHARGE_GLOW_SHADER
 	animated_sprite.material = charge_glow_material
+	_create_afterimage_container()
 	air_jumps_remaining = max_air_jumps
 	slash_base_color = slash_visual.color
 	slash_area_base_color = slash_area_visual.color
@@ -285,6 +300,8 @@ func _physics_process(delta: float) -> void:
 		elif _try_start_backflip_air_jump(move_input):
 			pass
 		elif _try_start_long_jump_chain(move_input):
+			pass
+		elif _try_start_frontflip():
 			pass
 		elif _try_start_sprint_jump(move_input):
 			pass
@@ -354,6 +371,7 @@ func _physics_process(delta: float) -> void:
 
 	if is_on_wall() and not is_on_floor() and _uses_sprint_movement():
 		long_jump_active = false
+		frontflip_active = false
 		backflip_active = false
 		_stop_sprint()
 
@@ -364,7 +382,7 @@ func _physics_process(delta: float) -> void:
 			_land_backflip(move_input)
 		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0:
 			if not is_sprinting:
-				_start_sprint(sprint_direction)
+				_start_sprint(_get_sprint_start_direction(move_input))
 		elif not Input.is_action_pressed("dash"):
 			_stop_sprint()
 		air_jumps_remaining = max_air_jumps
@@ -372,6 +390,7 @@ func _physics_process(delta: float) -> void:
 		if jump_buffer_timer > 0.0:
 			_consume_jump_buffer()
 
+	_update_afterimages(delta)
 	_update_character_animation()
 
 func _configure_character_animations() -> void:
@@ -394,6 +413,8 @@ func _configure_character_animations() -> void:
 	_add_single_frame_animation(frames, ANIMATION_FALL, AERIAL_STALL_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_BACKFLIP, BACKFLIP_TEXTURE)
+	_add_sheet_animation(frames, ANIMATION_FRONTFLIP, JUMPING_SHEET, 3, 8.0, false)
+	_add_sheet_animation(frames, ANIMATION_SPRINT_BRAKE, UPPERCUT_SHEET, 3, 1.0, false, [0])
 	animated_sprite.sprite_frames = frames
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
 
@@ -445,6 +466,8 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_CHARGE
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP
+	elif frontflip_active and long_jump_active:
+		next_animation = ANIMATION_FRONTFLIP
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
 		next_animation = ANIMATION_WALL_JUMP
 	elif _is_wall_sliding():
@@ -455,6 +478,8 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_CHARGE_IDLE
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
+	elif is_sprinting and sprint_turn_timer > 0.0:
+		next_animation = ANIMATION_SPRINT_BRAKE
 	elif is_sprinting:
 		next_animation = ANIMATION_SPRINT
 	elif abs(velocity.x) > 10.0:
@@ -469,7 +494,13 @@ func _update_character_animation() -> void:
 	shadow.visible = is_on_floor()
 
 func _update_character_orientation(animation_name: StringName) -> void:
-	animated_sprite.rotation = _get_backflip_rotation() if animation_name == ANIMATION_BACKFLIP else 0.0
+	match animation_name:
+		ANIMATION_BACKFLIP:
+			animated_sprite.rotation = _get_flip_rotation(backflip_elapsed, backflip_rotation_duration, -facing)
+		ANIMATION_FRONTFLIP:
+			animated_sprite.rotation = _get_flip_rotation(frontflip_elapsed, frontflip_rotation_duration, facing)
+		_:
+			animated_sprite.rotation = 0.0
 	if animation_name == ANIMATION_WALL_SLIDE or animation_name == ANIMATION_WALL_JUMP:
 		# Ambos frames representan una secuencia desde una pared situada a la izquierda:
 		# el primero mira hacia ella y el segundo salta en dirección contraria.
@@ -482,11 +513,11 @@ func _align_character_animation(animation_name: StringName) -> void:
 	match animation_name:
 		ANIMATION_IDLE, ANIMATION_WALK:
 			texture_height = STANDING_AND_WALKING_SHEET.get_height()
-		ANIMATION_JUMP:
+		ANIMATION_JUMP, ANIMATION_FRONTFLIP:
 			texture_height = JUMPING_SHEET.get_height()
 		ANIMATION_SPIN:
 			texture_height = AERIAL_SPINNING_SHEET.get_height()
-		ANIMATION_UPPERCUT, ANIMATION_CHARGE_IDLE:
+		ANIMATION_UPPERCUT, ANIMATION_CHARGE_IDLE, ANIMATION_SPRINT_BRAKE:
 			texture_height = UPPERCUT_SHEET.get_height()
 		ANIMATION_WALL_SLIDE, ANIMATION_WALL_JUMP:
 			texture_height = WALLJUMP_SHEET.get_height()
@@ -525,6 +556,8 @@ func _update_timers(delta: float) -> void:
 	long_jump_chain_timer = max(long_jump_chain_timer - delta, 0.0)
 	if backflip_active:
 		backflip_elapsed += delta
+	if frontflip_active:
+		frontflip_elapsed += delta
 
 	if attack_timer > 0.0:
 		attack_timer = max(attack_timer - delta, 0.0)
@@ -646,6 +679,7 @@ func _start_long_jump_squat() -> void:
 func _launch_long_jump() -> void:
 	long_jump_active = true
 	long_jump_chain_timer = 0.0
+	frontflip_active = false
 	backflip_active = false
 	jump_buffer_timer = 0.0
 	coyote_timer = 0.0
@@ -656,6 +690,7 @@ func _launch_long_jump() -> void:
 
 func _land_long_jump(move_input: float) -> void:
 	long_jump_active = false
+	frontflip_active = false
 	long_jump_chain_timer = long_jump_chain_window
 	if jump_buffer_timer > 0.0:
 		_try_start_long_jump_chain(move_input)
@@ -690,15 +725,80 @@ func _start_backflip() -> void:
 	velocity.y = backflip_vertical_speed
 
 func _get_backflip_airtime() -> float:
-	var rise_time: float = -backflip_vertical_speed / gravity
-	var apex_height: float = backflip_vertical_speed * backflip_vertical_speed / (2.0 * gravity)
+	return _get_flip_airtime(backflip_vertical_speed)
+
+func _get_flip_airtime(vertical_speed: float) -> float:
+	# Tiempo en el aire hasta volver a la misma altura, para que la vuelta cuadre con el salto.
+	var rise_time: float = -vertical_speed / gravity
+	var apex_height: float = vertical_speed * vertical_speed / (2.0 * gravity)
 	var fall_time: float = sqrt(2.0 * apex_height / (gravity * fall_gravity_multiplier))
 	return max(rise_time + fall_time, 0.01)
 
-func _get_backflip_rotation() -> float:
-	var progress: float = clamp(backflip_elapsed / backflip_rotation_duration, 0.0, 1.0)
-	# Rotación hacia atrás: antihoraria mirando a la derecha, horaria mirando a la izquierda.
-	return -facing * TAU * smoothstep(0.0, 1.0, progress)
+func _get_flip_rotation(elapsed: float, duration: float, spin_direction: int) -> float:
+	# spin_direction positivo gira en sentido horario (frontflip mirando a la derecha).
+	var progress: float = clamp(elapsed / max(duration, 0.01), 0.0, 1.0)
+	return spin_direction * TAU * smoothstep(0.0, 1.0, progress)
+
+func _try_start_frontflip() -> bool:
+	# Doble salto durante el salto largo: frontflip sin perder la velocidad horizontal.
+	if not long_jump_active or frontflip_active or is_on_floor() or air_jumps_remaining <= 0 or _is_attack_active() or dash_timer > 0.0:
+		return false
+	# Si va a aterrizar enseguida, se deja el salto en el buffer para encadenar el bunnyhop.
+	if velocity.y > 0.0 and test_move(global_transform, velocity * jump_buffer_time):
+		return false
+
+	air_jumps_remaining -= 1
+	frontflip_active = true
+	frontflip_elapsed = 0.0
+	frontflip_rotation_duration = _get_flip_airtime(jump_velocity)
+	jump_buffer_timer = 0.0
+	velocity.y = jump_velocity
+	return true
+
+func _get_sprint_start_direction(move_input: float) -> int:
+	if move_input != 0.0:
+		return 1 if move_input > 0.0 else -1
+	return facing
+
+func _create_afterimage_container() -> void:
+	afterimage_container = Node2D.new()
+	afterimage_container.name = "PlayerAfterimages"
+	_attach_afterimage_container.call_deferred()
+	afterimage_material = ShaderMaterial.new()
+	afterimage_material.shader = CHARGE_GLOW_SHADER
+	afterimage_material.set_shader_parameter("glow_color", afterimage_color)
+	afterimage_material.set_shader_parameter("glow_amount", 0.6)
+
+func _attach_afterimage_container() -> void:
+	# Vive en el nivel, justo antes del jugador: las sombras se quedan donde se crearon
+	# y se dibujan detrás de Rengar pero delante del escenario.
+	var level := get_parent()
+	level.add_child(afterimage_container)
+	level.move_child(afterimage_container, get_index())
+
+func _exit_tree() -> void:
+	if is_instance_valid(afterimage_container):
+		afterimage_container.queue_free()
+
+func _update_afterimages(delta: float) -> void:
+	afterimage_timer = max(afterimage_timer - delta, 0.0)
+	# Sombras estilo Alucard solo a partir de la velocidad de carrera.
+	if abs(velocity.x) < sprint_speed - 1.0 or afterimage_timer > 0.0 or not afterimage_container.is_inside_tree():
+		return
+	afterimage_timer = afterimage_interval
+	_spawn_afterimage()
+
+func _spawn_afterimage() -> void:
+	var ghost := Sprite2D.new()
+	ghost.texture = animated_sprite.sprite_frames.get_frame_texture(animated_sprite.animation, animated_sprite.frame)
+	ghost.flip_h = animated_sprite.flip_h
+	ghost.material = afterimage_material
+	ghost.modulate = Color(1.0, 1.0, 1.0, afterimage_alpha)
+	afterimage_container.add_child(ghost)
+	ghost.global_transform = animated_sprite.global_transform
+	var tween := ghost.create_tween()
+	tween.tween_property(ghost, "modulate:a", 0.0, afterimage_lifetime)
+	tween.tween_callback(ghost.queue_free)
 
 func _land_backflip(move_input: float) -> void:
 	backflip_active = false
@@ -1653,6 +1753,11 @@ func _respawn_player() -> void:
 	backflip_direction = 0
 	backflip_elapsed = 0.0
 	backflip_chain_timer = 0.0
+	frontflip_active = false
+	frontflip_elapsed = 0.0
+	afterimage_timer = 0.0
+	for ghost in afterimage_container.get_children():
+		ghost.queue_free()
 	wall_jump_lock_timer = 0.0
 	wall_jump_animation_timer = 0.0
 	wall_contact_direction = 0
