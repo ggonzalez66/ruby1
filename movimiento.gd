@@ -43,6 +43,8 @@ const ANIMATION_LONG_JUMP := &"long_jump"
 const ANIMATION_BACKFLIP := &"backflip"
 const ANIMATION_FRONTFLIP := &"frontflip"
 const ANIMATION_SPRINT_BRAKE := &"sprint_brake"
+const ANIMATION_LIGHT_HIT_2 := &"light_hit_2"
+const ANIMATION_LIGHT_FINISHER := &"light_finisher"
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
@@ -60,6 +62,8 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_FALL: 0.8,
 	ANIMATION_DASH: 1.2,
 	ANIMATION_LIGHT_HIT: 1.25,
+	ANIMATION_LIGHT_HIT_2: 1.25,
+	ANIMATION_LIGHT_FINISHER: 1.25,
 	ANIMATION_GROUND_HEAVY: 1.3,
 	ANIMATION_SPRINT: 1.15,
 	ANIMATION_BACKFLIP: 0.8,
@@ -77,6 +81,7 @@ const ATTACK_HEAVY_GROUND := 6
 const ATTACK_UPPERCUT := 7
 
 const DAMAGE_SLASH := 1
+const DAMAGE_SLASH_FINISHER := 2
 const DAMAGE_GROUND_CHARGED := 3
 const DAMAGE_HEAVY := 2
 const DAMAGE_SPIN := 2
@@ -127,7 +132,12 @@ const DAMAGE_UPPERCUT := 3
 @export var heavy_attack_arc_radius_y := 42.0
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
-@export var light_hit_stall_up_speed := -95.0
+@export var light_hit_air_boost := -230.0
+@export var light_combo_window := 0.3
+@export var light_finisher_duration := 0.22
+@export var light_finisher_cooldown := 0.38
+@export var light_finisher_forward_speed := 240.0
+@export var light_finisher_scale := 1.25
 @export var spin_attack_duration := 0.34
 @export var spin_heavy_cancel_window := 0.12
 @export var light_uppercut_duration := 0.08
@@ -206,6 +216,10 @@ var backflip_rotation_duration := 0.0
 var backflip_chain_timer := 0.0
 var frontflip_active := false
 var current_health := 0
+var light_combo_step := 0
+var light_combo_window_timer := 0.0
+var light_combo_queued := false
+var jump_cut_available := false
 var invulnerability_timer := 0.0
 var hurt_lock_timer := 0.0
 var wall_cling_timer := 0.0
@@ -251,6 +265,7 @@ var slash_visual_base_polygon := PackedVector2Array()
 var slash_area_base_polygon := PackedVector2Array()
 var slash_outline_base_points := PackedVector2Array()
 var claw_hitbox_polygon := PackedVector2Array()
+var claw_finisher_polygon := PackedVector2Array()
 
 func _ready() -> void:
 	add_to_group(&"player")
@@ -276,6 +291,7 @@ func _ready() -> void:
 	slash_area_base_polygon = slash_area_visual.polygon
 	slash_outline_base_points = slash_outline.points
 	claw_hitbox_polygon = _build_claw_arc_polygon(claw_start_angle_degrees, claw_end_angle_degrees, 0.35)
+	claw_finisher_polygon = _build_claw_arc_polygon(claw_start_angle_degrees - 15.0, claw_end_angle_degrees + 15.0, 0.35, light_finisher_scale)
 	claw_hitbox_shape.polygon = claw_hitbox_polygon
 	_create_attack_effects()
 	impact_wave_left_base_position = impact_wave_left.position
@@ -376,6 +392,7 @@ func _physics_process(delta: float) -> void:
 		_apply_gravity(delta)
 		_consume_jump_buffer()
 		_apply_horizontal_movement(move_input, delta)
+		_apply_light_finisher_push()
 
 	_update_attack_animation()
 	_update_charge_visual()
@@ -401,6 +418,8 @@ func _physics_process(delta: float) -> void:
 		wall_cling_timer = 0.0
 
 	if is_on_floor():
+		frontflip_active = false
+		jump_cut_available = false
 		if long_jump_active:
 			_land_long_jump(move_input)
 		if backflip_active:
@@ -431,6 +450,8 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_WALL_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
 	_add_sheet_animation(frames, ANIMATION_CHARGE_IDLE, UPPERCUT_SHEET, 3, 1.0, false, [0])
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_HITS_SHEET, 2, 12.5, false)
+	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_HITS_SHEET, 2, 12.5, false, [1, 0])
+	_add_sheet_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_HITS_SHEET, 2, 9.0, false)
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPRINT, SPRINTING_SHEET, 3, 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_LONG_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
@@ -485,14 +506,14 @@ func _update_character_animation() -> void:
 	elif attack_mode == ATTACK_HEAVY_GROUND:
 		next_animation = ANIMATION_GROUND_HEAVY
 	elif attack_mode == ATTACK_SLASH:
-		next_animation = ANIMATION_LIGHT_HIT
+		next_animation = _get_light_hit_animation()
 	elif dash_timer > 0.0:
 		next_animation = ANIMATION_DASH
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP
-	elif frontflip_active and long_jump_active:
+	elif frontflip_active:
 		next_animation = ANIMATION_FRONTFLIP
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
 		next_animation = ANIMATION_WALL_JUMP
@@ -555,7 +576,7 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = AERIAL_STALL_TEXTURE.get_height()
 		ANIMATION_DASH:
 			texture_height = DASH_TEXTURE.get_height()
-		ANIMATION_LIGHT_HIT:
+		ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER:
 			texture_height = LIGHT_HITS_SHEET.get_height()
 		ANIMATION_GROUND_HEAVY:
 			texture_height = GROUND_HEAVY_SHEET.get_height()
@@ -579,6 +600,10 @@ func _update_timers(delta: float) -> void:
 	wall_jump_animation_timer = max(wall_jump_animation_timer - delta, 0.0)
 	wall_cling_timer = max(wall_cling_timer - delta, 0.0)
 	invulnerability_timer = max(invulnerability_timer - delta, 0.0)
+	if light_combo_window_timer > 0.0:
+		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
+		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
+			light_combo_step = 0
 	hurt_lock_timer = max(hurt_lock_timer - delta, 0.0)
 	heavy_ground_impact_wave_timer = max(heavy_ground_impact_wave_timer - delta, 0.0)
 	backflip_chain_timer = max(backflip_chain_timer - delta, 0.0)
@@ -620,8 +645,12 @@ func _apply_gravity(delta: float) -> void:
 
 	velocity.y = min(velocity.y + gravity * gravity_scale * delta, target_fall_speed)
 
-	if Input.is_action_just_released("jump") and velocity.y < jump_cut_velocity and attack_mode != ATTACK_HEAVY and not backflip_active and not long_jump_active:
+	if velocity.y >= 0.0:
+		jump_cut_available = false
+	# Soltar salto solo recorta saltos normales; no frena uppercuts, rebotes ni saltos de carrera.
+	if Input.is_action_just_released("jump") and jump_cut_available and velocity.y < jump_cut_velocity and attack_mode != ATTACK_HEAVY and not backflip_active and not long_jump_active:
 		velocity.y = jump_cut_velocity
+		jump_cut_available = false
 
 func _consume_jump_buffer() -> void:
 	if jump_buffer_timer <= 0.0:
@@ -636,6 +665,7 @@ func _consume_jump_buffer() -> void:
 		coyote_timer = 0.0
 		wall_contact_direction = 0
 		velocity.y = jump_velocity
+		jump_cut_available = true
 		return
 
 	if _can_wall_jump():
@@ -645,6 +675,7 @@ func _consume_jump_buffer() -> void:
 		air_uppercut_available = true
 		velocity.x = wall_contact_direction * wall_jump_horizontal_speed
 		velocity.y = wall_jump_vertical_speed
+		jump_cut_available = true
 		facing = wall_contact_direction
 		wall_visual_direction = wall_contact_direction
 		wall_jump_lock_timer = wall_jump_control_lock_time
@@ -657,7 +688,14 @@ func _consume_jump_buffer() -> void:
 
 	jump_buffer_timer = 0.0
 	air_jumps_remaining -= 1
-	velocity.y = jump_velocity
+	if velocity.y < jump_velocity:
+		# Ya sube más rápido que un salto (p. ej. tras un uppercut): el doble salto suma un
+		# empujón en vez de frenar la subida.
+		velocity.y = max(velocity.y + jump_velocity * 0.35, jump_velocity * 1.9)
+		jump_cut_available = false
+	else:
+		velocity.y = jump_velocity
+		jump_cut_available = true
 	animated_sprite.play(ANIMATION_JUMP)
 
 func _apply_horizontal_movement(move_input: float, delta: float) -> void:
@@ -1065,7 +1103,8 @@ func _apply_uppercut_movement(delta: float) -> void:
 	_apply_gravity(delta)
 
 func _begin_attack_charge() -> void:
-	if is_charging_attack or dash_timer > 0.0 or (attack_cooldown_timer > 0.0 and not _is_attack_active()):
+	var combo_open: bool = light_combo_window_timer > 0.0 and light_combo_step < 3
+	if is_charging_attack or dash_timer > 0.0 or (attack_cooldown_timer > 0.0 and not _is_attack_active() and not combo_open):
 		return
 
 	is_charging_attack = true
@@ -1107,6 +1146,11 @@ func _release_attack_charge(was_on_floor: bool, was_wall_sliding: bool) -> void:
 			_start_light_charged_air_attack()
 		return
 
+	if attack_mode == ATTACK_SLASH:
+		# Pulsado durante un golpe del combo: el siguiente sale en cuanto termine este.
+		if light_combo_step < 3:
+			light_combo_queued = true
+		return
 	if _is_attack_active():
 		charge_timer = 0.0
 		return
@@ -1117,13 +1161,59 @@ func _start_attack() -> void:
 	if _is_attack_active() or dash_timer > 0.0:
 		return
 
+	if light_combo_window_timer > 0.0 and light_combo_step > 0 and light_combo_step < 3:
+		light_combo_step += 1
+	else:
+		light_combo_step = 1
+	light_combo_window_timer = 0.0
+	light_combo_queued = false
+
 	attack_mode = ATTACK_SLASH
-	attack_timer = attack_duration
-	attack_cooldown_timer = attack_cooldown
 	attack_targets_hit.clear()
+	if light_combo_step == 3:
+		attack_timer = light_finisher_duration
+		attack_cooldown_timer = light_finisher_cooldown
+		claw_hitbox_shape.polygon = claw_finisher_polygon
+		velocity.x = facing * max(light_finisher_forward_speed, velocity.x * facing)
+	else:
+		attack_timer = attack_duration
+		attack_cooldown_timer = attack_cooldown
+		claw_hitbox_shape.polygon = claw_hitbox_polygon
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
+
+func _get_light_hit_animation() -> StringName:
+	match light_combo_step:
+		2:
+			return ANIMATION_LIGHT_HIT_2
+		3:
+			return ANIMATION_LIGHT_FINISHER
+		_:
+			return ANIMATION_LIGHT_HIT
+
+func _get_light_attack_duration() -> float:
+	return light_finisher_duration if light_combo_step == 3 else attack_duration
+
+func _get_claw_angles() -> Vector2:
+	# Golpe 1 de arriba abajo, golpe 2 de abajo arriba, remate más amplio.
+	match light_combo_step:
+		2:
+			return Vector2(claw_end_angle_degrees, claw_start_angle_degrees)
+		3:
+			return Vector2(claw_start_angle_degrees - 15.0, claw_end_angle_degrees + 15.0)
+		_:
+			return Vector2(claw_start_angle_degrees, claw_end_angle_degrees)
+
+func _get_claw_scale() -> float:
+	return light_finisher_scale if light_combo_step == 3 else 1.0
+
+func _apply_light_finisher_push() -> void:
+	if attack_mode != ATTACK_SLASH or light_combo_step != 3:
+		return
+	var progress: float = 1.0 - (attack_timer / light_finisher_duration)
+	if progress < 0.6:
+		velocity.x = facing * max(light_finisher_forward_speed, velocity.x * facing)
 
 func _start_ground_charged_attack() -> void:
 	attack_mode = ATTACK_GROUND_CHARGED
@@ -1197,8 +1287,10 @@ func _start_uppercut_attack(from_air: bool) -> void:
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
 	if from_air:
-		air_jumps_remaining = 0
 		air_uppercut_available = false
+	jump_cut_available = false
+	# Sale del suelo por el uppercut: no hay coyote time que convierta el siguiente salto en uno de suelo.
+	coyote_timer = 0.0
 	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
 	velocity.y = light_uppercut_velocity
 	_set_attack_active(true)
@@ -1241,6 +1333,9 @@ func _start_wall_spin_attack() -> void:
 	_refresh_attack_hits()
 
 func _cancel_attack_for_chain() -> void:
+	light_combo_step = 0
+	light_combo_window_timer = 0.0
+	light_combo_queued = false
 	attack_mode = ATTACK_NONE
 	attack_timer = 0.0
 	heavy_attack_visual_progress = 0.0
@@ -1257,7 +1352,15 @@ func _end_attack() -> void:
 	_set_attack_active(false)
 	_reset_attack_pose()
 
-	if ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
+	if ending_mode == ATTACK_SLASH:
+		if light_combo_step < 3:
+			light_combo_window_timer = light_combo_window
+			if light_combo_queued:
+				_start_attack()
+		else:
+			light_combo_step = 0
+		light_combo_queued = false
+	elif ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
 		velocity.x = facing * charged_ground_end_speed
 	elif ending_mode == ATTACK_HEAVY_GROUND:
 		velocity.x = facing * ground_heavy_end_speed
@@ -1319,6 +1422,8 @@ func _update_impact_wave_visual() -> void:
 func _set_attack_active(active: bool) -> void:
 	hitbox.monitoring = active
 	hitbox_shape.disabled = not active
+	if active:
+		frontflip_active = false
 	claw_hitbox_shape.disabled = true
 	_update_hitbox_visual_visibility()
 	slash_visual.color = slash_base_color if active else Color(slash_base_color.r, slash_base_color.g, slash_base_color.b, 0.0)
@@ -1431,20 +1536,22 @@ func _update_attack_effects() -> void:
 			_effect_heavy_arc(1.0 - (attack_timer / ground_heavy_duration), false)
 
 func _effect_claw_slash() -> void:
-	# Tres zarpazos plateados paralelos siguiendo el arco de la hitbox.
-	var progress: float = 1.0 - (attack_timer / attack_duration)
+	# Tres zarpazos plateados paralelos siguiendo el arco de la hitbox; el remate es más grande.
+	var progress: float = 1.0 - (attack_timer / _get_light_attack_duration())
 	var sweep: float = 1.0 - pow(1.0 - progress, 2.4)
 	var alpha: float = _effect_fade(progress, 0.55)
-	var start_angle: float = deg_to_rad(claw_start_angle_degrees)
-	var end_angle: float = deg_to_rad(claw_end_angle_degrees)
-	var mid_radius: float = (claw_inner_radius + claw_outer_radius) * 0.5
-	var spacing: float = (claw_outer_radius - claw_inner_radius) * 0.3
+	var angles: Vector2 = _get_claw_angles()
+	var start_angle: float = deg_to_rad(angles.x)
+	var end_angle: float = deg_to_rad(angles.y)
+	var claw_scale: float = _get_claw_scale()
+	var mid_radius: float = (claw_inner_radius + claw_outer_radius) * 0.5 * claw_scale
+	var spacing: float = (claw_outer_radius - claw_inner_radius) * 0.3 * claw_scale
 	for index in range(3):
 		var lead: float = (index - 1) * 0.06
 		var head: float = lerp(start_angle, end_angle, clamp(sweep + lead, 0.08, 1.0))
 		var tail: float = lerp(start_angle, head, clamp(progress * 1.3 - 0.35, 0.0, 0.8))
 		var radius: float = mid_radius + (index - 1) * spacing
-		var width: float = 5.5 if index == 1 else 4.5
+		var width: float = (5.5 if index == 1 else 4.5) * claw_scale
 		_set_effect_stroke(index, _effect_arc_points(claw_arc_center, Vector2(radius, radius), tail, head), width, EFFECT_PALETTE_SILVER, alpha)
 
 func _effect_charged_lunge() -> void:
@@ -1517,11 +1624,12 @@ func _effect_heavy_arc(progress: float, aerial: bool) -> void:
 		_hide_effect_strokes(2)
 
 func _animate_normal_slash() -> void:
-	var progress: float = 1.0 - (attack_timer / attack_duration)
+	var progress: float = 1.0 - (attack_timer / _get_light_attack_duration())
 	# El zarpazo barre rápido al principio y se desvanece al final.
 	var sweep: float = 1.0 - pow(1.0 - progress, 2.4)
-	var sweep_end: float = lerp(claw_start_angle_degrees, claw_end_angle_degrees, max(sweep, 0.12))
-	var sweep_start: float = lerp(claw_start_angle_degrees, sweep_end, clamp(progress * 1.4 - 0.4, 0.0, 0.85))
+	var angles: Vector2 = _get_claw_angles()
+	var sweep_end: float = lerp(angles.x, angles.y, max(sweep, 0.12))
+	var sweep_start: float = lerp(angles.x, sweep_end, clamp(progress * 1.4 - 0.4, 0.0, 0.85))
 	var alpha: float = lerp(0.95, 0.15, progress)
 
 	# La hitbox cubre todo el arco desde el primer frame para que el golpe no falle.
@@ -1533,21 +1641,22 @@ func _animate_normal_slash() -> void:
 		visual.rotation = 0.0
 		visual.scale = Vector2.ONE
 
-	slash_visual.polygon = _build_claw_arc_polygon(sweep_start, sweep_end, 0.85)
-	slash_area_visual.polygon = claw_hitbox_polygon
-	var outline_points := claw_hitbox_polygon.duplicate()
-	outline_points.append(claw_hitbox_polygon[0])
+	var hitbox_polygon: PackedVector2Array = claw_finisher_polygon if light_combo_step == 3 else claw_hitbox_polygon
+	slash_visual.polygon = _build_claw_arc_polygon(sweep_start, sweep_end, 0.85, _get_claw_scale())
+	slash_area_visual.polygon = hitbox_polygon
+	var outline_points := hitbox_polygon.duplicate()
+	outline_points.append(hitbox_polygon[0])
 	slash_outline.points = outline_points
 	slash_visual.color = Color(1.0, 0.95, 0.72, alpha)
 	slash_area_visual.color = Color(1.0, 0.82, 0.32, lerp(0.42, 0.16, progress))
 	slash_outline.default_color = Color(1.0, 0.94, 0.62, lerp(0.95, 0.35, progress))
 
-func _build_claw_arc_polygon(from_degrees: float, to_degrees: float, taper: float) -> PackedVector2Array:
+func _build_claw_arc_polygon(from_degrees: float, to_degrees: float, taper: float, radius_scale: float = 1.0) -> PackedVector2Array:
 	# Media luna: borde exterior de ida y borde interior de vuelta, más fina en las puntas.
 	var outer_points := PackedVector2Array()
 	var inner_points := PackedVector2Array()
-	var mid_radius: float = (claw_inner_radius + claw_outer_radius) * 0.5
-	var half_thickness: float = (claw_outer_radius - claw_inner_radius) * 0.5
+	var mid_radius: float = (claw_inner_radius + claw_outer_radius) * 0.5 * radius_scale
+	var half_thickness: float = (claw_outer_radius - claw_inner_radius) * 0.5 * radius_scale
 	for index in range(CLAW_ARC_SEGMENTS + 1):
 		var t: float = float(index) / float(CLAW_ARC_SEGMENTS)
 		var angle: float = deg_to_rad(lerp(from_degrees, to_degrees, t))
@@ -1693,9 +1802,10 @@ func _hit_area(area: Area2D) -> void:
 		area.take_hit(global_position, facing, _get_attack_damage())
 
 	if attack_mode == ATTACK_HEAVY:
-		_bounce_out_of_heavy_attack()
+		# Diferido: puede venir de la señal de colisión, donde no se puede desactivar la hitbox.
+		_bounce_out_of_heavy_attack.call_deferred()
 	elif attack_mode == ATTACK_SLASH and not is_on_floor():
-		_apply_light_hit_stall()
+		_apply_light_hit_air_boost()
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
@@ -1788,6 +1898,11 @@ func _bounce_out_of_heavy_attack() -> void:
 	_cancel_attack_for_chain()
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
+	jump_cut_available = false
+	# El rebote siempre gira con el frontflip.
+	frontflip_active = true
+	frontflip_elapsed = 0.0
+	frontflip_rotation_duration = _get_flip_airtime(velocity.y)
 
 func _land_heavy_attack_on_floor() -> void:
 	if attack_mode != ATTACK_HEAVY:
@@ -1800,8 +1915,9 @@ func _land_heavy_attack_on_floor() -> void:
 	_set_impact_wave_active(true)
 	_update_impact_wave_visual()
 
-func _apply_light_hit_stall() -> void:
-	velocity.y = min(velocity.y, light_hit_stall_up_speed)
+func _apply_light_hit_air_boost() -> void:
+	# Cada golpe ligero que conecta en el aire da un pequeño impulso hacia arriba.
+	velocity.y = min(velocity.y, light_hit_air_boost)
 
 func _get_attack_damage() -> int:
 	match attack_mode:
@@ -1818,7 +1934,7 @@ func _get_attack_damage() -> int:
 		ATTACK_UPPERCUT:
 			return DAMAGE_UPPERCUT
 		_:
-			return DAMAGE_SLASH
+			return DAMAGE_SLASH_FINISHER if light_combo_step == 3 else DAMAGE_SLASH
 
 func _update_facing_visual() -> void:
 	pivot.scale.x = facing
@@ -1872,6 +1988,10 @@ func _respawn_player() -> void:
 	wall_cling_timer = 0.0
 	wall_cling_direction = 0
 	current_health = max_health
+	light_combo_step = 0
+	light_combo_window_timer = 0.0
+	light_combo_queued = false
+	jump_cut_available = false
 	invulnerability_timer = 0.0
 	hurt_lock_timer = 0.0
 	animated_sprite.modulate = Color.WHITE
