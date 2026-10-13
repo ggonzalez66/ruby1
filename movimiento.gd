@@ -1000,6 +1000,11 @@ func _try_start_frontflip() -> bool:
 	if velocity.y > 0.0 and test_move(global_transform, velocity * jump_buffer_time):
 		return false
 
+	_perform_frontflip()
+	return true
+
+func _perform_frontflip() -> void:
+	# Salto aéreo en carrera: el mismo frontflip tanto en el salto largo como tras un rebote.
 	air_jumps_remaining -= 1
 	jump_origin_y = global_position.y
 	frontflip_active = true
@@ -1008,7 +1013,6 @@ func _try_start_frontflip() -> bool:
 	frontflip_rotation_duration = _get_flip_airtime(jump_velocity)
 	jump_buffer_timer = 0.0
 	velocity.y = jump_velocity
-	return true
 
 func _start_running_wall_cling() -> void:
 	# Llegar a una pared con impulso de carrera y correr mantenido engancha sin pulsar hacia ella.
@@ -1658,11 +1662,7 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 func _consume_sprint_air_jump() -> void:
 	if jump_buffer_timer <= 0.0 or air_jumps_remaining <= 0 or _is_attack_active():
 		return
-	jump_buffer_timer = 0.0
-	air_jumps_remaining -= 1
-	velocity.y = min(velocity.y, jump_velocity)
-	jump_cut_available = true
-	animated_sprite.play(ANIMATION_JUMP)
+	_perform_frontflip()
 
 func _start_sprint(direction: int) -> void:
 	var target_direction := direction
