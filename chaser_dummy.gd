@@ -10,7 +10,7 @@ extends Area2D
 @export var attack_range := 50.0
 @export var attack_reach := 62.0
 @export var attack_damage := 12
-@export var telegraph_time := 0.45
+@export var telegraph_time := 0.32
 @export var swing_time := 0.12
 @export var recover_time := 0.6
 @export var stagger_time := 1.0

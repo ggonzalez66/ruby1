@@ -10,26 +10,25 @@ var wallride_time := 0.0
 var idle_time := 0.0
 var boss_fight_time := 0.0
 
-# Logros: [clave, umbral, texto]. Se desbloquean al llegar al umbral; en la pantalla final
-# se muestran los 3 más destacados (valor / umbral más alto).
+# Medallas: [clave, umbral, nombre, descripción]. Se consiguen al llegar al umbral de la estadística.
 const ACHIEVEMENTS := [
-	["parries", 3, "parece que eres un parrygod de Sekiro"],
-	["projectiles_reflected", 5, "devuelves los proyectiles a su remitente"],
-	["knife_throws", 12, "lanzas el cuchillo como si fuera un boomerang"],
-	["backflips", 10, "hiciste más backflips innecesarios que Leon Scott Kennedy"],
-	["frontflips", 10, "eres un maromas en el aire"],
-	["sun_hits_dealt", 8, "intentaste matar al sol (spoiler: sigue ahí, inmortal)"],
-	["sun_hits_taken", 3, "el sol te ganó más veces que el guardián"],
-	["wallride_seconds", 3, "las paredes son tu segundo piso"],
-	["running_walljumps", 20, "subes paredes como si fueran escaleras"],
-	["mantles", 10, "trepas bordes como buen felino"],
-	["bunnyhops", 15, "el bunnyhop de Counter-Strike te queda chico"],
-	["roars", 30, "rugiste más que el Rey León"],
-	["dummies_killed", 25, "no queda dummy sano en la torre"],
-	["idle_seconds", 60, "te tomaste tu tiempo para contemplar la jungla"],
-	["running_seconds", 60, "Sonic estaría orgulloso"],
-	["deaths", 5, "morir también es parte del entrenamiento"],
-	["wall_embeds", 5, "clavas el cuchillo en las paredes como si fueran de mantequilla"],
+	["parries", 3, "Parrygod de Sekiro", "Parrea 3 ataques"],
+	["projectiles_reflected", 5, "Devuelto al remitente", "Devuelve 5 proyectiles"],
+	["knife_throws", 12, "Cuchillo boomerang", "Lanza el cuchillo 12 veces"],
+	["backflips", 10, "Leon Scott Kennedy", "Más backflips innecesarios que Leon (10)"],
+	["frontflips", 10, "Maromas en el aire", "Haz 10 frontflips"],
+	["sun_hits_dealt", 8, "Mata-soles (fallido)", "Intenta matar al sol 8 veces: es inmortal"],
+	["sun_hits_taken", 3, "Bronceado extremo", "Que el sol te queme 3 veces"],
+	["wallride_seconds", 3, "Segundo piso", "3 segundos de wallride"],
+	["running_walljumps", 20, "Paredes = escaleras", "20 running walljumps"],
+	["mantles", 10, "Buen felino", "Trepa 10 bordes"],
+	["bunnyhops", 15, "Counter-Strike", "Encadena 15 bunnyhops"],
+	["roars", 30, "Rey León", "Ruge 30 veces"],
+	["dummies_killed", 25, "Ni un dummy sano", "Derrota 25 dummies"],
+	["idle_seconds", 60, "Contemplando la jungla", "1 minuto quieto"],
+	["running_seconds", 60, "Sonic estaría orgulloso", "1 minuto corriendo"],
+	["deaths", 5, "Morir es entrenar", "Muere 5 veces"],
+	["wall_embeds", 5, "Pared de mantequilla", "Clava el cuchillo en 5 paredes"],
 ]
 
 func _ready() -> void:
@@ -75,36 +74,18 @@ func get_value(key: String) -> float:
 		_:
 			return float(get_count(key))
 
-func top_achievements(limit: int = 3) -> Array:
-	var unlocked := []
+func medals() -> Array:
+	# Lista de medallas con su estado: {"name", "description", "earned"}.
+	var result := []
 	for achievement in ACHIEVEMENTS:
-		var ratio: float = get_value(achievement[0]) / float(achievement[1])
-		if ratio >= 1.0:
-			unlocked.append([ratio, achievement[2]])
-	# Logros que no dependen de contadores.
-	if get_count("deaths") == 0:
-		unlocked.append([1.5, "llegaste hasta el final sin morir ni una vez"])
-	if boss_fight_time > 0.0 and boss_fight_time < 45.0:
-		unlocked.append([2.0, "el guardián no supo ni qué lo golpeó"])
-	if total_time < 300.0:
-		unlocked.append([1.2, "tienes madera de speedrunner"])
-	unlocked.sort_custom(func(a, b): return a[0] > b[0])
-	var texts := []
-	for entry in unlocked.slice(0, limit):
-		texts.append(entry[1])
-	return texts
+		result.append({"name": achievement[2], "description": achievement[3], "earned": get_value(achievement[0]) >= float(achievement[1])})
+	result.append({"name": "Intocable", "description": "Termina la demo sin morir", "earned": get_count("deaths") == 0})
+	result.append({"name": "Ni lo vio venir", "description": "Derrota al guardián en menos de 45 s", "earned": boss_fight_time > 0.0 and boss_fight_time < 45.0})
+	result.append({"name": "Speedrunner", "description": "Termina la demo en menos de 5 minutos", "earned": total_time < 300.0})
+	return result
 
 func congratulation_message() -> String:
-	var texts := top_achievements()
-	var message := "¡GUAU! ¡ERES UN CRACK!"
-	if texts.is_empty():
-		return message
-	var joined: String = texts[0]
-	if texts.size() == 2:
-		joined = "%s y %s" % [texts[0], texts[1]]
-	elif texts.size() >= 3:
-		joined = "%s, %s y %s" % [texts[0], texts[1], texts[2]]
-	return "%s %s." % [message, joined.substr(0, 1).to_upper() + joined.substr(1)]
+	return "¡GUAU! ¡ERES UN CRACK!"
 
 static func format_time(seconds: float) -> String:
 	var millis: int = int(seconds * 1000.0)

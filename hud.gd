@@ -24,6 +24,9 @@ var boss_view: SubViewport
 var boss_camera: Camera2D
 var boss_warning: Label
 var boss_arrow: Polygon2D
+var death_panel: VBoxContainer
+var flash_rect: ColorRect
+var flash_tween: Tween
 
 const BOSS_INDICATOR_SIZE := 72.0
 const BOSS_INDICATOR_MARGIN := 14.0
@@ -33,12 +36,57 @@ func _ready() -> void:
 	_build()
 	_build_timer()
 	_build_boss_indicator()
+	_build_death_screen()
 	_connect_player.call_deferred()
 
 func _process(delta: float) -> void:
 	elapsed_time += delta
 	_update_timer_text()
 	_update_boss_indicator()
+
+func _build_death_screen() -> void:
+	# Mensaje de muerte (aparece al instante) y destello dorado al volver al checkpoint.
+	death_panel = VBoxContainer.new()
+	death_panel.set_anchors_preset(Control.PRESET_CENTER)
+	death_panel.alignment = BoxContainer.ALIGNMENT_CENTER
+	death_panel.visible = false
+	add_child(death_panel)
+	var title := Label.new()
+	title.text = "MUERTE"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 64)
+	title.add_theme_color_override("font_color", Color(0.95, 0.12, 0.1))
+	title.add_theme_color_override("font_outline_color", Color(0.12, 0.0, 0.0))
+	title.add_theme_constant_override("outline_size", 12)
+	death_panel.add_child(title)
+	var hint := Label.new()
+	hint.text = "Presiona R o Select para cargar el último checkpoint"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 20)
+	hint.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
+	hint.add_theme_color_override("font_outline_color", Color(0.12, 0.0, 0.0))
+	hint.add_theme_constant_override("outline_size", 6)
+	death_panel.add_child(hint)
+
+	flash_rect = ColorRect.new()
+	flash_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	flash_rect.color = Color(1.0, 0.85, 0.35, 0.0)
+	flash_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(flash_rect)
+
+func _on_player_died() -> void:
+	death_panel.visible = true
+	# En el tercio superior para que se vea a Rengar salir despedido (la cámara lo centra).
+	var screen := get_viewport().get_visible_rect().size
+	death_panel.position = Vector2(screen.x * 0.5 - death_panel.size.x * 0.5, screen.y * 0.22)
+
+func _on_player_respawned() -> void:
+	death_panel.visible = false
+	if flash_tween:
+		flash_tween.kill()
+	flash_rect.color.a = 0.85
+	flash_tween = create_tween()
+	flash_tween.tween_property(flash_rect, "color:a", 0.0, 0.55).set_ease(Tween.EASE_OUT)
 
 func _build_boss_indicator() -> void:
 	# Círculo pequeño en el borde de la pantalla con la miniatura del guardián en vivo.
@@ -236,6 +284,8 @@ func _connect_player() -> void:
 		return
 	player.health_changed.connect(_on_health_changed)
 	player.knife_changed.connect(_on_knife_changed)
+	player.died.connect(_on_player_died)
+	player.respawned.connect(_on_player_respawned)
 	_on_health_changed(player.current_health, player.max_health)
 	_on_knife_changed(player.has_knife)
 

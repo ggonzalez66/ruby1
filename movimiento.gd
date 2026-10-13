@@ -2,6 +2,8 @@ extends CharacterBody2D
 
 signal health_changed(current: int, maximum: int)
 signal knife_changed(in_hand: bool)
+signal died
+signal respawned
 
 const STANDING_AND_WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_standing_and_walking-sheet.png")
 const JUMPING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumping-sheet.png")
@@ -276,6 +278,9 @@ var roar_aura_fill: Polygon2D
 var roar_aura_line: Line2D
 var hitstop_end_msec := 0
 var riposte_timer := 0.0
+var dead := false
+var death_spin := 0.0
+var death_rest_angle := 0.0
 var riposte_attack := false
 var hitstop_token := 0
 var invulnerability_timer := 0.0
@@ -377,6 +382,9 @@ func _ready() -> void:
 	_update_character_animation()
 
 func _physics_process(delta: float) -> void:
+	if dead:
+		_update_death(delta)
+		return
 	var was_on_floor: bool = is_on_floor()
 	_update_wall_state()
 	var was_wall_sliding: bool = _is_wall_sliding()
@@ -1071,6 +1079,8 @@ func _try_start_running_wall_jump() -> bool:
 	return true
 
 func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -> void:
+	if dead:
+		return
 	if _is_roar_invincible():
 		# Frames explosivos del rugido: invencible, y un ataque cuerpo a cuerpo se desvía.
 		if attacker and attacker.has_method("on_deflected"):
@@ -1092,7 +1102,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	health_changed.emit(current_health, max_health)
 	if current_health == 0:
 		Stats.add("deaths")
-		_respawn_player()
+		_start_death(source_position, amount)
 		return
 
 	invulnerability_timer = hurt_invulnerability_time
@@ -1118,6 +1128,71 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	if push_direction == 0.0:
 		push_direction = -facing
 	velocity = Vector2(push_direction * hurt_knockback.x, hurt_knockback.y)
+
+# ---------- Muerte
+
+func _start_death(source_position: Vector2, amount: int) -> void:
+	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
+	dead = true
+	_cancel_all_states()
+	var push_direction: float = sign(global_position.x - source_position.x)
+	if push_direction == 0.0:
+		push_direction = -facing
+	var strength: float = clamp(float(amount), 8.0, 40.0)
+	velocity = Vector2(push_direction * (220.0 + strength * 12.0), -(260.0 + strength * 9.0))
+	death_spin = push_direction * (10.0 + strength * 0.4)
+	death_rest_angle = PI * 0.5 * push_direction
+	animated_sprite.play(ANIMATION_FALL)
+	_align_character_animation(ANIMATION_FALL)
+	animated_sprite.modulate = Color(1.0, 0.75, 0.75)
+	shadow.visible = false
+	died.emit()
+
+func _update_death(delta: float) -> void:
+	if Input.is_action_just_pressed("respawn"):
+		_respawn_player()
+		return
+	# Rebota en paredes, techo y suelo; al final queda tirado de lado.
+	if not is_on_floor():
+		velocity.y = min(velocity.y + gravity * fall_gravity_multiplier * delta, max_fall_speed)
+	var before := velocity
+	move_and_slide()
+	if is_on_wall():
+		velocity.x = -before.x * 0.6
+		death_spin = -death_spin * 0.8
+	if is_on_ceiling():
+		velocity.y = abs(before.y) * 0.3
+	if is_on_floor():
+		if before.y > 160.0:
+			velocity.y = -before.y * 0.35
+			death_spin *= 0.7
+		else:
+			velocity.y = 0.0
+			velocity.x = move_toward(velocity.x, 0.0, 1700.0 * delta)
+			death_spin = move_toward(death_spin, 0.0, 30.0 * delta)
+	if abs(velocity.x) < 6.0 and is_on_floor() and abs(death_spin) < 0.5:
+		animated_sprite.rotation = lerp_angle(animated_sprite.rotation, death_rest_angle, 10.0 * delta)
+	else:
+		animated_sprite.rotation += death_spin * delta
+
+func _cancel_all_states() -> void:
+	_end_roar()
+	_stop_sprint()
+	long_jump_active = false
+	frontflip_active = false
+	backflip_active = false
+	wall_cling_timer = 0.0
+	wallride_active = false
+	wall_embedded = false
+	mantle_active = false
+	is_charging_attack = false
+	charge_timer = 0.0
+	_set_charge_visual_active(false)
+	if dash_timer > 0.0:
+		dash_timer = 0.0
+		_set_dash_visual_active(false)
+	if _is_attack_active():
+		_cancel_attack_for_chain()
 
 func _update_hurt_visual() -> void:
 	if invulnerability_timer <= 0.0:
@@ -2661,6 +2736,8 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	dead = false
+	animated_sprite.rotation = 0.0
 	get_tree().call_group(&"training_dummies", &"reset_dummy")
 	global_position = spawn_position
 	velocity = Vector2.ZERO
@@ -2740,3 +2817,4 @@ func _respawn_player() -> void:
 	impact_wave_right_outline.position = impact_wave_right_outline_base_position
 	_reset_attack_pose()
 	_update_facing_visual()
+	respawned.emit()
