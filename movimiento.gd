@@ -183,7 +183,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var mantle_duration := 0.14
 @export var roar_explosive_duration := 0.12
 @export var roar_stall_duration := 1.0
-@export var roar_lock_duration := 1.0
+@export var roar_lock_duration := 0.25
+@export var roar_cooldown := 0.35
 @export var roar_radius := 46.0
 @export var roar_momentum_keep := 0.15
 @export var roar_damage := 1
@@ -261,6 +262,7 @@ var roar_active := false
 var roar_explosive_timer := 0.0
 var roar_stall_timer := 0.0
 var roar_lock_timer := 0.0
+var roar_cooldown_timer := 0.0
 var roar_aura_on := false
 var step_fx_timer := 0.0
 var roar_hit_targets: Array = []
@@ -424,6 +426,7 @@ func _physics_process(delta: float) -> void:
 		if roar_active and dash_cooldown_timer <= 0.0:
 			# El bloqueo del rugido se cancela con salto o con dash.
 			_end_roar()
+			roar_cooldown_timer = roar_cooldown
 		if not _blocks_actions():
 			_start_dash()
 
@@ -440,11 +443,12 @@ func _physics_process(delta: float) -> void:
 		if roar_explosive_timer > 0.0:
 			_roar_explosive_hits()
 		else:
-			# Al soltar A el aura se apaga, pero Rengar sigue bloqueado hasta cumplir 1 s
-			# (solo saltar o hacer dash lo cancela antes).
+			# Al soltar A el aura se apaga; tras un bloqueo breve Rengar queda libre
+			# (saltar o hacer dash lo cancela antes).
 			roar_aura_on = roar_aura_on and Input.is_action_pressed("roar")
 			if not roar_aura_on and roar_lock_timer <= 0.0:
 				_end_roar()
+				roar_cooldown_timer = roar_cooldown
 	_update_roar_aura()
 
 	if mantle_active:
@@ -730,6 +734,7 @@ func _update_timers(delta: float) -> void:
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
+	roar_cooldown_timer = max(roar_cooldown_timer - delta, 0.0)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
 		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
@@ -1198,7 +1203,8 @@ func _apply_mantle(delta: float) -> void:
 # ---------- Rugido (shine / deflect)
 
 func _start_roar() -> void:
-	if roar_active or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0:
+	# El cooldown evita el spam; cancelar con salto no lo activa, así que salto-rugido-doble salto-rugido sigue valiendo.
+	if roar_active or roar_cooldown_timer > 0.0 or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0:
 		return
 	_stop_sprint()
 	long_jump_active = false
