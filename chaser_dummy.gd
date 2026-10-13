@@ -7,8 +7,9 @@ extends Area2D
 @export var max_health := 8
 @export var speed := 150.0
 @export var detect_range := 520.0
-@export var attack_range := 50.0
-@export var attack_reach := 62.0
+# Ataca desde fuera del radio del rugido (46 px) para que se le pueda parrear en vez de golpearlo.
+@export var attack_range := 85.0
+@export var attack_reach := 104.0
 @export var attack_damage := 12
 @export var telegraph_time := 0.32
 @export var swing_time := 0.12
@@ -75,7 +76,8 @@ func _build() -> void:
 	arm.rotation = 0.9
 	visual.add_child(arm)
 	arm.add_child(_poly([Vector2(0, -3), Vector2(14, -3), Vector2(14, 3), Vector2(0, 3)], BAND_COLOR))
-	arm.add_child(_poly([Vector2(14, -5), Vector2(40, -2), Vector2(48, 0), Vector2(40, 2), Vector2(14, 5)], BLADE_COLOR))
+	# Hoja larga: su alcance visual coincide con attack_reach.
+	arm.add_child(_poly([Vector2(14, -6), Vector2(80, -3), Vector2(94, 0), Vector2(80, 3), Vector2(14, 6)], BLADE_COLOR))
 
 	warning_label = Label.new()
 	warning_label.text = "!"

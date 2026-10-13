@@ -1502,16 +1502,16 @@ func _update_roar_aura() -> void:
 		return
 	var delta: float = get_physics_process_delta_time()
 	if roar_explosive_timer > 0.0:
-		# Frames explosivos: el cubo se expande brillante y girando rápido.
+		# Frames explosivos: aparece al instante, derecho y a tamaño completo, con un destello.
 		var progress: float = 1.0 - roar_explosive_timer / roar_explosive_duration
-		roar_aura.scale = Vector2.ONE * lerp(0.45, 1.12, ease(progress, 0.4))
-		roar_aura.modulate = Color(1.5, 1.4, 1.2, 1.0)
-		roar_aura_spin += 7.0 * delta
+		roar_aura.scale = Vector2.ONE
+		roar_aura.modulate = Color(1.0, 1.0, 1.0, 1.0).lerp(Color(1.3, 1.2, 1.05, 1.0), 1.0 - progress)
+		roar_aura_spin = 0.0
 	else:
-		# Aura latente: gira despacio y pulsa; solo devuelve proyectiles.
+		# Aura latente (manteniendo): empieza a girar despacio y pulsa; solo devuelve proyectiles.
 		var pulse: float = sin(Time.get_ticks_msec() / 110.0)
 		roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse)
-		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.62 + 0.12 * pulse)
+		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.7 + 0.12 * pulse)
 		roar_aura_spin += 0.9 * delta
 	roar_aura.rotation = roar_aura_spin
 
@@ -2663,6 +2663,9 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 		air_jumps_remaining = min(air_jumps_remaining + 1, max_air_jumps)
 
 	_cancel_attack_for_chain()
+	# Sin carrera en el aire: si no, la carrera pisaría el retroceso e ignoraría el salto aéreo.
+	_stop_sprint()
+	long_jump_active = false
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
 	jump_cut_available = false

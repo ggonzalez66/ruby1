@@ -5,8 +5,9 @@ extends Node2D
 # desde fuera con rotation / scale / modulate.
 
 @export var outer_radius := 46.0
-@export var line_color := Color(1.0, 0.86, 0.38, 0.85)
-@export var glow_color := Color(1.0, 0.65, 0.12, 0.16)
+# Dorado profundo (menos amarillo).
+@export var line_color := Color(0.88, 0.64, 0.2, 0.9)
+@export var glow_color := Color(0.75, 0.45, 0.08, 0.2)
 @export var line_width := 1.0
 
 func _ready() -> void:
