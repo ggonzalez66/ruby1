@@ -144,7 +144,6 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var light_combo_window := 0.3
 @export var light_finisher_duration := 0.22
 @export var light_finisher_cooldown := 0.38
-@export var light_finisher_forward_speed := 430.0
 @export var light_finisher_scale := 1.55
 @export var spin_attack_duration := 0.34
 @export var spin_heavy_cancel_window := 0.12
@@ -172,16 +171,19 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var hitstop_light := 0.05
 @export var hitstop_heavy := 0.09
 @export var hitstop_deflect := 0.16
-@export var knife_throw_forward := Vector2(760.0, -170.0)
-@export var knife_throw_up := Vector2(170.0, -820.0)
-@export var knife_throw_diagonal_up := Vector2(520.0, -620.0)
-@export var knife_throw_diagonal_down := Vector2(700.0, 260.0)
-@export var knife_throw_down := Vector2(0.0, 1000.0)
+# Lanzamiento estándar: desde el spawn llega al primer dummy (unos 450 px) a la altura del cuerpo.
+@export var knife_throw_forward := Vector2(950.0, -260.0)
+@export var knife_throw_up := Vector2(200.0, -900.0)
+@export var knife_throw_diagonal_up := Vector2(650.0, -700.0)
+@export var knife_throw_diagonal_down := Vector2(850.0, 250.0)
+@export var knife_throw_down := Vector2(0.0, 1100.0)
+@export var knife_running_multiplier := 2.0
 @export var mantle_max_height := 44.0
 @export var mantle_forward := 14.0
 @export var mantle_duration := 0.14
 @export var roar_explosive_duration := 0.12
 @export var roar_stall_duration := 1.0
+@export var roar_lock_duration := 1.0
 @export var roar_radius := 46.0
 @export var roar_momentum_keep := 0.15
 @export var roar_damage := 1
@@ -258,6 +260,9 @@ var mantle_keep_sprint := false
 var roar_active := false
 var roar_explosive_timer := 0.0
 var roar_stall_timer := 0.0
+var roar_lock_timer := 0.0
+var roar_aura_on := false
+var step_fx_timer := 0.0
 var roar_hit_targets: Array = []
 var roar_aura: Node2D
 var roar_aura_fill: Polygon2D
@@ -365,6 +370,7 @@ func _physics_process(delta: float) -> void:
 		coyote_timer = coyote_time
 		air_jumps_remaining = max_air_jumps
 		air_uppercut_available = true
+	var air_jumps_before: int = air_jumps_remaining
 
 	if Input.is_action_just_pressed("toggle_hitbox_visuals"):
 		show_hitbox_debug = not show_hitbox_debug
@@ -414,8 +420,12 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_released("attack"):
 			_release_attack_charge(was_on_floor, was_wall_sliding)
 
-	if Input.is_action_just_pressed("dash") and not _blocks_actions():
-		_start_dash()
+	if Input.is_action_just_pressed("dash"):
+		if roar_active and dash_cooldown_timer <= 0.0:
+			# El bloqueo del rugido se cancela con salto o con dash.
+			_end_roar()
+		if not _blocks_actions():
+			_start_dash()
 
 	if Input.is_action_just_released("dash") and dash_timer <= 0.0:
 		_stop_sprint()
@@ -429,8 +439,12 @@ func _physics_process(delta: float) -> void:
 	if roar_active:
 		if roar_explosive_timer > 0.0:
 			_roar_explosive_hits()
-		elif not Input.is_action_pressed("roar"):
-			_end_roar()
+		else:
+			# Al soltar A el aura se apaga, pero Rengar sigue bloqueado hasta cumplir 1 s
+			# (solo saltar o hacer dash lo cancela antes).
+			roar_aura_on = roar_aura_on and Input.is_action_pressed("roar")
+			if not roar_aura_on and roar_lock_timer <= 0.0:
+				_end_roar()
 	_update_roar_aura()
 
 	if mantle_active:
@@ -461,12 +475,12 @@ func _physics_process(delta: float) -> void:
 		_apply_gravity(delta)
 		_consume_jump_buffer()
 		_apply_horizontal_movement(move_input, delta)
-		_apply_light_finisher_push()
 
 	_update_attack_animation()
 	_update_charge_visual()
 	_update_dash_visual()
 	_update_impact_wave_visual()
+	var fall_speed: float = velocity.y
 	move_and_slide()
 	_update_wall_state()
 	_refresh_attack_hits()
@@ -505,9 +519,39 @@ func _physics_process(delta: float) -> void:
 		if jump_buffer_timer > 0.0:
 			_consume_jump_buffer()
 
+	_update_movement_fx(delta, was_on_floor, air_jumps_before, fall_speed)
 	_update_afterimages(delta)
 	_update_character_animation()
 	_update_hurt_visual()
+
+func _update_movement_fx(delta: float, was_on_floor: bool, air_jumps_before: int, fall_speed: float) -> void:
+	var level := get_parent()
+	var feet := global_position
+	# Despegue desde el suelo.
+	if was_on_floor and not is_on_floor() and velocity.y < -150.0:
+		Fx.dust(level, feet, Vector2.UP, 7, 1.4, 1.4)
+	# Salto aéreo (doble salto, frontflip, doble backflip...): anillo de aire.
+	if not was_on_floor and air_jumps_remaining < air_jumps_before:
+		Fx.air_ring(level, feet)
+	# Aterrizaje desde cierta altura.
+	if not was_on_floor and is_on_floor() and fall_speed > 380.0:
+		Fx.dust(level, feet, Vector2.LEFT, 4, 1.4, 0.5)
+		Fx.dust(level, feet, Vector2.RIGHT, 4, 1.4, 0.5)
+	# Pasos y derrape al frenar.
+	step_fx_timer = max(step_fx_timer - delta, 0.0)
+	if not is_on_floor() or abs(velocity.x) <= 60.0 or step_fx_timer > 0.0:
+		return
+	var moving_dir: float = sign(velocity.x)
+	if is_sprinting and sprint_turn_timer > 0.0:
+		Fx.dust(level, feet + Vector2(moving_dir * 8.0, 0.0), Vector2(moving_dir, -0.4), 3, 1.3, 0.4)
+		step_fx_timer = 0.04
+	elif not _is_attack_active():
+		Fx.dust(level, feet - Vector2(moving_dir * 6.0, 0.0), Vector2(-moving_dir, -0.5), 3, 1.0, 0.5)
+		step_fx_timer = 0.12 if is_sprinting else 0.26
+
+func _spawn_walljump_fx(away_direction: int) -> void:
+	var point := global_position + Vector2(-away_direction * 10.0, -12.0)
+	Fx.dust(get_parent(), point, Vector2(away_direction, -0.3), 8, 1.3, 0.8)
 
 func _configure_character_animations() -> void:
 	var frames := SpriteFrames.new()
@@ -685,6 +729,7 @@ func _update_timers(delta: float) -> void:
 	knife_throw_pose_timer = max(knife_throw_pose_timer - delta, 0.0)
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
+	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
 		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
@@ -766,6 +811,7 @@ func _consume_jump_buffer() -> void:
 		wall_jump_lock_timer = wall_jump_control_lock_time
 		wall_jump_animation_timer = wall_jump_animation_duration
 		_update_facing_visual()
+		_spawn_walljump_fx(wall_contact_direction)
 		return
 
 	if air_jumps_remaining <= 0:
@@ -944,6 +990,7 @@ func _try_start_running_wall_jump() -> bool:
 	air_uppercut_available = true
 	_launch_long_jump()
 	velocity.y = running_wall_jump_vertical_speed
+	_spawn_walljump_fx(direction)
 	return true
 
 func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -> void:
@@ -1071,7 +1118,11 @@ func _get_knife_throw_velocity(move_input: float) -> Vector2:
 		throw_velocity = knife_throw_diagonal_down
 	elif down:
 		throw_velocity = knife_throw_down
-	return Vector2(throw_velocity.x * facing, throw_velocity.y)
+	var result := Vector2(throw_velocity.x * facing, throw_velocity.y)
+	if is_sprinting or long_jump_active:
+		# Corriendo, Rengar alcanzaría su propio cuchillo: sale el doble de rápido.
+		result.x *= knife_running_multiplier
+	return result
 
 func on_knife_hit(point: Vector2) -> void:
 	Fx.impact(get_parent(), point, Fx.GOLD, 1.1)
@@ -1111,6 +1162,7 @@ func _try_start_mantle(move_input: float) -> void:
 	mantle_from = global_position
 	mantle_height = height
 	mantle_dir = direction
+	Fx.dust(get_parent(), global_position + Vector2(direction * 12.0, -height), Vector2(-direction, -0.6), 6, 1.2)
 	facing = direction
 	_update_facing_visual()
 	velocity = Vector2.ZERO
@@ -1168,6 +1220,8 @@ func _start_roar() -> void:
 	velocity *= roar_momentum_keep
 	roar_active = true
 	roar_explosive_timer = roar_explosive_duration
+	roar_lock_timer = roar_lock_duration
+	roar_aura_on = true
 	roar_stall_timer = 0.0 if is_on_floor() else roar_stall_duration
 	roar_hit_targets.clear()
 	Fx.impact(get_parent(), get_roar_center(), Fx.ROAR, 2.0)
@@ -1175,8 +1229,10 @@ func _start_roar() -> void:
 
 func _end_roar() -> void:
 	roar_active = false
+	roar_aura_on = false
 	roar_explosive_timer = 0.0
 	roar_stall_timer = 0.0
+	roar_lock_timer = 0.0
 
 func _try_roar_jump_cancel() -> void:
 	var grounded: bool = is_on_floor() or coyote_timer > 0.0
@@ -1226,7 +1282,7 @@ func on_projectile_reflected() -> void:
 	_apply_hitstop(0.04)
 
 func is_roar_aura_active() -> bool:
-	return roar_active
+	return roar_active and (roar_explosive_timer > 0.0 or roar_aura_on)
 
 func get_roar_center() -> Vector2:
 	return global_position + Vector2(0.0, -14.0)
@@ -1254,8 +1310,8 @@ func _create_roar_aura() -> void:
 	roar_aura.add_child(roar_aura_line)
 
 func _update_roar_aura() -> void:
-	roar_aura.visible = roar_active
-	if not roar_active:
+	roar_aura.visible = is_roar_aura_active()
+	if not roar_aura.visible:
 		return
 	var palette: Array[Color] = Fx.ROAR
 	if roar_explosive_timer > 0.0:
@@ -1544,7 +1600,6 @@ func _start_attack() -> void:
 		attack_timer = light_finisher_duration
 		attack_cooldown_timer = light_finisher_cooldown
 		claw_hitbox_shape.polygon = claw_finisher_polygon
-		velocity.x = facing * max(light_finisher_forward_speed, velocity.x * facing)
 	else:
 		attack_timer = attack_duration
 		attack_cooldown_timer = attack_cooldown
@@ -1580,13 +1635,6 @@ func _get_claw_center_offset() -> Vector2:
 
 func _get_claw_scale() -> float:
 	return light_finisher_scale if light_combo_step == 3 else 1.0
-
-func _apply_light_finisher_push() -> void:
-	if attack_mode != ATTACK_SLASH or light_combo_step != 3:
-		return
-	var progress: float = 1.0 - (attack_timer / light_finisher_duration)
-	if progress < 0.8:
-		velocity.x = facing * max(light_finisher_forward_speed, velocity.x * facing)
 
 func _start_ground_charged_attack() -> void:
 	attack_mode = ATTACK_GROUND_CHARGED

@@ -5,8 +5,8 @@ extends Area2D
 
 const ENEMY_COLOR := Color(0.85, 0.25, 0.55)
 const ENEMY_CORE := Color(1.0, 0.75, 0.9)
-const REFLECTED_COLOR := Color(0.45, 0.95, 1.0)
-const REFLECTED_CORE := Color(0.92, 1.0, 1.0)
+const REFLECTED_COLOR := Color(1.0, 0.8, 0.28)
+const REFLECTED_CORE := Color(1.0, 0.98, 0.82)
 
 var velocity := Vector2.ZERO
 var damage := 10

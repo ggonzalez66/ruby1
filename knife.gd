@@ -7,12 +7,16 @@ const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/rengar_kni
 const KNIFE_REGION := Rect2(48, 271, 243, 227)
 # En el sprite la punta apunta hacia arriba a la izquierda (unos -138°).
 const TIP_ANGLE := -2.415
-const VISUAL_SCALE := 0.1
+const VISUAL_SCALE := 0.13
+const SPIN_SPEED := 24.0
+const TRAIL_LENGTH := 9
+const BOUNCE_RESTITUTION := 0.55
+const REST_SPEED := 90.0
 
 const GRAVITY := 1100.0
 const WORLD_MASK := 2
 const ENEMY_MASK := 8
-const HIT_RADIUS := 11.0
+const HIT_RADIUS := 14.0
 const DAMAGE_THROW := 2
 const DAMAGE_RECALL := 1
 const DROP_CHANCE := 0.15
@@ -32,9 +36,24 @@ var was_dropped := false
 var return_speed := 0.0
 var recall_hits: Array = []
 var sprite: Sprite2D
+var trail: Line2D
+var spin_direction := 1.0
 
 func _ready() -> void:
 	z_index = 2
+	# Estela plateada que sigue al cuchillo mientras vuela o vuelve.
+	trail = Line2D.new()
+	trail.top_level = true
+	trail.width = 9.0
+	var gradient := Gradient.new()
+	gradient.set_color(0, Color(0.85, 0.9, 1.0, 0.0))
+	gradient.set_color(1, Color(1.0, 0.95, 0.75, 0.75))
+	trail.gradient = gradient
+	var width_curve := Curve.new()
+	width_curve.add_point(Vector2(0.0, 0.1))
+	width_curve.add_point(Vector2(1.0, 1.0))
+	trail.width_curve = width_curve
+	add_child(trail)
 	sprite = Sprite2D.new()
 	sprite.texture = KNIFE_TEXTURE
 	sprite.region_enabled = true
@@ -47,6 +66,7 @@ func launch(owner_player: Node2D, start: Vector2, initial_velocity: Vector2) -> 
 	global_position = start
 	velocity = initial_velocity
 	state = State.FLYING
+	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
 	_point_along(velocity)
 
 func is_returning() -> bool:
@@ -62,6 +82,7 @@ func recall() -> void:
 	return_speed = RETURN_START_SPEED
 
 func _physics_process(delta: float) -> void:
+	_update_trail()
 	match state:
 		State.FLYING, State.FALLING, State.BOUNCING:
 			_fly(delta)
@@ -82,20 +103,19 @@ func _fly(delta: float) -> void:
 	var query := PhysicsRayQueryParameters2D.create(from, to, WORLD_MASK)
 	var hit := get_world_2d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
-		global_position = hit.position
+		global_position = hit.position + hit.normal * 1.0
 		if state == State.BOUNCING:
-			_lie_down(hit.normal)
+			_bounce_again(hit.normal)
 		elif randf() < DROP_CHANCE:
 			_bounce_off(hit.normal)
 		else:
+			global_position = hit.position
 			_stick_in_world()
 		return
 
 	global_position = to
-	if state == State.BOUNCING:
-		rotation += 14.0 * delta * sign(velocity.x if velocity.x != 0.0 else 1.0)
-		return
-	_point_along(velocity)
+	# Gira sobre sí mismo mientras vuela.
+	rotation += SPIN_SPEED * delta * spin_direction
 	if state == State.FLYING:
 		var enemy := _find_enemy(recall_hits)
 		if enemy:
@@ -104,13 +124,22 @@ func _fly(delta: float) -> void:
 func _stick_in_world() -> void:
 	state = State.STUCK_WORLD
 	was_dropped = false
+	# Se clava con la punta por delante en la dirección en que iba.
+	_point_along(velocity)
 	global_position += velocity.normalized() * 4.0
 
 func _bounce_off(normal: Vector2) -> void:
-	# Pequeña probabilidad de no clavarse: rebota y queda tirado.
+	# 15% de las veces no se clava: rebota libremente hasta quedar tirado.
 	state = State.BOUNCING
 	was_dropped = true
-	velocity = velocity.bounce(normal) * 0.35 + normal * 120.0
+	velocity = velocity.bounce(normal) * BOUNCE_RESTITUTION
+	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
+
+func _bounce_again(normal: Vector2) -> void:
+	velocity = velocity.bounce(normal) * BOUNCE_RESTITUTION
+	# Sobre el suelo y casi sin velocidad: se queda tirado.
+	if normal.y < -0.5 and velocity.length() < REST_SPEED:
+		_lie_down(normal)
 
 func _lie_down(normal: Vector2) -> void:
 	state = State.DROPPED
@@ -142,7 +171,7 @@ func _return(delta: float) -> void:
 		return
 	var move := offset.normalized() * step
 	global_position += move
-	_point_along(move)
+	rotation += SPIN_SPEED * delta * (1.0 if move.x >= 0.0 else -1.0)
 	var enemy := _find_enemy(recall_hits)
 	if enemy:
 		_recall_hit(enemy)
@@ -176,6 +205,15 @@ func _find_enemy(exclude: Array) -> Node2D:
 
 func _is_target_alive(node: Object) -> bool:
 	return is_instance_valid(node) and node.visible and node.get("monitorable") != false
+
+func _update_trail() -> void:
+	var moving: bool = state in [State.FLYING, State.FALLING, State.BOUNCING, State.RETURNING]
+	if moving:
+		trail.add_point(global_position)
+		while trail.get_point_count() > TRAIL_LENGTH:
+			trail.remove_point(0)
+	elif trail.get_point_count() > 0:
+		trail.remove_point(0)
 
 func _point_along(direction: Vector2) -> void:
 	if direction.length_squared() > 0.01:

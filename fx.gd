@@ -5,7 +5,9 @@ extends RefCounted
 
 const SILVER: Array[Color] = [Color(0.2, 0.22, 0.3), Color(0.74, 0.79, 0.88), Color(1.0, 1.0, 1.0)]
 const GOLD: Array[Color] = [Color(0.32, 0.16, 0.03), Color(1.0, 0.7, 0.14), Color(1.0, 0.97, 0.72)]
-const ROAR: Array[Color] = [Color(0.05, 0.25, 0.3), Color(0.45, 0.95, 1.0), Color(0.92, 1.0, 1.0)]
+# Rugido: dorado brillante (más luminoso que el de los ataques pesados).
+const ROAR: Array[Color] = [Color(0.4, 0.22, 0.02), Color(1.0, 0.8, 0.28), Color(1.0, 0.98, 0.82)]
+const DUST := Color(0.86, 0.8, 0.66, 0.85)
 
 # Impacto al conectar un golpe: estrella de puntas que se abre y chispas.
 static func impact(parent: Node, point: Vector2, palette: Array[Color], size: float = 1.0) -> void:
@@ -53,7 +55,43 @@ static func impact(parent: Node, point: Vector2, palette: Array[Color], size: fl
 static func deflect(parent: Node, point: Vector2) -> void:
 	impact(parent, point, ROAR, 2.0)
 	impact(parent, point, GOLD, 1.3)
-	text(parent, point + Vector2(0, -40), "¡DEFLECT!", Color(0.92, 1.0, 1.0))
+	text(parent, point + Vector2(0, -40), "¡DEFLECT!", Color(1.0, 0.95, 0.7))
+
+# Polvo: bolitas que salen en abanico hacia "direction" y se desvanecen.
+static func dust(parent: Node, point: Vector2, direction: Vector2, count: int = 4, size: float = 1.0, spread: float = 0.9) -> void:
+	var burst := _spawn(parent, point)
+	var tween := burst.create_tween().set_parallel(true)
+	var duration := 0.32
+	var base_angle := direction.angle()
+	for index in range(count):
+		var puff := Polygon2D.new()
+		puff.polygon = _circle(randf_range(2.5, 4.5) * size, 8, false)
+		puff.color = DUST
+		burst.add_child(puff)
+		var angle: float = base_angle + randf_range(-spread, spread)
+		var distance: float = randf_range(10.0, 22.0) * size
+		var target := Vector2(cos(angle), sin(angle)) * distance + Vector2(0, -4.0 * size)
+		tween.tween_property(puff, "position", target, duration).set_ease(Tween.EASE_OUT)
+		tween.tween_property(puff, "scale", Vector2.ONE * 1.6, duration)
+		tween.tween_property(puff, "modulate:a", 0.0, duration)
+	tween.chain().tween_callback(burst.queue_free)
+
+# Anillo de aire del doble salto.
+static func air_ring(parent: Node, point: Vector2) -> void:
+	var burst := _spawn(parent, point)
+	var ring := Line2D.new()
+	var points := PackedVector2Array()
+	for index in range(17):
+		var angle: float = TAU * index / 16.0
+		points.append(Vector2(cos(angle) * 14.0, sin(angle) * 4.0))
+	ring.points = points
+	ring.width = 2.0
+	ring.default_color = Color(0.95, 1.0, 0.92, 0.8)
+	burst.add_child(ring)
+	var tween := burst.create_tween().set_parallel(true)
+	tween.tween_property(ring, "scale", Vector2(2.2, 2.2), 0.25)
+	tween.tween_property(ring, "modulate:a", 0.0, 0.25)
+	tween.chain().tween_callback(burst.queue_free)
 
 # Nubecilla para cosas que desaparecen (proyectiles contra la pared).
 static func puff(parent: Node, point: Vector2, color: Color) -> void:

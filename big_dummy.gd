@@ -1,21 +1,29 @@
 extends Area2D
 
-# Guardián de la torre: dummy gigante con una espada enorme. Avisa cada ataque (el arma se
-# pone roja y aparece "!") y luego tajea. Si el rugido de Rengar pilla el tajo en sus frames
-# explosivos, el ataque se desvía y el guardián queda aturdido.
+# Guardián de la torre: dummy gigante con una espada enorme.
+# - Combo de 3 golpes (barrido, tajo vertical y golpe al suelo con ondas de choque que hay que saltar).
+# - Estocada en carrera si Rengar está lejos.
+# - Cada ataque se avisa (la espada parpadea en rojo y aparece "!").
+# - El rugido en sus frames explosivos desvía el golpe; con un 30% de probabilidad resiste y sigue el combo.
 
 @export var max_health := 150
 @export var min_x := 1700.0
 @export var max_x := 4300.0
 @export var walk_speed := 70.0
-@export var attack_range := 210.0
-@export var engage_distance := 650.0
-@export var sword_damage := 25
-@export var telegraph_time := 0.75
-@export var swing_time := 0.2
+@export var attack_range := 260.0
+@export var engage_distance := 750.0
 @export var recover_time := 0.9
 @export var stagger_time := 1.6
+@export var resist_chance := 0.3
+@export var lunge_min_distance := 380.0
+@export var lunge_chance := 0.55
+@export var lunge_cooldown_time := 3.5
+@export var lunge_windup_time := 0.65
+@export var lunge_speed := 950.0
+@export var lunge_max_travel := 520.0
+@export var lunge_damage := 22
 
+const SHOCKWAVE_SCRIPT := preload("res://shockwave.gd")
 const BODY_SIZE := Vector2(70, 150)
 const BODY_COLOR := Color(0.45, 0.2, 0.17)
 const BODY_HIT_COLOR := Color(1.0, 0.45, 0.4)
@@ -25,22 +33,32 @@ const BLADE_COLOR := Color(0.78, 0.82, 0.9)
 const BLADE_WARNING := Color(1.0, 0.25, 0.2)
 const HILT_COLOR := Color(0.85, 0.62, 0.18)
 const IDLE_ANGLE := 0.9
-# [ángulo de preparación, ángulo final] de cada ataque, con la espada apuntando a +x en 0.
-const ATTACKS := [Vector2(-2.6, 0.5), Vector2(-1.75, 1.25)]
-const ATTACK_NAMES := ["Barrido", "Tajo vertical"]
+# Estocada: la espada apunta hacia delante y algo hacia abajo para que la punta llegue al cuerpo de Rengar.
+const LUNGE_ANGLE := 0.38
+# Espada un 30% más larga que la original (178 px).
+const BLADE_LENGTH := 231.0
+# Ángulos con la espada apuntando a +x en 0. El "to" del golpe al suelo deja la punta en el suelo.
+const COMBO := [
+	{"name": "Barrido", "from": -2.6, "to": 0.5, "telegraph": 0.75, "swing": 0.2, "damage": 25, "shockwave": false},
+	{"name": "Tajo vertical", "from": -1.75, "to": 1.25, "telegraph": 0.42, "swing": 0.18, "damage": 25, "shockwave": false},
+	{"name": "Golpe al suelo", "from": -2.3, "to": 0.49, "telegraph": 0.5, "swing": 0.18, "damage": 30, "shockwave": true},
+]
 
-enum State { IDLE, WALK, TELEGRAPH, SWING, RECOVER, STAGGER, DEFEATED }
+enum State { IDLE, WALK, TELEGRAPH, SWING, RECOVER, STAGGER, DEFEATED, LUNGE_WINDUP, LUNGE }
 
 var impact_offset := Vector2(0, -80)
 var state := State.IDLE
 var state_timer := 0.8
 var current_health := 0
 var facing := -1
-var attack_kind := 0
+var combo_step := 0
+var current_attack: Dictionary = COMBO[0]
 var swing_hit_done := false
 var angle_from := IDLE_ANGLE
 var spawn_position := Vector2.ZERO
 var flash_timer := 0.0
+var lunge_cooldown := 0.0
+var decision_timer := 0.0
 
 var visual: Node2D
 var body_poly: Polygon2D
@@ -86,7 +104,8 @@ func _build() -> void:
 	sword_pivot.rotation = IDLE_ANGLE
 	visual.add_child(sword_pivot)
 	sword_pivot.add_child(_poly([Vector2(-6, -16), Vector2(8, -16), Vector2(8, 16), Vector2(-6, 16)], HILT_COLOR))
-	blade = _poly([Vector2(8, -11), Vector2(150, -9), Vector2(178, 0), Vector2(150, 9), Vector2(8, 11)], BLADE_COLOR)
+	var shoulder := BLADE_LENGTH - 36.0
+	blade = _poly([Vector2(8, -12), Vector2(shoulder, -10), Vector2(BLADE_LENGTH, 0), Vector2(shoulder, 10), Vector2(8, 12)], BLADE_COLOR)
 	sword_pivot.add_child(blade)
 
 	sword_area = Area2D.new()
@@ -95,9 +114,9 @@ func _build() -> void:
 	sword_area.monitorable = false
 	var sword_shape := CollisionShape2D.new()
 	var sword_rect := RectangleShape2D.new()
-	sword_rect.size = Vector2(176, 30)
+	sword_rect.size = Vector2(BLADE_LENGTH - 2.0, 30)
 	sword_shape.shape = sword_rect
-	sword_shape.position = Vector2(92, 0)
+	sword_shape.position = Vector2(BLADE_LENGTH * 0.5 + 4.0, 0)
 	sword_area.add_child(sword_shape)
 	sword_pivot.add_child(sword_area)
 
@@ -148,37 +167,50 @@ func _physics_process(delta: float) -> void:
 
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D
 	state_timer -= delta
+	lunge_cooldown = max(lunge_cooldown - delta, 0.0)
 	match state:
 		State.IDLE:
 			_face(player)
 			if state_timer <= 0.0 and _player_engaged(player):
-				if abs(player.global_position.x - global_position.x) > attack_range:
-					state = State.WALK
-				else:
-					_start_telegraph()
+				_decide(player, true)
 		State.WALK:
 			_face(player)
+			decision_timer -= delta
 			if not _player_engaged(player):
 				state = State.IDLE
-			elif abs(player.global_position.x - global_position.x) <= attack_range:
-				_start_telegraph()
-			else:
+			elif _distance_to(player) <= attack_range:
+				_start_combo()
+			elif decision_timer <= 0.0:
+				_decide(player, false)
+			if state == State.WALK:
 				position.x = clamp(position.x + facing * walk_speed * delta, min_x, max_x)
 		State.TELEGRAPH:
-			var progress: float = 1.0 - state_timer / telegraph_time
-			sword_pivot.rotation = lerp(angle_from, ATTACKS[attack_kind].x, ease(clamp(progress * 1.4, 0.0, 1.0), 0.5))
-			# El arma parpadea en rojo cada vez más rápido.
-			var blink: float = 0.5 + 0.5 * sin(progress * progress * 40.0)
-			blade.color = BLADE_COLOR.lerp(BLADE_WARNING, blink)
+			var progress: float = 1.0 - state_timer / float(current_attack.telegraph)
+			sword_pivot.rotation = lerp(angle_from, float(current_attack.from), ease(clamp(progress * 1.4, 0.0, 1.0), 0.5))
+			_blink_blade(progress)
 			if state_timer <= 0.0:
 				_start_swing()
 		State.SWING:
-			var progress: float = clamp(1.0 - state_timer / swing_time, 0.0, 1.0)
-			sword_pivot.rotation = lerp(ATTACKS[attack_kind].x, ATTACKS[attack_kind].y, ease(progress, 0.4))
+			var progress: float = clamp(1.0 - state_timer / float(current_attack.swing), 0.0, 1.0)
+			sword_pivot.rotation = lerp(float(current_attack.from), float(current_attack.to), ease(progress, 0.4))
 			_update_trail()
-			_check_sword_hit()
+			_check_sword_hit(int(current_attack.damage))
 			if state_timer <= 0.0 and state == State.SWING:
-				_enter_recover()
+				_end_swing()
+		State.LUNGE_WINDUP:
+			# Echa la espada hacia atrás y se inclina: va a lanzarse.
+			var progress: float = 1.0 - state_timer / lunge_windup_time
+			sword_pivot.rotation = lerp_angle(sword_pivot.rotation, PI * 0.97, 8.0 * delta)
+			visual.rotation = lerp(visual.rotation, -0.18 * facing, 6.0 * delta)
+			_blink_blade(progress)
+			if state_timer <= 0.0:
+				_start_lunge()
+		State.LUNGE:
+			position.x = clamp(position.x + facing * lunge_speed * delta, min_x, max_x)
+			_update_trail()
+			_check_sword_hit(lunge_damage)
+			if state_timer <= 0.0:
+				_enter_recover(recover_time)
 		State.RECOVER, State.STAGGER:
 			sword_pivot.rotation = lerp_angle(sword_pivot.rotation, IDLE_ANGLE, 3.0 * delta)
 			visual.rotation = lerp(visual.rotation, 0.0, 6.0 * delta)
@@ -187,6 +219,19 @@ func _physics_process(delta: float) -> void:
 				state = State.IDLE
 				state_timer = 0.5
 				blade.color = BLADE_COLOR
+
+func _decide(player: Node2D, from_idle: bool) -> void:
+	var distance := _distance_to(player)
+	if distance > lunge_min_distance and lunge_cooldown <= 0.0 and randf() < lunge_chance:
+		_start_lunge_windup()
+	elif distance > attack_range:
+		state = State.WALK
+		decision_timer = 0.8
+	elif from_idle:
+		_start_combo()
+
+func _distance_to(player: Node2D) -> float:
+	return abs(player.global_position.x - global_position.x)
 
 func _player_engaged(player: Node2D) -> bool:
 	if player == null:
@@ -199,57 +244,113 @@ func _face(player: Node2D) -> void:
 		return
 	facing = 1 if player.global_position.x >= global_position.x else -1
 	visual.scale.x = facing
-	warning_label.position.x = -8.0
 
-func _start_telegraph() -> void:
+func _start_combo() -> void:
+	combo_step = 0
+	_start_telegraph(COMBO[0])
+
+func _start_telegraph(attack: Dictionary) -> void:
+	_face(get_tree().get_first_node_in_group(&"player") as Node2D)
+	current_attack = attack
 	state = State.TELEGRAPH
-	state_timer = telegraph_time
-	attack_kind = (attack_kind + 1) % ATTACKS.size()
+	state_timer = float(attack.telegraph)
 	angle_from = sword_pivot.rotation
 	warning_label.visible = true
 
 func _start_swing() -> void:
 	state = State.SWING
-	state_timer = swing_time
+	state_timer = float(current_attack.swing)
 	swing_hit_done = false
 	warning_label.visible = false
 	blade.color = BLADE_COLOR.lerp(BLADE_WARNING, 0.35)
 	trail.clear_points()
 	trail.modulate.a = 1.0
 
-func _enter_recover() -> void:
+func _end_swing() -> void:
+	if current_attack.shockwave:
+		_spawn_shockwaves()
+	if combo_step < COMBO.size() - 1:
+		combo_step += 1
+		_start_telegraph(COMBO[combo_step])
+	else:
+		_enter_recover(recover_time + 0.3)
+
+func _spawn_shockwaves() -> void:
+	# La espada golpea el suelo: dos ondas salen en direcciones opuestas.
+	var tip := sword_pivot.to_global(Vector2(BLADE_LENGTH, 0))
+	var ground := Vector2(tip.x, global_position.y)
+	Fx.impact(get_parent(), ground + Vector2(0, -8), Fx.GOLD, 2.0)
+	for direction in [-1, 1]:
+		var wave := SHOCKWAVE_SCRIPT.new()
+		wave.direction = direction
+		get_parent().add_child(wave)
+		wave.global_position = ground
+
+func _start_lunge_windup() -> void:
+	_face(get_tree().get_first_node_in_group(&"player") as Node2D)
+	state = State.LUNGE_WINDUP
+	state_timer = lunge_windup_time
+	warning_label.visible = true
+
+func _start_lunge() -> void:
+	# Se lanza hasta quedar a distancia de estocada de Rengar (con un máximo).
+	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	var travel: float = lunge_max_travel
+	if player:
+		travel = clamp(_distance_to(player) - 150.0, 160.0, lunge_max_travel)
+	state = State.LUNGE
+	state_timer = travel / lunge_speed
+	swing_hit_done = false
+	warning_label.visible = false
+	lunge_cooldown = lunge_cooldown_time
+	sword_pivot.rotation = LUNGE_ANGLE
+	visual.rotation = 0.08 * facing
+	blade.color = BLADE_COLOR.lerp(BLADE_WARNING, 0.35)
+	trail.clear_points()
+	trail.modulate.a = 1.0
+
+func _enter_recover(duration: float) -> void:
 	state = State.RECOVER
-	state_timer = recover_time
+	state_timer = duration
 	blade.color = BLADE_COLOR
+	warning_label.visible = false
+
+func _blink_blade(progress: float) -> void:
+	# El arma parpadea en rojo cada vez más rápido.
+	var blink: float = 0.5 + 0.5 * sin(progress * progress * 40.0)
+	blade.color = BLADE_COLOR.lerp(BLADE_WARNING, blink)
 
 func _update_trail() -> void:
-	var tip := sword_pivot.to_global(Vector2(176, 0))
+	var tip := sword_pivot.to_global(Vector2(BLADE_LENGTH, 0))
 	trail.add_point(tip)
 	if trail.get_point_count() > 12:
 		trail.remove_point(0)
 
-func _check_sword_hit() -> void:
+func _check_sword_hit(damage: int) -> void:
 	if swing_hit_done:
 		return
 	for body in sword_area.get_overlapping_bodies():
 		if body.has_method("take_damage"):
 			swing_hit_done = true
-			body.take_damage(sword_damage, global_position + Vector2(0, -60), self)
+			body.take_damage(damage, global_position + Vector2(0, -60), self)
 			return
 
 func on_deflected(_by: Node) -> void:
-	# El rugido desvió el tajo: la espada sale despedida hacia atrás y queda aturdido.
-	if state != State.SWING:
+	if state != State.SWING and state != State.LUNGE:
 		return
 	swing_hit_done = true
+	Fx.deflect(get_parent(), sword_pivot.to_global(Vector2(BLADE_LENGTH * 0.7, 0)))
+	flash_timer = 0.12
+	if randf() < resist_chance:
+		# Resiste el desvío: este golpe ya no daña, pero el combo continúa.
+		Fx.text(get_parent(), global_position + Vector2(0, -250), "¡RESISTE!", Color(1.0, 0.55, 0.4))
+		return
 	state = State.STAGGER
 	state_timer = stagger_time
 	warning_label.visible = false
 	blade.color = BLADE_COLOR
 	sword_pivot.rotation = -2.9
 	visual.rotation = -0.12 * facing
-	flash_timer = 0.15
-	Fx.deflect(get_parent(), sword_pivot.to_global(Vector2(120, 0)))
 	Fx.text(get_parent(), global_position + Vector2(0, -210), "¡ATURDIDO!", Color(1.0, 0.85, 0.5))
 
 func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -> void:
@@ -276,7 +377,8 @@ func reset_dummy() -> void:
 	current_health = max_health
 	state = State.IDLE
 	state_timer = 0.8
-	attack_kind = 0
+	combo_step = 0
+	lunge_cooldown = 0.0
 	visual.rotation = 0.0
 	visual.modulate.a = 1.0
 	sword_pivot.rotation = IDLE_ANGLE
