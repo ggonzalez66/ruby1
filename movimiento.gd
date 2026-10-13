@@ -17,6 +17,7 @@ const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dash_1
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/reng_light_hits-sheet.png")
 const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-heavy.png")
 const KNIFE_SCRIPT := preload("res://knife.gd")
+const METATRON_SCRIPT := preload("res://metatron_cube.gd")
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
 const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
@@ -274,8 +275,7 @@ var roar_aura_on := false
 var step_fx_timer := 0.0
 var roar_hit_targets: Array = []
 var roar_aura: Node2D
-var roar_aura_fill: Polygon2D
-var roar_aura_line: Line2D
+var roar_aura_spin := 0.0
 var hitstop_end_msec := 0
 var riposte_timer := 0.0
 var dead := false
@@ -1487,43 +1487,33 @@ func _is_roar_invincible() -> bool:
 	return roar_active and roar_explosive_timer > 0.0
 
 func _create_roar_aura() -> void:
-	roar_aura = Node2D.new()
+	# El aura del rugido es un Cubo de Metatrón dorado.
+	roar_aura = METATRON_SCRIPT.new()
+	roar_aura.outer_radius = roar_radius
 	roar_aura.position = Vector2(0.0, -14.0)
 	roar_aura.z_index = 1
 	roar_aura.visible = false
 	add_child(roar_aura)
-	var hexagon := PackedVector2Array()
-	for index in range(6):
-		var angle: float = TAU * index / 6.0 + PI / 6.0
-		hexagon.append(Vector2(cos(angle), sin(angle)) * roar_radius)
-	roar_aura_fill = Polygon2D.new()
-	roar_aura_fill.polygon = hexagon
-	roar_aura.add_child(roar_aura_fill)
-	roar_aura_line = Line2D.new()
-	var outline := hexagon.duplicate()
-	outline.append(hexagon[0])
-	roar_aura_line.points = outline
-	roar_aura.add_child(roar_aura_line)
 
 func _update_roar_aura() -> void:
 	roar_aura.visible = is_roar_aura_active()
 	if not roar_aura.visible:
+		roar_aura_spin = 0.0
 		return
-	var palette: Array[Color] = Fx.ROAR
+	var delta: float = get_physics_process_delta_time()
 	if roar_explosive_timer > 0.0:
-		# Frames explosivos: hexágono brillante que se expande.
+		# Frames explosivos: el cubo se expande brillante y girando rápido.
 		var progress: float = 1.0 - roar_explosive_timer / roar_explosive_duration
-		roar_aura.scale = Vector2.ONE * lerp(0.55, 1.12, progress)
-		roar_aura_fill.color = Color(palette[2], 0.55)
-		roar_aura_line.default_color = palette[2]
-		roar_aura_line.width = 4.0
+		roar_aura.scale = Vector2.ONE * lerp(0.45, 1.12, ease(progress, 0.4))
+		roar_aura.modulate = Color(1.5, 1.4, 1.2, 1.0)
+		roar_aura_spin += 7.0 * delta
 	else:
-		# Aura latente: solo devuelve proyectiles.
-		var pulse: float = sin(Time.get_ticks_msec() / 90.0)
-		roar_aura.scale = Vector2.ONE * (1.0 + 0.04 * pulse)
-		roar_aura_fill.color = Color(palette[1], 0.16 + 0.04 * pulse)
-		roar_aura_line.default_color = Color(palette[1], 0.7)
-		roar_aura_line.width = 2.0
+		# Aura latente: gira despacio y pulsa; solo devuelve proyectiles.
+		var pulse: float = sin(Time.get_ticks_msec() / 110.0)
+		roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse)
+		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.62 + 0.12 * pulse)
+		roar_aura_spin += 0.9 * delta
+	roar_aura.rotation = roar_aura_spin
 
 func _get_sprint_start_direction(move_input: float) -> int:
 	if move_input != 0.0:
