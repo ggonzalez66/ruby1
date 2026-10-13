@@ -1,10 +1,11 @@
-[gd_scene load_steps=22 format=3 uid="uid://bsjw318ojxwhy"]
+[gd_scene load_steps=23 format=3 uid="uid://bsjw318ojxwhy"]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_41u7p"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_2ax5n"]
 [ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
 [ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
 [ext_resource type="Script" path="res://hud.gd" id="5_hud"]
+[ext_resource type="AudioStream" uid="uid://clc7wefdlg2yn" path="res://assets/sounds/music/testingSong.mp3" id="6_music"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
 size = Vector2(760, 80)
@@ -510,3 +511,8 @@ move_period = 5.0
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("5_hud")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("6_music")
+volume_db = -6.0
+autoplay = true

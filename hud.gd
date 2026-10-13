@@ -14,11 +14,19 @@ var fill: ColorRect
 var trail: ColorRect
 var value_label: Label
 var trail_tween: Tween
+var elapsed_time := 0.0
+var timer_main_label: Label
+var timer_millis_label: Label
 
 func _ready() -> void:
 	layer = 10
 	_build()
+	_build_timer()
 	_connect_player.call_deferred()
+
+func _process(delta: float) -> void:
+	elapsed_time += delta
+	_update_timer_text()
 
 func _build() -> void:
 	var panel := PanelContainer.new()
@@ -67,6 +75,50 @@ func _build() -> void:
 	fill.color = BAR_FILL
 	fill.size = Vector2(BAR_WIDTH, 14)
 	bar.add_child(fill)
+
+func _build_timer() -> void:
+	# Cronómetro centrado arriba: minutos y segundos grandes, milésimas en pequeño.
+	var anchor := Control.new()
+	anchor.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	anchor.position.y = 14
+	add_child(anchor)
+
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = PANEL_COLOR
+	style.border_color = PANEL_BORDER
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 14
+	style.content_margin_right = 14
+	style.content_margin_top = 2
+	style.content_margin_bottom = 4
+	panel.add_theme_stylebox_override("panel", style)
+	anchor.add_child(panel)
+
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 2)
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(row)
+	timer_main_label = Label.new()
+	timer_main_label.add_theme_font_size_override("font_size", 30)
+	timer_main_label.add_theme_color_override("font_color", Color(0.93, 1.0, 0.86))
+	row.add_child(timer_main_label)
+	timer_millis_label = Label.new()
+	timer_millis_label.add_theme_font_size_override("font_size", 16)
+	timer_millis_label.add_theme_color_override("font_color", Color(0.7, 0.85, 0.66))
+	timer_millis_label.size_flags_vertical = Control.SIZE_SHRINK_END
+	row.add_child(timer_millis_label)
+	_update_timer_text()
+	# Centra el panel sobre el ancla una vez conocido su tamaño.
+	panel.resized.connect(func(): panel.position.x = -panel.size.x * 0.5)
+
+func _update_timer_text() -> void:
+	var total_millis: int = int(elapsed_time * 1000.0)
+	var minutes: int = total_millis / 60000
+	var seconds: int = (total_millis / 1000) % 60
+	timer_main_label.text = "%02d:%02d" % [minutes, seconds]
+	timer_millis_label.text = ".%03d" % (total_millis % 1000)
 
 func _connect_player() -> void:
 	var player := get_tree().get_first_node_in_group(&"player")
