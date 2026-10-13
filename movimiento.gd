@@ -1,6 +1,7 @@
 extends CharacterBody2D
 
 signal health_changed(current: int, maximum: int)
+signal knife_changed(in_hand: bool)
 
 const STANDING_AND_WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_standing_and_walking-sheet.png")
 const JUMPING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumping-sheet.png")
@@ -13,6 +14,7 @@ const AERIAL_STALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/ren
 const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dash_1.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/reng_light_hits-sheet.png")
 const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-heavy.png")
+const KNIFE_SCRIPT := preload("res://knife.gd")
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
 const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
@@ -45,6 +47,9 @@ const ANIMATION_FRONTFLIP := &"frontflip"
 const ANIMATION_SPRINT_BRAKE := &"sprint_brake"
 const ANIMATION_LIGHT_HIT_2 := &"light_hit_2"
 const ANIMATION_LIGHT_FINISHER := &"light_finisher"
+const ANIMATION_ROAR := &"roar"
+const ANIMATION_KNIFE_THROW := &"knife_throw"
+const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
@@ -64,6 +69,8 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_LIGHT_HIT: 1.25,
 	ANIMATION_LIGHT_HIT_2: 1.25,
 	ANIMATION_LIGHT_FINISHER: 1.25,
+	ANIMATION_ROAR: 0.8,
+	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 1.3,
 	ANIMATION_SPRINT: 1.15,
 	ANIMATION_BACKFLIP: 0.8,
@@ -88,6 +95,7 @@ const DAMAGE_SPIN := 2
 const DAMAGE_LIGHT_CHARGED_AIR := 3
 const DAMAGE_HEAVY_GROUND := 3
 const DAMAGE_UPPERCUT := 3
+const DAMAGE_WALL_EXPLOSION := 2
 
 @export var max_speed := 320.0
 @export var ground_acceleration := 2200.0
@@ -136,8 +144,8 @@ const DAMAGE_UPPERCUT := 3
 @export var light_combo_window := 0.3
 @export var light_finisher_duration := 0.22
 @export var light_finisher_cooldown := 0.38
-@export var light_finisher_forward_speed := 240.0
-@export var light_finisher_scale := 1.25
+@export var light_finisher_forward_speed := 430.0
+@export var light_finisher_scale := 1.55
 @export var spin_attack_duration := 0.34
 @export var spin_heavy_cancel_window := 0.12
 @export var light_uppercut_duration := 0.08
@@ -161,9 +169,27 @@ const DAMAGE_UPPERCUT := 3
 @export var long_jump_vertical_speed := -500.0
 @export var long_jump_chain_window := 0.12
 @export var max_health := 100
+@export var hitstop_light := 0.05
+@export var hitstop_heavy := 0.09
+@export var hitstop_deflect := 0.16
+@export var knife_throw_forward := Vector2(760.0, -170.0)
+@export var knife_throw_up := Vector2(170.0, -820.0)
+@export var knife_throw_diagonal_up := Vector2(520.0, -620.0)
+@export var knife_throw_diagonal_down := Vector2(700.0, 260.0)
+@export var knife_throw_down := Vector2(0.0, 1000.0)
+@export var mantle_max_height := 44.0
+@export var mantle_forward := 14.0
+@export var mantle_duration := 0.14
+@export var roar_explosive_duration := 0.12
+@export var roar_stall_duration := 1.0
+@export var roar_radius := 46.0
+@export var roar_momentum_keep := 0.15
+@export var roar_damage := 1
 @export var hurt_invulnerability_time := 1.0
 @export var hurt_control_lock_time := 0.25
 @export var hurt_knockback := Vector2(380.0, -320.0)
+@export var wall_explosion_radius := 60.0
+@export var wall_explosion_duration := 0.3
 @export var running_wall_cling_time := 0.35
 @export var running_wall_cling_slide_speed := 40.0
 @export var running_wall_jump_vertical_speed := -620.0
@@ -220,9 +246,29 @@ var light_combo_step := 0
 var light_combo_window_timer := 0.0
 var light_combo_queued := false
 var jump_cut_available := false
+var has_knife := true
+var thrown_knife: Node2D
+var knife_throw_pose_timer := 0.0
+var mantle_active := false
+var mantle_elapsed := 0.0
+var mantle_from := Vector2.ZERO
+var mantle_height := 0.0
+var mantle_dir := 1
+var mantle_keep_sprint := false
+var roar_active := false
+var roar_explosive_timer := 0.0
+var roar_stall_timer := 0.0
+var roar_hit_targets: Array = []
+var roar_aura: Node2D
+var roar_aura_fill: Polygon2D
+var roar_aura_line: Line2D
+var hitstop_end_msec := 0
+var hitstop_token := 0
 var invulnerability_timer := 0.0
 var hurt_lock_timer := 0.0
 var wall_cling_timer := 0.0
+var wall_embedded := false
+var wall_embed_normal := 0
 var wall_cling_direction := 0
 var frontflip_elapsed := 0.0
 var frontflip_rotation_duration := 0.0
@@ -276,6 +322,7 @@ func _ready() -> void:
 	charge_glow_material.shader = CHARGE_GLOW_SHADER
 	animated_sprite.material = charge_glow_material
 	_create_afterimage_container()
+	_create_roar_aura()
 	air_jumps_remaining = max_air_jumps
 	slash_base_color = slash_visual.color
 	slash_area_base_color = slash_area_visual.color
@@ -291,7 +338,7 @@ func _ready() -> void:
 	slash_area_base_polygon = slash_area_visual.polygon
 	slash_outline_base_points = slash_outline.points
 	claw_hitbox_polygon = _build_claw_arc_polygon(claw_start_angle_degrees, claw_end_angle_degrees, 0.35)
-	claw_finisher_polygon = _build_claw_arc_polygon(claw_start_angle_degrees - 15.0, claw_end_angle_degrees + 15.0, 0.35, light_finisher_scale)
+	claw_finisher_polygon = _build_claw_arc_polygon(claw_start_angle_degrees - 15.0, claw_end_angle_degrees + 15.0, 0.35, light_finisher_scale, LIGHT_FINISHER_CENTER_OFFSET)
 	claw_hitbox_shape.polygon = claw_hitbox_polygon
 	_create_attack_effects()
 	impact_wave_left_base_position = impact_wave_left.position
@@ -323,8 +370,14 @@ func _physics_process(delta: float) -> void:
 		show_hitbox_debug = not show_hitbox_debug
 		_update_hitbox_visual_visibility()
 
+	if Input.is_action_just_pressed("roar"):
+		_start_roar()
+
 	if Input.is_action_just_pressed("jump"):
-		if attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
+		if roar_active:
+			# El rugido solo se cancela saltando.
+			_try_roar_jump_cancel()
+		elif attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
 			_start_spin_attack()
 		elif _try_start_spin_jump_cancel():
 			pass
@@ -343,11 +396,14 @@ func _physics_process(delta: float) -> void:
 		else:
 			jump_buffer_timer = jump_buffer_time
 
-	if Input.is_action_just_pressed("attack"):
+	if Input.is_action_just_pressed("attack") and not _blocks_actions():
 		_begin_attack_charge()
 
-	if Input.is_action_just_pressed("heavy_attack"):
+	if Input.is_action_just_pressed("heavy_attack") and not _blocks_actions():
 		_start_heavy_attack()
+
+	if Input.is_action_just_pressed("throw_knife"):
+		_on_knife_input(move_input)
 
 	if Input.is_action_just_pressed("respawn"):
 		_respawn_player()
@@ -358,7 +414,7 @@ func _physics_process(delta: float) -> void:
 		if Input.is_action_just_released("attack"):
 			_release_attack_charge(was_on_floor, was_wall_sliding)
 
-	if Input.is_action_just_pressed("dash"):
+	if Input.is_action_just_pressed("dash") and not _blocks_actions():
 		_start_dash()
 
 	if Input.is_action_just_released("dash") and dash_timer <= 0.0:
@@ -370,7 +426,18 @@ func _physics_process(delta: float) -> void:
 
 	_try_backflip_instant_run(move_input)
 
-	if dash_timer > 0.0:
+	if roar_active:
+		if roar_explosive_timer > 0.0:
+			_roar_explosive_hits()
+		elif not Input.is_action_pressed("roar"):
+			_end_roar()
+	_update_roar_aura()
+
+	if mantle_active:
+		_apply_mantle(delta)
+	elif roar_active:
+		_apply_roar_movement(delta)
+	elif dash_timer > 0.0:
 		_apply_dash_movement()
 	elif attack_mode == ATTACK_GROUND_CHARGED:
 		_apply_ground_charged_movement()
@@ -384,6 +451,8 @@ func _physics_process(delta: float) -> void:
 		_apply_spin_attack_movement(delta)
 	elif attack_mode == ATTACK_UPPERCUT:
 		_apply_uppercut_movement(delta)
+	elif wall_embedded:
+		_apply_wall_embedded_movement(move_input)
 	elif wall_cling_timer > 0.0:
 		_apply_running_wall_cling_movement(delta)
 	elif _uses_sprint_movement():
@@ -405,7 +474,9 @@ func _physics_process(delta: float) -> void:
 	if attack_mode == ATTACK_HEAVY and is_on_floor():
 		_land_heavy_attack_on_floor()
 	elif attack_mode == ATTACK_HEAVY and is_on_wall():
-		_bounce_out_of_heavy_attack()
+		_embed_heavy_attack_in_wall()
+
+	_try_start_mantle(move_input)
 
 	if is_on_wall() and not is_on_floor() and _uses_sprint_movement():
 		long_jump_active = false
@@ -424,7 +495,7 @@ func _physics_process(delta: float) -> void:
 			_land_long_jump(move_input)
 		if backflip_active:
 			_land_backflip(move_input)
-		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0:
+		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0 and not roar_active and not mantle_active:
 			if not is_sprinting:
 				_start_sprint(_get_sprint_start_direction(move_input))
 		elif not Input.is_action_pressed("dash"):
@@ -452,6 +523,9 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_HITS_SHEET, 2, 12.5, false)
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_HITS_SHEET, 2, 12.5, false, [1, 0])
 	_add_sheet_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_HITS_SHEET, 2, 9.0, false)
+	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
+	# Placeholder del rugido: la pose de puño en alto.
+	_add_single_frame_animation(frames, ANIMATION_ROAR, AERIAL_STALL_TEXTURE)
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPRINT, SPRINTING_SHEET, 3, 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_LONG_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
@@ -497,7 +571,11 @@ func _add_sheet_animation(
 
 func _update_character_animation() -> void:
 	var next_animation: StringName
-	if attack_mode == ATTACK_SPIN:
+	if roar_active:
+		next_animation = ANIMATION_ROAR
+	elif mantle_active:
+		next_animation = ANIMATION_JUMP
+	elif attack_mode == ATTACK_SPIN:
 		next_animation = ANIMATION_SPIN
 	elif attack_mode == ATTACK_UPPERCUT:
 		next_animation = ANIMATION_UPPERCUT
@@ -509,12 +587,16 @@ func _update_character_animation() -> void:
 		next_animation = _get_light_hit_animation()
 	elif dash_timer > 0.0:
 		next_animation = ANIMATION_DASH
+	elif knife_throw_pose_timer > 0.0:
+		next_animation = ANIMATION_KNIFE_THROW
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP
 	elif frontflip_active:
 		next_animation = ANIMATION_FRONTFLIP
+	elif wall_embedded:
+		next_animation = ANIMATION_WALL_SLIDE
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
 		next_animation = ANIMATION_WALL_JUMP
 	elif _is_wall_sliding():
@@ -572,11 +654,11 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = CHARGE_LIGHT_TEXTURE.get_height()
 		ANIMATION_HEAVY_AERIAL:
 			texture_height = HEAVY_AERIAL_TEXTURE.get_height()
-		ANIMATION_FALL:
+		ANIMATION_FALL, ANIMATION_ROAR:
 			texture_height = AERIAL_STALL_TEXTURE.get_height()
 		ANIMATION_DASH:
 			texture_height = DASH_TEXTURE.get_height()
-		ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER:
+		ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_KNIFE_THROW:
 			texture_height = LIGHT_HITS_SHEET.get_height()
 		ANIMATION_GROUND_HEAVY:
 			texture_height = GROUND_HEAVY_SHEET.get_height()
@@ -600,6 +682,9 @@ func _update_timers(delta: float) -> void:
 	wall_jump_animation_timer = max(wall_jump_animation_timer - delta, 0.0)
 	wall_cling_timer = max(wall_cling_timer - delta, 0.0)
 	invulnerability_timer = max(invulnerability_timer - delta, 0.0)
+	knife_throw_pose_timer = max(knife_throw_pose_timer - delta, 0.0)
+	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
+	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
 		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
@@ -861,9 +946,17 @@ func _try_start_running_wall_jump() -> bool:
 	velocity.y = running_wall_jump_vertical_speed
 	return true
 
-func take_damage(amount: int, source_position: Vector2) -> void:
+func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -> void:
+	if _is_roar_invincible():
+		# Frames explosivos del rugido: invencible, y un ataque cuerpo a cuerpo se desvía.
+		if attacker and attacker.has_method("on_deflected"):
+			attacker.on_deflected(self)
+			_apply_hitstop(hitstop_deflect)
+		return
 	if invulnerability_timer > 0.0 or current_health <= 0:
 		return
+	_end_roar()
+	mantle_active = false
 
 	current_health = max(current_health - amount, 0)
 	health_changed.emit(current_health, max_health)
@@ -879,6 +972,7 @@ func take_damage(amount: int, source_position: Vector2) -> void:
 	frontflip_active = false
 	backflip_active = false
 	wall_cling_timer = 0.0
+	wall_embedded = false
 	if dash_timer > 0.0:
 		dash_timer = 0.0
 		_set_dash_visual_active(false)
@@ -905,6 +999,280 @@ func _update_hurt_visual() -> void:
 		var visible_phase: bool = int(invulnerability_timer * 16.0) % 2 == 0
 		animated_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0 if visible_phase else 0.35)
 
+func _blocks_actions() -> bool:
+	return roar_active or mantle_active
+
+# ---------- Hitstop e impactos
+
+func _apply_hitstop(duration: float) -> void:
+	# Congela el juego un instante al conectar; si ya hay uno activo, se queda el más largo.
+	var end_msec: int = Time.get_ticks_msec() + int(duration * 1000.0)
+	if end_msec <= hitstop_end_msec:
+		return
+	hitstop_end_msec = end_msec
+	hitstop_token += 1
+	Engine.time_scale = 0.05
+	# El temporizador ignora la escala de tiempo; solo el último hitstop restaura la velocidad.
+	get_tree().create_timer(duration, true, false, true).timeout.connect(_end_hitstop.bind(hitstop_token))
+
+func _end_hitstop(token: int) -> void:
+	if token == hitstop_token:
+		Engine.time_scale = 1.0
+		hitstop_end_msec = 0
+
+func _spawn_hit_feedback(area: Node2D) -> void:
+	var heavy: bool = attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND
+	var finisher: bool = attack_mode == ATTACK_SLASH and light_combo_step == 3
+	var point: Vector2 = _get_target_center(area).lerp(global_position + Vector2(0.0, -14.0), 0.35)
+	Fx.impact(get_parent(), point, Fx.GOLD if heavy else Fx.SILVER, 1.35 if heavy or finisher else 1.0)
+	if heavy:
+		_apply_hitstop(hitstop_heavy)
+	elif finisher:
+		_apply_hitstop(hitstop_light + 0.03)
+	else:
+		_apply_hitstop(hitstop_light)
+
+func _get_target_center(target: Node2D) -> Vector2:
+	var offset = target.get("impact_offset")
+	return target.global_position + (offset if offset is Vector2 else Vector2.ZERO)
+
+# ---------- Cuchillo
+
+func _on_knife_input(move_input: float) -> void:
+	if not has_knife:
+		# Segunda pulsación: recall.
+		if is_instance_valid(thrown_knife):
+			thrown_knife.recall()
+		return
+	if _blocks_actions() or wall_embedded or _is_attack_active() or dash_timer > 0.0 or hurt_lock_timer > 0.0:
+		return
+	if is_charging_attack:
+		is_charging_attack = false
+		charge_timer = 0.0
+		_set_charge_visual_active(false)
+	var knife := KNIFE_SCRIPT.new()
+	get_parent().add_child(knife)
+	knife.launch(self, global_position + Vector2(facing * 12.0, -22.0), _get_knife_throw_velocity(move_input))
+	thrown_knife = knife
+	has_knife = false
+	knife_throw_pose_timer = 0.15
+	knife_changed.emit(false)
+
+func _get_knife_throw_velocity(move_input: float) -> Vector2:
+	var up := Input.is_action_pressed("move_up")
+	var down := Input.is_action_pressed("move_down")
+	var sideways := move_input != 0.0
+	var throw_velocity: Vector2 = knife_throw_forward
+	if up and sideways:
+		throw_velocity = knife_throw_diagonal_up
+	elif up:
+		throw_velocity = knife_throw_up
+	elif down and sideways:
+		throw_velocity = knife_throw_diagonal_down
+	elif down:
+		throw_velocity = knife_throw_down
+	return Vector2(throw_velocity.x * facing, throw_velocity.y)
+
+func on_knife_hit(point: Vector2) -> void:
+	Fx.impact(get_parent(), point, Fx.GOLD, 1.1)
+	_apply_hitstop(hitstop_light + 0.01)
+
+func on_knife_caught() -> void:
+	has_knife = true
+	thrown_knife = null
+	knife_changed.emit(true)
+
+# ---------- Mantle automático
+
+func _try_start_mantle(move_input: float) -> void:
+	# Al chocar contra un borde cuya parte de arriba queda a la altura del cuerpo, se sube solo.
+	if is_on_floor() or not is_on_wall() or mantle_active or roar_active or wall_embedded:
+		return
+	if _is_attack_active() or hurt_lock_timer > 0.0 or dash_timer > 0.0:
+		return
+	var normal := int(sign(get_wall_normal().x))
+	if normal == 0:
+		return
+	var direction := -normal
+	var pushing: bool = int(sign(move_input)) == direction or _uses_sprint_movement() or velocity.x * direction > 40.0
+	if not pushing:
+		return
+	var height := _find_mantle_height(direction)
+	if height < 0.0:
+		return
+	mantle_keep_sprint = (is_sprinting or long_jump_active) and Input.is_action_pressed("dash")
+	_stop_sprint()
+	long_jump_active = false
+	frontflip_active = false
+	backflip_active = false
+	wall_cling_timer = 0.0
+	mantle_active = true
+	mantle_elapsed = 0.0
+	mantle_from = global_position
+	mantle_height = height
+	mantle_dir = direction
+	facing = direction
+	_update_facing_visual()
+	velocity = Vector2.ZERO
+
+func _find_mantle_height(direction: int) -> float:
+	var height := 4.0
+	while height <= mantle_max_height:
+		if test_move(global_transform, Vector2(0.0, -height)):
+			return -1.0
+		var raised := global_transform.translated(Vector2(0.0, -height))
+		if not test_move(raised, Vector2(direction * mantle_forward, 0.0)):
+			# Hay hueco a esa altura; tiene que haber suelo debajo para apoyarse.
+			var ahead := raised.translated(Vector2(direction * mantle_forward, 0.0))
+			return height if test_move(ahead, Vector2(0.0, height + 6.0)) else -1.0
+		height += 4.0
+	return -1.0
+
+func _apply_mantle(delta: float) -> void:
+	# Primero sube pegado a la pared y después avanza sobre el borde.
+	mantle_elapsed += delta
+	var t: float = clamp(mantle_elapsed / mantle_duration, 0.0, 1.0)
+	var rise: float = clamp(t / 0.6, 0.0, 1.0)
+	var advance: float = clamp((t - 0.6) / 0.4, 0.0, 1.0)
+	global_position = mantle_from + Vector2(mantle_dir * mantle_forward * advance, -(mantle_height + 1.0) * rise)
+	velocity = Vector2.ZERO
+	if t >= 1.0:
+		mantle_active = false
+		velocity = Vector2(mantle_dir * max_speed * 0.6, 40.0)
+		if mantle_keep_sprint and Input.is_action_pressed("dash"):
+			_start_sprint(mantle_dir)
+			velocity.x = mantle_dir * sprint_speed
+
+# ---------- Rugido (shine / deflect)
+
+func _start_roar() -> void:
+	if roar_active or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0:
+		return
+	_stop_sprint()
+	long_jump_active = false
+	frontflip_active = false
+	backflip_active = false
+	wall_cling_timer = 0.0
+	wall_embedded = false
+	if dash_timer > 0.0:
+		dash_timer = 0.0
+		_set_dash_visual_active(false)
+	if is_charging_attack:
+		is_charging_attack = false
+		charge_timer = 0.0
+		_set_charge_visual_active(false)
+	if _is_attack_active():
+		_cancel_attack_for_chain()
+	jump_cut_available = false
+	# Frena casi todo el impulso de golpe (no en seco).
+	velocity *= roar_momentum_keep
+	roar_active = true
+	roar_explosive_timer = roar_explosive_duration
+	roar_stall_timer = 0.0 if is_on_floor() else roar_stall_duration
+	roar_hit_targets.clear()
+	Fx.impact(get_parent(), get_roar_center(), Fx.ROAR, 2.0)
+	_roar_explosive_hits()
+
+func _end_roar() -> void:
+	roar_active = false
+	roar_explosive_timer = 0.0
+	roar_stall_timer = 0.0
+
+func _try_roar_jump_cancel() -> void:
+	var grounded: bool = is_on_floor() or coyote_timer > 0.0
+	if not grounded and air_jumps_remaining <= 0:
+		return
+	_end_roar()
+	jump_buffer_timer = 0.0
+	if grounded:
+		coyote_timer = 0.0
+	else:
+		air_jumps_remaining -= 1
+	velocity.y = jump_velocity
+	jump_cut_available = true
+	animated_sprite.play(ANIMATION_JUMP)
+
+func _apply_roar_movement(delta: float) -> void:
+	velocity.x = move_toward(velocity.x, 0.0, 1600.0 * delta)
+	if roar_stall_timer > 0.0 and not is_on_floor():
+		# Stall en el aire durante el primer segundo del rugido.
+		velocity.y = move_toward(velocity.y, 0.0, 2600.0 * delta)
+	else:
+		_apply_gravity(delta)
+
+func _roar_explosive_hits() -> void:
+	var circle := CircleShape2D.new()
+	circle.radius = roar_radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = circle
+	query.transform = Transform2D(0.0, get_roar_center())
+	query.collision_mask = hitbox.collision_mask
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var hit_any := false
+	for result in get_world_2d().direct_space_state.intersect_shape(query, 16):
+		var target: Object = result.collider
+		if target in roar_hit_targets or not target.has_method("take_hit") or not target.visible:
+			continue
+		roar_hit_targets.append(target)
+		var direction: int = 1 if target.global_position.x >= global_position.x else -1
+		target.take_hit(get_roar_center(), direction, roar_damage)
+		Fx.impact(get_parent(), _get_target_center(target), Fx.ROAR, 1.0)
+		hit_any = true
+	if hit_any:
+		_apply_hitstop(hitstop_light)
+
+func on_projectile_reflected() -> void:
+	_apply_hitstop(0.04)
+
+func is_roar_aura_active() -> bool:
+	return roar_active
+
+func get_roar_center() -> Vector2:
+	return global_position + Vector2(0.0, -14.0)
+
+func _is_roar_invincible() -> bool:
+	return roar_active and roar_explosive_timer > 0.0
+
+func _create_roar_aura() -> void:
+	roar_aura = Node2D.new()
+	roar_aura.position = Vector2(0.0, -14.0)
+	roar_aura.z_index = 1
+	roar_aura.visible = false
+	add_child(roar_aura)
+	var hexagon := PackedVector2Array()
+	for index in range(6):
+		var angle: float = TAU * index / 6.0 + PI / 6.0
+		hexagon.append(Vector2(cos(angle), sin(angle)) * roar_radius)
+	roar_aura_fill = Polygon2D.new()
+	roar_aura_fill.polygon = hexagon
+	roar_aura.add_child(roar_aura_fill)
+	roar_aura_line = Line2D.new()
+	var outline := hexagon.duplicate()
+	outline.append(hexagon[0])
+	roar_aura_line.points = outline
+	roar_aura.add_child(roar_aura_line)
+
+func _update_roar_aura() -> void:
+	roar_aura.visible = roar_active
+	if not roar_active:
+		return
+	var palette: Array[Color] = Fx.ROAR
+	if roar_explosive_timer > 0.0:
+		# Frames explosivos: hexágono brillante que se expande.
+		var progress: float = 1.0 - roar_explosive_timer / roar_explosive_duration
+		roar_aura.scale = Vector2.ONE * lerp(0.55, 1.12, progress)
+		roar_aura_fill.color = Color(palette[2], 0.55)
+		roar_aura_line.default_color = palette[2]
+		roar_aura_line.width = 4.0
+	else:
+		# Aura latente: solo devuelve proyectiles.
+		var pulse: float = sin(Time.get_ticks_msec() / 90.0)
+		roar_aura.scale = Vector2.ONE * (1.0 + 0.04 * pulse)
+		roar_aura_fill.color = Color(palette[1], 0.16 + 0.04 * pulse)
+		roar_aura_line.default_color = Color(palette[1], 0.7)
+		roar_aura_line.width = 2.0
+
 func _get_sprint_start_direction(move_input: float) -> int:
 	if move_input != 0.0:
 		return 1 if move_input > 0.0 else -1
@@ -927,6 +1295,7 @@ func _attach_afterimage_container() -> void:
 	level.move_child(afterimage_container, get_index())
 
 func _exit_tree() -> void:
+	Engine.time_scale = 1.0
 	if is_instance_valid(afterimage_container):
 		afterimage_container.queue_free()
 
@@ -1158,7 +1527,8 @@ func _release_attack_charge(was_on_floor: bool, was_wall_sliding: bool) -> void:
 	_start_attack()
 
 func _start_attack() -> void:
-	if _is_attack_active() or dash_timer > 0.0:
+	# Sin cuchillo no hay combo ligero.
+	if _is_attack_active() or dash_timer > 0.0 or not has_knife:
 		return
 
 	if light_combo_window_timer > 0.0 and light_combo_step > 0 and light_combo_step < 3:
@@ -1205,6 +1575,9 @@ func _get_claw_angles() -> Vector2:
 		_:
 			return Vector2(claw_start_angle_degrees, claw_end_angle_degrees)
 
+func _get_claw_center_offset() -> Vector2:
+	return LIGHT_FINISHER_CENTER_OFFSET if light_combo_step == 3 else Vector2.ZERO
+
 func _get_claw_scale() -> float:
 	return light_finisher_scale if light_combo_step == 3 else 1.0
 
@@ -1212,7 +1585,7 @@ func _apply_light_finisher_push() -> void:
 	if attack_mode != ATTACK_SLASH or light_combo_step != 3:
 		return
 	var progress: float = 1.0 - (attack_timer / light_finisher_duration)
-	if progress < 0.6:
+	if progress < 0.8:
 		velocity.x = facing * max(light_finisher_forward_speed, velocity.x * facing)
 
 func _start_ground_charged_attack() -> void:
@@ -1228,7 +1601,8 @@ func _start_ground_charged_attack() -> void:
 
 func _start_heavy_attack() -> void:
 	var canceling_from_spin: bool = attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window
-	if dash_timer > 0.0 or is_charging_attack:
+	# Los ataques pesados son del cuchillo: sin él no se pueden hacer.
+	if dash_timer > 0.0 or is_charging_attack or not has_knife:
 		return
 
 	if canceling_from_spin:
@@ -1424,6 +1798,7 @@ func _set_attack_active(active: bool) -> void:
 	hitbox_shape.disabled = not active
 	if active:
 		frontflip_active = false
+		wall_embedded = false
 	claw_hitbox_shape.disabled = true
 	_update_hitbox_visual_visibility()
 	slash_visual.color = slash_base_color if active else Color(slash_base_color.r, slash_base_color.g, slash_base_color.b, 0.0)
@@ -1552,7 +1927,7 @@ func _effect_claw_slash() -> void:
 		var tail: float = lerp(start_angle, head, clamp(progress * 1.3 - 0.35, 0.0, 0.8))
 		var radius: float = mid_radius + (index - 1) * spacing
 		var width: float = (5.5 if index == 1 else 4.5) * claw_scale
-		_set_effect_stroke(index, _effect_arc_points(claw_arc_center, Vector2(radius, radius), tail, head), width, EFFECT_PALETTE_SILVER, alpha)
+		_set_effect_stroke(index, _effect_arc_points(claw_arc_center + _get_claw_center_offset(), Vector2(radius, radius), tail, head), width, EFFECT_PALETTE_SILVER, alpha)
 
 func _effect_charged_lunge() -> void:
 	# Estocada: tres garras horizontales que convergen hacia la punta.
@@ -1642,7 +2017,7 @@ func _animate_normal_slash() -> void:
 		visual.scale = Vector2.ONE
 
 	var hitbox_polygon: PackedVector2Array = claw_finisher_polygon if light_combo_step == 3 else claw_hitbox_polygon
-	slash_visual.polygon = _build_claw_arc_polygon(sweep_start, sweep_end, 0.85, _get_claw_scale())
+	slash_visual.polygon = _build_claw_arc_polygon(sweep_start, sweep_end, 0.85, _get_claw_scale(), _get_claw_center_offset())
 	slash_area_visual.polygon = hitbox_polygon
 	var outline_points := hitbox_polygon.duplicate()
 	outline_points.append(hitbox_polygon[0])
@@ -1651,7 +2026,7 @@ func _animate_normal_slash() -> void:
 	slash_area_visual.color = Color(1.0, 0.82, 0.32, lerp(0.42, 0.16, progress))
 	slash_outline.default_color = Color(1.0, 0.94, 0.62, lerp(0.95, 0.35, progress))
 
-func _build_claw_arc_polygon(from_degrees: float, to_degrees: float, taper: float, radius_scale: float = 1.0) -> PackedVector2Array:
+func _build_claw_arc_polygon(from_degrees: float, to_degrees: float, taper: float, radius_scale: float = 1.0, center_offset: Vector2 = Vector2.ZERO) -> PackedVector2Array:
 	# Media luna: borde exterior de ida y borde interior de vuelta, más fina en las puntas.
 	var outer_points := PackedVector2Array()
 	var inner_points := PackedVector2Array()
@@ -1662,8 +2037,8 @@ func _build_claw_arc_polygon(from_degrees: float, to_degrees: float, taper: floa
 		var angle: float = deg_to_rad(lerp(from_degrees, to_degrees, t))
 		var thickness: float = half_thickness * lerp(1.0, max(sin(t * PI), 0.06), taper)
 		var direction := Vector2(cos(angle), sin(angle))
-		outer_points.append(claw_arc_center + direction * (mid_radius + thickness))
-		inner_points.append(claw_arc_center + direction * (mid_radius - thickness))
+		outer_points.append(claw_arc_center + center_offset + direction * (mid_radius + thickness))
+		inner_points.append(claw_arc_center + center_offset + direction * (mid_radius - thickness))
 	inner_points.reverse()
 	outer_points.append_array(inner_points)
 	return outer_points
@@ -1800,10 +2175,11 @@ func _hit_area(area: Area2D) -> void:
 
 	if area.has_method("take_hit"):
 		area.take_hit(global_position, facing, _get_attack_damage())
+		_spawn_hit_feedback(area)
 
 	if attack_mode == ATTACK_HEAVY:
 		# Diferido: puede venir de la señal de colisión, donde no se puede desactivar la hitbox.
-		_bounce_out_of_heavy_attack.call_deferred()
+		_bounce_out_of_heavy_attack.call_deferred(true)
 	elif attack_mode == ATTACK_SLASH and not is_on_floor():
 		_apply_light_hit_air_boost()
 
@@ -1835,6 +2211,7 @@ func _start_dash() -> void:
 	backflip_active = false
 	backflip_chain_timer = 0.0
 	wall_cling_timer = 0.0
+	wall_embedded = false
 	var move_input: float = Input.get_axis("move_left", "move_right")
 	dash_direction = facing if move_input == 0.0 else (1 if move_input > 0.0 else -1)
 	sprint_direction = dash_direction
@@ -1869,7 +2246,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or wall_cling_timer > 0.0 or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
+	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or wall_cling_timer > 0.0 or wall_embedded or roar_active or mantle_active or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -1891,9 +2268,123 @@ func _is_wall_sliding() -> bool:
 func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE
 
-func _bounce_out_of_heavy_attack() -> void:
+func _embed_heavy_attack_in_wall() -> void:
+	# El cuchillo se clava en la pared: explosión en área y Rengar queda fijo, sin deslizarse.
+	var normal := int(sign(get_wall_normal().x))
+	if normal == 0:
+		normal = -facing
+	_cancel_attack_for_chain()
+	_stop_sprint()
+	long_jump_active = false
+	frontflip_active = false
+	backflip_active = false
+	wall_cling_timer = 0.0
+	wall_embedded = true
+	wall_embed_normal = normal
+	wall_contact_direction = normal
+	wall_visual_direction = normal
+	facing = -normal
+	_update_facing_visual()
+	velocity = Vector2.ZERO
+	_trigger_wall_explosion(global_position + Vector2(-normal * 12.0, -16.0))
+
+func _apply_wall_embedded_movement(move_input: float) -> void:
+	# Empuja levemente contra la pared para seguir en contacto; sin gravedad ni deslizamiento.
+	velocity = Vector2(-wall_embed_normal * 20.0, 0.0)
+	if jump_buffer_timer > 0.0:
+		wall_embedded = false
+		wall_contact_direction = wall_embed_normal
+		_consume_jump_buffer()
+		return
+	if int(sign(move_input)) == wall_embed_normal:
+		# Pulsar hacia fuera de la pared suelta el cuchillo.
+		wall_embedded = false
+		velocity = Vector2(wall_embed_normal * 60.0, 0.0)
+
+func _trigger_wall_explosion(center: Vector2) -> void:
+	var circle := CircleShape2D.new()
+	circle.radius = wall_explosion_radius
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = circle
+	query.transform = Transform2D(0.0, center)
+	query.collision_mask = hitbox.collision_mask
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	for result in get_world_2d().direct_space_state.intersect_shape(query, 32):
+		var target: Object = result.collider
+		if target and target.has_method("take_hit") and target.visible:
+			var direction: int = 1 if target.global_position.x >= center.x else -1
+			target.take_hit(center, direction, DAMAGE_WALL_EXPLOSION)
+			Fx.impact(get_parent(), _get_target_center(target), Fx.GOLD, 1.2)
+			_apply_hitstop(hitstop_heavy)
+	_spawn_wall_explosion_visual(center)
+
+func _spawn_wall_explosion_visual(center: Vector2) -> void:
+	var level := get_parent()
+	var burst := Node2D.new()
+	level.add_child(burst)
+	burst.global_position = center
+	var tween := burst.create_tween().set_parallel(true)
+	var duration: float = wall_explosion_duration
+
+	if show_hitbox_debug:
+		# Modo hitboxes: muestra el área exacta de la explosión.
+		var area := Polygon2D.new()
+		area.polygon = _circle_points(wall_explosion_radius, 24)
+		area.color = Color(0.35, 0.86, 1.0, 0.35)
+		burst.add_child(area)
+		tween.tween_property(area, "modulate:a", 0.0, duration)
+		tween.chain().tween_callback(burst.queue_free)
+		return
+
+	var palette: Array[Color] = EFFECT_PALETTE_GOLD
+	var core := Polygon2D.new()
+	core.polygon = _circle_points(9.0, 16)
+	core.color = palette[2]
+	burst.add_child(core)
+	tween.tween_property(core, "scale", Vector2.ONE * 2.4, duration * 0.35)
+	tween.tween_property(core, "modulate:a", 0.0, duration * 0.35)
+
+	var ring := Line2D.new()
+	var ring_points := _circle_points(wall_explosion_radius * 0.35, 24)
+	ring_points.append(ring_points[0])
+	ring.points = ring_points
+	ring.width = 3.0
+	ring.default_color = palette[1]
+	burst.add_child(ring)
+	tween.tween_property(ring, "scale", Vector2.ONE * (1.0 / 0.35), duration)
+	tween.tween_property(ring, "width", 0.5, duration)
+	tween.tween_property(ring, "modulate:a", 0.0, duration)
+
+	for index in range(10):
+		var angle: float = TAU * index / 10.0 + randf_range(-0.2, 0.2)
+		var direction := Vector2(cos(angle), sin(angle))
+		var length: float = randf_range(14.0, 24.0)
+		var spark := Line2D.new()
+		spark.points = PackedVector2Array([Vector2.ZERO, direction * length])
+		spark.width = 2.5
+		spark.default_color = palette[2] if index % 2 == 0 else palette[1]
+		spark.position = direction * 6.0
+		burst.add_child(spark)
+		tween.tween_property(spark, "position", direction * wall_explosion_radius * randf_range(0.7, 1.0), duration)
+		tween.tween_property(spark, "scale", Vector2.ONE * 0.3, duration)
+		tween.tween_property(spark, "modulate:a", 0.0, duration)
+	tween.chain().tween_callback(burst.queue_free)
+
+func _circle_points(radius: float, segments: int) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for index in range(segments):
+		var angle: float = TAU * index / segments
+		points.append(Vector2(cos(angle), sin(angle)) * radius)
+	return points
+
+func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	if attack_mode != ATTACK_HEAVY:
 		return
+
+	if hit_enemy:
+		# Rebotar en un enemigo devuelve un salto aéreo, sin acumular más del máximo.
+		air_jumps_remaining = min(air_jumps_remaining + 1, max_air_jumps)
 
 	_cancel_attack_for_chain()
 	velocity.x = -facing * charged_air_bounce_back_speed
@@ -1987,6 +2478,19 @@ func _respawn_player() -> void:
 	frontflip_elapsed = 0.0
 	wall_cling_timer = 0.0
 	wall_cling_direction = 0
+	wall_embedded = false
+	mantle_active = false
+	_end_roar()
+	knife_throw_pose_timer = 0.0
+	if is_instance_valid(thrown_knife):
+		thrown_knife.queue_free()
+	thrown_knife = null
+	has_knife = true
+	knife_changed.emit(true)
+	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
+		projectile.queue_free()
+	hitstop_end_msec = 0
+	Engine.time_scale = 1.0
 	current_health = max_health
 	light_combo_step = 0
 	light_combo_window_timer = 0.0

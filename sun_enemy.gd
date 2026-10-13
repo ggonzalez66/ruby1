@@ -19,6 +19,7 @@ const FACE_COLOR := Color(0.42, 0.13, 0.04)
 const HIT_FLASH_COLOR := Color(1.6, 1.6, 1.6)
 
 var anchor_position := Vector2.ZERO
+var impact_offset := Vector2.ZERO
 var time := 0.0
 var flash_timer := 0.0
 var wobble := 0.0

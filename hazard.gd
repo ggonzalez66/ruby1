@@ -1,0 +1,37 @@
+extends Area2D
+
+# Franja de espinas: daña a Rengar al tocarla. El origen es el nivel del suelo.
+
+@export var size := Vector2(250, 18)
+@export var damage := 10
+
+const THORN_DARK := Color(0.16, 0.07, 0.2)
+const THORN_LIGHT := Color(0.55, 0.25, 0.55)
+
+func _ready() -> void:
+	collision_layer = 0
+	collision_mask = 1
+	monitoring = true
+	var shape := CollisionShape2D.new()
+	var rect := RectangleShape2D.new()
+	# Hitbox algo más baja y estrecha que las puntas para que rozarlas al saltar no cuente.
+	rect.size = Vector2(max(size.x - 8.0, 4.0), size.y * 0.6)
+	shape.shape = rect
+	shape.position = Vector2(0, -size.y * 0.3)
+	add_child(shape)
+
+	var count: int = max(int(size.x / 14.0), 1)
+	var width: float = size.x / count
+	for index in range(count):
+		var left: float = -size.x * 0.5 + index * width
+		var spike := Polygon2D.new()
+		var tip_height: float = size.y * (0.75 + 0.25 * ((index * 7) % 3) / 2.0)
+		spike.polygon = PackedVector2Array([Vector2(left, 0), Vector2(left + width * 0.5, -tip_height), Vector2(left + width, 0)])
+		spike.color = THORN_DARK if index % 2 == 0 else THORN_LIGHT
+		add_child(spike)
+
+func _physics_process(_delta: float) -> void:
+	for body in get_overlapping_bodies():
+		if body.has_method("take_damage"):
+			# El daño viene desde abajo: el retroceso lanza hacia arriba.
+			body.take_damage(damage, Vector2(body.global_position.x, global_position.y + 40.0))

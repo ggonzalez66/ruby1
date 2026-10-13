@@ -17,6 +17,7 @@ var trail_tween: Tween
 var elapsed_time := 0.0
 var timer_main_label: Label
 var timer_millis_label: Label
+var knife_icon: TextureRect
 
 func _ready() -> void:
 	layer = 10
@@ -55,6 +56,16 @@ func _build() -> void:
 	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(name_label)
+	# Icono del cuchillo: brillante en la mano, apagado cuando está lanzado.
+	knife_icon = TextureRect.new()
+	var knife_texture := AtlasTexture.new()
+	knife_texture.atlas = load("res://assets/sprites/player/rengar_knife.png")
+	knife_texture.region = Rect2(48, 271, 243, 227)
+	knife_icon.texture = knife_texture
+	knife_icon.custom_minimum_size = Vector2(22, 20)
+	knife_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	knife_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	header.add_child(knife_icon)
 	value_label = Label.new()
 	value_label.add_theme_color_override("font_color", Color(0.85, 0.95, 0.8))
 	value_label.add_theme_font_size_override("font_size", 14)
@@ -125,7 +136,12 @@ func _connect_player() -> void:
 	if player == null:
 		return
 	player.health_changed.connect(_on_health_changed)
+	player.knife_changed.connect(_on_knife_changed)
 	_on_health_changed(player.current_health, player.max_health)
+	_on_knife_changed(player.has_knife)
+
+func _on_knife_changed(in_hand: bool) -> void:
+	knife_icon.modulate = Color.WHITE if in_hand else Color(0.4, 0.45, 0.4, 0.35)
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	var ratio: float = clamp(float(current) / float(max(maximum, 1)), 0.0, 1.0)
