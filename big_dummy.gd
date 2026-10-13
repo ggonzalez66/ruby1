@@ -14,7 +14,8 @@ extends Area2D
 @export var engage_distance := 750.0
 @export var recover_time := 0.9
 @export var stagger_time := 1.6
-@export var resist_chance := 0.3
+@export var resist_chance := 0.5
+@export var block_chance := 0.35
 @export var lunge_min_distance := 380.0
 @export var lunge_chance := 0.55
 @export var lunge_cooldown_time := 3.5
@@ -37,12 +38,16 @@ const IDLE_ANGLE := 0.9
 const LUNGE_ANGLE := 0.38
 # Espada un 30% más larga que la original (178 px).
 const BLADE_LENGTH := 231.0
-# Ángulos con la espada apuntando a +x en 0. El "to" del golpe al suelo deja la punta en el suelo.
+# Ángulos con la espada apuntando a +x en 0. Todos terminan apuntando hacia abajo (~90°) para que
+# el arco cubra también la zona pegada al guardián.
+const SWING_END := 1.6
 const COMBO := [
-	{"name": "Barrido", "from": -2.6, "to": 0.5, "telegraph": 0.75, "swing": 0.11, "damage": 25, "shockwave": false},
-	{"name": "Tajo vertical", "from": -1.75, "to": 0.9, "telegraph": 0.42, "swing": 0.1, "damage": 25, "shockwave": false},
-	{"name": "Golpe al suelo", "from": -2.3, "to": 0.49, "telegraph": 0.5, "swing": 0.1, "damage": 30, "shockwave": true},
+	{"name": "Barrido", "from": -2.6, "to": SWING_END, "telegraph": 0.75, "swing": 0.12, "damage": 25, "shockwave": false},
+	{"name": "Tajo vertical", "from": -1.75, "to": SWING_END, "telegraph": 0.42, "swing": 0.11, "damage": 25, "shockwave": false},
+	{"name": "Golpe al suelo", "from": -2.3, "to": SWING_END, "telegraph": 0.5, "swing": 0.11, "damage": 30, "shockwave": true},
 ]
+# Altura del hombro: la punta toca el suelo a esta distancia horizontal del hombro.
+const SHOULDER := Vector2(26, -108)
 
 enum State { IDLE, WALK, TELEGRAPH, SWING, RECOVER, STAGGER, DEFEATED, LUNGE_WINDUP, LUNGE }
 
@@ -59,6 +64,8 @@ var spawn_position := Vector2.ZERO
 var flash_timer := 0.0
 var lunge_cooldown := 0.0
 var decision_timer := 0.0
+var last_swing_angle := 0.0
+var guard_timer := 0.0
 # Se activa la primera vez que Rengar entra en su rango; lo usa el indicador fuera de pantalla.
 var combat_started := false
 
@@ -165,6 +172,10 @@ func _build() -> void:
 func _physics_process(delta: float) -> void:
 	flash_timer = max(flash_timer - delta, 0.0)
 	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else BODY_COLOR
+	if guard_timer > 0.0:
+		guard_timer -= delta
+		# Pose de guardia: la espada cruzada delante del cuerpo.
+		sword_pivot.rotation = lerp_angle(sword_pivot.rotation, -1.35, 20.0 * delta)
 	if state == State.DEFEATED:
 		return
 
@@ -197,8 +208,11 @@ func _physics_process(delta: float) -> void:
 				_start_swing()
 		State.SWING:
 			var progress: float = clamp(1.0 - state_timer / float(current_attack.swing), 0.0, 1.0)
-			sword_pivot.rotation = lerp(float(current_attack.from), float(current_attack.to), ease(progress, 0.4))
+			var angle: float = lerp(float(current_attack.from), float(current_attack.to), ease(progress, 0.4))
+			sword_pivot.rotation = angle
 			_update_trail()
+			_check_sweep_hit(last_swing_angle, angle, int(current_attack.damage))
+			last_swing_angle = angle
 			_check_sword_hit(int(current_attack.damage))
 			if state_timer <= 0.0 and state == State.SWING:
 				_end_swing()
@@ -269,6 +283,7 @@ func _start_telegraph(attack: Dictionary) -> void:
 	warning_label.visible = true
 
 func _start_swing() -> void:
+	last_swing_angle = float(current_attack.from)
 	state = State.SWING
 	state_timer = float(current_attack.swing)
 	swing_hit_done = false
@@ -288,8 +303,8 @@ func _end_swing() -> void:
 
 func _spawn_shockwaves() -> void:
 	# La espada golpea el suelo: dos ondas salen en direcciones opuestas.
-	var tip := sword_pivot.to_global(Vector2(BLADE_LENGTH, 0))
-	var ground := Vector2(tip.x, global_position.y)
+	var reach: float = SHOULDER.x + sqrt(BLADE_LENGTH * BLADE_LENGTH - SHOULDER.y * SHOULDER.y)
+	var ground := Vector2(global_position.x + facing * reach, global_position.y)
 	Fx.impact(get_parent(), ground + Vector2(0, -8), Fx.GOLD, 2.0)
 	for direction in [-1, 1]:
 		var wave := SHOCKWAVE_SCRIPT.new()
@@ -346,6 +361,26 @@ func _check_sword_hit(damage: int) -> void:
 			body.take_damage(damage, global_position + Vector2(0, -60), self)
 			return
 
+func _check_sweep_hit(from_angle: float, to_angle: float, damage: int) -> void:
+	# El tajo es tan rápido que la hoja puede "saltar" por encima de Rengar entre frames:
+	# se comprueba todo el sector barrido desde el frame anterior.
+	if swing_hit_done:
+		return
+	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	if player == null:
+		return
+	var low: float = min(from_angle, to_angle) - 0.05
+	var high: float = max(from_angle, to_angle) + 0.05
+	for offset in [Vector2(0, -4), Vector2(0, -14), Vector2(0, -26)]:
+		var local: Vector2 = visual.to_local(player.global_position + offset) - sword_pivot.position
+		if local.length() > BLADE_LENGTH + 12.0:
+			continue
+		var point_angle: float = local.angle()
+		if point_angle >= low and point_angle <= high:
+			swing_hit_done = true
+			player.take_damage(damage, global_position + Vector2(0, -60), self)
+			return
+
 func on_deflected(_by: Node) -> void:
 	if state != State.SWING and state != State.LUNGE:
 		return
@@ -363,6 +398,15 @@ func on_deflected(_by: Node) -> void:
 	sword_pivot.rotation = -2.9
 	visual.rotation = -0.12 * facing
 	Fx.text(get_parent(), global_position + Vector2(0, -210), "¡ATURDIDO!", Color(1.0, 0.85, 0.5))
+
+func try_block(_source_position: Vector2) -> bool:
+	# Bloquea algunos golpes ligeros sin cargar cuando no está atacando.
+	if state != State.IDLE and state != State.WALK and state != State.RECOVER:
+		return false
+	if randf() >= block_chance:
+		return false
+	guard_timer = 0.3
+	return true
 
 func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -> void:
 	if state == State.DEFEATED:
@@ -382,6 +426,15 @@ func _defeat() -> void:
 	tween.tween_property(visual, "rotation", 1.4 * -facing, 0.6)
 	tween.tween_property(visual, "modulate:a", 0.25, 0.8)
 	Fx.text(get_parent(), global_position + Vector2(0, -220), "¡VICTORIA!", Color(1.0, 0.92, 0.5))
+	# Tras un momento, pantalla de demo completada.
+	get_tree().create_timer(1.6).timeout.connect(_show_demo_complete)
+
+func _show_demo_complete() -> void:
+	if state != State.DEFEATED:
+		return
+	var screen := get_tree().get_first_node_in_group(&"demo_complete")
+	if screen:
+		screen.show_results()
 
 func reset_dummy() -> void:
 	position = spawn_position
@@ -391,6 +444,7 @@ func reset_dummy() -> void:
 	combo_step = 0
 	lunge_cooldown = 0.0
 	combat_started = false
+	guard_timer = 0.0
 	visual.rotation = 0.0
 	visual.modulate.a = 1.0
 	sword_pivot.rotation = IDLE_ANGLE

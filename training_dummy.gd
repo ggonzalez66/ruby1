@@ -140,6 +140,7 @@ func _add_cannon() -> void:
 	add_child(eye)
 
 func _die() -> void:
+	Stats.add("dummies_killed")
 	# Se oculta en vez de liberarse para poder regenerarlo con reset_dummy().
 	visible = false
 	set_deferred("monitorable", false)

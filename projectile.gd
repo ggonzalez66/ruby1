@@ -72,6 +72,7 @@ func _on_area_entered(area: Area2D) -> void:
 
 func _reflect(player: Node) -> void:
 	reflected = true
+	Stats.add("projectiles_reflected")
 	# Vuelve hacia quien lo disparó; si golpea otra cosa por el camino, también vale.
 	var goal: Vector2 = global_position - velocity
 	if is_instance_valid(shooter):

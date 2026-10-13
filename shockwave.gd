@@ -74,6 +74,7 @@ func _physics_process(delta: float) -> void:
 func _reflect(player: Node) -> void:
 	# El rugido la devuelve: cambia de sentido, acelera y ahora daña a los enemigos.
 	reflected = true
+	Stats.add("projectiles_reflected")
 	direction = -direction
 	speed *= 1.4
 	distance_left = 900.0

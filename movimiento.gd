@@ -49,6 +49,7 @@ const ANIMATION_LIGHT_HIT_2 := &"light_hit_2"
 const ANIMATION_LIGHT_FINISHER := &"light_finisher"
 const ANIMATION_ROAR := &"roar"
 const ANIMATION_MANTLE := &"mantle"
+const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
 const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
 
@@ -72,6 +73,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_LIGHT_FINISHER: 1.25,
 	ANIMATION_ROAR: 0.8,
 	ANIMATION_MANTLE: 1.2,
+	ANIMATION_WALLRIDE: 1.15,
 	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 1.3,
 	ANIMATION_SPRINT: 1.15,
@@ -195,6 +197,7 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var hurt_knockback := Vector2(380.0, -320.0)
 @export var wall_explosion_radius := 60.0
 @export var wall_explosion_duration := 0.3
+@export var wallride_speed := 430.0
 @export var running_wall_cling_time := 0.35
 @export var running_wall_cling_slide_speed := 40.0
 @export var running_wall_jump_vertical_speed := -620.0
@@ -276,6 +279,14 @@ var invulnerability_timer := 0.0
 var hurt_lock_timer := 0.0
 var wall_cling_timer := 0.0
 var wall_embedded := false
+var wallride_active := false
+var wallride_risen := 0.0
+var wallride_target := 0.0
+# Altura desde la que empezó el último salto (suelo o frontflip): el wallride no la supera en más de un salto.
+var jump_origin_y := 0.0
+# Un wallride por salto desde el suelo: entre pared y pared se usa el enganche normal.
+var wallride_available := true
+var dash_jump_buffered := false
 var wall_embed_normal := 0
 var wall_cling_direction := 0
 var frontflip_elapsed := 0.0
@@ -404,6 +415,9 @@ func _physics_process(delta: float) -> void:
 			pass
 		else:
 			jump_buffer_timer = jump_buffer_time
+			if dash_timer > 0.0:
+				# Durante el dash el salto se guarda y sale al terminar (salto largo si sigue corriendo).
+				dash_jump_buffered = true
 
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
 		_begin_attack_charge()
@@ -470,6 +484,8 @@ func _physics_process(delta: float) -> void:
 		_apply_uppercut_movement(delta)
 	elif wall_embedded:
 		_apply_wall_embedded_movement(move_input)
+	elif wallride_active:
+		_apply_wallride(delta)
 	elif wall_cling_timer > 0.0:
 		_apply_running_wall_cling_movement(delta)
 	elif _uses_sprint_movement():
@@ -501,13 +517,19 @@ func _physics_process(delta: float) -> void:
 		backflip_active = false
 		_stop_sprint()
 		if Input.is_action_pressed("dash") and not _is_attack_active():
-			_start_running_wall_cling()
+			if wallride_available:
+				_start_wallride()
+			else:
+				_start_running_wall_cling()
 	elif wall_cling_timer > 0.0 and (is_on_floor() or not is_on_wall() or not Input.is_action_pressed("dash")):
 		wall_cling_timer = 0.0
+	elif wallride_active and (is_on_floor() or not is_on_wall() or not Input.is_action_pressed("dash")):
+		wallride_active = false
 
 	if is_on_floor():
 		frontflip_active = false
 		jump_cut_available = false
+		wallride_available = true
 		if long_jump_active:
 			_land_long_jump(move_input)
 		if backflip_active:
@@ -575,6 +597,8 @@ func _configure_character_animations() -> void:
 	_add_single_frame_animation(frames, ANIMATION_ROAR, AERIAL_STALL_TEXTURE)
 	# Placeholder del mantle: el frame del uppercut con el brazo estirado hacia arriba.
 	_add_sheet_animation(frames, ANIMATION_MANTLE, UPPERCUT_SHEET, 3, 1.0, false, [2])
+	# Wallride: la carrera girada 90° para correr pared arriba.
+	_add_sheet_animation(frames, ANIMATION_WALLRIDE, SPRINTING_SHEET, 3, 16.0, true)
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPRINT, SPRINTING_SHEET, 3, 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_LONG_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
@@ -624,6 +648,8 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_ROAR
 	elif mantle_active:
 		next_animation = ANIMATION_MANTLE
+	elif wallride_active:
+		next_animation = ANIMATION_WALLRIDE
 	elif attack_mode == ATTACK_SPIN:
 		next_animation = ANIMATION_SPIN
 	elif attack_mode == ATTACK_UPPERCUT:
@@ -677,6 +703,9 @@ func _update_character_orientation(animation_name: StringName) -> void:
 			animated_sprite.rotation = _get_flip_rotation(backflip_elapsed, backflip_rotation_duration, -facing)
 		ANIMATION_FRONTFLIP:
 			animated_sprite.rotation = _get_flip_rotation(frontflip_elapsed, frontflip_rotation_duration, facing)
+		ANIMATION_WALLRIDE:
+			# Mirando hacia la pared y girado para que los pies queden sobre ella.
+			animated_sprite.rotation = -facing * PI * 0.5
 		_:
 			animated_sprite.rotation = 0.0
 	if animation_name == ANIMATION_WALL_SLIDE or animation_name == ANIMATION_WALL_JUMP:
@@ -711,7 +740,7 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = LIGHT_HITS_SHEET.get_height()
 		ANIMATION_GROUND_HEAVY:
 			texture_height = GROUND_HEAVY_SHEET.get_height()
-		ANIMATION_SPRINT:
+		ANIMATION_SPRINT, ANIMATION_WALLRIDE:
 			texture_height = SPRINTING_SHEET.get_height()
 		ANIMATION_LONG_JUMP:
 			texture_height = WALLJUMP_SHEET.get_height()
@@ -801,6 +830,7 @@ func _consume_jump_buffer() -> void:
 		wall_contact_direction = 0
 		velocity.y = jump_velocity
 		jump_cut_available = true
+		jump_origin_y = global_position.y
 		return
 
 	if _can_wall_jump():
@@ -884,6 +914,7 @@ func _start_long_jump_squat() -> void:
 		_launch_long_jump()
 
 func _launch_long_jump() -> void:
+	jump_origin_y = global_position.y
 	long_jump_active = true
 	long_jump_chain_timer = 0.0
 	frontflip_active = false
@@ -912,9 +943,11 @@ func _try_start_long_jump_chain(move_input: float) -> bool:
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
 	_launch_long_jump()
+	Stats.add("bunnyhops")
 	return true
 
 func _start_backflip() -> void:
+	Stats.add("backflips")
 	# El backflip viaja en contra del facing; el personaje sigue mirando hacia delante.
 	backflip_direction = -facing
 	sprint_direction = facing
@@ -955,7 +988,9 @@ func _try_start_frontflip() -> bool:
 		return false
 
 	air_jumps_remaining -= 1
+	jump_origin_y = global_position.y
 	frontflip_active = true
+	Stats.add("frontflips")
 	frontflip_elapsed = 0.0
 	frontflip_rotation_duration = _get_flip_airtime(jump_velocity)
 	jump_buffer_timer = 0.0
@@ -974,15 +1009,46 @@ func _start_running_wall_cling() -> void:
 	if jump_buffer_timer > 0.0:
 		_try_start_running_wall_jump()
 
+func _start_wallride() -> void:
+	# Saltar corriendo contra una pared: sube por ella hasta la altura de un salto.
+	wall_cling_direction = int(sign(get_wall_normal().x))
+	if wall_cling_direction == 0:
+		return
+	wallride_available = false
+	wallride_active = true
+	wallride_risen = 0.0
+	# Sube hasta la altura de un salto normal desde donde empezó el salto (mínimo un pequeño tramo).
+	var jump_height: float = jump_velocity * jump_velocity / (2.0 * gravity)
+	wallride_target = clamp(global_position.y - (jump_origin_y - jump_height), 24.0, jump_height)
+	wall_contact_direction = wall_cling_direction
+	wall_visual_direction = wall_cling_direction
+	facing = -wall_cling_direction
+	_update_facing_visual()
+	velocity = Vector2(-wall_cling_direction * 60.0, -wallride_speed)
+	if jump_buffer_timer > 0.0:
+		_try_start_running_wall_jump()
+
+func _apply_wallride(delta: float) -> void:
+	# Frena al acercarse al tope; al llegar queda enganchado como en el running cling.
+	var remaining: float = wallride_target - wallride_risen
+	var speed: float = wallride_speed * clamp(remaining / 40.0, 0.35, 1.0)
+	velocity = Vector2(-wall_cling_direction * 60.0, -speed)
+	wallride_risen += speed * delta
+	if wallride_risen >= wallride_target:
+		wallride_active = false
+		wall_cling_timer = running_wall_cling_time
+		velocity.y = 0.0
+
 func _apply_running_wall_cling_movement(delta: float) -> void:
 	# Empuja contra la pared para seguir en contacto y se desliza muy despacio.
 	velocity.x = -wall_cling_direction * 60.0
 	velocity.y = move_toward(velocity.y, running_wall_cling_slide_speed, gravity * delta)
 
 func _try_start_running_wall_jump() -> bool:
-	if wall_cling_timer <= 0.0 or is_on_floor() or _is_attack_active() or dash_timer > 0.0:
+	if (wall_cling_timer <= 0.0 and not wallride_active) or is_on_floor() or _is_attack_active() or dash_timer > 0.0:
 		return false
 
+	wallride_active = false
 	# Sale como un salto largo desde la pared: más lejos que el walljump normal y encadenable.
 	var direction := wall_cling_direction
 	wall_cling_timer = 0.0
@@ -994,6 +1060,7 @@ func _try_start_running_wall_jump() -> bool:
 	air_jumps_remaining = max_air_jumps
 	air_uppercut_available = true
 	_launch_long_jump()
+	Stats.add("running_walljumps")
 	velocity.y = running_wall_jump_vertical_speed
 	_spawn_walljump_fx(direction)
 	return true
@@ -1003,6 +1070,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		# Frames explosivos del rugido: invencible, y un ataque cuerpo a cuerpo se desvía.
 		if attacker and attacker.has_method("on_deflected"):
 			attacker.on_deflected(self)
+			Stats.add("parries")
 			_apply_hitstop(hitstop_deflect)
 		return
 	if invulnerability_timer > 0.0 or current_health <= 0:
@@ -1011,8 +1079,12 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	mantle_active = false
 
 	current_health = max(current_health - amount, 0)
+	Stats.add("damage_taken", amount)
+	if attacker and attacker.is_in_group(&"sun"):
+		Stats.add("sun_hits_taken")
 	health_changed.emit(current_health, max_health)
 	if current_health == 0:
+		Stats.add("deaths")
 		_respawn_player()
 		return
 
@@ -1025,6 +1097,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	backflip_active = false
 	wall_cling_timer = 0.0
 	wall_embedded = false
+	wallride_active = false
 	if dash_timer > 0.0:
 		dash_timer = 0.0
 		_set_dash_visual_active(false)
@@ -1072,6 +1145,15 @@ func _end_hitstop(token: int) -> void:
 		Engine.time_scale = 1.0
 		hitstop_end_msec = 0
 
+func _on_attack_blocked(area: Node2D) -> void:
+	# El guardián paró el golpe: chispa, retroceso y sin daño.
+	Stats.add("blocked")
+	var point: Vector2 = _get_target_center(area).lerp(global_position + Vector2(0.0, -14.0), 0.5)
+	Fx.impact(get_parent(), point, Fx.SILVER, 1.4)
+	Fx.text(get_parent(), point + Vector2(0, -30), "¡BLOQUEO!", Color(0.85, 0.9, 1.0))
+	velocity.x = -facing * 260.0
+	_apply_hitstop(hitstop_light + 0.03)
+
 func _spawn_hit_feedback(area: Node2D) -> void:
 	var heavy: bool = attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND
 	var finisher: bool = attack_mode == ATTACK_SLASH and light_combo_step == 3
@@ -1106,6 +1188,7 @@ func _on_knife_input(move_input: float) -> void:
 	get_parent().add_child(knife)
 	knife.launch(self, global_position + Vector2(facing * 12.0, -22.0), _get_knife_throw_velocity(move_input))
 	thrown_knife = knife
+	Stats.add("knife_throws")
 	has_knife = false
 	knife_throw_pose_timer = 0.15
 	knife_changed.emit(false)
@@ -1150,19 +1233,22 @@ func _try_start_mantle(move_input: float) -> void:
 	if normal == 0:
 		return
 	var direction := -normal
-	var pushing: bool = int(sign(move_input)) == direction or _uses_sprint_movement() or velocity.x * direction > 40.0
+	# El wallride y el enganche de carrera empujan contra la pared aunque no se pulse la dirección.
+	var pushing: bool = int(sign(move_input)) == direction or _uses_sprint_movement() or velocity.x * direction > 40.0 or wallride_active or wall_cling_timer > 0.0
 	if not pushing:
 		return
 	var height := _find_mantle_height(direction)
 	if height < 0.0:
 		return
-	mantle_keep_sprint = (is_sprinting or long_jump_active) and Input.is_action_pressed("dash")
+	mantle_keep_sprint = (is_sprinting or long_jump_active or wallride_active or wall_cling_timer > 0.0) and Input.is_action_pressed("dash")
+	wallride_active = false
 	_stop_sprint()
 	long_jump_active = false
 	frontflip_active = false
 	backflip_active = false
 	wall_cling_timer = 0.0
 	mantle_active = true
+	Stats.add("mantles")
 	mantle_elapsed = 0.0
 	mantle_from = global_position
 	mantle_height = height
@@ -1211,6 +1297,7 @@ func _start_roar() -> void:
 	backflip_active = false
 	wall_cling_timer = 0.0
 	wall_embedded = false
+	wallride_active = false
 	if dash_timer > 0.0:
 		dash_timer = 0.0
 		_set_dash_visual_active(false)
@@ -1224,6 +1311,7 @@ func _start_roar() -> void:
 	# Frena casi todo el impulso de golpe (no en seco).
 	velocity *= roar_momentum_keep
 	roar_active = true
+	Stats.add("roars")
 	roar_explosive_timer = roar_explosive_duration
 	roar_lock_timer = roar_lock_duration
 	roar_aura_on = true
@@ -1363,7 +1451,7 @@ func _exit_tree() -> void:
 func _update_afterimages(delta: float) -> void:
 	afterimage_timer = max(afterimage_timer - delta, 0.0)
 	# Sombras estilo Alucard a partir de la velocidad de carrera; el backflip es la excepción.
-	var fast_enough: bool = abs(velocity.x) >= sprint_speed - 1.0 or backflip_active
+	var fast_enough: bool = abs(velocity.x) >= sprint_speed - 1.0 or backflip_active or wallride_active
 	if not fast_enough or afterimage_timer > 0.0 or not afterimage_container.is_inside_tree():
 		return
 	afterimage_timer = afterimage_interval
@@ -1642,6 +1730,7 @@ func _get_claw_scale() -> float:
 	return light_finisher_scale if light_combo_step == 3 else light_hit_scale
 
 func _start_ground_charged_attack() -> void:
+	_face_attack_input()
 	attack_mode = ATTACK_GROUND_CHARGED
 	attack_timer = charged_ground_duration
 	attack_cooldown_timer = charged_attack_cooldown
@@ -1671,15 +1760,7 @@ func _start_heavy_attack() -> void:
 		facing = wall_contact_direction
 		_update_facing_visual()
 	else:
-		# En backflip o running walljump el facing está bloqueado: mantener la dirección
-		# contraria hace el heavy hacia ese lado.
-		var input_direction := int(sign(Input.get_axis("move_left", "move_right")))
-		if input_direction != 0 and input_direction != facing:
-			facing = input_direction
-			_update_facing_visual()
-	backflip_active = false
-	long_jump_active = false
-	frontflip_active = false
+		_face_attack_input()
 
 	attack_mode = ATTACK_HEAVY
 	attack_timer = 0.0
@@ -1691,6 +1772,20 @@ func _start_heavy_attack() -> void:
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
+
+func _face_attack_input() -> void:
+	# En backflip, running walljump o carrera el facing está bloqueado: mantener la dirección
+	# contraria lanza el ataque hacia ese lado, y Rengar queda mirando y corriendo hacia allí.
+	var input_direction := int(sign(Input.get_axis("move_left", "move_right")))
+	if input_direction != 0 and input_direction != facing:
+		facing = input_direction
+		_update_facing_visual()
+	backflip_active = false
+	long_jump_active = false
+	frontflip_active = false
+	sprint_direction = facing
+	sprint_turn_timer = 0.0
+	sprint_turn_direction = 0
 
 func _start_ground_heavy_attack() -> void:
 	if ground_heavy_cooldown_timer > 0.0:
@@ -1708,6 +1803,7 @@ func _start_ground_heavy_attack() -> void:
 	_refresh_attack_hits()
 
 func _start_light_charged_air_attack() -> void:
+	_face_attack_input()
 	attack_mode = ATTACK_LIGHT_CHARGED_AIR
 	attack_timer = charged_ground_duration
 	attack_cooldown_timer = charged_attack_cooldown
@@ -1719,6 +1815,7 @@ func _start_light_charged_air_attack() -> void:
 	_refresh_attack_hits()
 
 func _start_uppercut_attack(from_air: bool) -> void:
+	_face_attack_input()
 	attack_mode = ATTACK_UPPERCUT
 	attack_timer = light_uppercut_duration
 	attack_cooldown_timer = charged_attack_cooldown
@@ -1862,6 +1959,7 @@ func _set_attack_active(active: bool) -> void:
 	if active:
 		frontflip_active = false
 		wall_embedded = false
+		wallride_active = false
 	claw_hitbox_shape.disabled = true
 	_update_hitbox_visual_visibility()
 	slash_visual.color = slash_base_color if active else Color(slash_base_color.r, slash_base_color.g, slash_base_color.b, 0.0)
@@ -2236,6 +2334,10 @@ func _hit_area(area: Area2D) -> void:
 
 	attack_targets_hit.append(area)
 
+	if attack_mode == ATTACK_SLASH and area.has_method("try_block") and area.try_block(global_position):
+		_on_attack_blocked(area)
+		return
+
 	if area.has_method("take_hit"):
 		area.take_hit(global_position, facing, _get_attack_damage())
 		_spawn_hit_feedback(area)
@@ -2275,6 +2377,8 @@ func _start_dash() -> void:
 	backflip_chain_timer = 0.0
 	wall_cling_timer = 0.0
 	wall_embedded = false
+	wallride_active = false
+	dash_jump_buffered = false
 	var move_input: float = Input.get_axis("move_left", "move_right")
 	dash_direction = facing if move_input == 0.0 else (1 if move_input > 0.0 else -1)
 	sprint_direction = dash_direction
@@ -2287,11 +2391,17 @@ func _start_dash() -> void:
 
 func _end_dash() -> void:
 	_set_dash_visual_active(false)
+	var buffered_jump := dash_jump_buffered
+	dash_jump_buffered = false
 	if Input.is_action_pressed("dash") and is_on_floor():
 		_start_sprint(dash_direction)
 		velocity.x = sprint_direction * sprint_speed
+		if buffered_jump:
+			_try_start_sprint_jump(Input.get_axis("move_left", "move_right"))
 		return
 	velocity.x = dash_direction * dash_end_speed
+	if buffered_jump:
+		jump_buffer_timer = jump_buffer_time
 
 func _set_dash_visual_active(active: bool) -> void:
 	dash_visual.visible = active
@@ -2309,7 +2419,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or wall_cling_timer > 0.0 or wall_embedded or roar_active or mantle_active or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
+	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or wall_cling_timer > 0.0 or wallride_active or wall_embedded or roar_active or mantle_active or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -2332,6 +2442,7 @@ func _is_attack_active() -> bool:
 	return attack_mode != ATTACK_NONE
 
 func _embed_heavy_attack_in_wall() -> void:
+	Stats.add("wall_embeds")
 	# El cuchillo se clava en la pared: explosión en área y Rengar queda fijo, sin deslizarse.
 	var normal := int(sign(get_wall_normal().x))
 	if normal == 0:
@@ -2542,6 +2653,9 @@ func _respawn_player() -> void:
 	wall_cling_timer = 0.0
 	wall_cling_direction = 0
 	wall_embedded = false
+	wallride_active = false
+	wallride_available = true
+	dash_jump_buffered = false
 	mantle_active = false
 	_end_roar()
 	knife_throw_pose_timer = 0.0

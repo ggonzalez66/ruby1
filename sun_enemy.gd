@@ -37,6 +37,7 @@ func _ready() -> void:
 	collision_mask = 1
 	monitoring = true
 	monitorable = true
+	add_to_group(&"sun")
 	_build_visuals()
 
 func _build_visuals() -> void:
@@ -101,9 +102,10 @@ func _physics_process(delta: float) -> void:
 
 	for body in get_overlapping_bodies():
 		if body.has_method("take_damage"):
-			body.take_damage(contact_damage, global_position)
+			body.take_damage(contact_damage, global_position, self)
 
 func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -> void:
+	Stats.add("sun_hits_dealt")
 	flash_timer = 0.1
 	wobble = 1.0
 	shown_health = max(shown_health - 0.12 * max(damage, 1), 0.05)

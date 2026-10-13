@@ -1,4 +1,4 @@
-[gd_scene load_steps=39 format=3 uid="uid://bsjw318ojxwhy"]
+[gd_scene load_steps=40 format=3 uid="uid://bsjw318ojxwhy"]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_41u7p"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_2ax5n"]
@@ -10,6 +10,7 @@
 [ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
 [ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
 [ext_resource type="Script" path="res://big_dummy.gd" id="10_boss"]
+[ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
 size = Vector2(760, 80)
@@ -879,3 +880,6 @@ move_period = 3.0
 [node name="TowerGuardian" type="Area2D" parent="."]
 position = Vector2(3000, -1910)
 script = ExtResource("10_boss")
+
+[node name="DemoComplete" type="CanvasLayer" parent="."]
+script = ExtResource("11_demo")
