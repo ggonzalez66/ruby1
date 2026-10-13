@@ -1630,8 +1630,11 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 		return
 
 	if not is_on_floor():
+		# En el aire corriendo (p. ej. tras rebotar con el heavy) se conserva el impulso
+		# hacia delante y se puede usar el salto aéreo.
 		velocity.x = sprint_direction * sprint_speed
 		_apply_gravity(delta)
+		_consume_sprint_air_jump()
 		return
 
 	if sprint_turn_timer > 0.0:
@@ -1651,6 +1654,15 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 
 	velocity.x = sprint_direction * sprint_speed
 	velocity.y = 0.0
+
+func _consume_sprint_air_jump() -> void:
+	if jump_buffer_timer <= 0.0 or air_jumps_remaining <= 0 or _is_attack_active():
+		return
+	jump_buffer_timer = 0.0
+	air_jumps_remaining -= 1
+	velocity.y = min(velocity.y, jump_velocity)
+	jump_cut_available = true
+	animated_sprite.play(ANIMATION_JUMP)
 
 func _start_sprint(direction: int) -> void:
 	var target_direction := direction
@@ -2663,8 +2675,6 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 		air_jumps_remaining = min(air_jumps_remaining + 1, max_air_jumps)
 
 	_cancel_attack_for_chain()
-	# Sin carrera en el aire: si no, la carrera pisaría el retroceso e ignoraría el salto aéreo.
-	_stop_sprint()
 	long_jump_active = false
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
