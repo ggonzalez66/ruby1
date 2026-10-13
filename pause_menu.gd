@@ -1,6 +1,7 @@
 extends CanvasLayer
 
-# Menú de pausa (ESC): reanudar y opciones de sonido. Funciona con el juego pausado.
+# Menú de pausa (Esc / Start): reanudar, volumen de música y remapeo de teclado y mando.
+# Funciona con el juego pausado. Los ajustes se guardan en user://settings.cfg.
 
 const SETTINGS_PATH := "user://settings.cfg"
 const MUSIC_BUS := &"Music"
@@ -11,27 +12,84 @@ const PANEL_BORDER := Color(0.55, 0.82, 0.45, 0.9)
 const BUTTON_COLOR := Color(0.1, 0.2, 0.15)
 const BUTTON_HOVER := Color(0.17, 0.33, 0.23)
 const TEXT_COLOR := Color(0.93, 1.0, 0.86)
+const WAITING_COLOR := Color(1.0, 0.85, 0.4)
+
+enum Device { KEYBOARD, JOYPAD }
+
+# Acciones que se pueden remapear, en el orden en que aparecen.
+const REMAP_ACTIONS := [
+	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
+	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
+	["throw_knife", "Lanzar cuchillo"], ["roar", "Rugido"], ["pause", "Pausa"], ["respawn", "Reiniciar"],
+	["toggle_hitbox_visuals", "Ver hitboxes"],
+]
+# En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).
+const STICK_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
+const JOY_BUTTON_NAMES := {
+	0: "A", 1: "B", 2: "X", 3: "Y", 4: "Select", 5: "Guide", 6: "Start", 7: "L3", 8: "R3",
+	9: "LB", 10: "RB", 11: "D-pad ↑", 12: "D-pad ↓", 13: "D-pad ←", 14: "D-pad →",
+}
+const JOY_AXIS_NAMES := {0: "Stick izq. X", 1: "Stick izq. Y", 2: "Stick der. X", 3: "Stick der. Y", 4: "LT", 5: "RT"}
 
 var root_control: Control
 var main_page: VBoxContainer
 var options_page: VBoxContainer
+var remap_page: VBoxContainer
+var remap_title: Label
+var remap_rows: VBoxContainer
 var resume_button: Button
 var music_slider: HSlider
 var music_value_label: Label
 
+var remap_device := Device.KEYBOARD
+var waiting_action := ""
+var waiting_button: Button
+var row_buttons := {}
+var default_events := {}
+
 func _ready() -> void:
 	layer = 20
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	_store_default_events()
 	_build()
 	_load_settings()
 	root_control.visible = false
 
+func _input(event: InputEvent) -> void:
+	# Mientras espera una tecla/botón para remapear, se queda con la siguiente pulsación.
+	if waiting_action == "":
+		return
+	var captured := _capture_event(event)
+	if captured == null:
+		return
+	get_viewport().set_input_as_handled()
+	if captured is InputEventKey and captured.physical_keycode == KEY_ESCAPE and remap_device == Device.JOYPAD:
+		_stop_waiting()
+		return
+	if captured is InputEventKey and captured.physical_keycode == KEY_ESCAPE and remap_device == Device.KEYBOARD and waiting_action != "pause":
+		_stop_waiting()
+		return
+	_assign_event(waiting_action, captured)
+	_stop_waiting()
+	_refresh_row_texts()
+	_save_settings()
+
+func _refresh_row_texts() -> void:
+	# Otras filas pueden haber perdido su tecla/botón al resolver un conflicto.
+	for action in row_buttons:
+		var button: Button = row_buttons[action]
+		if is_instance_valid(button):
+			button.text = _binding_text(action)
+
 func _unhandled_input(event: InputEvent) -> void:
-	if not event.is_action_pressed("ui_cancel"):
+	var back: bool = event.is_action_pressed("pause") or (get_tree().paused and event.is_action_pressed("ui_cancel"))
+	if not back:
 		return
 	get_viewport().set_input_as_handled()
 	if not get_tree().paused:
 		_open()
+	elif remap_page.visible:
+		_show_options_page()
 	elif options_page.visible:
 		_show_main_page()
 	else:
@@ -48,13 +106,25 @@ func _resume() -> void:
 
 func _show_main_page() -> void:
 	options_page.visible = false
+	remap_page.visible = false
 	main_page.visible = true
 	resume_button.grab_focus()
 
 func _show_options_page() -> void:
+	_stop_waiting()
 	main_page.visible = false
+	remap_page.visible = false
 	options_page.visible = true
 	music_slider.grab_focus()
+
+func _show_remap_page(device: Device) -> void:
+	remap_device = device
+	remap_title.text = "MAPEAR TECLADO" if device == Device.KEYBOARD else "MAPEAR CONTROL"
+	options_page.visible = false
+	remap_page.visible = true
+	_rebuild_remap_rows()
+
+# ---------- Construcción de la interfaz
 
 func _build() -> void:
 	root_control = Control.new()
@@ -71,7 +141,7 @@ func _build() -> void:
 	root_control.add_child(center)
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(340, 0)
+	panel.custom_minimum_size = Vector2(380, 0)
 	panel.add_theme_stylebox_override("panel", _box(PANEL_COLOR, PANEL_BORDER, 24))
 	center.add_child(panel)
 
@@ -79,22 +149,16 @@ func _build() -> void:
 	panel.add_child(pages)
 
 	# Página principal.
-	main_page = VBoxContainer.new()
-	main_page.add_theme_constant_override("separation", 12)
-	pages.add_child(main_page)
+	main_page = _page(pages)
 	main_page.add_child(_title("PAUSA"))
 	resume_button = _button("Reanudar", _resume)
 	main_page.add_child(resume_button)
 	main_page.add_child(_button("Opciones", _show_options_page))
 
 	# Página de opciones.
-	options_page = VBoxContainer.new()
-	options_page.add_theme_constant_override("separation", 12)
-	pages.add_child(options_page)
+	options_page = _page(pages)
 	options_page.add_child(_title("OPCIONES"))
-	var section := _label("Sonido", 18, Color(0.7, 0.9, 0.62))
-	options_page.add_child(section)
-
+	options_page.add_child(_label("Sonido", 18, Color(0.7, 0.9, 0.62)))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 10)
 	options_page.add_child(row)
@@ -113,9 +177,172 @@ func _build() -> void:
 	music_value_label.custom_minimum_size = Vector2(48, 0)
 	music_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(music_value_label)
-
+	options_page.add_child(_label("Controles", 18, Color(0.7, 0.9, 0.62)))
+	options_page.add_child(_button("Mapear teclado", _show_remap_page.bind(Device.KEYBOARD)))
+	options_page.add_child(_button("Mapear control", _show_remap_page.bind(Device.JOYPAD)))
 	options_page.add_child(_button("Volver", _show_main_page))
+
+	# Página de remapeo (teclado o mando).
+	remap_page = _page(pages)
+	remap_title = _title("MAPEAR TECLADO")
+	remap_page.add_child(remap_title)
+	var hint := _label("Elige una acción y pulsa la nueva tecla o botón (Esc cancela)", 13, Color(0.7, 0.85, 0.66))
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	remap_page.add_child(hint)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 300)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	remap_page.add_child(scroll)
+	remap_rows = VBoxContainer.new()
+	remap_rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	remap_rows.add_theme_constant_override("separation", 6)
+	scroll.add_child(remap_rows)
+	var buttons := HBoxContainer.new()
+	buttons.add_theme_constant_override("separation", 10)
+	remap_page.add_child(buttons)
+	var reset := _button("Restablecer", _reset_device_defaults)
+	reset.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buttons.add_child(reset)
+	var back := _button("Volver", _show_options_page)
+	back.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buttons.add_child(back)
+
 	options_page.visible = false
+	remap_page.visible = false
+
+func _rebuild_remap_rows() -> void:
+	for child in remap_rows.get_children():
+		child.queue_free()
+	row_buttons.clear()
+	var first: Button
+	for entry in REMAP_ACTIONS:
+		var action: String = entry[0]
+		if remap_device == Device.JOYPAD and action == "toggle_hitbox_visuals":
+			continue
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		remap_rows.add_child(row)
+		var name_label := _label(entry[1], 15, TEXT_COLOR)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(name_label)
+		var binding := _button(_binding_text(action), Callable())
+		binding.custom_minimum_size = Vector2(170, 32)
+		binding.add_theme_font_size_override("font_size", 14)
+		binding.pressed.connect(_start_waiting.bind(action, binding))
+		row.add_child(binding)
+		row_buttons[action] = binding
+		if first == null:
+			first = binding
+	if first:
+		first.grab_focus.call_deferred()
+
+# ---------- Remapeo
+
+func _start_waiting(action: String, button: Button) -> void:
+	_stop_waiting()
+	waiting_action = action
+	waiting_button = button
+	button.text = "Pulsa una tecla..." if remap_device == Device.KEYBOARD else "Pulsa un botón..."
+	button.add_theme_color_override("font_color", WAITING_COLOR)
+
+func _stop_waiting() -> void:
+	if waiting_button and is_instance_valid(waiting_button):
+		waiting_button.text = _binding_text(waiting_action)
+		waiting_button.add_theme_color_override("font_color", TEXT_COLOR)
+	waiting_action = ""
+	waiting_button = null
+
+func _capture_event(event: InputEvent) -> InputEvent:
+	if event is InputEventKey and event.pressed and not event.echo:
+		if remap_device == Device.KEYBOARD or event.physical_keycode == KEY_ESCAPE:
+			var key := InputEventKey.new()
+			key.physical_keycode = event.physical_keycode
+			return key
+	if remap_device != Device.JOYPAD:
+		return null
+	if event is InputEventJoypadButton and event.pressed:
+		var button := InputEventJoypadButton.new()
+		button.button_index = event.button_index
+		return button
+	if event is InputEventJoypadMotion and abs(event.axis_value) > 0.6:
+		var motion := InputEventJoypadMotion.new()
+		motion.axis = event.axis
+		motion.axis_value = sign(event.axis_value)
+		return motion
+	return null
+
+func _assign_event(action: String, new_event: InputEvent) -> void:
+	# Quita esa misma tecla/botón de otras acciones para no tener dos acciones en el mismo input.
+	for entry in REMAP_ACTIONS:
+		var other: String = entry[0]
+		for existing in InputMap.action_get_events(other):
+			if _same_input(existing, new_event):
+				InputMap.action_erase_event(other, existing)
+	for existing in InputMap.action_get_events(action):
+		if _is_remappable(action, existing):
+			InputMap.action_erase_event(action, existing)
+	InputMap.action_add_event(action, new_event)
+
+func _is_remappable(action: String, event: InputEvent) -> bool:
+	if remap_device == Device.KEYBOARD:
+		return event is InputEventKey
+	if event is InputEventJoypadMotion and action in STICK_ACTIONS and event.axis <= 1:
+		return false
+	return event is InputEventJoypadButton or event is InputEventJoypadMotion
+
+func _same_input(a: InputEvent, b: InputEvent) -> bool:
+	if a is InputEventKey and b is InputEventKey:
+		return a.physical_keycode == b.physical_keycode
+	if a is InputEventJoypadButton and b is InputEventJoypadButton:
+		return a.button_index == b.button_index
+	if a is InputEventJoypadMotion and b is InputEventJoypadMotion:
+		return a.axis == b.axis and sign(a.axis_value) == sign(b.axis_value)
+	return false
+
+func _binding_text(action: String) -> String:
+	var names := []
+	for event in InputMap.action_get_events(action):
+		if not _is_remappable(action, event):
+			continue
+		names.append(_event_name(event))
+	var text := " / ".join(names) if not names.is_empty() else "—"
+	if remap_device == Device.JOYPAD and action in STICK_ACTIONS:
+		text += " (+ stick)"
+	return text
+
+func _event_name(event: InputEvent) -> String:
+	if event is InputEventKey:
+		return OS.get_keycode_string(event.physical_keycode)
+	if event is InputEventJoypadButton:
+		return JOY_BUTTON_NAMES.get(event.button_index, "Botón %d" % event.button_index)
+	if event is InputEventJoypadMotion:
+		var axis_name: String = JOY_AXIS_NAMES.get(event.axis, "Eje %d" % event.axis)
+		if event.axis >= 4:
+			return axis_name
+		return "%s %s" % [axis_name, "+" if event.axis_value > 0.0 else "-"]
+	return "?"
+
+func _store_default_events() -> void:
+	for entry in REMAP_ACTIONS:
+		var copies := []
+		for event in InputMap.action_get_events(entry[0]):
+			copies.append(event.duplicate())
+		default_events[entry[0]] = copies
+
+func _reset_device_defaults() -> void:
+	_stop_waiting()
+	for entry in REMAP_ACTIONS:
+		var action: String = entry[0]
+		for existing in InputMap.action_get_events(action):
+			if _is_remappable(action, existing):
+				InputMap.action_erase_event(action, existing)
+		for event in default_events[action]:
+			if _is_remappable(action, event):
+				InputMap.action_add_event(action, event.duplicate())
+	_rebuild_remap_rows()
+	_save_settings()
+
+# ---------- Volumen
 
 func _on_music_volume_changed(value: float) -> void:
 	_apply_music_volume(value / 100.0)
@@ -129,11 +356,14 @@ func _apply_music_volume(linear: float) -> void:
 	AudioServer.set_bus_mute(bus, linear <= 0.0)
 	AudioServer.set_bus_volume_db(bus, linear_to_db(max(linear, 0.0001)))
 
+# ---------- Guardado
+
 func _load_settings() -> void:
 	var config := ConfigFile.new()
 	var volume: float = 1.0
 	if config.load(SETTINGS_PATH) == OK:
 		volume = clamp(float(config.get_value("audio", "music_volume", 1.0)), 0.0, 1.0)
+		_load_bindings(config)
 	music_slider.set_value_no_signal(volume * 100.0)
 	music_value_label.text = "%d%%" % int(volume * 100.0)
 	_apply_music_volume(volume)
@@ -142,7 +372,55 @@ func _save_settings() -> void:
 	var config := ConfigFile.new()
 	config.load(SETTINGS_PATH)
 	config.set_value("audio", "music_volume", music_slider.value / 100.0)
+	for entry in REMAP_ACTIONS:
+		var action: String = entry[0]
+		var keys := []
+		var pad := []
+		for event in InputMap.action_get_events(action):
+			if event is InputEventKey:
+				keys.append(event.physical_keycode)
+			elif event is InputEventJoypadButton:
+				pad.append("b:%d" % event.button_index)
+			elif event is InputEventJoypadMotion:
+				pad.append("a:%d:%d" % [event.axis, int(sign(event.axis_value))])
+		config.set_value("keyboard", action, keys)
+		config.set_value("joypad", action, pad)
 	config.save(SETTINGS_PATH)
+
+func _load_bindings(config: ConfigFile) -> void:
+	for entry in REMAP_ACTIONS:
+		var action: String = entry[0]
+		if config.has_section_key("keyboard", action):
+			for existing in InputMap.action_get_events(action):
+				if existing is InputEventKey:
+					InputMap.action_erase_event(action, existing)
+			for code in config.get_value("keyboard", action):
+				var key := InputEventKey.new()
+				key.physical_keycode = int(code)
+				InputMap.action_add_event(action, key)
+		if config.has_section_key("joypad", action):
+			for existing in InputMap.action_get_events(action):
+				if existing is InputEventJoypadButton or existing is InputEventJoypadMotion:
+					InputMap.action_erase_event(action, existing)
+			for text in config.get_value("joypad", action):
+				var parts: PackedStringArray = String(text).split(":")
+				if parts[0] == "b":
+					var button := InputEventJoypadButton.new()
+					button.button_index = int(parts[1])
+					InputMap.action_add_event(action, button)
+				elif parts[0] == "a" and parts.size() == 3:
+					var motion := InputEventJoypadMotion.new()
+					motion.axis = int(parts[1])
+					motion.axis_value = float(parts[2])
+					InputMap.action_add_event(action, motion)
+
+# ---------- Helpers de estilo
+
+func _page(parent: Node) -> VBoxContainer:
+	var page := VBoxContainer.new()
+	page.add_theme_constant_override("separation", 12)
+	parent.add_child(page)
+	return page
 
 func _title(text: String) -> Label:
 	var label := _label(text, 28, TEXT_COLOR)
@@ -168,7 +446,8 @@ func _button(text: String, on_pressed: Callable) -> Button:
 	button.add_theme_stylebox_override("hover", _box(BUTTON_HOVER, PANEL_BORDER, 8))
 	button.add_theme_stylebox_override("focus", _box(BUTTON_HOVER, PANEL_BORDER, 8))
 	button.add_theme_stylebox_override("pressed", _box(PANEL_BORDER.darkened(0.4), PANEL_BORDER, 8))
-	button.pressed.connect(on_pressed)
+	if on_pressed.is_valid():
+		button.pressed.connect(on_pressed)
 	return button
 
 func _box(color: Color, border: Color, margin: float) -> StyleBoxFlat:

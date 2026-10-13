@@ -48,6 +48,7 @@ const ANIMATION_SPRINT_BRAKE := &"sprint_brake"
 const ANIMATION_LIGHT_HIT_2 := &"light_hit_2"
 const ANIMATION_LIGHT_FINISHER := &"light_finisher"
 const ANIMATION_ROAR := &"roar"
+const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
 const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
 
@@ -70,6 +71,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_LIGHT_HIT_2: 1.25,
 	ANIMATION_LIGHT_FINISHER: 1.25,
 	ANIMATION_ROAR: 0.8,
+	ANIMATION_MANTLE: 1.2,
 	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 1.3,
 	ANIMATION_SPRINT: 1.15,
@@ -145,6 +147,7 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var light_finisher_duration := 0.22
 @export var light_finisher_cooldown := 0.38
 @export var light_finisher_scale := 1.55
+@export var light_hit_scale := 1.3
 @export var spin_attack_duration := 0.34
 @export var spin_heavy_cancel_window := 0.12
 @export var light_uppercut_duration := 0.08
@@ -342,7 +345,7 @@ func _ready() -> void:
 	slash_visual_base_polygon = slash_visual.polygon
 	slash_area_base_polygon = slash_area_visual.polygon
 	slash_outline_base_points = slash_outline.points
-	claw_hitbox_polygon = _build_claw_arc_polygon(claw_start_angle_degrees, claw_end_angle_degrees, 0.35)
+	claw_hitbox_polygon = _build_claw_arc_polygon(claw_start_angle_degrees, claw_end_angle_degrees, 0.35, light_hit_scale)
 	claw_finisher_polygon = _build_claw_arc_polygon(claw_start_angle_degrees - 15.0, claw_end_angle_degrees + 15.0, 0.35, light_finisher_scale, LIGHT_FINISHER_CENTER_OFFSET)
 	claw_hitbox_shape.polygon = claw_hitbox_polygon
 	_create_attack_effects()
@@ -570,6 +573,8 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
 	# Placeholder del rugido: la pose de puño en alto.
 	_add_single_frame_animation(frames, ANIMATION_ROAR, AERIAL_STALL_TEXTURE)
+	# Placeholder del mantle: el frame del uppercut con el brazo estirado hacia arriba.
+	_add_sheet_animation(frames, ANIMATION_MANTLE, UPPERCUT_SHEET, 3, 1.0, false, [2])
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPRINT, SPRINTING_SHEET, 3, 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_LONG_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
@@ -618,7 +623,7 @@ func _update_character_animation() -> void:
 	if roar_active:
 		next_animation = ANIMATION_ROAR
 	elif mantle_active:
-		next_animation = ANIMATION_JUMP
+		next_animation = ANIMATION_MANTLE
 	elif attack_mode == ATTACK_SPIN:
 		next_animation = ANIMATION_SPIN
 	elif attack_mode == ATTACK_UPPERCUT:
@@ -690,7 +695,7 @@ func _align_character_animation(animation_name: StringName) -> void:
 			texture_height = JUMPING_SHEET.get_height()
 		ANIMATION_SPIN:
 			texture_height = AERIAL_SPINNING_SHEET.get_height()
-		ANIMATION_UPPERCUT, ANIMATION_CHARGE_IDLE, ANIMATION_SPRINT_BRAKE:
+		ANIMATION_UPPERCUT, ANIMATION_CHARGE_IDLE, ANIMATION_SPRINT_BRAKE, ANIMATION_MANTLE:
 			texture_height = UPPERCUT_SHEET.get_height()
 		ANIMATION_WALL_SLIDE, ANIMATION_WALL_JUMP:
 			texture_height = WALLJUMP_SHEET.get_height()
@@ -1634,7 +1639,7 @@ func _get_claw_center_offset() -> Vector2:
 	return LIGHT_FINISHER_CENTER_OFFSET if light_combo_step == 3 else Vector2.ZERO
 
 func _get_claw_scale() -> float:
-	return light_finisher_scale if light_combo_step == 3 else 1.0
+	return light_finisher_scale if light_combo_step == 3 else light_hit_scale
 
 func _start_ground_charged_attack() -> void:
 	attack_mode = ATTACK_GROUND_CHARGED
@@ -1665,6 +1670,16 @@ func _start_heavy_attack() -> void:
 	if _is_wall_sliding():
 		facing = wall_contact_direction
 		_update_facing_visual()
+	else:
+		# En backflip o running walljump el facing está bloqueado: mantener la dirección
+		# contraria hace el heavy hacia ese lado.
+		var input_direction := int(sign(Input.get_axis("move_left", "move_right")))
+		if input_direction != 0 and input_direction != facing:
+			facing = input_direction
+			_update_facing_visual()
+	backflip_active = false
+	long_jump_active = false
+	frontflip_active = false
 
 	attack_mode = ATTACK_HEAVY
 	attack_timer = 0.0

@@ -21,7 +21,7 @@ extends Area2D
 @export var shoot_interval := 0.0
 @export var shoot_direction := Vector2(-1, 0)
 @export var shoot_range := 800.0
-@export var projectile_speed := 230.0
+@export var projectile_speed := 460.0
 @export var projectile_damage := 10
 @export var shoot_warning_time := 0.35
 

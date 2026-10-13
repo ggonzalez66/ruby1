@@ -39,9 +39,9 @@ const LUNGE_ANGLE := 0.38
 const BLADE_LENGTH := 231.0
 # Ángulos con la espada apuntando a +x en 0. El "to" del golpe al suelo deja la punta en el suelo.
 const COMBO := [
-	{"name": "Barrido", "from": -2.6, "to": 0.5, "telegraph": 0.75, "swing": 0.2, "damage": 25, "shockwave": false},
-	{"name": "Tajo vertical", "from": -1.75, "to": 1.25, "telegraph": 0.42, "swing": 0.18, "damage": 25, "shockwave": false},
-	{"name": "Golpe al suelo", "from": -2.3, "to": 0.49, "telegraph": 0.5, "swing": 0.18, "damage": 30, "shockwave": true},
+	{"name": "Barrido", "from": -2.6, "to": 0.5, "telegraph": 0.75, "swing": 0.11, "damage": 25, "shockwave": false},
+	{"name": "Tajo vertical", "from": -1.75, "to": 0.9, "telegraph": 0.42, "swing": 0.1, "damage": 25, "shockwave": false},
+	{"name": "Golpe al suelo", "from": -2.3, "to": 0.49, "telegraph": 0.5, "swing": 0.1, "damage": 30, "shockwave": true},
 ]
 
 enum State { IDLE, WALK, TELEGRAPH, SWING, RECOVER, STAGGER, DEFEATED, LUNGE_WINDUP, LUNGE }
@@ -59,6 +59,8 @@ var spawn_position := Vector2.ZERO
 var flash_timer := 0.0
 var lunge_cooldown := 0.0
 var decision_timer := 0.0
+# Se activa la primera vez que Rengar entra en su rango; lo usa el indicador fuera de pantalla.
+var combat_started := false
 
 var visual: Node2D
 var body_poly: Polygon2D
@@ -71,6 +73,7 @@ var trail: Line2D
 
 func _ready() -> void:
 	add_to_group(&"training_dummies")
+	add_to_group(&"boss")
 	collision_layer = 8
 	collision_mask = 0
 	monitoring = false
@@ -166,6 +169,8 @@ func _physics_process(delta: float) -> void:
 		return
 
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	if not combat_started and _player_engaged(player):
+		combat_started = true
 	state_timer -= delta
 	lunge_cooldown = max(lunge_cooldown - delta, 0.0)
 	match state:
@@ -229,6 +234,12 @@ func _decide(player: Node2D, from_idle: bool) -> void:
 		decision_timer = 0.8
 	elif from_idle:
 		_start_combo()
+
+func is_warning() -> bool:
+	return state == State.TELEGRAPH or state == State.LUNGE_WINDUP
+
+func is_defeated() -> bool:
+	return state == State.DEFEATED
 
 func _distance_to(player: Node2D) -> float:
 	return abs(player.global_position.x - global_position.x)
@@ -379,6 +390,7 @@ func reset_dummy() -> void:
 	state_timer = 0.8
 	combo_step = 0
 	lunge_cooldown = 0.0
+	combat_started = false
 	visual.rotation = 0.0
 	visual.modulate.a = 1.0
 	sword_pivot.rotation = IDLE_ANGLE

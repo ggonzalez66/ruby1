@@ -18,16 +18,102 @@ var elapsed_time := 0.0
 var timer_main_label: Label
 var timer_millis_label: Label
 var knife_icon: TextureRect
+var boss_indicator: PanelContainer
+var boss_indicator_style: StyleBoxFlat
+var boss_view: SubViewport
+var boss_camera: Camera2D
+var boss_warning: Label
+var boss_arrow: Polygon2D
+
+const BOSS_VIEW_SIZE := Vector2i(180, 120)
+const BOSS_INDICATOR_MARGIN := 14.0
 
 func _ready() -> void:
 	layer = 10
 	_build()
 	_build_timer()
+	_build_boss_indicator()
 	_connect_player.call_deferred()
 
 func _process(delta: float) -> void:
 	elapsed_time += delta
 	_update_timer_text()
+	_update_boss_indicator()
+
+func _build_boss_indicator() -> void:
+	# Recuadro en el borde de la pantalla con una vista en miniatura del guardián en vivo.
+	boss_indicator = PanelContainer.new()
+	boss_indicator_style = StyleBoxFlat.new()
+	boss_indicator_style.bg_color = Color(0.03, 0.08, 0.06, 0.92)
+	boss_indicator_style.border_color = PANEL_BORDER
+	boss_indicator_style.set_border_width_all(2)
+	boss_indicator_style.set_corner_radius_all(6)
+	boss_indicator_style.set_content_margin_all(3)
+	boss_indicator.add_theme_stylebox_override("panel", boss_indicator_style)
+	boss_indicator.visible = false
+	add_child(boss_indicator)
+
+	var container := SubViewportContainer.new()
+	container.custom_minimum_size = BOSS_VIEW_SIZE
+	container.stretch = true
+	boss_indicator.add_child(container)
+	boss_view = SubViewport.new()
+	boss_view.size = BOSS_VIEW_SIZE
+	boss_view.transparent_bg = true
+	boss_view.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
+	container.add_child(boss_view)
+	boss_camera = Camera2D.new()
+	boss_camera.zoom = Vector2(0.5, 0.5)
+	boss_view.add_child(boss_camera)
+
+	boss_warning = Label.new()
+	boss_warning.text = "!"
+	boss_warning.add_theme_font_size_override("font_size", 44)
+	boss_warning.add_theme_color_override("font_color", Color(1.0, 0.25, 0.2))
+	boss_warning.add_theme_color_override("font_outline_color", Color(0.1, 0.02, 0.02))
+	boss_warning.add_theme_constant_override("outline_size", 8)
+	boss_warning.position = Vector2(BOSS_VIEW_SIZE.x - 30, -6)
+	boss_warning.visible = false
+	container.add_child(boss_warning)
+
+	boss_arrow = Polygon2D.new()
+	boss_arrow.polygon = PackedVector2Array([Vector2(0, -9), Vector2(16, 0), Vector2(0, 9)])
+	boss_arrow.color = PANEL_BORDER
+	boss_indicator.add_child(boss_arrow)
+
+func _update_boss_indicator() -> void:
+	var boss := get_tree().get_first_node_in_group(&"boss") as Node2D
+	if boss == null or not boss.combat_started or boss.is_defeated():
+		boss_indicator.visible = false
+		return
+	boss_view.world_2d = get_viewport().world_2d
+	var screen_size := get_viewport().get_visible_rect().size
+	var boss_center: Vector2 = boss.global_position + Vector2(0, -90)
+	var screen_pos: Vector2 = get_viewport().get_canvas_transform() * boss_center
+	var on_screen := Rect2(Vector2.ZERO, screen_size).grow(-20.0).has_point(screen_pos)
+	boss_indicator.visible = not on_screen
+	if on_screen:
+		return
+
+	boss_camera.global_position = boss_center
+	var panel_size := boss_indicator.size
+	var half := panel_size * 0.5
+	var center := Vector2(
+		clamp(screen_pos.x, BOSS_INDICATOR_MARGIN + half.x, screen_size.x - BOSS_INDICATOR_MARGIN - half.x),
+		clamp(screen_pos.y, 90.0 + half.y, screen_size.y - BOSS_INDICATOR_MARGIN - half.y))
+	boss_indicator.position = center - half
+	# Flecha en el borde del recuadro apuntando hacia el guardián.
+	var direction := (screen_pos - center).normalized()
+	boss_arrow.position = half + direction * (half.length() * 0.62)
+	boss_arrow.rotation = direction.angle()
+
+	# Aviso de ataque: el "!" y el borde parpadean en rojo.
+	var warning: bool = boss.is_warning()
+	var blink: bool = int(Time.get_ticks_msec() / 120) % 2 == 0
+	boss_warning.visible = warning and blink
+	var border := Color(1.0, 0.25, 0.2) if warning and blink else PANEL_BORDER
+	boss_indicator_style.border_color = border
+	boss_arrow.color = border
 
 func _build() -> void:
 	var panel := PanelContainer.new()
