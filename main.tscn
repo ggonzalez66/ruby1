@@ -1,4 +1,4 @@
-[gd_scene load_steps=40 format=3 uid="uid://bsjw318ojxwhy"]
+[gd_scene load_steps=41 format=3 uid="uid://bsjw318ojxwhy"]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_41u7p"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_2ax5n"]
@@ -11,6 +11,7 @@
 [ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
 [ext_resource type="Script" path="res://big_dummy.gd" id="10_boss"]
 [ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
+[ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
 size = Vector2(760, 80)
@@ -883,3 +884,35 @@ script = ExtResource("10_boss")
 
 [node name="DemoComplete" type="CanvasLayer" parent="."]
 script = ExtResource("11_demo")
+
+[node name="ChaserArena" type="Area2D" parent="."]
+position = Vector2(2600, 260)
+script = ExtResource("12_chaser")
+
+[node name="ChaserClimb" type="Area2D" parent="."]
+position = Vector2(3350, 260)
+script = ExtResource("12_chaser")
+
+[node name="ChaserFinal" type="Area2D" parent="."]
+position = Vector2(4550, 260)
+script = ExtResource("12_chaser")
+
+[node name="ChaserHighPerch" type="Area2D" parent="."]
+position = Vector2(2450, -54)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF2Middle" type="Area2D" parent="."]
+position = Vector2(3050, -850)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF2Gallery" type="Area2D" parent="."]
+position = Vector2(2550, -850)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF3Path" type="Area2D" parent="."]
+position = Vector2(250, -1910)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF3Gate" type="Area2D" parent="."]
+position = Vector2(1750, -1910)
+script = ExtResource("12_chaser")

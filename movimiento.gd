@@ -186,7 +186,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var mantle_max_height := 44.0
 @export var mantle_forward := 14.0
 @export var mantle_duration := 0.14
-@export var roar_explosive_duration := 0.12
+@export var roar_explosive_duration := 0.16
+@export var riposte_duration := 1.0
 @export var roar_stall_duration := 1.0
 @export var roar_lock_duration := 0.25
 @export var roar_radius := 46.0
@@ -274,6 +275,8 @@ var roar_aura: Node2D
 var roar_aura_fill: Polygon2D
 var roar_aura_line: Line2D
 var hitstop_end_msec := 0
+var riposte_timer := 0.0
+var riposte_attack := false
 var hitstop_token := 0
 var invulnerability_timer := 0.0
 var hurt_lock_timer := 0.0
@@ -497,6 +500,7 @@ func _physics_process(delta: float) -> void:
 
 	_update_attack_animation()
 	_update_charge_visual()
+	_update_riposte_visual()
 	_update_dash_visual()
 	_update_impact_wave_visual()
 	var fall_speed: float = velocity.y
@@ -764,6 +768,7 @@ func _update_timers(delta: float) -> void:
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
+	riposte_timer = max(riposte_timer - delta, 0.0)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
 		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
@@ -1072,6 +1077,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 			attacker.on_deflected(self)
 			Stats.add("parries")
 			_apply_hitstop(hitstop_deflect)
+			# Riposte: durante un instante el siguiente ataque fuerte hace el doble de daño.
+			riposte_timer = riposte_duration
 		return
 	if invulnerability_timer > 0.0 or current_health <= 0:
 		return
@@ -1154,10 +1161,31 @@ func _on_attack_blocked(area: Node2D) -> void:
 	velocity.x = -facing * 260.0
 	_apply_hitstop(hitstop_light + 0.03)
 
+func _consume_riposte() -> void:
+	riposte_attack = riposte_timer > 0.0
+	riposte_timer = 0.0
+
+func _update_riposte_visual() -> void:
+	# Brillo rojo-dorado pulsante mientras el riposte está disponible (el de carga es amarillo).
+	if is_charging_attack:
+		return
+	if riposte_timer > 0.0:
+		var pulse: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 45.0)
+		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.35, 0.12))
+		charge_glow_material.set_shader_parameter("glow_amount", lerp(0.35, 0.8, pulse))
+	else:
+		charge_glow_material.set_shader_parameter("glow_amount", 0.0)
+
 func _spawn_hit_feedback(area: Node2D) -> void:
 	var heavy: bool = attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND
 	var finisher: bool = attack_mode == ATTACK_SLASH and light_combo_step == 3
 	var point: Vector2 = _get_target_center(area).lerp(global_position + Vector2(0.0, -14.0), 0.35)
+	if heavy and riposte_attack:
+		Fx.impact(get_parent(), point, Fx.GOLD, 2.2)
+		Fx.impact(get_parent(), point, Fx.ROAR, 1.4)
+		Fx.text(get_parent(), point + Vector2(0, -36), "¡RIPOSTE!", Color(1.0, 0.55, 0.25))
+		_apply_hitstop(hitstop_deflect)
+		return
 	Fx.impact(get_parent(), point, Fx.GOLD if heavy else Fx.SILVER, 1.35 if heavy or finisher else 1.0)
 	if heavy:
 		_apply_hitstop(hitstop_heavy)
@@ -1651,13 +1679,6 @@ func _release_attack_charge(was_on_floor: bool, was_wall_sliding: bool) -> void:
 
 		if was_wall_sliding:
 			_start_wall_spin_attack()
-		elif _wants_uppercut_attack():
-			if was_on_floor or _can_start_air_uppercut():
-				_start_uppercut_attack(not was_on_floor)
-			elif was_on_floor:
-				_start_ground_charged_attack()
-			else:
-				_start_light_charged_air_attack()
 		elif was_on_floor:
 			_start_ground_charged_attack()
 		else:
@@ -1742,6 +1763,9 @@ func _start_ground_charged_attack() -> void:
 	_refresh_attack_hits()
 
 func _start_heavy_attack() -> void:
+	if Input.is_action_pressed("move_up"):
+		_try_heavy_uppercut()
+		return
 	var canceling_from_spin: bool = attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window
 	# Los ataques pesados son del cuchillo: sin él no se pueden hacer.
 	if dash_timer > 0.0 or is_charging_attack or not has_knife:
@@ -1763,6 +1787,7 @@ func _start_heavy_attack() -> void:
 		_face_attack_input()
 
 	attack_mode = ATTACK_HEAVY
+	_consume_riposte()
 	attack_timer = 0.0
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
@@ -1772,6 +1797,14 @@ func _start_heavy_attack() -> void:
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
+
+func _try_heavy_uppercut() -> void:
+	# Pesado + arriba: uppercut sin cargar. Es la excepción que se puede hacer sin el cuchillo.
+	if dash_timer > 0.0 or is_charging_attack or _is_attack_active() or attack_cooldown_timer > 0.0:
+		return
+	if not is_on_floor() and not _can_start_air_uppercut():
+		return
+	_start_uppercut_attack(not is_on_floor())
 
 func _face_attack_input() -> void:
 	# En backflip, running walljump o carrera el facing está bloqueado: mantener la dirección
@@ -1792,6 +1825,7 @@ func _start_ground_heavy_attack() -> void:
 		return
 
 	attack_mode = ATTACK_HEAVY_GROUND
+	_consume_riposte()
 	attack_timer = ground_heavy_duration
 	attack_cooldown_timer = attack_cooldown
 	ground_heavy_cooldown_timer = ground_heavy_reuse_cooldown
@@ -1960,6 +1994,8 @@ func _set_attack_active(active: bool) -> void:
 		frontflip_active = false
 		wall_embedded = false
 		wallride_active = false
+	else:
+		riposte_attack = false
 	claw_hitbox_shape.disabled = true
 	_update_hitbox_visual_visibility()
 	slash_visual.color = slash_base_color if active else Color(slash_base_color.r, slash_base_color.g, slash_base_color.b, 0.0)
@@ -2352,6 +2388,7 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
 
 func _set_charge_visual_active(active: bool) -> void:
+	charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.86, 0.45))
 	if not active:
 		charge_glow_material.set_shader_parameter("glow_amount", 0.0)
 
@@ -2585,13 +2622,14 @@ func _apply_light_hit_air_boost() -> void:
 	velocity.y = min(velocity.y, light_hit_air_boost)
 
 func _get_attack_damage() -> int:
+	var multiplier := 2 if riposte_attack else 1
 	match attack_mode:
 		ATTACK_GROUND_CHARGED:
 			return DAMAGE_GROUND_CHARGED
 		ATTACK_HEAVY:
-			return DAMAGE_HEAVY
+			return DAMAGE_HEAVY * multiplier
 		ATTACK_HEAVY_GROUND:
-			return DAMAGE_HEAVY_GROUND
+			return DAMAGE_HEAVY_GROUND * multiplier
 		ATTACK_SPIN:
 			return DAMAGE_SPIN
 		ATTACK_LIGHT_CHARGED_AIR:
@@ -2673,6 +2711,8 @@ func _respawn_player() -> void:
 	light_combo_window_timer = 0.0
 	light_combo_queued = false
 	jump_cut_available = false
+	riposte_timer = 0.0
+	riposte_attack = false
 	invulnerability_timer = 0.0
 	hurt_lock_timer = 0.0
 	animated_sprite.modulate = Color.WHITE

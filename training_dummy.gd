@@ -26,6 +26,10 @@ extends Area2D
 @export var shoot_warning_time := 0.35
 
 const PROJECTILE_SCRIPT := preload("res://projectile.gd")
+const FALL_GRAVITY := 1500.0
+const FALL_MAX_SPEED := 900.0
+# Caer más que esto (unos 2,5 saltos) hace que el dummy explote al tocar el suelo.
+const FALL_DEATH_HEIGHT := 260.0
 const SHOOT_WARNING_COLOR := Color(1.0, 0.85, 0.95)
 
 @onready var body: Polygon2D = $Body
@@ -41,6 +45,9 @@ var current_health := 0
 var health_bar_full_width := 32.0
 var path_time := 0.0
 var pull_offset := Vector2.ZERO
+var fall_offset := 0.0
+var fall_velocity := 0.0
+var fall_distance := 0.0
 var pull_tween: Tween
 var shoot_timer := 0.0
 var impact_offset := Vector2(0, -28)
@@ -62,6 +69,9 @@ func reset_dummy() -> void:
 	if pull_tween:
 		pull_tween.kill()
 	pull_offset = Vector2.ZERO
+	fall_offset = 0.0
+	fall_velocity = 0.0
+	fall_distance = 0.0
 	rotation = 0.0
 	visible = true
 	set_deferred("monitorable", true)
@@ -70,14 +80,18 @@ func reset_dummy() -> void:
 	position = anchor_position + _get_path_offset()
 	_update_health_bar()
 
-func _process(delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	if current_health <= 0:
 		return
 
 	path_time += delta
 	flash_timer = max(flash_timer - delta, 0.0)
 	wobble = move_toward(wobble, 0.0, recover_speed * delta)
-	position = anchor_position + pull_offset + _get_path_offset() + Vector2(wobble * push_distance, -abs(wobble) * lift_distance)
+	if not aerial:
+		_update_gravity(delta)
+		if current_health <= 0:
+			return
+	position = anchor_position + pull_offset + Vector2(0.0, fall_offset) + _get_path_offset() + Vector2(wobble * push_distance, -abs(wobble) * lift_distance)
 	rotation = wobble * 0.08
 	body.color = hit_color if flash_timer > 0.0 else base_color
 	if shoot_interval > 0.0:
@@ -94,6 +108,36 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 
 	if current_health == 0:
 		_die()
+
+func _update_gravity(delta: float) -> void:
+	# Los dummies de suelo caen si se quedan sin suelo (por ejemplo, arrastrados por el cuchillo).
+	var base: Vector2 = get_parent().global_transform * (anchor_position + pull_offset + Vector2(0.0, fall_offset) + _get_path_offset())
+	var reach: float = max(fall_velocity * delta, 0.0) + 2.0
+	var query := PhysicsRayQueryParameters2D.create(base + Vector2(0, -4), base + Vector2(0, reach), 2)
+	var hit := get_world_2d().direct_space_state.intersect_ray(query)
+	if not hit.is_empty():
+		if fall_distance > FALL_DEATH_HEIGHT:
+			_explode()
+			return
+		fall_offset += hit.position.y - base.y
+		fall_velocity = 0.0
+		fall_distance = 0.0
+		return
+	fall_velocity = min(fall_velocity + FALL_GRAVITY * delta, FALL_MAX_SPEED)
+	var step: float = fall_velocity * delta
+	fall_offset += step
+	fall_distance += step
+	if fall_distance > 3000.0:
+		_die()
+
+func _explode() -> void:
+	var center := global_position + impact_offset
+	Fx.impact(get_parent(), center, Fx.GOLD, 2.4)
+	Fx.puff(get_parent(), center, Color(1.0, 0.6, 0.2, 0.9))
+	Fx.text(get_parent(), center + Vector2(0, -30), "¡BOOM!", Color(1.0, 0.75, 0.4))
+	current_health = 0
+	_update_health_bar()
+	_die()
 
 func pull_towards(point: Vector2, strength: float) -> void:
 	# El recall del cuchillo arrastra al dummy hacia Rengar; los de suelo solo en horizontal.

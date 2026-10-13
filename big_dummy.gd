@@ -6,7 +6,7 @@ extends Area2D
 # - Cada ataque se avisa (la espada parpadea en rojo y aparece "!").
 # - El rugido en sus frames explosivos desvía el golpe; con un 30% de probabilidad resiste y sigue el combo.
 
-@export var max_health := 150
+@export var max_health := 105
 @export var min_x := 1700.0
 @export var max_x := 4300.0
 @export var walk_speed := 70.0
@@ -303,12 +303,14 @@ func _end_swing() -> void:
 
 func _spawn_shockwaves() -> void:
 	# La espada golpea el suelo: dos ondas salen en direcciones opuestas.
-	var reach: float = SHOULDER.x + sqrt(BLADE_LENGTH * BLADE_LENGTH - SHOULDER.y * SHOULDER.y)
-	var ground := Vector2(global_position.x + facing * reach, global_position.y)
+	# Las ondas salen desde los pies del guardián, al doble de velocidad.
+	var ground := global_position
 	Fx.impact(get_parent(), ground + Vector2(0, -8), Fx.GOLD, 2.0)
 	for direction in [-1, 1]:
 		var wave := SHOCKWAVE_SCRIPT.new()
 		wave.direction = direction
+		wave.speed = 860.0
+		wave.distance_left = 900.0
 		get_parent().add_child(wave)
 		wave.global_position = ground
 
