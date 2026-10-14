@@ -94,6 +94,10 @@ const ATTACK_LIGHT_CHARGED_AIR := 5
 const ATTACK_HEAVY_GROUND := 6
 const ATTACK_UPPERCUT := 7
 
+const HEAVY_ARC := 0
+const HEAVY_DIAGONAL := 1
+const HEAVY_DIVE := 2
+
 const DAMAGE_SLASH := 1
 const DAMAGE_SLASH_FINISHER := 2
 const DAMAGE_GROUND_CHARGED := 3
@@ -144,9 +148,15 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var heavy_attack_start_upward_speed := -330.0
 @export var heavy_attack_arc_radius_x := 28.0
 @export var heavy_attack_arc_radius_y := 42.0
-# Arco del heavy aéreo: abajo lo cierra y abajo + adelante aún más; nunca más largo que el normal.
-@export var heavy_arc_down_factor := 0.3
-@export var heavy_arc_down_forward_factor := 0.12
+# Trayectoria del heavy aéreo según la dirección al empezarlo (después ya no se cambia):
+# sin input, el arco de siempre; abajo + adelante, diagonal hacia adelante y abajo; solo abajo, en picado.
+# Diagonal a 45°: velocidad por eje al empezar, aceleración y tope (cae más rápido que el arco).
+@export var heavy_diagonal_start_speed := 900.0
+@export var heavy_diagonal_acceleration := 4000.0
+@export var heavy_diagonal_max_speed := 1500.0
+@export var heavy_dive_speed := 2000.0
+# Lo rápido que la velocidad se ajusta a la trayectoria elegida (px/s²).
+@export var heavy_steer_acceleration := 9000.0
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
 @export var light_hit_air_boost := -230.0
@@ -336,7 +346,8 @@ var attack_mode := ATTACK_NONE
 var attack_buffered := false
 var air_uppercut_available := true
 var heavy_air_speed := 0.0
-var heavy_arc_factor := 1.0
+var heavy_diagonal_speed := 0.0
+var heavy_trajectory := HEAVY_ARC
 var heavy_attack_visual_progress := 0.0
 var heavy_ground_impact_wave_timer := 0.0
 var attack_targets_hit: Array[Area2D] = []
@@ -1674,6 +1685,8 @@ func _update_afterimages(delta: float) -> void:
 	var fast_enough: bool = abs(velocity.x) >= sprint_speed - 1.0 or backflip_active or wallride_active
 	if fast_enough and not dead:
 		Ferocity.add_running(delta)
+	# El heavy aéreo también deja sombras, aunque baje en picado sin velocidad horizontal.
+	fast_enough = fast_enough or (attack_mode == ATTACK_HEAVY and velocity.length() >= sprint_speed)
 	unstoppable_glow = fast_enough and Ferocity.is_unstoppable() and not dead
 	if not fast_enough or afterimage_timer > 0.0 or not afterimage_container.is_inside_tree():
 		return
@@ -1849,17 +1862,27 @@ func _apply_ground_charged_movement() -> void:
 func _apply_heavy_attack_movement(delta: float) -> void:
 	heavy_attack_visual_progress = min(heavy_attack_visual_progress + (delta / ground_heavy_duration), 1.0)
 	# El arco se puede cerrar en plena caída con abajo (o abajo + adelante); soltando vuelve al arco normal.
-	heavy_arc_factor = move_toward(heavy_arc_factor, _heavy_arc_target(), 8.0 * delta)
-	velocity.x = facing * heavy_air_speed * heavy_arc_factor
-	_apply_gravity(delta)
+	var steer: float = heavy_steer_acceleration * delta
+	match heavy_trajectory:
+		HEAVY_DIVE:
+			# En picado: recto hacia abajo y muy rápido.
+			velocity.x = move_toward(velocity.x, 0.0, steer)
+			velocity.y = move_toward(velocity.y, heavy_dive_speed, steer)
+		HEAVY_DIAGONAL:
+			heavy_diagonal_speed = min(heavy_diagonal_speed + heavy_diagonal_acceleration * delta, heavy_diagonal_max_speed)
+			velocity.x = move_toward(velocity.x, facing * heavy_diagonal_speed, steer)
+			velocity.y = move_toward(velocity.y, heavy_diagonal_speed, steer)
+		_:
+			velocity.x = move_toward(velocity.x, facing * heavy_air_speed, steer)
+			_apply_gravity(delta)
 
-func _heavy_arc_target() -> float:
-	# Solo abajo cierra el arco (abajo + adelante, aún más). Adelante solo, atrás o nada: el arco de siempre,
-	# así correr con la dirección apretada no lo acorta.
+func _heavy_trajectory() -> int:
+	# Solo abajo cuenta: adelante solo, atrás o nada dejan el arco de siempre (correr con la dirección
+	# apretada no lo cambia). Se decide al empezar el heavy, cuando Rengar ya mira hacia el input.
 	if not Input.is_action_pressed("move_down"):
-		return 1.0
+		return HEAVY_ARC
 	var forward: bool = int(sign(Input.get_axis("move_left", "move_right"))) == facing
-	return heavy_arc_down_forward_factor if forward else heavy_arc_down_factor
+	return HEAVY_DIAGONAL if forward else HEAVY_DIVE
 
 func _apply_ground_heavy_movement() -> void:
 	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
@@ -2016,9 +2039,16 @@ func _start_heavy_attack() -> void:
 	attack_targets_hit.clear()
 	heavy_attack_visual_progress = 0.0
 	heavy_air_speed = max(abs(velocity.x + facing * charged_air_forward_speed), ground_heavy_speed)
-	heavy_arc_factor = _heavy_arc_target()
-	velocity.x = facing * heavy_air_speed * heavy_arc_factor
-	velocity.y = max(velocity.y, 60.0)
+	heavy_diagonal_speed = heavy_diagonal_start_speed
+	heavy_trajectory = _heavy_trajectory()
+	match heavy_trajectory:
+		HEAVY_DIVE:
+			velocity = Vector2(0.0, max(velocity.y, heavy_dive_speed * 0.6))
+		HEAVY_DIAGONAL:
+			velocity = Vector2(facing * heavy_diagonal_speed, max(velocity.y, heavy_diagonal_speed))
+		_:
+			velocity.x = facing * heavy_air_speed
+			velocity.y = max(velocity.y, 60.0)
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
