@@ -1627,6 +1627,17 @@ func _try_start_backflip_air_jump(move_input: float) -> bool:
 		_start_backflip()
 		return true
 
+	if int(sign(move_input)) == facing:
+		# Hacia delante: el frontflip de siempre, a velocidad de carrera hacia donde mira.
+		backflip_active = false
+		backflip_direction = 0
+		air_jumps_remaining += 1
+		if Input.is_action_pressed("dash"):
+			_start_sprint(facing)
+		velocity.x = facing * sprint_speed
+		_perform_frontflip()
+		return true
+
 	# Doble salto normal: sale del backflip conservando el impulso hacia atrás.
 	backflip_active = false
 	backflip_direction = 0
@@ -2554,7 +2565,14 @@ func _end_dash() -> void:
 		if buffered_jump:
 			_try_start_sprint_jump(Input.get_axis("move_left", "move_right"))
 		return
-	velocity.x = dash_direction * dash_end_speed
+	if not is_on_floor():
+		# En el aire el dash deja a velocidad de carrera; manteniendo correr se sigue corriendo
+		# (y se aterriza corriendo).
+		if Input.is_action_pressed("dash"):
+			_start_sprint(dash_direction)
+		velocity.x = dash_direction * sprint_speed
+	else:
+		velocity.x = dash_direction * dash_end_speed
 	if buffered_jump:
 		jump_buffer_timer = jump_buffer_time
 
