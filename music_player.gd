@@ -3,8 +3,11 @@ extends AudioStreamPlayer
 # Música de la partida: al empezar (abrir el juego o "Reiniciar todo") suena una canción al azar
 # de assets/sounds/music y, al terminar, pasa a otra distinta. Reaparecer con R no la toca.
 # Para añadir canciones basta con dejar el .mp3/.ogg en la carpeta.
+# Con fixed_track (p. ej. el menú principal) suena siempre esa canción y se repite al terminar.
 
 const MUSIC_DIR := "res://assets/sounds/music"
+
+@export var fixed_track := ""
 
 var tracks: Array[String] = []
 var current := ""
@@ -29,6 +32,10 @@ func _find_tracks() -> Array[String]:
 	return found
 
 func _play_next() -> void:
+	if fixed_track != "":
+		# No toca la última canción recordada: la partida sigue eligiendo al azar como siempre.
+		_play(fixed_track)
+		return
 	if tracks.is_empty():
 		return
 	var previous: String = current if current != "" else str(Stats.get_meta(&"last_track", ""))
@@ -37,7 +44,10 @@ func _play_next() -> void:
 		options = tracks
 	current = options[randi() % options.size()]
 	Stats.set_meta(&"last_track", current)
-	var music := load(MUSIC_DIR.path_join(current)) as AudioStream
+	_play(current)
+
+func _play(track: String) -> void:
+	var music := load(MUSIC_DIR.path_join(track)) as AudioStream
 	if music == null:
 		return
 	# Sin bucle: al terminar salta "finished" y suena otra.

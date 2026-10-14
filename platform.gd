@@ -11,6 +11,8 @@ enum Style { GROUND, SLAB, PLATFORM, WALL, CLIMB_WALL }
 	set(value):
 		size = value
 		_rebuild()
+# Sin los bordes laterales oscuros (tramos de suelo que se empalman, como el del menú principal).
+@export var side_borders := true
 @export var style := Style.GROUND:
 	set(value):
 		style = value
@@ -64,8 +66,9 @@ func _draw() -> void:
 		Style.GROUND:
 			_draw_strata(half, palette[1].darkened(0.15), rng)
 	# Bordes laterales oscuros.
-	draw_line(Vector2(-half.x, -half.y), Vector2(-half.x, half.y), palette[1].darkened(0.4), 2.0)
-	draw_line(Vector2(half.x, -half.y), Vector2(half.x, half.y), palette[1].darkened(0.4), 2.0)
+	if side_borders:
+		draw_line(Vector2(-half.x, -half.y), Vector2(-half.x, half.y), palette[1].darkened(0.4), 2.0)
+		draw_line(Vector2(half.x, -half.y), Vector2(half.x, half.y), palette[1].darkened(0.4), 2.0)
 	# Musgo y hierba arriba (en los muros solo un remate).
 	var moss_depth: float = 4.0 if style in [Style.WALL, Style.CLIMB_WALL] else min(9.0, size.y * 0.45)
 	_draw_moss_top(half, moss_depth, rng, style not in [Style.WALL, Style.CLIMB_WALL])
