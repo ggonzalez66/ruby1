@@ -13,6 +13,9 @@ extends Node2D
 @export var trio_chance := 0.2
 # En el trío cada guardián tiene esta fracción de su vida normal.
 @export var trio_health_factor := 0.6
+# El trío se coloca pensando en que Rengar entra por la derecha (torre); si entra por la izquierda
+# (Gauntlet) se refleja: el ágil más cerca de la entrada y el arquero al fondo.
+@export var trio_entry_from_left := false
 
 const BOSSES := [
 	{"script": preload("res://boss_heavy.gd"), "name": "GUARDIÁN PESADO", "subtitle": "El coloso del espadón", "health": 105, "resist": 0.35, "block": 0.2},
@@ -63,7 +66,10 @@ func _spawn(index: int) -> void:
 	Stats.set_meta(&"last_boss", index)
 	if index == TRIO:
 		for which in range(BOSSES.size()):
-			_add_boss(which, spawn_point + TRIO_OFFSETS[which], trio_health_factor)
+			var offset: Vector2 = TRIO_OFFSETS[which]
+			if trio_entry_from_left:
+				offset.x = -offset.x
+			_add_boss(which, spawn_point + offset, trio_health_factor)
 	else:
 		_add_boss(index, spawn_point, 1.0)
 

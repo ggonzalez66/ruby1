@@ -4,3 +4,4 @@
 
 # Ejecutables exportados
 builds/
+__pycache__/

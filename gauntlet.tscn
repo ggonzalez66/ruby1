@@ -1,0 +1,170 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
+[ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
+[ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
+[ext_resource type="Script" path="res://hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://music_player.gd" id="6_music"]
+[ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
+[ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
+[ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
+[ext_resource type="Script" path="res://boss_spawner.gd" id="10_spawner"]
+[ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
+[ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
+[ext_resource type="Script" path="res://platform.gd" id="13_platform"]
+[ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
+
+[node name="Main" type="Node2D"]
+
+[node name="JungleBackground" type="ParallaxBackground" parent="."]
+script = ExtResource("4_jungle")
+altitude_offset = 1
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-30, -600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1920)
+style = 3
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(4430, -600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1920)
+style = 4
+
+[node name="BoundaryTop" type="StaticBody2D" parent="."]
+position = Vector2(2200, -1530)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(4520, 60)
+style = 1
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(2200, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(4400, 300)
+style = 0
+
+[node name="TitleGauntlet" type="Label" parent="."]
+offset_left = 140
+offset_top = -460
+offset_right = 1040
+offset_bottom = -400
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "GAUNTLET · LOS TRES GUARDIANES"
+
+[node name="CheckpointStart" type="Area2D" parent="."]
+position = Vector2(120, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="SignGauntlet" type="Node2D" parent="."]
+position = Vector2(360, 0)
+script = ExtResource("14_sign")
+text = "Los tres guardianes te esperan al fondo.
+Calienta con sus centinelas: el estilo que acumules llega contigo al combate."
+title = "Gauntlet"
+panel_width = 340
+
+[node name="DummyBounceA" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(640, -150)
+aerial = true
+max_health = 60
+
+[node name="DummyBounceB" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(860, -190)
+aerial = true
+max_health = 60
+
+[node name="ChaserA" type="Area2D" parent="."]
+position = Vector2(1050, 0)
+script = ExtResource("12_chaser")
+
+[node name="ShooterPlatform" type="StaticBody2D" parent="."]
+position = Vector2(1280, -200)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 20)
+style = 2
+
+[node name="ShooterHigh" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1280, -210)
+aerial = false
+shoot_interval = 2.6
+shoot_direction = Vector2(-1, 0.25)
+
+[node name="ChaserB" type="Area2D" parent="."]
+position = Vector2(1450, 0)
+script = ExtResource("12_chaser")
+
+[node name="CheckpointArena" type="Area2D" parent="."]
+position = Vector2(1650, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="ArenaLowA" type="StaticBody2D" parent="."]
+position = Vector2(2360, -160)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 2
+
+[node name="ArenaLowB" type="StaticBody2D" parent="."]
+position = Vector2(3890, -160)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 2
+
+[node name="ArenaMid" type="StaticBody2D" parent="."]
+position = Vector2(3120, -310)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(280, 20)
+style = 2
+
+[node name="ArenaHighA" type="StaticBody2D" parent="."]
+position = Vector2(2680, -470)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaHighB" type="StaticBody2D" parent="."]
+position = Vector2(3560, -470)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="BossSpawner" type="Node2D" parent="."]
+script = ExtResource("10_spawner")
+spawn_point = Vector2(3150, 0)
+arena_min_x = 1800
+arena_max_x = 4300
+forced_boss = 3
+trio_entry_from_left = true
+
+[node name="Playerr" parent="." instance=ExtResource("1_player")]
+position = Vector2(220, -2)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+process_mode = 3
+script = ExtResource("6_music")
+volume_db = -6.0
+bus = &"Music"
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("7_pause")
+
+[node name="DemoComplete" type="CanvasLayer" parent="."]
+script = ExtResource("11_demo")
+title_text = "GAUNTLET COMPLETADO"

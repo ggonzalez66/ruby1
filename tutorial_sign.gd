@@ -4,6 +4,7 @@ extends Node2D
 # Cartel de tutorial: un poste con una tablilla. Al acercarse Rengar aparece encima un panel con
 # el texto; {jump}, {attack}, {move}... se sustituyen por los controles reales del jugador
 # (teclado o mando según lo que esté usando).
+# Con los tutoriales apagados (opción del menú de pausa) el panel no aparece; el cartel sigue ahí.
 
 @export_multiline var text := "Texto del tutorial"
 @export var title := ""
@@ -13,6 +14,9 @@ extends Node2D
 const WOOD := Color(0.42, 0.27, 0.15)
 const WOOD_DARK := Color(0.25, 0.15, 0.08)
 const GLOW := Color(1.0, 0.82, 0.35)
+
+# Lo cambia el menú de pausa (Opciones > Tutoriales) y se guarda en la configuración.
+static var enabled := true
 
 var panel: PanelContainer
 var label: RichTextLabel
@@ -60,7 +64,7 @@ func _process(delta: float) -> void:
 	if Engine.is_editor_hint():
 		return
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D
-	var near: bool = player != null and player.global_position.distance_to(global_position + Vector2(0, -30)) < show_distance
+	var near: bool = enabled and player != null and player.global_position.distance_to(global_position + Vector2(0, -30)) < show_distance
 	visibility = move_toward(visibility, 1.0 if near else 0.0, delta * 5.0)
 	panel.modulate.a = visibility
 	panel.visible = visibility > 0.01
@@ -73,6 +77,6 @@ func _draw() -> void:
 	draw_rect(Rect2(-3, -54, 6, 54), WOOD_DARK)
 	draw_rect(Rect2(-22, -76, 44, 28), WOOD)
 	draw_rect(Rect2(-22, -76, 44, 28), WOOD_DARK, false, 2.0)
-	var glow_alpha: float = 0.35 + 0.65 * visibility
+	var glow_alpha: float = (0.35 if enabled else 0.15) + 0.65 * visibility
 	draw_circle(Vector2(0, -62), 9.0, Color(GLOW, 0.25 * glow_alpha))
 	draw_string(ThemeDB.fallback_font, Vector2(-5, -55), "?", HORIZONTAL_ALIGNMENT_LEFT, -1, 18, Color(GLOW, glow_alpha))

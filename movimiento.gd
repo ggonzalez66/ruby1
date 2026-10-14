@@ -135,6 +135,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var claw_start_angle_degrees := -80.0
 @export var claw_end_angle_degrees := 65.0
 @export var charged_attack_cooldown := 0.5
+# El ataque en carrera (dash attack) no se puede repetir hasta pasado este tiempo desde que empezó.
+@export var running_attack_cooldown := 0.95
 @export var charged_ground_duration := 0.22
 @export var charged_ground_lunge_speed := 980.0
 @export var charged_ground_end_speed := 260.0
@@ -159,6 +161,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var heavy_steer_acceleration := 9000.0
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
+# El rebote del heavy en picado sube más.
+@export var heavy_dive_bounce_ratio := 1.35
 @export var light_hit_air_boost := -230.0
 @export var light_combo_window := 0.3
 @export var light_finisher_duration := 0.22
@@ -203,6 +207,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var mantle_duration := 0.14
 @export var roar_explosive_duration := 0.16
 @export var riposte_duration := 1.0
+# La ventana del riposte a distancia dura el doble que la del riposte cuerpo a cuerpo.
+@export var ranged_riposte_duration := 2.0
 # Curaciones en combate: conectar el riposte (una vez por riposte, aunque golpee a varios) y recuperar
 # el cuchillo del riposte a distancia si golpeó algo (cura menos).
 @export var riposte_heal := 20
@@ -344,6 +350,7 @@ var wall_visual_direction := 0
 var attack_mode := ATTACK_NONE
 # Ataque pulsado durante el dash: sale al terminarlo.
 var attack_buffered := false
+var running_attack_cooldown_timer := 0.0
 var air_uppercut_available := true
 var heavy_air_speed := 0.0
 var heavy_diagonal_speed := 0.0
@@ -560,7 +567,12 @@ func _physics_process(delta: float) -> void:
 
 	_try_start_mantle(move_input)
 
-	if is_on_wall() and not is_on_floor() and _uses_sprint_movement():
+	# El ataque en carrera aéreo (y su giro) contra una pared, manteniendo correr, entra en el wallride
+	# sin perder el flow.
+	var attack_into_wall: bool = is_on_wall() and not is_on_floor() and Input.is_action_pressed("dash") and (attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_SPIN) and int(sign(get_wall_normal().x)) == -facing
+	if attack_into_wall:
+		_cancel_attack_for_chain()
+	if is_on_wall() and not is_on_floor() and (_uses_sprint_movement() or attack_into_wall):
 		long_jump_active = false
 		frontflip_active = false
 		backflip_active = false
@@ -802,6 +814,7 @@ func _update_timers(delta: float) -> void:
 	coyote_timer = max(coyote_timer - delta, 0.0)
 	jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
 	attack_cooldown_timer = max(attack_cooldown_timer - delta, 0.0)
+	running_attack_cooldown_timer = max(running_attack_cooldown_timer - delta, 0.0)
 	ground_heavy_cooldown_timer = max(ground_heavy_cooldown_timer - delta, 0.0)
 	dash_cooldown_timer = max(dash_cooldown_timer - delta, 0.0)
 	wall_jump_lock_timer = max(wall_jump_lock_timer - delta, 0.0)
@@ -1358,7 +1371,7 @@ func _add_hit_style() -> void:
 		ATTACK_UPPERCUT:
 			Ferocity.add("uppercut", 18.0, "UPPERCUT")
 		ATTACK_GROUND_CHARGED, ATTACK_LIGHT_CHARGED_AIR:
-			Ferocity.add("charged", 12.0, "CARGADO")
+			Ferocity.add("dash_attack", 12.0, "DASH ATTACK")
 		ATTACK_SPIN:
 			Ferocity.add("spin", 10.0, "GIRO")
 		_:
@@ -1367,7 +1380,9 @@ func _add_hit_style() -> void:
 			else:
 				Ferocity.add("light_hit", 8.0)
 	if not is_on_floor() and attack_mode != ATTACK_HEAVY:
-		Ferocity.add("air_hit", 6.0, "AÉREO")
+		# El extra por pegar en el aire cuenta como débil si el golpe lo es (no sube de rango).
+		var weak: bool = attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR or (attack_mode == ATTACK_SLASH and light_combo_step != 3)
+		Ferocity.add("air_hit_weak" if weak else "air_hit", 6.0, "AÉREO")
 
 func _camera_kick(trauma: float, punch: float = 0.0) -> void:
 	var camera := get_viewport().get_camera_2d()
@@ -1610,7 +1625,7 @@ func _roar_explosive_hits() -> void:
 func on_projectile_reflected() -> void:
 	_apply_hitstop(0.04)
 	# Riposte a distancia: el próximo cuchillo lanzado en esta ventana sale potenciado.
-	ranged_riposte_timer = riposte_duration
+	ranged_riposte_timer = ranged_riposte_duration
 
 func is_roar_aura_active() -> bool:
 	return roar_active and (roar_explosive_timer > 0.0 or roar_aura_on)
@@ -1921,12 +1936,14 @@ func _on_attack_input() -> void:
 	_start_attack()
 
 func _can_running_attack() -> bool:
-	# Corriendo (también frenando para girar), en salto largo o corriendo por la pared.
-	return is_sprinting or long_jump_active or wallride_active or wall_cling_timer > 0.0
+	# Corriendo (también frenando para girar), en salto largo, en backflip (también encadenados) o
+	# corriendo por la pared.
+	return is_sprinting or long_jump_active or backflip_active or wallride_active or wall_cling_timer > 0.0
 
 func _start_running_attack() -> void:
-	if _is_attack_active() or attack_cooldown_timer > 0.0:
+	if _is_attack_active() or attack_cooldown_timer > 0.0 or running_attack_cooldown_timer > 0.0:
 		return
+	running_attack_cooldown_timer = running_attack_cooldown
 	if wallride_active or wall_cling_timer > 0.0:
 		# Desde la pared: el giro que despega de ella.
 		wallride_active = false
@@ -2869,7 +2886,7 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	elif hit_enemy:
 		Ferocity.add("bounce", 18.0, "REBOTE", Ferocity.GOOD_COLOR, "bounce", bounce_chain)
 	velocity.x = -facing * charged_air_bounce_back_speed
-	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
+	velocity.y = jump_velocity * (heavy_dive_bounce_ratio if heavy_trajectory == HEAVY_DIVE else heavy_bounce_vertical_ratio)
 	jump_cut_available = false
 	# El rebote siempre gira con el frontflip.
 	frontflip_active = true
@@ -2985,6 +3002,7 @@ func _respawn_player() -> void:
 	jump_cut_available = false
 	riposte_timer = 0.0
 	ranged_riposte_timer = 0.0
+	running_attack_cooldown_timer = 0.0
 	bounce_chain = 0
 	attack_buffered = false
 	riposte_attack = false

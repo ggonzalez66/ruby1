@@ -41,6 +41,11 @@ class MedalIcon extends Control:
 			# Brillo.
 			draw_circle(center + Vector2(-6, -6), 3.0, Color(1.0, 1.0, 1.0, 0.55))
 
+# Título de la pantalla (cada escenario pone el suyo).
+@export var title_text := "DEMO COMPLETADA"
+
+const MAIN_MENU := "res://main_menu.tscn"
+
 var root_control: Control
 var message_label: Label
 var medals_grid: GridContainer
@@ -147,7 +152,7 @@ func _build() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 10)
 	panel.add_child(column)
-	var title := _label("DEMO COMPLETADA", 32, TITLE_COLOR)
+	var title := _label(title_text, 32, TITLE_COLOR)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
 	message_label = _label("", 20, TEXT_COLOR)
@@ -198,6 +203,7 @@ func _build() -> void:
 	buttons.add_child(continue_button)
 	buttons.add_child(_button("Último checkpoint", _retry_from_checkpoint))
 	buttons.add_child(_button("Reiniciar todo", _restart))
+	buttons.add_child(_button("Menú principal", _main_menu))
 
 func _continue() -> void:
 	root_control.visible = false
@@ -216,6 +222,11 @@ func _restart() -> void:
 	get_tree().paused = false
 	Stats.reset()
 	get_tree().reload_current_scene()
+
+func _main_menu() -> void:
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	get_tree().change_scene_to_file(MAIN_MENU)
 
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()

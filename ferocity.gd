@@ -1,8 +1,10 @@
 extends Node
 
 # Autoload "Ferocity": medidor de estilo al estilo ULTRAKILL.
-# - Se gana estilo con trucos de movimiento y con combate (repetir el mismo truco rinde menos); correr
-#   llena la barra del rango actual pero nunca sube de rango.
+# - Se gana estilo con trucos de movimiento y con combate (repetir el mismo truco rinde menos).
+# - Subir de rango: las acrobacias solo suben hasta S; desde ahí hace falta daño, un parry o un shine.
+#   Correr y las acciones de daño "débiles" (ataques ligeros salvo el remate, la estocada del dash
+#   attack) llenan la barra pero nunca suben de rango.
 # - El estilo baja solo (más rápido cuanto más alto) y cae fuerte al recibir golpes.
 # - Desde el rango A Rengar es IMPARABLE: los golpes le quitan vida pero no lo frenan, a cambio de
 #   bajar dos rangos (en A y S aguanta un golpe; en SS y SSS, dos).
@@ -15,6 +17,8 @@ signal logged(text: String, color: Color, stale: bool, chain: String, count: int
 # Estilo quitado por un golpe (no el desgaste normal): el HUD lo marca en rojo.
 signal penalized(before: float, after: float)
 signal unstoppable_changed(active: bool)
+# Una ganancia se quedó en el tope de la barra porque esa acción no puede subir de rango.
+signal promotion_blocked
 
 const RANK_POINTS := 100.0
 const RANKS := [
@@ -29,8 +33,13 @@ const RANKS := [
 ]
 const UNSTOPPABLE_RANK := 3
 const MAX_POINTS := RANK_POINTS * 7.0 - 0.01
-# Puntos por segundo al correr a toda velocidad: llenan la barra, pero para subir de rango hacen falta trucos.
+# Puntos por segundo al correr a toda velocidad: llenan la barra, pero no suben de rango.
 const RUNNING_GAIN := 15.0
+# Acrobacias: suben de rango como mucho hasta este (S); más arriba solo llenan la barra.
+const ACROBATIC_RANK_LIMIT := 4
+const ACROBATIC_KEYS := ["frontflips", "backflips", "bunnyhops", "running_walljumps", "wallride", "mantles", "wall_embeds", "bounce", "running_bounce"]
+# Acciones de daño débiles: llenan la barra pero nunca suben de rango.
+const WEAK_KEYS := ["light_hit", "dash_attack", "air_hit_weak"]
 const DRAIN_BASE := 2.0
 const DRAIN_PER_POINT := 0.045
 const DRAIN_GRACE := 0.8
@@ -81,14 +90,14 @@ func add(key: String, amount: float, label: String = "", color: Color = GOOD_COL
 	freshness[key] = max(fresh - 0.2, 0.3)
 	var gained: float = amount * fresh
 	grace = DRAIN_GRACE
-	_set_points(points + gained)
+	_add_capped(gained, _promotion_cap(key))
 	if label != "":
 		var stale: bool = fresh <= 0.55
 		logged.emit("+" + label, color.darkened(0.35) if stale else color, stale, chain, count)
 
 func add_running(delta: float) -> void:
 	# Correr llena la barra del rango actual pero nunca sube de rango: el tope es el final de la barra.
-	var cap: float = min((rank + 1) * RANK_POINTS - 0.01, MAX_POINTS)
+	var cap := _rank_top(rank)
 	if points < cap:
 		_set_points(min(points + RUNNING_GAIN * delta, cap))
 
@@ -137,6 +146,26 @@ func _on_stat(key: String, _amount: int) -> void:
 	if STAT_EVENTS.has(key):
 		var data: Array = STAT_EVENTS[key]
 		add(key, data[0], data[1])
+
+func _promotion_cap(key: String) -> float:
+	if key in WEAK_KEYS:
+		return _rank_top(rank)
+	if key in ACROBATIC_KEYS:
+		return _rank_top(max(rank, ACROBATIC_RANK_LIMIT))
+	return MAX_POINTS
+
+func _add_capped(gained: float, cap: float) -> void:
+	# Nunca resta: si ya se está por encima del tope (o en él), la acción no suma más.
+	var target: float = points + gained
+	if target > cap:
+		if cap < MAX_POINTS:
+			promotion_blocked.emit()
+		target = max(cap, points)
+	_set_points(target)
+
+func _rank_top(index: int) -> float:
+	# Último punto de la barra de ese rango (sin pasar al siguiente).
+	return min((index + 1) * RANK_POINTS - 0.01, MAX_POINTS)
 
 func _rank_floor(index: int) -> float:
 	return max(index, 0) * RANK_POINTS

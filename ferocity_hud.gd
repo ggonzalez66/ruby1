@@ -6,6 +6,8 @@ extends Control
 # - Cada vez que una acción encadenada suma (x2, x3...), su línea destella en dorado y da un salto.
 # - Si un golpe quita estilo, la barra se marca en rojo; al bajar de rango, rango y barra tiemblan
 #   y se desmoronan en astillas.
+# - Si una acción no puede subir de rango (acrobacia desde S, golpe débil, correr) y la barra está en
+#   el tope, el final de la barra destella en blanco: hace falta daño, un parry o un shine.
 
 const PANEL_WIDTH := 280.0
 const BAR_WIDTH := 200.0
@@ -28,6 +30,8 @@ var rest: Label
 var bar_root: Control
 var bar_fill: ColorRect
 var bar_loss: ColorRect
+var bar_cap: ColorRect
+var cap_flash := 0.0
 var unstoppable_label: Label
 var log_box: VBoxContainer
 var shard_layer: Control
@@ -80,6 +84,12 @@ func _ready() -> void:
 	bar_fill = ColorRect.new()
 	bar_fill.size = Vector2(0, 6)
 	bar_root.add_child(bar_fill)
+	# Tope de la barra: destella cuando una acción no puede pasar al rango siguiente.
+	bar_cap = ColorRect.new()
+	bar_cap.color = Color(1, 1, 1, 0)
+	bar_cap.position = Vector2(BAR_WIDTH - 4, -3)
+	bar_cap.size = Vector2(4, 12)
+	bar_root.add_child(bar_cap)
 	unstoppable_label = _label("IMPARABLE", 15, Color.WHITE)
 	unstoppable_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	unstoppable_label.position = Vector2(0, 92)
@@ -98,6 +108,7 @@ func _ready() -> void:
 	Ferocity.logged.connect(_on_logged)
 	Ferocity.rank_changed.connect(_on_rank_changed)
 	Ferocity.penalized.connect(_on_penalized)
+	Ferocity.promotion_blocked.connect(func(): cap_flash = 0.4)
 
 func _process(delta: float) -> void:
 	var real_delta: float = delta / max(Engine.time_scale, 0.01)
@@ -151,6 +162,10 @@ func _update_bar(color: Color, real_delta: float) -> void:
 		bar_fill.color = Color(1.0, 0.85, 0.8) if blink else LOSS_COLOR
 	else:
 		bar_fill.color = color
+	cap_flash = max(cap_flash - real_delta, 0.0)
+	bar_cap.color = Color(1, 1, 1, cap_flash / 0.4)
+	if cap_flash > 0.0 and bar_flash <= 0.0:
+		bar_fill.color = bar_fill.color.lerp(Color.WHITE, cap_flash)
 	loss_timer = max(loss_timer - real_delta, 0.0)
 	var loss_width: float = lerp(fill_width, loss_from, ease(loss_timer / LOSS_TIME, 0.6)) if loss_timer > 0.0 else fill_width
 	bar_loss.size.x = max(loss_width, fill_width)

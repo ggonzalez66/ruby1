@@ -1,12 +1,15 @@
 extends CanvasLayer
 
-# Menú de pausa (Esc / Start): reanudar, volumen de música y remapeo de teclado y mando.
+# Menú de pausa (Esc / Start): reanudar, volumen de música, tutoriales sí/no y remapeo de teclado y mando.
 # Funciona con el juego pausado. Los ajustes se guardan en user://settings.cfg.
 
 const SETTINGS_PATH := "user://settings.cfg"
+const TUTORIAL_SIGN := preload("res://tutorial_sign.gd")
+const MAIN_MENU := "res://main_menu.tscn"
 # Al cambiar el esquema por defecto se sube la versión: los controles guardados con una
-# versión anterior se ignoran (el volumen sí se conserva).
-const INPUT_VERSION := 2
+# versión anterior se ignoran (el volumen sí se conserva), salvo los de la versión 2, que se cargan
+# pasando "Lanzar cuchillo" del mando a su nuevo botón por defecto (LT).
+const INPUT_VERSION := 3
 const MUSIC_BUS := &"Music"
 
 const OVERLAY_COLOR := Color(0.01, 0.04, 0.03, 0.62)
@@ -18,6 +21,11 @@ const TEXT_COLOR := Color(0.93, 1.0, 0.86)
 const WAITING_COLOR := Color(1.0, 0.85, 0.4)
 
 enum Device { KEYBOARD, JOYPAD }
+
+# En el menú principal solo se usa su página de opciones: no pausa ni se abre con Pausa, y al volver
+# de las opciones se cierra (señal closed).
+signal closed
+@export var menu_mode := false
 
 # Acciones que se pueden remapear, en el orden en que aparecen.
 const REMAP_ACTIONS := [
@@ -44,6 +52,7 @@ var remap_rows: VBoxContainer
 var resume_button: Button
 var music_slider: HSlider
 var music_value_label: Label
+var tutorials_button: Button
 
 var remap_device := Device.KEYBOARD
 var waiting_action := ""
@@ -86,6 +95,9 @@ func _refresh_row_texts() -> void:
 			button.text = _binding_text(action)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if menu_mode:
+		_menu_mode_input(event)
+		return
 	var back: bool = event.is_action_pressed("pause") or (get_tree().paused and event.is_action_pressed("ui_cancel"))
 	if not back:
 		return
@@ -99,6 +111,19 @@ func _unhandled_input(event: InputEvent) -> void:
 	else:
 		_resume()
 
+func _menu_mode_input(event: InputEvent) -> void:
+	if not root_control.visible or not (event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel")):
+		return
+	get_viewport().set_input_as_handled()
+	if remap_page.visible:
+		_show_options_page()
+	else:
+		_show_main_page()
+
+func open_options() -> void:
+	root_control.visible = true
+	_show_options_page()
+
 func _open() -> void:
 	get_tree().paused = true
 	root_control.visible = true
@@ -108,7 +133,17 @@ func _resume() -> void:
 	root_control.visible = false
 	get_tree().paused = false
 
+func _go_to_main_menu() -> void:
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	get_tree().change_scene_to_file(MAIN_MENU)
+
 func _show_main_page() -> void:
+	if menu_mode:
+		_stop_waiting()
+		root_control.visible = false
+		closed.emit()
+		return
 	options_page.visible = false
 	remap_page.visible = false
 	main_page.visible = true
@@ -158,6 +193,7 @@ func _build() -> void:
 	resume_button = _button("Reanudar", _resume)
 	main_page.add_child(resume_button)
 	main_page.add_child(_button("Opciones", _show_options_page))
+	main_page.add_child(_button("Menú principal", _go_to_main_menu))
 
 	# Página de opciones.
 	options_page = _page(pages)
@@ -181,6 +217,10 @@ func _build() -> void:
 	music_value_label.custom_minimum_size = Vector2(48, 0)
 	music_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(music_value_label)
+	options_page.add_child(_label("Juego", 18, Color(0.7, 0.9, 0.62)))
+	tutorials_button = _button("", _toggle_tutorials)
+	options_page.add_child(tutorials_button)
+	_refresh_tutorials_button()
 	options_page.add_child(_label("Controles", 18, Color(0.7, 0.9, 0.62)))
 	options_page.add_child(_button("Mapear teclado", _show_remap_page.bind(Device.KEYBOARD)))
 	options_page.add_child(_button("Mapear control", _show_remap_page.bind(Device.JOYPAD)))
@@ -334,6 +374,19 @@ func _event_name(event: InputEvent) -> String:
 		return "%s %s" % [axis_name, "+" if event.axis_value > 0.0 else "-"]
 	return "?"
 
+func _restore_joypad_default(action: String) -> void:
+	# Deja la acción con sus botones de mando por defecto y se los quita a otras acciones que los usen.
+	for existing in InputMap.action_get_events(action):
+		if existing is InputEventJoypadButton or existing is InputEventJoypadMotion:
+			InputMap.action_erase_event(action, existing)
+	for event in default_events[action]:
+		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+			for entry in REMAP_ACTIONS:
+				for other in InputMap.action_get_events(entry[0]):
+					if _same_input(other, event):
+						InputMap.action_erase_event(entry[0], other)
+			InputMap.action_add_event(action, event.duplicate())
+
 func _store_default_events() -> void:
 	for entry in REMAP_ACTIONS:
 		var copies := []
@@ -361,6 +414,14 @@ func _on_music_volume_changed(value: float) -> void:
 	music_value_label.text = "%d%%" % int(value)
 	_save_settings()
 
+func _toggle_tutorials() -> void:
+	TUTORIAL_SIGN.enabled = not TUTORIAL_SIGN.enabled
+	_refresh_tutorials_button()
+	_save_settings()
+
+func _refresh_tutorials_button() -> void:
+	tutorials_button.text = "Tutoriales: %s" % ("Sí" if TUTORIAL_SIGN.enabled else "No")
+
 func _apply_music_volume(linear: float) -> void:
 	var bus := AudioServer.get_bus_index(MUSIC_BUS)
 	if bus < 0:
@@ -375,16 +436,23 @@ func _load_settings() -> void:
 	var volume: float = 1.0
 	if config.load(SETTINGS_PATH) == OK:
 		volume = clamp(float(config.get_value("audio", "music_volume", 1.0)), 0.0, 1.0)
-		if int(config.get_value("input", "version", 1)) == INPUT_VERSION:
+		TUTORIAL_SIGN.enabled = bool(config.get_value("game", "tutorials", true))
+		var saved_version := int(config.get_value("input", "version", 1))
+		if saved_version == INPUT_VERSION:
 			_load_bindings(config)
+		elif saved_version == 2:
+			_load_bindings(config)
+			_restore_joypad_default("throw_knife")
 	music_slider.set_value_no_signal(volume * 100.0)
 	music_value_label.text = "%d%%" % int(volume * 100.0)
 	_apply_music_volume(volume)
+	_refresh_tutorials_button()
 
 func _save_settings() -> void:
 	var config := ConfigFile.new()
 	config.load(SETTINGS_PATH)
 	config.set_value("audio", "music_volume", music_slider.value / 100.0)
+	config.set_value("game", "tutorials", TUTORIAL_SIGN.enabled)
 	config.set_value("input", "version", INPUT_VERSION)
 	for entry in REMAP_ACTIONS:
 		var action: String = entry[0]

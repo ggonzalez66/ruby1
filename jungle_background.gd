@@ -14,6 +14,8 @@ const FIREFLY_COLOR := Color(0.85, 1.0, 0.55, 0.9)
 const HIGH_SKY_TOP := Color(0.17, 0.1, 0.16)
 const HIGH_SKY_BOTTOM := Color(0.86, 0.56, 0.26)
 const HIGH_RAY_COLOR := Color(1.0, 0.82, 0.5, 0.06)
+# Altura extra (0..1) sumada a la de la cámara: el Gauntlet, de un solo piso, se ve como la cima.
+@export var altitude_offset := 0.0
 const TOWER_HEIGHT := 5500.0
 
 var sky: Polygon2D
@@ -70,7 +72,7 @@ func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_2d()
 	if camera == null:
 		return
-	var ratio: float = clamp(-camera.get_screen_center_position().y / TOWER_HEIGHT, 0.0, 1.0)
+	var ratio: float = clamp(-camera.get_screen_center_position().y / TOWER_HEIGHT + altitude_offset, 0.0, 1.0)
 	if abs(ratio - height_ratio) < 0.002:
 		return
 	height_ratio = ratio
