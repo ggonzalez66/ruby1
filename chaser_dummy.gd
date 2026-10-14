@@ -195,7 +195,9 @@ func _check_swing_hit(player: Node2D) -> void:
 		return
 	var dx: float = (player.global_position.x - global_position.x) * facing
 	var dy: float = player.global_position.y - global_position.y
-	if dx > -10.0 and dx < attack_reach and abs(dy) < 44.0:
+	# Con el rugido activo, que la cuchilla toque su aura ya cuenta (el golpe se parrea).
+	var blade_reaches_aura: bool = player.has_method("parry_reaches") and player.parry_reaches(arm.global_position, arm.to_global(Vector2(94, 0)))
+	if blade_reaches_aura or (dx > -10.0 and dx < attack_reach and abs(dy) < 44.0):
 		swing_hit_done = true
 		player.take_damage(attack_damage, global_position + Vector2(0, -26), self)
 

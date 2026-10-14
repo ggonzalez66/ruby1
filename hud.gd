@@ -19,6 +19,9 @@ var elapsed_time := 0.0
 var timer_main_label: Label
 var timer_millis_label: Label
 var knife_icon: TextureRect
+# Parpadeo rojo del icono del cuchillo al intentar atacar sin él.
+var knife_warn_timer := 0.0
+var knife_in_hand := true
 var boss_indicator: Control
 var boss_indicator_style: StyleBoxFlat
 var boss_view: SubViewport
@@ -54,6 +57,7 @@ func _process(delta: float) -> void:
 	_update_timer_text()
 	_update_boss_indicator()
 	_update_boss_banner()
+	_update_knife_warning(delta)
 
 func _build_boss_banner() -> void:
 	# Presentación del guardián al empezar el combate: nombre grande y subtítulo entre dos líneas.
@@ -375,13 +379,26 @@ func _connect_player() -> void:
 		return
 	player.health_changed.connect(_on_health_changed)
 	player.knife_changed.connect(_on_knife_changed)
+	player.knife_missing.connect(func(): knife_warn_timer = 0.6)
 	player.died.connect(_on_player_died)
 	player.respawned.connect(_on_player_respawned)
 	_on_health_changed(player.current_health, player.max_health)
 	_on_knife_changed(player.has_knife)
 
 func _on_knife_changed(in_hand: bool) -> void:
+	knife_in_hand = in_hand
+	if in_hand:
+		knife_warn_timer = 0.0
 	knife_icon.modulate = Color.WHITE if in_hand else Color(0.4, 0.45, 0.4, 0.35)
+
+func _update_knife_warning(delta: float) -> void:
+	if knife_warn_timer <= 0.0:
+		return
+	knife_warn_timer = max(knife_warn_timer - delta / max(Engine.time_scale, 0.01), 0.0)
+	var blink: bool = int(knife_warn_timer * 16.0) % 2 == 0
+	knife_icon.modulate = Color(1.0, 0.25, 0.2) if blink and knife_warn_timer > 0.0 else Color(0.4, 0.45, 0.4, 0.35)
+	if knife_warn_timer == 0.0:
+		_on_knife_changed(knife_in_hand)
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	var ratio: float = clamp(float(current) / float(max(maximum, 1)), 0.0, 1.0)

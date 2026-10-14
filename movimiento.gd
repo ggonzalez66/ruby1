@@ -2,6 +2,8 @@ extends CharacterBody2D
 
 signal health_changed(current: int, maximum: int)
 signal knife_changed(in_hand: bool)
+# Se intentó un ataque que necesita el cuchillo sin tenerlo (para el aviso del HUD).
+signal knife_missing
 signal died
 signal respawned
 
@@ -18,6 +20,7 @@ const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/reng_li
 const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-heavy.png")
 const KNIFE_SCRIPT := preload("res://knife.gd")
 const METATRON_SCRIPT := preload("res://metatron_cube.gd")
+const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
 const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
@@ -206,16 +209,19 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var mantle_forward := 14.0
 @export var mantle_duration := 0.14
 @export var roar_explosive_duration := 0.16
-@export var riposte_duration := 1.0
-# La ventana del riposte a distancia dura el doble que la del riposte cuerpo a cuerpo.
-@export var ranged_riposte_duration := 2.0
-# Curaciones en combate: conectar el riposte (una vez por riposte, aunque golpee a varios) y recuperar
-# el cuchillo del riposte a distancia si golpeó algo (cura menos).
+# Riposte: tras un parry o devolver un proyectil, el siguiente heavy o cuchillo lanzado sale potenciado
+# (doble daño y cura). Lo que se use primero consume la bonificación.
+@export var riposte_duration := 1.5
+# Curaciones en combate: conectar el heavy del riposte (una vez, aunque golpee a varios) y sacar el
+# cuchillo del riposte tras haber golpeado (cura menos).
 @export var riposte_heal := 20
-@export var ranged_riposte_heal := 10
+@export var knife_riposte_heal := 10
 @export var roar_stall_duration := 1.0
 @export var roar_lock_duration := 0.25
 @export var roar_radius := 46.0
+# Parry cuerpo a cuerpo con el radio del aura del rugido (igual que los proyectiles). En false, el parry
+# solo ocurre si el golpe llega al cuerpo de Rengar (como era antes).
+@export var parry_uses_aura_radius := true
 @export var roar_momentum_keep := 0.15
 # En el aire: si el rugido se suelta (o se cancela saltando) dentro de esta ventana desde que empezó
 # y se mantiene correr, se recupera la velocidad de carrera que se llevaba. Parrys sin frenar.
@@ -289,6 +295,7 @@ var light_combo_queued := false
 var jump_cut_available := false
 var has_knife := true
 var thrown_knife: Node2D
+var knife_missing_cue: Node2D
 var knife_throw_pose_timer := 0.0
 var mantle_active := false
 var mantle_elapsed := 0.0
@@ -311,8 +318,6 @@ var roar_aura: Node2D
 var roar_aura_spin := 0.0
 var hitstop_end_msec := 0
 var riposte_timer := 0.0
-# Riposte a distancia: tras devolver un proyectil, el siguiente cuchillo sale potenciado.
-var ranged_riposte_timer := 0.0
 # Rebotes del heavy aéreo encadenados sin tocar el suelo ("REBOTE x3").
 var bounce_chain := 0
 var dead := false
@@ -826,7 +831,6 @@ func _update_timers(delta: float) -> void:
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
 	riposte_timer = max(riposte_timer - delta, 0.0)
-	ranged_riposte_timer = max(ranged_riposte_timer - delta, 0.0)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
 		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
@@ -1315,15 +1319,11 @@ func heal(amount: int) -> int:
 	return healed
 
 func _update_riposte_visual() -> void:
-	# Brillo rojo-dorado pulsante mientras el riposte está disponible; rojo parpadeante el de distancia.
+	# Brillo rojo-dorado pulsante mientras el riposte está disponible.
 	if riposte_timer > 0.0:
 		var pulse: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 45.0)
 		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.35, 0.12))
 		charge_glow_material.set_shader_parameter("glow_amount", lerp(0.35, 0.8, pulse))
-	elif ranged_riposte_timer > 0.0:
-		var blink: bool = int(Time.get_ticks_msec() / 70) % 2 == 0
-		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.1, 0.06))
-		charge_glow_material.set_shader_parameter("glow_amount", 0.8 if blink else 0.3)
 	elif unstoppable_glow:
 		# Parpadeo rápido entre blanco y el color del rango, como el speed booster de Samus.
 		var rank_color: Color = Ferocity.rank_info()["color"]
@@ -1403,14 +1403,19 @@ func _on_knife_input(move_input: float) -> void:
 		if is_instance_valid(thrown_knife):
 			thrown_knife.recall()
 		return
+	# Con el riposte disponible, lanzar el cuchillo cancela el rugido (igual que el heavy).
+	if roar_active and riposte_timer > 0.0:
+		_end_roar()
 	if _blocks_actions() or wall_embedded or _is_attack_active() or dash_timer > 0.0 or hurt_lock_timer > 0.0:
 		return
 	var knife := KNIFE_SCRIPT.new()
-	# Riposte a distancia: el cuchillo sale potenciado (y a velocidad de carrera).
-	knife.empowered = ranged_riposte_timer > 0.0
-	ranged_riposte_timer = 0.0
+	# Riposte: el cuchillo consume la bonificación y sale potenciado (y a velocidad de carrera).
+	knife.empowered = riposte_timer > 0.0
+	riposte_timer = 0.0
 	get_parent().add_child(knife)
-	knife.launch(self, global_position + Vector2(facing * 12.0, -22.0), _get_knife_throw_velocity(move_input, knife.empowered))
+	var throw_velocity := _get_knife_throw_velocity(move_input, knife.empowered)
+	var side: float = sign(throw_velocity.x) if throw_velocity.x != 0.0 else float(facing)
+	knife.launch(self, global_position + Vector2(side * 12.0, -22.0), throw_velocity)
 	thrown_knife = knife
 	Stats.add("knife_throws")
 	has_knife = false
@@ -1430,9 +1435,13 @@ func _get_knife_throw_velocity(move_input: float, empowered: bool = false) -> Ve
 		throw_velocity = knife_throw_diagonal_down
 	elif down:
 		throw_velocity = knife_throw_down
-	var result := Vector2(throw_velocity.x * facing, throw_velocity.y)
-	if is_sprinting or long_jump_active or empowered:
-		# Corriendo, Rengar alcanzaría su propio cuchillo: sale el doble de rápido (y el del riposte, siempre).
+	# Hacia donde se aprieta, aunque Rengar mire o corra hacia el otro lado (se puede lanzar hacia atrás).
+	var side: int = int(sign(move_input)) if sideways else facing
+	var result := Vector2(throw_velocity.x * side, throw_velocity.y)
+	var running_with_it: bool = (is_sprinting or long_jump_active) and side == int(sign(velocity.x))
+	if running_with_it or empowered:
+		# Corriendo hacia ese lado, Rengar alcanzaría su propio cuchillo: sale el doble de rápido (y el del
+		# riposte, siempre).
 		result.x *= knife_running_multiplier
 	return result
 
@@ -1444,9 +1453,24 @@ func on_knife_caught(knife: Node = null) -> void:
 	has_knife = true
 	thrown_knife = null
 	knife_changed.emit(true)
-	if knife and knife.empowered and knife.hit_any:
-		Fx.impact(get_parent(), global_position + Vector2(0, -16), Fx.ROAR, 1.2)
-		heal(ranged_riposte_heal)
+
+func _show_knife_missing() -> void:
+	# Aviso sobre Rengar (cuchillo tachado + flecha hacia él + tecla de recall), el cuchillo resaltado
+	# donde quedó y el icono del HUD.
+	if is_instance_valid(knife_missing_cue):
+		knife_missing_cue.restart()
+	else:
+		knife_missing_cue = KNIFE_MISSING_CUE_SCRIPT.new()
+		knife_missing_cue.player = self
+		add_child(knife_missing_cue)
+	if is_instance_valid(thrown_knife):
+		thrown_knife.highlight()
+	knife_missing.emit()
+
+func on_riposte_knife_pulled() -> void:
+	# Cuchillo del riposte que ya golpeó: cura al sacarlo (al llamarlo de vuelta).
+	Fx.impact(get_parent(), global_position + Vector2(0, -16), Fx.ROAR, 1.2)
+	heal(knife_riposte_heal)
 
 func on_knife_shined(knife: Node) -> void:
 	# Shine knife: el cuchillo que volvía sale disparado otra vez contra el enemigo.
@@ -1624,8 +1648,16 @@ func _roar_explosive_hits() -> void:
 
 func on_projectile_reflected() -> void:
 	_apply_hitstop(0.04)
-	# Riposte a distancia: el próximo cuchillo lanzado en esta ventana sale potenciado.
-	ranged_riposte_timer = ranged_riposte_duration
+	# Devolver un proyectil abre el riposte, igual que un parry.
+	riposte_timer = riposte_duration
+
+func parry_reaches(from: Vector2, to: Vector2) -> bool:
+	# Los enemigos cuerpo a cuerpo preguntan si su arma (segmento en coordenadas globales) toca el aura
+	# durante los frames explosivos del rugido: si es así, su golpe se trata como si llegara (y se desvía).
+	if not parry_uses_aura_radius or not _is_roar_invincible():
+		return false
+	var center := get_roar_center()
+	return Geometry2D.get_closest_point_to_segment(center, from, to).distance_to(center) <= roar_radius
 
 func is_roar_aura_active() -> bool:
 	return roar_active and (roar_explosive_timer > 0.0 or roar_aura_on)
@@ -1933,6 +1965,9 @@ func _on_attack_input() -> void:
 	var combo_open: bool = light_combo_window_timer > 0.0 and light_combo_step < 3
 	if _is_attack_active() or (attack_cooldown_timer > 0.0 and not combo_open):
 		return
+	if not has_knife:
+		_show_knife_missing()
+		return
 	_start_attack()
 
 func _can_running_attack() -> bool:
@@ -2031,7 +2066,10 @@ func _start_heavy_attack() -> void:
 		return
 	var canceling_from_spin: bool = attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window
 	# Los ataques pesados son del cuchillo: sin él no se pueden hacer.
-	if dash_timer > 0.0 or not has_knife:
+	if dash_timer > 0.0:
+		return
+	if not has_knife:
+		_show_knife_missing()
 		return
 
 	if canceling_from_spin:
@@ -2096,6 +2134,8 @@ func _start_ground_heavy_attack() -> void:
 	if ground_heavy_cooldown_timer > 0.0:
 		return
 
+	# Hacia donde se aprieta (p. ej. el riposte justo tras un parry de espaldas).
+	_face_attack_input()
 	attack_mode = ATTACK_HEAVY_GROUND
 	_consume_riposte()
 	attack_timer = ground_heavy_duration
@@ -3001,7 +3041,6 @@ func _respawn_player() -> void:
 	light_combo_queued = false
 	jump_cut_available = false
 	riposte_timer = 0.0
-	ranged_riposte_timer = 0.0
 	running_attack_cooldown_timer = 0.0
 	bounce_chain = 0
 	attack_buffered = false

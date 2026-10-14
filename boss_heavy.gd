@@ -244,6 +244,12 @@ func _update_trail() -> void:
 func _check_sword_hit(damage: int) -> void:
 	if swing_hit_done:
 		return
+	# Con el rugido activo, que la hoja toque su aura ya cuenta (el golpe se parrea).
+	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	if player and player.has_method("parry_reaches") and player.parry_reaches(visual.to_global(sword_pivot.position), sword_pivot.to_global(Vector2(BLADE_LENGTH, 0))):
+		swing_hit_done = true
+		_hit_player(player, damage)
+		return
 	for body in sword_area.get_overlapping_bodies():
 		if body.has_method("take_damage"):
 			swing_hit_done = true
@@ -257,6 +263,16 @@ func _check_sweep_hit(player: Node2D, from_angle: float, to_angle: float, damage
 		return
 	var low: float = min(from_angle, to_angle) - 0.05
 	var high: float = max(from_angle, to_angle) + 0.05
+	if player.has_method("parry_reaches"):
+		# El sector barrido contra el aura del rugido: se prueba la hoja en varios ángulos intermedios.
+		var base: Vector2 = visual.to_global(sword_pivot.position)
+		for step in range(5):
+			var angle: float = lerp(low, high, step / 4.0)
+			var tip: Vector2 = visual.to_global(sword_pivot.position + Vector2.RIGHT.rotated(angle) * BLADE_LENGTH)
+			if player.parry_reaches(base, tip):
+				swing_hit_done = true
+				_hit_player(player, damage)
+				return
 	for offset in [Vector2(0, -4), Vector2(0, -14), Vector2(0, -26)]:
 		var local: Vector2 = visual.to_local(player.global_position + offset) - sword_pivot.position
 		if local.length() > BLADE_LENGTH + 12.0:

@@ -2,8 +2,8 @@ extends Node2D
 
 # Cuchillo lanzado por Rengar: vuela en arco, se clava en enemigos o en el escenario
 # (a veces cae suelto) y vuelve a la mano al hacer recall, golpeando por el camino.
-# - Riposte a distancia (lanzado justo tras devolver un proyectil): rojo parpadeante, pega el doble
-#   y al volver a la mano cura (si golpeó algo).
+# - Riposte (lanzado justo tras un parry o devolver un proyectil): rojo parpadeante, pega el doble
+#   y al sacarlo (recall) cura, si ya golpeó algo.
 # - Shine knife: si vuelve mientras el aura del rugido está activa, sale disparado en línea recta
 #   contra el último enemigo en que estuvo clavado y se vuelve a enterrar; así se encadenan.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
@@ -50,9 +50,10 @@ var recall_hits: Array = []
 var sprite: Sprite2D
 var trail: Line2D
 var spin_direction := 1.0
-# Riposte a distancia: doble daño y cura al recuperarlo si golpeó algo.
+# Riposte: doble daño y cura al sacarlo si golpeó algo (una vez).
 var empowered := false
 var hit_any := false
+var riposte_healed := false
 # Veces que se ha shineado (Rengar o enemigos) y cuántas fueron de Rengar (para el "SHINE KNIFE xN").
 var shine_level := 0
 var player_shines := 0
@@ -61,6 +62,10 @@ var hostile_timer := 0.0
 var last_target: Node2D
 var return_direction := Vector2.ZERO
 var trail_gradient: Gradient
+# Resaltado al intentar atacar sin él: anillo rojo pulsante y destello (el rojo del aviso sobre Rengar).
+const HIGHLIGHT_TIME := 0.8
+const HIGHLIGHT_COLOR := Color(1.0, 0.25, 0.2)
+var highlight_timer := 0.0
 
 func _ready() -> void:
 	z_index = 2
@@ -99,11 +104,35 @@ func recall() -> void:
 	# Si un enemigo lo devolvió, no se puede llamar: hay que esquivarlo o shinearlo.
 	if state == State.RETURNING or state == State.HOSTILE:
 		return
+	if empowered and hit_any and not riposte_healed and is_instance_valid(player):
+		riposte_healed = true
+		player.on_riposte_knife_pulled()
 	# Al arrancarlo de un enemigo lo golpea otra vez.
 	if state == State.STUCK_ENEMY and _is_target_alive(target):
 		_recall_hit(target)
 	state = State.RETURNING
 	return_speed = RETURN_START_SPEED
+
+func highlight() -> void:
+	highlight_timer = HIGHLIGHT_TIME
+
+func _process(delta: float) -> void:
+	if highlight_timer > 0.0 or is_queued_for_deletion():
+		highlight_timer = max(highlight_timer - delta / max(Engine.time_scale, 0.01), 0.0)
+		queue_redraw()
+
+func _draw() -> void:
+	if highlight_timer <= 0.0:
+		return
+	# Anillo que late y se cierra sobre el cuchillo (sin girar con él).
+	draw_set_transform(Vector2.ZERO, -rotation, Vector2.ONE)
+	var progress: float = 1.0 - highlight_timer / HIGHLIGHT_TIME
+	var pulse: float = 0.5 + 0.5 * sin(progress * TAU * 3.0)
+	var alpha: float = clamp(highlight_timer / 0.25, 0.0, 1.0)
+	var radius: float = lerp(34.0, 20.0, progress) + 3.0 * pulse
+	draw_circle(Vector2.ZERO, radius, Color(HIGHLIGHT_COLOR, 0.12 * alpha))
+	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 32, Color(0.1, 0.03, 0.02, 0.8 * alpha), 5.0, true)
+	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 32, Color(HIGHLIGHT_COLOR, alpha), 2.5, true)
 
 func _physics_process(delta: float) -> void:
 	_update_trail()
@@ -328,6 +357,10 @@ func _update_look() -> void:
 	elif shine_level > 0:
 		trail_color = Shine.color(shine_level, true)
 		tint = Color.WHITE.lerp(trail_color, 0.35)
+	if highlight_timer > 0.0:
+		# Destello rojo parpadeante mientras está resaltado.
+		var flash: bool = int(highlight_timer * 14.0) % 2 == 0
+		tint = tint.lerp(Color(1.6, 0.45, 0.4), 0.7 if flash else 0.25)
 	sprite.modulate = tint
 	trail.width = 9.0 * (1.0 + 0.25 * min(shine_level, 4))
 	trail_gradient.set_color(0, Color(trail_color, 0.0))

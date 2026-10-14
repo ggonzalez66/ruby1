@@ -884,7 +884,7 @@ panel_width = 340
 position = Vector2(8900, -3300)
 script = ExtResource("14_sign")
 text = "Ruge justo cuando un proyectil te alcance: vuelve hacia quien lo disparó.
-Lanza el cuchillo enseguida: riposte a distancia, pega el doble y te cura al recuperarlo.
+Devolverlo abre el riposte: lanza el cuchillo enseguida, pega el doble y te cura al sacarlo.
 Ojo: a veces el tirador te lo devuelve, cada vez más fuerte."
 title = "Devolver"
 panel_width = 360
@@ -913,7 +913,7 @@ panel_width = 340
 position = Vector2(7350, -3300)
 script = ExtResource("14_sign")
 text = "Ruge justo antes de que un perseguidor te golpee: queda aturdido.
-Tu siguiente {heavy_attack} hace el doble de daño."
+Riposte: tu siguiente {heavy_attack} o cuchillo hace el doble de daño y te cura."
 title = "Parry y contraataque"
 panel_width = 340
 

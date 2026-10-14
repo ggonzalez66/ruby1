@@ -234,6 +234,9 @@ func _segment_hits_player(player: Node2D, from: Vector2, to: Vector2, radius: fl
 	# ¿Algún punto del cuerpo de Rengar está a menos de "radius" del segmento (coordenadas globales)?
 	if player == null:
 		return false
+	# Con el rugido activo, tocar su aura ya cuenta (el golpe se parrea).
+	if player.has_method("parry_reaches") and player.parry_reaches(from, to):
+		return true
 	for offset in [Vector2(0, -4), Vector2(0, -14), Vector2(0, -26)]:
 		var point: Vector2 = player.global_position + offset
 		var closest := Geometry2D.get_closest_point_to_segment(point, from, to)
