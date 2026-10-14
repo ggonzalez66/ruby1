@@ -101,7 +101,7 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 	if current_health <= 0:
 		return
 
-	current_health = max(current_health - max(damage, 1), 0)
+	current_health = max(current_health - max(damage, 0), 0)
 	flash_timer = flash_duration
 	wobble = clamp(wobble + float(direction) * 1.0, -1.0, 1.0)
 	_update_health_bar()

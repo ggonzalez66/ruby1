@@ -131,7 +131,7 @@ func is_defeated() -> bool:
 func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -> void:
 	if defeated:
 		return
-	current_health = max(current_health - max(damage, 1), 0)
+	current_health = max(current_health - max(damage, 0), 0)
 	flash_timer = 0.08
 	_update_health_bar()
 	_on_hit(damage)

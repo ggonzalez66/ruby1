@@ -225,7 +225,7 @@ func _move_horizontally(amount: float, stop_at_ledges: bool) -> void:
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
 	if state == State.DEAD:
 		return
-	current_health = max(current_health - max(damage, 1), 0)
+	current_health = max(current_health - max(damage, 0), 0)
 	flash_timer = 0.1
 	knock_velocity = direction * 200.0
 	_update_health_bar()

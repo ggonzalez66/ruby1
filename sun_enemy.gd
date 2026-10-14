@@ -108,7 +108,7 @@ func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -
 	Stats.add("sun_hits_dealt")
 	flash_timer = 0.1
 	wobble = 1.0
-	shown_health = max(shown_health - 0.12 * max(damage, 1), 0.05)
+	shown_health = max(shown_health - 0.12 * max(damage, 0), 0.05)
 	regen_timer = health_regen_delay
 
 func _update_health_bar() -> void:

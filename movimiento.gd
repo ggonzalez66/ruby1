@@ -145,6 +145,9 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var heavy_attack_start_upward_speed := -330.0
 @export var heavy_attack_arc_radius_x := 28.0
 @export var heavy_attack_arc_radius_y := 42.0
+# Arco del heavy aéreo: abajo lo cierra y abajo + adelante aún más; nunca más largo que el normal.
+@export var heavy_arc_down_factor := 0.3
+@export var heavy_arc_down_forward_factor := 0.12
 @export var charged_air_bounce_back_speed := 220.0
 @export var heavy_bounce_vertical_ratio := 0.8
 @export var light_hit_air_boost := -230.0
@@ -200,7 +203,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 # En el aire: si el rugido se suelta (o se cancela saltando) dentro de esta ventana desde que empezó
 # y se mantiene correr, se recupera la velocidad de carrera que se llevaba. Parrys sin frenar.
 @export var roar_air_momentum_grace := 0.4
-@export var roar_damage := 1
+# El rugido golpea (impacto, destello, hitstop) pero no quita vida.
+@export var roar_damage := 0
 @export var hurt_invulnerability_time := 1.0
 @export var hurt_control_lock_time := 0.25
 @export var hurt_knockback := Vector2(380.0, -320.0)
@@ -326,6 +330,8 @@ var wall_visual_direction := 0
 var attack_mode := ATTACK_NONE
 var is_charging_attack := false
 var air_uppercut_available := true
+var heavy_air_speed := 0.0
+var heavy_arc_factor := 1.0
 var heavy_attack_visual_progress := 0.0
 var heavy_ground_impact_wave_timer := 0.0
 var attack_targets_hit: Array[Area2D] = []
@@ -1843,8 +1849,18 @@ func _apply_ground_charged_movement() -> void:
 
 func _apply_heavy_attack_movement(delta: float) -> void:
 	heavy_attack_visual_progress = min(heavy_attack_visual_progress + (delta / ground_heavy_duration), 1.0)
-	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
+	# El arco se puede cerrar en plena caída con abajo (o abajo + adelante); soltando vuelve al arco normal.
+	heavy_arc_factor = move_toward(heavy_arc_factor, _heavy_arc_target(), 8.0 * delta)
+	velocity.x = facing * heavy_air_speed * heavy_arc_factor
 	_apply_gravity(delta)
+
+func _heavy_arc_target() -> float:
+	# Solo abajo cierra el arco (abajo + adelante, aún más). Adelante solo, atrás o nada: el arco de siempre,
+	# así correr con la dirección apretada no lo acorta.
+	if not Input.is_action_pressed("move_down"):
+		return 1.0
+	var forward: bool = int(sign(Input.get_axis("move_left", "move_right"))) == facing
+	return heavy_arc_down_forward_factor if forward else heavy_arc_down_factor
 
 func _apply_ground_heavy_movement() -> void:
 	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
@@ -2008,7 +2024,9 @@ func _start_heavy_attack() -> void:
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
 	heavy_attack_visual_progress = 0.0
-	velocity.x = facing * max(abs(velocity.x + facing * charged_air_forward_speed), ground_heavy_speed)
+	heavy_air_speed = max(abs(velocity.x + facing * charged_air_forward_speed), ground_heavy_speed)
+	heavy_arc_factor = _heavy_arc_target()
+	velocity.x = facing * heavy_air_speed * heavy_arc_factor
 	velocity.y = max(velocity.y, 60.0)
 	_set_attack_active(true)
 	_update_attack_animation()
