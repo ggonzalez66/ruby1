@@ -5,7 +5,7 @@
 [ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
 [ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
 [ext_resource type="Script" path="res://hud.gd" id="5_hud"]
-[ext_resource type="AudioStream" uid="uid://clc7wefdlg2yn" path="res://assets/sounds/music/testingSong.mp3" id="6_music"]
+[ext_resource type="Script" path="res://music_player.gd" id="6_music"]
 [ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
 [ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
 [ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
@@ -1263,9 +1263,8 @@ script = ExtResource("5_hud")
 
 [node name="Music" type="AudioStreamPlayer" parent="."]
 process_mode = 3
-stream = ExtResource("6_music")
+script = ExtResource("6_music")
 volume_db = -6.0
-autoplay = true
 bus = &"Music"
 
 [node name="PauseMenu" type="CanvasLayer" parent="."]

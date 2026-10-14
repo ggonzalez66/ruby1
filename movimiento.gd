@@ -204,10 +204,10 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var wall_explosion_radius := 60.0
 @export var wall_explosion_duration := 0.3
 @export var wallride_speed := 430.0
-# El wallride sube siempre la misma distancia desde donde tocas la pared, sin pasar de
-# wallride_max_height sobre el último suelo pisado (para que no se salte muros pensados para otra técnica).
+# El wallride sube siempre la misma distancia desde donde tocas la pared, aunque mantengas o sueltes el dash.
 @export var wallride_distance := 120.0
-@export var wallride_max_height := 190.0
+# Al final del wallride (y en el enganche) el agarre llega más alto: ayuda para no quedarse a un pelo del borde.
+@export var wallride_mantle_reach := 64.0
 @export var running_wall_cling_time := 0.35
 @export var running_wall_cling_slide_speed := 40.0
 @export var running_wall_jump_vertical_speed := -620.0
@@ -299,8 +299,6 @@ var wallride_risen := 0.0
 var wallride_target := 0.0
 # Altura desde la que empezó el último salto (suelo o frontflip).
 var jump_origin_y := 0.0
-# Altura del último suelo pisado: tope del wallride.
-var last_floor_y := 0.0
 # Un wallride por salto desde el suelo: entre pared y pared se usa el enganche normal.
 var wallride_available := true
 var dash_jump_buffered := false
@@ -429,7 +427,7 @@ func _physics_process(delta: float) -> void:
 			pass
 		elif _try_start_long_jump_chain(move_input):
 			pass
-		elif _try_start_frontflip():
+		elif _try_start_frontflip(move_input):
 			pass
 		elif _try_start_sprint_jump(move_input):
 			pass
@@ -548,14 +546,13 @@ func _physics_process(delta: float) -> void:
 				_start_running_wall_cling()
 	elif wall_cling_timer > 0.0 and (is_on_floor() or not is_on_wall() or not Input.is_action_pressed("dash")):
 		wall_cling_timer = 0.0
-	elif wallride_active and (is_on_floor() or not is_on_wall() or not Input.is_action_pressed("dash")):
+	elif wallride_active and (is_on_floor() or not is_on_wall()):
 		wallride_active = false
 
 	if is_on_floor():
 		frontflip_active = false
 		jump_cut_available = false
 		wallride_available = true
-		last_floor_y = global_position.y
 		if long_jump_active:
 			_land_long_jump(move_input)
 		if backflip_active:
@@ -1006,14 +1003,21 @@ func _get_flip_rotation(elapsed: float, duration: float, spin_direction: int) ->
 	var progress: float = clamp(elapsed / max(duration, 0.01), 0.0, 1.0)
 	return spin_direction * TAU * smoothstep(0.0, 1.0, progress)
 
-func _try_start_frontflip() -> bool:
-	# Doble salto durante el salto largo: frontflip sin perder la velocidad horizontal.
+func _try_start_frontflip(move_input: float) -> bool:
+	# Doble salto durante el salto largo (o tras un running walljump): frontflip sin perder la velocidad
+	# horizontal; manteniendo la dirección contraria sale un backflip hacia atrás.
 	if not long_jump_active or frontflip_active or is_on_floor() or air_jumps_remaining <= 0 or _is_attack_active() or dash_timer > 0.0:
 		return false
 	# Si va a aterrizar enseguida, se deja el salto en el buffer para encadenar el bunnyhop.
 	if velocity.y > 0.0 and test_move(global_transform, velocity * jump_buffer_time):
 		return false
 
+	if int(sign(move_input)) == -sprint_direction:
+		air_jumps_remaining -= 1
+		facing = sprint_direction
+		_update_facing_visual()
+		_start_backflip()
+		return true
 	_perform_frontflip()
 	return true
 
@@ -1048,9 +1052,7 @@ func _start_wallride() -> void:
 	wallride_available = false
 	wallride_active = true
 	wallride_risen = 0.0
-	# Distancia fija, recortada solo si superaría el tope sobre el último suelo (mínimo un pequeño tramo).
-	var room_left: float = global_position.y - (last_floor_y - wallride_max_height)
-	wallride_target = clamp(min(wallride_distance, room_left), 24.0, wallride_distance)
+	wallride_target = wallride_distance
 	wall_contact_direction = wall_cling_direction
 	wall_visual_direction = wall_cling_direction
 	facing = -wall_cling_direction
@@ -1375,7 +1377,8 @@ func _try_start_mantle(move_input: float) -> void:
 	var pushing: bool = int(sign(move_input)) == direction or _uses_sprint_movement() or velocity.x * direction > 40.0 or wallride_active or wall_cling_timer > 0.0
 	if not pushing:
 		return
-	var height := _find_mantle_height(direction)
+	var reach: float = wallride_mantle_reach if wallride_active or wall_cling_timer > 0.0 else mantle_max_height
+	var height := _find_mantle_height(direction, reach)
 	if height < 0.0:
 		return
 	mantle_keep_sprint = (is_sprinting or long_jump_active or wallride_active or wall_cling_timer > 0.0) and Input.is_action_pressed("dash")
@@ -1396,9 +1399,9 @@ func _try_start_mantle(move_input: float) -> void:
 	_update_facing_visual()
 	velocity = Vector2.ZERO
 
-func _find_mantle_height(direction: int) -> float:
+func _find_mantle_height(direction: int, reach: float) -> float:
 	var height := 4.0
-	while height <= mantle_max_height:
+	while height <= reach:
 		if test_move(global_transform, Vector2(0.0, -height)):
 			return -1.0
 		var raised := global_transform.translated(Vector2(0.0, -height))
@@ -2714,6 +2717,11 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 
 	_cancel_attack_for_chain()
 	long_jump_active = false
+	# Sin ir corriendo, mantener correr al golpear convierte el rebote en uno de carrera: sale lanzado
+	# hacia delante a velocidad de sprint y sigue corriendo (gana impulso en vez de quedarse en el sitio).
+	if hit_enemy and not is_sprinting and Input.is_action_pressed("dash"):
+		_start_sprint(facing)
+		Stats.add("running_bounces")
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
 	jump_cut_available = false

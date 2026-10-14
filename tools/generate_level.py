@@ -84,7 +84,7 @@ DUMMY = S.ext_res("PackedScene", "res://training_dummy.tscn", "2_dummy", "uid://
 SUN = S.ext_res("PackedScene", "res://sun_enemy.tscn", "3_sun")
 JUNGLE = S.ext_res("Script", "res://jungle_background.gd", "4_jungle")
 HUD = S.ext_res("Script", "res://hud.gd", "5_hud")
-MUSIC = S.ext_res("AudioStream", "res://assets/sounds/music/testingSong.mp3", "6_music", "uid://clc7wefdlg2yn")
+MUSIC = S.ext_res("Script", "res://music_player.gd", "6_music")
 PAUSE = S.ext_res("Script", "res://pause_menu.gd", "7_pause")
 HAZARD = S.ext_res("Script", "res://hazard.gd", "8_hazard")
 CHECKPOINT = S.ext_res("Script", "res://checkpoint.gd", "9_checkpoint")
@@ -415,8 +415,8 @@ S.node("BossSpawner", "Node2D", {
 S.node("Playerr", None, {"position": vec(220, G(1) - 2)}, instance=PLAYER)
 S.node("HUD", "CanvasLayer", {"script": f'ExtResource("{HUD}")'})
 S.node("Music", "AudioStreamPlayer", {
-    "process_mode": 3, "stream": f'ExtResource("{MUSIC}")', "volume_db": "-6.0",
-    "autoplay": "true", "bus": '&"Music"',
+    "process_mode": 3, "script": f'ExtResource("{MUSIC}")', "volume_db": "-6.0",
+    "bus": '&"Music"',
 })
 S.node("PauseMenu", "CanvasLayer", {"script": f'ExtResource("{PAUSE}")'})
 S.node("DemoComplete", "CanvasLayer", {"script": f'ExtResource("{DEMO}")'})
