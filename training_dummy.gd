@@ -24,6 +24,8 @@ extends Area2D
 @export var projectile_speed := 460.0
 @export var projectile_damage := 10
 @export var shoot_warning_time := 0.35
+# Probabilidad (baja) de que un tirador shinee de vuelta lo que le llega: sus proyectiles devueltos y el cuchillo.
+@export var shine_chance := 0.2
 
 const PROJECTILE_SCRIPT := preload("res://projectile.gd")
 const FALL_GRAVITY := 1500.0
@@ -31,6 +33,7 @@ const FALL_MAX_SPEED := 900.0
 # Caer más que esto (unos 2,5 saltos) hace que el dummy explote al tocar el suelo.
 const FALL_DEATH_HEIGHT := 260.0
 const SHOOT_WARNING_COLOR := Color(1.0, 0.85, 0.95)
+const SHINE_COLOR := Color(1.0, 0.45, 0.8)
 
 @onready var body: Polygon2D = $Body
 @onready var health_fill: Polygon2D = $HealthBarPivot/HealthBarFill
@@ -108,6 +111,17 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 
 	if current_health == 0:
 		_die()
+
+func try_shine(_thing: Node) -> bool:
+	# Solo los tiradores, y no siempre: lo que les llega vuelve hacia Rengar.
+	if shoot_interval <= 0.0 or current_health <= 0 or randf() >= shine_chance:
+		return false
+	Fx.shine(get_parent(), global_position + impact_offset, SHINE_COLOR, 30.0)
+	flash_timer = 0.0
+	wobble = 0.0
+	# Recarga un poco el disparo para que no dispare justo encima del shine.
+	shoot_timer = max(shoot_timer, shoot_warning_time + 0.4)
+	return true
 
 func _update_gravity(delta: float) -> void:
 	# Los dummies de suelo caen si se quedan sin suelo (por ejemplo, arrastrados por el cuchillo).

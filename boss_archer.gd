@@ -45,6 +45,8 @@ var nocked_arrow: Node2D
 func _configure() -> void:
 	body_size = Vector2(60, 230)
 	impact_offset = Vector2(0, -120)
+	# A veces devuelve con un shine las flechas devueltas y el cuchillo.
+	shine_chance = 0.2
 
 func _build_body() -> void:
 	# Piernas largas, túnica, capucha con un ojo brillante.
@@ -86,6 +88,9 @@ func _set_draw(amount: float) -> void:
 
 func _boss_process(delta: float, player: Node2D) -> void:
 	state_timer -= delta
+	if not state in [State.AIM, State.VOLLEY_AIM]:
+		# Tras un shine el arco vuelve poco a poco a su color.
+		bow_line.default_color = bow_line.default_color.lerp(BOW_COLOR, 6.0 * delta)
 	if player and state in [State.IDLE, State.RECOVER, State.AIM, State.VOLLEY_AIM]:
 		close_timer = close_timer + delta if _distance_to(player) < close_distance else max(close_timer - delta, 0.0)
 	match state:
@@ -265,6 +270,14 @@ func _on_hit(_damage: int) -> void:
 	if state == State.RAIN_AIM and randf() < 0.3:
 		_clear_markers()
 		_release()
+
+func _shine_color() -> Color:
+	return EYE_COLOR
+
+func _on_shine() -> void:
+	# El arco destella con el color del ojo.
+	bow_line.default_color = EYE_COLOR
+	Fx.text(get_parent(), global_position + Vector2(0, -260), "¡SHINE!", EYE_COLOR)
 
 func _on_defeat() -> void:
 	_clear_markers()

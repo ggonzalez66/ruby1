@@ -7,9 +7,12 @@ extends Area2D
 @export var max_health := 8
 @export var speed := 150.0
 @export var detect_range := 520.0
-# Ataca desde fuera del radio del rugido (46 px) para que se le pueda parrear en vez de golpearlo.
-@export var attack_range := 85.0
+# Empieza a atacar desde lejos (el doble que antes) para que dé tiempo a leerlo y parrearlo; al soltar
+# el zarpazo avanza de golpe hasta quedar a "strike_distance", así el golpe sigue llegando.
+@export var attack_range := 170.0
 @export var attack_reach := 104.0
+@export var strike_distance := 70.0
+@export var max_lunge := 120.0
 @export var attack_damage := 12
 @export var telegraph_time := 0.45
 @export var swing_time := 0.12
@@ -37,6 +40,7 @@ var fall_distance := 0.0
 var knock_velocity := 0.0
 var flash_timer := 0.0
 var swing_hit_done := false
+var lunge_left := 0.0
 var spawn_position := Vector2.ZERO
 
 var visual: Node2D
@@ -148,9 +152,18 @@ func _physics_process(delta: float) -> void:
 				state_timer = swing_time
 				swing_hit_done = false
 				warning_label.visible = false
+				# Avance del zarpazo: lo que falte para tener a Rengar a tiro (con tope).
+				lunge_left = 0.0
+				if player:
+					_face(player)
+					lunge_left = clamp(abs(player.global_position.x - global_position.x) - strike_distance, 0.0, max_lunge)
 		State.SWING:
 			var progress: float = clamp(1.0 - state_timer / swing_time, 0.0, 1.0)
 			arm.rotation = lerp(-1.9, 1.3, progress)
+			if lunge_left > 0.0:
+				var step: float = min(lunge_left, max_lunge / swing_time * delta)
+				lunge_left -= step
+				_move_horizontally(facing * step, true)
 			_check_swing_hit(player)
 			if state_timer <= 0.0:
 				state = State.RECOVER

@@ -154,17 +154,6 @@ position = Vector2(1990, 0)
 [node name="DummyCombo2" parent="." instance=ExtResource("2_dummy")]
 position = Vector2(2120, 0)
 
-[node name="SignCharged" type="Node2D" parent="."]
-position = Vector2(2350, 0)
-script = ExtResource("14_sign")
-text = "Mantén {attack} hasta que Rengar brille y suéltalo: ataque cargado que avanza."
-title = "Ataque cargado"
-panel_width = 320
-
-[node name="DummyCharged" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(2580, 0)
-max_health = 8
-
 [node name="SignHeavy" type="Node2D" parent="."]
 position = Vector2(2820, 0)
 script = ExtResource("14_sign")
@@ -490,6 +479,18 @@ collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(200, 180)
 style = 4
+
+[node name="SignRunAttack" type="Node2D" parent="."]
+position = Vector2(4450, -1100)
+script = ExtResource("14_sign")
+text = "Corriendo, pulsa {attack}: estocada que avanza sin perder la carrera.
+Si frenas con la dirección contraria, sale hacia ese lado. Pulsa {jump} durante la estocada para girar en el aire."
+title = "Ataque en carrera"
+panel_width = 380
+
+[node name="DummyRunAttack" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4250, -1100)
+max_health = 8
 
 [node name="ChaserF2A" type="Area2D" parent="."]
 position = Vector2(4000, -1100)
@@ -882,9 +883,11 @@ panel_width = 340
 [node name="SignReflect" type="Node2D" parent="."]
 position = Vector2(8900, -3300)
 script = ExtResource("14_sign")
-text = "Ruge justo cuando un proyectil te alcance: vuelve hacia quien lo disparó."
+text = "Ruge justo cuando un proyectil te alcance: vuelve hacia quien lo disparó.
+Lanza el cuchillo enseguida: riposte a distancia, pega el doble y te cura al recuperarlo.
+Ojo: a veces el tirador te lo devuelve, cada vez más fuerte."
 title = "Devolver"
-panel_width = 320
+panel_width = 360
 
 [node name="ShooterF4A" parent="." instance=ExtResource("2_dummy")]
 position = Vector2(8300, -3300)
@@ -898,8 +901,16 @@ aerial = true
 shoot_interval = 2.6
 shoot_direction = Vector2(1, 0.35)
 
+[node name="SignShineKnife" type="Node2D" parent="."]
+position = Vector2(7700, -3300)
+script = ExtResource("14_sign")
+text = "Ruge mientras el cuchillo vuelve hacia ti: sale disparado otra vez contra el enemigo en que estaba clavado.
+Encadénalo: recupera, ruge, recupera..."
+title = "Shine knife"
+panel_width = 340
+
 [node name="SignParry" type="Node2D" parent="."]
-position = Vector2(7450, -3300)
+position = Vector2(7350, -3300)
 script = ExtResource("14_sign")
 text = "Ruge justo antes de que un perseguidor te golpee: queda aturdido.
 Tu siguiente {heavy_attack} hace el doble de daño."
@@ -1230,7 +1241,7 @@ script = ExtResource("9_checkpoint")
 [node name="SignBoss" type="Node2D" parent="."]
 position = Vector2(9150, -5500)
 script = ExtResource("14_sign")
-text = "El guardián cambia en cada partida: pesado, ágil o arquero.
+text = "El guardián cambia en cada partida: pesado, ágil o arquero (y a veces, los tres a la vez).
 Observa sus avisos (!), ruge para desviar y castiga tras sus ataques."
 title = "Guardián"
 panel_width = 360

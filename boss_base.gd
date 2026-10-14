@@ -13,6 +13,8 @@ extends Area2D
 @export var stagger_time := 1.4
 @export var resist_chance := 0.3
 @export var block_chance := 0.0
+# Probabilidad de shinear de vuelta proyectiles devueltos y el cuchillo (0 = nunca).
+@export var shine_chance := 0.0
 
 const WARNING_COLOR := Color(1.0, 0.25, 0.2)
 const HIT_FLASH := Color(1.0, 0.5, 0.45)
@@ -87,7 +89,7 @@ func _physics_process(delta: float) -> void:
 	if defeated:
 		return
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D
-	if not combat_started and _player_engaged(player):
+	if not combat_started and (_player_engaged(player) or _ally_in_combat()):
 		combat_started = true
 	_boss_process(delta, player)
 
@@ -120,6 +122,12 @@ func _on_defeat() -> void:
 func _on_reset() -> void:
 	pass
 
+func _on_shine() -> void:
+	pass
+
+func _shine_color() -> Color:
+	return Color(1.0, 0.45, 0.8)
+
 func on_deflected(_by: Node) -> void:
 	pass
 
@@ -137,6 +145,13 @@ func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -
 	_on_hit(damage)
 	if current_health == 0:
 		_defeat()
+
+func try_shine(_thing: Node) -> bool:
+	if defeated or shine_chance <= 0.0 or randf() >= shine_chance:
+		return false
+	Fx.shine(get_parent(), global_position + impact_offset, _shine_color(), 48.0)
+	_on_shine()
+	return true
 
 func try_block(_source_position: Vector2) -> bool:
 	# Bloquea algunos golpes ligeros sin cargar cuando no está atacando.
@@ -161,6 +176,10 @@ func _defeat() -> void:
 func _show_demo_complete() -> void:
 	if not defeated:
 		return
+	# En el trío, la torre se completa al caer el último.
+	for other in get_tree().get_nodes_in_group(&"boss"):
+		if not other.is_defeated():
+			return
 	var screen := get_tree().get_first_node_in_group(&"demo_complete")
 	if screen:
 		screen.show_results()
@@ -194,6 +213,13 @@ func _player_engaged(player: Node2D) -> bool:
 		return false
 	var offset := player.global_position - global_position
 	return abs(offset.x) < engage_distance and abs(offset.y) < 300.0
+
+func _ally_in_combat() -> bool:
+	# En el trío, en cuanto uno entra en combate entran todos.
+	for other in get_tree().get_nodes_in_group(&"boss"):
+		if other != self and other.combat_started and not other.is_defeated():
+			return true
+	return false
 
 func _face(player: Node2D) -> void:
 	if player == null:

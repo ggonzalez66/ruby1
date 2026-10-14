@@ -130,7 +130,6 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var claw_outer_radius := 60.0
 @export var claw_start_angle_degrees := -80.0
 @export var claw_end_angle_degrees := 65.0
-@export var attack_charge_time := 0.55
 @export var charged_attack_cooldown := 0.5
 @export var charged_ground_duration := 0.22
 @export var charged_ground_lunge_speed := 980.0
@@ -194,8 +193,10 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var mantle_duration := 0.14
 @export var roar_explosive_duration := 0.16
 @export var riposte_duration := 1.0
-# Única curación en combate: conectar el riposte (una vez por riposte, aunque golpee a varios).
+# Curaciones en combate: conectar el riposte (una vez por riposte, aunque golpee a varios) y recuperar
+# el cuchillo del riposte a distancia si golpeó algo (cura menos).
 @export var riposte_heal := 20
+@export var ranged_riposte_heal := 10
 @export var roar_stall_duration := 1.0
 @export var roar_lock_duration := 0.25
 @export var roar_radius := 46.0
@@ -249,7 +250,6 @@ var jump_buffer_timer := 0.0
 var attack_timer := 0.0
 var attack_cooldown_timer := 0.0
 var ground_heavy_cooldown_timer := 0.0
-var charge_timer := 0.0
 var dash_timer := 0.0
 var dash_cooldown_timer := 0.0
 var dash_direction := 1
@@ -295,6 +295,10 @@ var roar_aura: Node2D
 var roar_aura_spin := 0.0
 var hitstop_end_msec := 0
 var riposte_timer := 0.0
+# Riposte a distancia: tras devolver un proyectil, el siguiente cuchillo sale potenciado.
+var ranged_riposte_timer := 0.0
+# Rebotes del heavy aéreo encadenados sin tocar el suelo ("REBOTE x3").
+var bounce_chain := 0
 var dead := false
 var death_spin := 0.0
 var death_rest_angle := 0.0
@@ -328,7 +332,8 @@ var wall_jump_animation_timer := 0.0
 var wall_contact_direction := 0
 var wall_visual_direction := 0
 var attack_mode := ATTACK_NONE
-var is_charging_attack := false
+# Ataque pulsado durante el dash: sale al terminarlo.
+var attack_buffered := false
 var air_uppercut_available := true
 var heavy_air_speed := 0.0
 var heavy_arc_factor := 1.0
@@ -399,7 +404,7 @@ func _ready() -> void:
 	hitbox.area_entered.connect(_on_hitbox_area_entered)
 	_update_facing_visual()
 	_set_attack_active(false)
-	_set_charge_visual_active(false)
+	charge_glow_material.set_shader_parameter("glow_amount", 0.0)
 	_set_dash_visual_active(false)
 	_set_impact_wave_active(false)
 	_update_character_animation()
@@ -410,7 +415,6 @@ func _physics_process(delta: float) -> void:
 		return
 	var was_on_floor: bool = is_on_floor()
 	_update_wall_state()
-	var was_wall_sliding: bool = _is_wall_sliding()
 	_update_timers(delta)
 	var move_input: float = Input.get_axis("move_left", "move_right")
 
@@ -454,7 +458,7 @@ func _physics_process(delta: float) -> void:
 				dash_jump_buffered = true
 
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
-		_begin_attack_charge()
+		_on_attack_input()
 
 	if Input.is_action_just_pressed("heavy_attack"):
 		# Tras un parry, el pesado cancela el rugido para contraatacar al instante.
@@ -469,11 +473,6 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("respawn"):
 		_respawn_player()
 		return
-
-	if is_charging_attack:
-		_update_attack_charge(delta)
-		if Input.is_action_just_released("attack"):
-			_release_attack_charge(was_on_floor, was_wall_sliding)
 
 	if Input.is_action_just_pressed("dash"):
 		if roar_active and dash_cooldown_timer <= 0.0:
@@ -535,7 +534,6 @@ func _physics_process(delta: float) -> void:
 		_apply_horizontal_movement(move_input, delta)
 
 	_update_attack_animation()
-	_update_charge_visual()
 	_update_riposte_visual()
 	_update_dash_visual()
 	_update_impact_wave_visual()
@@ -570,6 +568,7 @@ func _physics_process(delta: float) -> void:
 		frontflip_active = false
 		jump_cut_available = false
 		wallride_available = true
+		bounce_chain = 0
 		if long_jump_active:
 			_land_long_jump(move_input)
 		if backflip_active:
@@ -718,8 +717,6 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_WALL_SLIDE
 	elif long_jump_squat_timer > 0.0 or long_jump_active:
 		next_animation = ANIMATION_LONG_JUMP
-	elif is_charging_attack and is_on_floor() and abs(velocity.x) <= 10.0:
-		next_animation = ANIMATION_CHARGE_IDLE
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
 	elif is_sprinting and sprint_turn_timer > 0.0:
@@ -805,6 +802,7 @@ func _update_timers(delta: float) -> void:
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
 	riposte_timer = max(riposte_timer - delta, 0.0)
+	ranged_riposte_timer = max(ranged_riposte_timer - delta, 0.0)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
 		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
@@ -1069,7 +1067,7 @@ func _start_wallride() -> void:
 	wallride_available = false
 	wallride_active = true
 	wallride_risen = 0.0
-	Ferocity.add("wallride", 18.0, "WALLRIDE")
+	Ferocity.add("wallride", 9.0, "WALLRIDE")
 	wallride_target = wallride_distance
 	wall_contact_direction = wall_cling_direction
 	wall_visual_direction = wall_cling_direction
@@ -1162,10 +1160,6 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	if dash_timer > 0.0:
 		dash_timer = 0.0
 		_set_dash_visual_active(false)
-	if is_charging_attack:
-		is_charging_attack = false
-		charge_timer = 0.0
-		_set_charge_visual_active(false)
 	if _is_attack_active():
 		_cancel_attack_for_chain()
 	var push_direction: float = sign(global_position.x - source_position.x)
@@ -1230,9 +1224,6 @@ func _cancel_all_states() -> void:
 	wallride_active = false
 	wall_embedded = false
 	mantle_active = false
-	is_charging_attack = false
-	charge_timer = 0.0
-	_set_charge_visual_active(false)
 	if dash_timer > 0.0:
 		dash_timer = 0.0
 		_set_dash_visual_active(false)
@@ -1300,13 +1291,15 @@ func heal(amount: int) -> int:
 	return healed
 
 func _update_riposte_visual() -> void:
-	# Brillo rojo-dorado pulsante mientras el riposte está disponible (el de carga es amarillo).
-	if is_charging_attack:
-		return
+	# Brillo rojo-dorado pulsante mientras el riposte está disponible; rojo parpadeante el de distancia.
 	if riposte_timer > 0.0:
 		var pulse: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 45.0)
 		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.35, 0.12))
 		charge_glow_material.set_shader_parameter("glow_amount", lerp(0.35, 0.8, pulse))
+	elif ranged_riposte_timer > 0.0:
+		var blink: bool = int(Time.get_ticks_msec() / 70) % 2 == 0
+		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.1, 0.06))
+		charge_glow_material.set_shader_parameter("glow_amount", 0.8 if blink else 0.3)
 	elif unstoppable_glow:
 		# Parpadeo rápido entre blanco y el color del rango, como el speed booster de Samus.
 		var rank_color: Color = Ferocity.rank_info()["color"]
@@ -1386,20 +1379,19 @@ func _on_knife_input(move_input: float) -> void:
 		return
 	if _blocks_actions() or wall_embedded or _is_attack_active() or dash_timer > 0.0 or hurt_lock_timer > 0.0:
 		return
-	if is_charging_attack:
-		is_charging_attack = false
-		charge_timer = 0.0
-		_set_charge_visual_active(false)
 	var knife := KNIFE_SCRIPT.new()
+	# Riposte a distancia: el cuchillo sale potenciado (y a velocidad de carrera).
+	knife.empowered = ranged_riposte_timer > 0.0
+	ranged_riposte_timer = 0.0
 	get_parent().add_child(knife)
-	knife.launch(self, global_position + Vector2(facing * 12.0, -22.0), _get_knife_throw_velocity(move_input))
+	knife.launch(self, global_position + Vector2(facing * 12.0, -22.0), _get_knife_throw_velocity(move_input, knife.empowered))
 	thrown_knife = knife
 	Stats.add("knife_throws")
 	has_knife = false
 	knife_throw_pose_timer = 0.15
 	knife_changed.emit(false)
 
-func _get_knife_throw_velocity(move_input: float) -> Vector2:
+func _get_knife_throw_velocity(move_input: float, empowered: bool = false) -> Vector2:
 	var up := Input.is_action_pressed("move_up")
 	var down := Input.is_action_pressed("move_down")
 	var sideways := move_input != 0.0
@@ -1413,8 +1405,8 @@ func _get_knife_throw_velocity(move_input: float) -> Vector2:
 	elif down:
 		throw_velocity = knife_throw_down
 	var result := Vector2(throw_velocity.x * facing, throw_velocity.y)
-	if is_sprinting or long_jump_active:
-		# Corriendo, Rengar alcanzaría su propio cuchillo: sale el doble de rápido.
+	if is_sprinting or long_jump_active or empowered:
+		# Corriendo, Rengar alcanzaría su propio cuchillo: sale el doble de rápido (y el del riposte, siempre).
 		result.x *= knife_running_multiplier
 	return result
 
@@ -1422,10 +1414,19 @@ func on_knife_hit(point: Vector2) -> void:
 	Fx.impact(get_parent(), point, Fx.GOLD, 1.1)
 	_apply_hitstop(hitstop_light + 0.01)
 
-func on_knife_caught() -> void:
+func on_knife_caught(knife: Node = null) -> void:
 	has_knife = true
 	thrown_knife = null
 	knife_changed.emit(true)
+	if knife and knife.empowered and knife.hit_any:
+		Fx.impact(get_parent(), global_position + Vector2(0, -16), Fx.ROAR, 1.2)
+		heal(ranged_riposte_heal)
+
+func on_knife_shined(knife: Node) -> void:
+	# Shine knife: el cuchillo que volvía sale disparado otra vez contra el enemigo.
+	_apply_hitstop(0.05)
+	Stats.add("knife_shines")
+	Ferocity.add("shine_knife", 22.0, "SHINE KNIFE", Ferocity.BONUS_COLOR, "shine_knife", knife.player_shines)
 
 # ---------- Mantle automático
 
@@ -1515,10 +1516,6 @@ func _start_roar() -> void:
 	if dash_timer > 0.0:
 		dash_timer = 0.0
 		_set_dash_visual_active(false)
-	if is_charging_attack:
-		is_charging_attack = false
-		charge_timer = 0.0
-		_set_charge_visual_active(false)
 	if _is_attack_active():
 		_cancel_attack_for_chain()
 	jump_cut_available = false
@@ -1601,6 +1598,8 @@ func _roar_explosive_hits() -> void:
 
 func on_projectile_reflected() -> void:
 	_apply_hitstop(0.04)
+	# Riposte a distancia: el próximo cuchillo lanzado en esta ventana sale potenciado.
+	ranged_riposte_timer = riposte_duration
 
 func is_roar_aura_active() -> bool:
 	return roar_active and (roar_explosive_timer > 0.0 or roar_aura_on)
@@ -1880,53 +1879,45 @@ func _apply_uppercut_movement(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, forward_speed, air_acceleration * 3.2 * delta)
 	_apply_gravity(delta)
 
-func _begin_attack_charge() -> void:
-	var combo_open: bool = light_combo_window_timer > 0.0 and light_combo_step < 3
-	if is_charging_attack or dash_timer > 0.0 or (attack_cooldown_timer > 0.0 and not _is_attack_active() and not combo_open):
-		return
-
-	is_charging_attack = true
-	if charge_timer <= 0.0:
-		charge_timer = 0.0
-	_set_charge_visual_active(true)
-	_update_charge_visual()
-
-func _update_attack_charge(delta: float) -> void:
-	charge_timer = min(charge_timer + delta, attack_charge_time)
-
-func _release_attack_charge(was_on_floor: bool, was_wall_sliding: bool) -> void:
-	is_charging_attack = false
-	_set_charge_visual_active(false)
-
+func _on_attack_input() -> void:
+	# Sin carga: corriendo sale el ataque en carrera (estocada que avanza); si no, el combo ligero.
 	if dash_timer > 0.0:
-		dash_timer = 0.0
-		_end_dash()
-
-	var fully_charged: bool = charge_timer >= attack_charge_time
-	charge_timer = 0.0
-
-	if fully_charged:
-		if _is_attack_active():
-			_cancel_attack_for_chain()
-
-		if was_wall_sliding:
-			_start_wall_spin_attack()
-		elif was_on_floor:
-			_start_ground_charged_attack()
-		else:
-			_start_light_charged_air_attack()
+		attack_buffered = true
 		return
-
+	if _can_running_attack():
+		_start_running_attack()
+		return
 	if attack_mode == ATTACK_SLASH:
 		# Pulsado durante un golpe del combo: el siguiente sale en cuanto termine este.
 		if light_combo_step < 3:
 			light_combo_queued = true
 		return
-	if _is_attack_active():
-		charge_timer = 0.0
+	var combo_open: bool = light_combo_window_timer > 0.0 and light_combo_step < 3
+	if _is_attack_active() or (attack_cooldown_timer > 0.0 and not combo_open):
 		return
-
 	_start_attack()
+
+func _can_running_attack() -> bool:
+	# Corriendo (también frenando para girar), en salto largo o corriendo por la pared.
+	return is_sprinting or long_jump_active or wallride_active or wall_cling_timer > 0.0
+
+func _start_running_attack() -> void:
+	if _is_attack_active() or attack_cooldown_timer > 0.0:
+		return
+	if wallride_active or wall_cling_timer > 0.0:
+		# Desde la pared: el giro que despega de ella.
+		wallride_active = false
+		wall_cling_timer = 0.0
+		_start_wall_spin_attack()
+		return
+	if sprint_turn_timer > 0.0 and sprint_turn_direction != 0:
+		# Frenando para girar: la estocada sale ya hacia el nuevo lado y la carrera sigue por ahí.
+		facing = sprint_turn_direction
+		_update_facing_visual()
+	if is_on_floor():
+		_start_ground_charged_attack()
+	else:
+		_start_light_charged_air_attack()
 
 func _start_attack() -> void:
 	# Sin cuchillo no hay combo ligero.
@@ -2000,7 +1991,7 @@ func _start_heavy_attack() -> void:
 		return
 	var canceling_from_spin: bool = attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window
 	# Los ataques pesados son del cuchillo: sin él no se pueden hacer.
-	if dash_timer > 0.0 or is_charging_attack or not has_knife:
+	if dash_timer > 0.0 or not has_knife:
 		return
 
 	if canceling_from_spin:
@@ -2034,7 +2025,7 @@ func _start_heavy_attack() -> void:
 
 func _try_heavy_uppercut() -> void:
 	# Pesado + arriba: uppercut sin cargar. Es la excepción que se puede hacer sin el cuchillo.
-	if dash_timer > 0.0 or is_charging_attack or _is_attack_active() or attack_cooldown_timer > 0.0:
+	if dash_timer > 0.0 or _is_attack_active() or attack_cooldown_timer > 0.0:
 		return
 	if not is_on_floor() and not _can_start_air_uppercut():
 		return
@@ -2625,22 +2616,6 @@ func _hit_area(area: Area2D) -> void:
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
 
-func _set_charge_visual_active(active: bool) -> void:
-	charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.86, 0.45))
-	if not active:
-		charge_glow_material.set_shader_parameter("glow_amount", 0.0)
-
-func _update_charge_visual() -> void:
-	if not is_charging_attack:
-		return
-
-	var progress: float = clamp(charge_timer / attack_charge_time, 0.0, 1.0)
-	# El sprite se va iluminando mientras carga y late al estar cargado del todo.
-	var glow: float = lerp(0.05, 0.6, progress * progress)
-	if progress >= 1.0:
-		glow = 0.7 + 0.2 * sin(Time.get_ticks_msec() / 55.0)
-	charge_glow_material.set_shader_parameter("glow_amount", glow)
-
 func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
 		return
@@ -2668,6 +2643,9 @@ func _end_dash() -> void:
 	_set_dash_visual_active(false)
 	var buffered_jump := dash_jump_buffered
 	dash_jump_buffered = false
+	if attack_buffered:
+		attack_buffered = false
+		_end_dash_into_attack.call_deferred()
 	if Input.is_action_pressed("dash") and is_on_floor():
 		_start_sprint(dash_direction)
 		velocity.x = sprint_direction * sprint_speed
@@ -2684,6 +2662,11 @@ func _end_dash() -> void:
 		velocity.x = dash_direction * dash_end_speed
 	if buffered_jump:
 		jump_buffer_timer = jump_buffer_time
+
+func _end_dash_into_attack() -> void:
+	# El ataque pulsado durante el dash sale ahora (en carrera si se sigue corriendo).
+	if not _blocks_actions() and dash_timer <= 0.0 and not dead:
+		_on_attack_input()
 
 func _set_dash_visual_active(active: bool) -> void:
 	dash_visual.visible = active
@@ -2846,11 +2829,15 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	long_jump_active = false
 	# Sin ir corriendo, mantener correr al golpear convierte el rebote en uno de carrera: sale lanzado
 	# hacia delante a velocidad de sprint y sigue corriendo (gana impulso en vez de quedarse en el sitio).
+	if hit_enemy:
+		# Cadena de rebotes: se cuenta hasta tocar el suelo.
+		bounce_chain += 1
 	if hit_enemy and not is_sprinting and Input.is_action_pressed("dash"):
 		_start_sprint(facing)
 		Stats.add("running_bounces")
+		Ferocity.add("running_bounce", 30.0, "REBOTE EN CARRERA", Ferocity.GOOD_COLOR, "bounce", bounce_chain)
 	elif hit_enemy:
-		Ferocity.add("bounce", 18.0, "REBOTE")
+		Ferocity.add("bounce", 18.0, "REBOTE", Ferocity.GOOD_COLOR, "bounce", bounce_chain)
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
 	jump_cut_available = false
@@ -2927,7 +2914,6 @@ func _respawn_player() -> void:
 	attack_timer = 0.0
 	attack_cooldown_timer = 0.0
 	ground_heavy_cooldown_timer = 0.0
-	charge_timer = 0.0
 	dash_timer = 0.0
 	dash_cooldown_timer = 0.0
 	dash_direction = 1
@@ -2968,6 +2954,9 @@ func _respawn_player() -> void:
 	light_combo_queued = false
 	jump_cut_available = false
 	riposte_timer = 0.0
+	ranged_riposte_timer = 0.0
+	bounce_chain = 0
+	attack_buffered = false
 	riposte_attack = false
 	invulnerability_timer = 0.0
 	hurt_lock_timer = 0.0
@@ -2981,12 +2970,11 @@ func _respawn_player() -> void:
 	wall_contact_direction = 0
 	wall_visual_direction = 0
 	attack_mode = ATTACK_NONE
-	is_charging_attack = false
 	air_uppercut_available = true
 	heavy_attack_visual_progress = 0.0
 	attack_targets_hit.clear()
 	_set_attack_active(false)
-	_set_charge_visual_active(false)
+	charge_glow_material.set_shader_parameter("glow_amount", 0.0)
 	_set_dash_visual_active(false)
 	heavy_ground_impact_wave_timer = 0.0
 	_set_impact_wave_active(false)

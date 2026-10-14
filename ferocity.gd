@@ -8,18 +8,23 @@ extends Node
 # - Cuanto más estilo, más daño e impacto (hitstop) tienen sus golpes.
 
 signal rank_changed(rank: int, previous: int)
-signal logged(text: String, color: Color)
+# chain: acciones encadenadas que el HUD agrupa en una línea ("+REBOTE x3"); count es el número exacto
+# de la cadena (0 = agrupar por tiempo). stale: repetido demasiado seguido, rinde menos.
+signal logged(text: String, color: Color, stale: bool, chain: String, count: int)
+# Estilo quitado por un golpe (no el desgaste normal): el HUD lo marca en rojo.
+signal penalized(before: float, after: float)
 signal unstoppable_changed(active: bool)
 
 const RANK_POINTS := 100.0
 const RANKS := [
-	{"letter": "D", "name": "DESATADO", "color": Color(0.45, 0.75, 1.0)},
-	{"letter": "C", "name": "CRUEL", "color": Color(0.45, 1.0, 0.55)},
-	{"letter": "B", "name": "BRUTAL", "color": Color(1.0, 0.9, 0.3)},
-	{"letter": "A", "name": "ATROZ", "color": Color(1.0, 0.6, 0.2)},
-	{"letter": "S", "name": "SALVAJE", "color": Color(1.0, 0.32, 0.22)},
-	{"letter": "SS", "name": "SANGUINARIO", "color": Color(1.0, 0.18, 0.4)},
-	{"letter": "SSS", "name": "SUPREMACÍA", "color": Color(1.0, 0.86, 0.4)},
+	# "rest" sigue a la letra en el HUD: [D]esatado, [SS]anguinario...
+	{"letter": "D", "name": "DESATADO", "rest": "esatado", "color": Color(0.45, 0.75, 1.0)},
+	{"letter": "C", "name": "CRUEL", "rest": "ruel", "color": Color(0.45, 1.0, 0.55)},
+	{"letter": "B", "name": "BRUTAL", "rest": "rutal", "color": Color(1.0, 0.9, 0.3)},
+	{"letter": "A", "name": "ATROZ", "rest": "troz", "color": Color(1.0, 0.6, 0.2)},
+	{"letter": "S", "name": "SALVAJE", "rest": "alvaje", "color": Color(1.0, 0.32, 0.22)},
+	{"letter": "SS", "name": "SANGUINARIO", "rest": "anguinario", "color": Color(1.0, 0.18, 0.4)},
+	{"letter": "SSS", "name": "SUPREMACÍA", "rest": "upremacía", "color": Color(1.0, 0.86, 0.4)},
 ]
 const UNSTOPPABLE_RANK := 3
 const MAX_POINTS := RANK_POINTS * 7.0 - 0.01
@@ -33,14 +38,14 @@ const DAMAGE_MULTIPLIER := [1.0, 1.0, 1.1, 1.2, 1.35, 1.5, 1.75]
 const IMPACT_MULTIPLIER := [1.0, 1.05, 1.15, 1.3, 1.45, 1.6, 1.8]
 
 # Eventos registrados en Stats que dan estilo: [puntos, texto del log ("" = sin log)].
+# Los saltos (flips, bunnyhop, running walljump) dan la mitad: encadenados llenaban el medidor solos.
 const STAT_EVENTS := {
 	"parries": [45.0, "PARRY"],
 	"projectiles_reflected": [35.0, "DEVUELTO"],
-	"frontflips": [18.0, "FRONTFLIP"],
-	"backflips": [20.0, "BACKFLIP"],
-	"bunnyhops": [16.0, "BUNNYHOP"],
-	"running_walljumps": [18.0, "RUNNING WALLJUMP"],
-	"running_bounces": [30.0, "REBOTE EN CARRERA"],
+	"frontflips": [9.0, "FRONTFLIP"],
+	"backflips": [10.0, "BACKFLIP"],
+	"bunnyhops": [8.0, "BUNNYHOP"],
+	"running_walljumps": [9.0, "RUNNING WALLJUMP"],
 	"wall_embeds": [25.0, "EMPALADO"],
 	"mantles": [6.0, ""],
 	"dummies_killed": [20.0, "CAZADO"],
@@ -69,7 +74,7 @@ func _physics_process(delta: float) -> void:
 
 # ---------- Entradas
 
-func add(key: String, amount: float, label: String = "", color: Color = GOOD_COLOR) -> void:
+func add(key: String, amount: float, label: String = "", color: Color = GOOD_COLOR, chain: String = "", count: int = 0) -> void:
 	# Cada repetición del mismo evento rinde un 20 % menos; se recupera con el tiempo.
 	var fresh: float = freshness.get(key, 1.0)
 	freshness[key] = max(fresh - 0.2, 0.3)
@@ -77,21 +82,26 @@ func add(key: String, amount: float, label: String = "", color: Color = GOOD_COL
 	grace = DRAIN_GRACE
 	_set_points(points + gained)
 	if label != "":
-		logged.emit("+" + label + ("" if fresh > 0.55 else " (repetido)"), color if fresh > 0.55 else color.darkened(0.35))
+		var stale: bool = fresh <= 0.55
+		logged.emit("+" + label, color.darkened(0.35) if stale else color, stale, chain, count)
 
 func add_running(delta: float) -> void:
 	_set_points(points + RUNNING_GAIN * delta)
 
 func player_hit() -> bool:
 	# Golpe recibido. Devuelve true si Rengar lo aguanta sin frenarse (estado imparable).
+	var before := points
 	if unstoppable:
-		logged.emit("-IMPARABLE", PENALTY_COLOR)
+		logged.emit("-IMPARABLE", PENALTY_COLOR, false, "", 0)
 		_set_points(_rank_floor(rank - 2) + RANK_POINTS * 0.5)
 		grace = 0.0
+		penalized.emit(before, points)
 		return true
-	logged.emit("-GOLPEADO", PENALTY_COLOR)
+	logged.emit("-GOLPEADO", PENALTY_COLOR, false, "", 0)
 	_set_points(_rank_floor(rank - 1) + RANK_POINTS * 0.3 if rank > 0 else points * 0.3)
 	grace = 0.0
+	if points < before:
+		penalized.emit(before, points)
 	return false
 
 func reset() -> void:

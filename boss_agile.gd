@@ -4,6 +4,8 @@ extends "res://boss_base.gd"
 # - Combo de 3 estocadas rápidas con el estoque, avanzando en cada una.
 # - Tajo de daga rápido cuando Rengar está pegado.
 # - Embestida (dash) con el estoque si Rengar está lejos.
+# - Lanza su daga como una rueda que barre el suelo y vuelve a su mano. El rugido se la devuelve;
+#   él a veces la para con un parry y la manda de vuelta (cada vez pega más).
 # - Tras atacar, a veces salta hacia atrás. Bloquea golpes ligeros con la daga.
 # - Todos sus ataques se pueden parrear con el rugido.
 
@@ -16,6 +18,11 @@ extends "res://boss_base.gd"
 @export var thrust_damage := 14
 @export var dagger_damage := 12
 @export var dash_damage := 20
+@export var throw_damage := 14
+# Daño que le hace su propia daga devuelta (antes de los niveles de shine).
+@export var throw_reflected_damage := 8
+@export var dagger_parry_chance := 0.35
+@export var throw_chance := 0.5
 
 const BODY_COLOR := Color(0.16, 0.36, 0.42)
 const CAPE_COLOR := Color(0.1, 0.22, 0.27)
@@ -27,8 +34,10 @@ const DAGGER_LENGTH := 58.0
 const RAPIER_IDLE := 0.75
 const RAPIER_READY := -0.25
 const RAPIER_THRUST := 0.1
+const SPINNING_DAGGER_SCRIPT := preload("res://spinning_dagger.gd")
+const THROW_WINDUP_TIME := 0.5
 
-enum State { IDLE, WALK, THRUST_WINDUP, THRUST, DAGGER_WINDUP, DAGGER, DASH_WINDUP, DASH, BACKSTEP, RECOVER, STAGGER }
+enum State { IDLE, WALK, THRUST_WINDUP, THRUST, DAGGER_WINDUP, DAGGER, DASH_WINDUP, DASH, BACKSTEP, RECOVER, STAGGER, THROW_WINDUP, THROW_WAIT }
 
 var state := State.IDLE
 var state_timer := 0.6
@@ -36,6 +45,8 @@ var thrust_count := 0
 var hit_done := false
 var move_left := 0.0
 var dash_cooldown := 0.0
+var throw_cooldown := 1.5
+var thrown_dagger: Node2D
 var guard_timer := 0.0
 var backstep_from := Vector2.ZERO
 var backstep_to := Vector2.ZERO
@@ -79,6 +90,7 @@ func _build_body() -> void:
 func _boss_process(delta: float, player: Node2D) -> void:
 	state_timer -= delta
 	dash_cooldown = max(dash_cooldown - delta, 0.0)
+	throw_cooldown = max(throw_cooldown - delta, 0.0)
 	if guard_timer > 0.0:
 		guard_timer -= delta
 		# Guardia con la daga cruzada delante.
@@ -96,6 +108,8 @@ func _boss_process(delta: float, player: Node2D) -> void:
 			elif distance <= thrust_range:
 				thrust_count = 0
 				_start(State.THRUST_WINDUP, 0.38)
+			elif throw_cooldown <= 0.0 and _roll_throw():
+				_start(State.THROW_WINDUP, THROW_WINDUP_TIME)
 			elif distance > dash_min_distance and dash_cooldown <= 0.0:
 				_start(State.DASH_WINDUP, 0.45)
 			else:
@@ -177,6 +191,22 @@ func _boss_process(delta: float, player: Node2D) -> void:
 				position.y = backstep_from.y
 				visual.rotation = 0.0
 				_start(State.IDLE, 0.25)
+		State.THROW_WINDUP:
+			# Echa la daga atrás por encima del hombro, parpadeando.
+			var progress: float = 1.0 - state_timer / THROW_WINDUP_TIME
+			_face(player)
+			dagger_pivot.rotation = lerp_angle(dagger_pivot.rotation, -2.5, 12.0 * delta)
+			_blink(dagger, progress)
+			if state_timer <= 0.0:
+				_throw_dagger(player)
+		State.THROW_WAIT:
+			# Espera a que vuelva la daga con el estoque en guardia (con un límite por si acaso).
+			_face(player)
+			rapier_pivot.rotation = lerp_angle(rapier_pivot.rotation, RAPIER_READY, 6.0 * delta)
+			dagger_pivot.rotation = lerp_angle(dagger_pivot.rotation, 0.6, 8.0 * delta)
+			if not is_instance_valid(thrown_dagger) or state_timer <= 0.0:
+				_recover_dagger()
+				_start(State.RECOVER, 0.35, false)
 		State.RECOVER, State.STAGGER:
 			rapier_pivot.rotation = lerp_angle(rapier_pivot.rotation, RAPIER_IDLE, 5.0 * delta)
 			rapier_pivot.position = rapier_pivot.position.lerp(Vector2(14, -86), 8.0 * delta)
@@ -188,7 +218,7 @@ func _boss_process(delta: float, player: Node2D) -> void:
 func _start(new_state: State, duration: float, warn: bool = true) -> void:
 	state = new_state
 	state_timer = duration
-	warning_label.visible = warn and new_state in [State.THRUST_WINDUP, State.DAGGER_WINDUP, State.DASH_WINDUP]
+	warning_label.visible = warn and new_state in [State.THRUST_WINDUP, State.DAGGER_WINDUP, State.DASH_WINDUP, State.THROW_WINDUP]
 
 func _after_attack(player: Node2D) -> void:
 	# A veces se aleja de un salto para volver a atacar desde otra distancia.
@@ -199,6 +229,67 @@ func _after_attack(player: Node2D) -> void:
 		_start(State.BACKSTEP, 0.35, false)
 	else:
 		_start(State.RECOVER, 0.55, false)
+
+func _roll_throw() -> bool:
+	# Se decide de vez en cuando (no en cada frame) si lanza la daga.
+	throw_cooldown = 1.5
+	return randf() < throw_chance
+
+func _throw_dagger(player: Node2D) -> void:
+	# La rueda pasa de largo a Rengar y vuelve, sin salirse de la arena.
+	var distance: float = clamp(_distance_to(player) + 260.0, 450.0, 950.0) if player else 600.0
+	var offset_x: float = get_parent().global_position.x
+	var limit: float = (max_x + offset_x - global_position.x) if facing > 0 else (global_position.x - min_x - offset_x)
+	distance = clamp(distance, 200.0, max(limit, 200.0))
+	var spinning := SPINNING_DAGGER_SCRIPT.new()
+	spinning.damage = throw_damage
+	spinning.reflected_damage = throw_reflected_damage
+	get_parent().add_child(spinning)
+	spinning.launch(self, global_position + Vector2(facing * 30.0, 0), facing, distance, global_position.y)
+	thrown_dagger = spinning
+	dagger.visible = false
+	dagger.color = BLADE_COLOR
+	throw_cooldown = 7.0
+	Fx.dust(get_parent(), global_position + Vector2(facing * 20.0, 0), Vector2(facing, -0.3), 6, 1.2)
+	_start(State.THROW_WAIT, 6.0, false)
+
+func _recover_dagger() -> void:
+	if is_instance_valid(thrown_dagger):
+		thrown_dagger.queue_free()
+	thrown_dagger = null
+	dagger.visible = true
+
+func on_dagger_caught(_spinning: Node) -> void:
+	thrown_dagger = null
+	dagger.visible = true
+	dagger_pivot.rotation = -1.3
+	if state == State.THROW_WAIT:
+		_start(State.RECOVER, 0.35, false)
+
+func try_parry_dagger(spinning: Node2D) -> bool:
+	# Su parry: el estoque golpea la daga y la manda de vuelta contra Rengar.
+	if state == State.STAGGER or randf() >= dagger_parry_chance:
+		return false
+	rapier_pivot.rotation = -1.4
+	flash_timer = 0.0
+	Fx.impact(get_parent(), spinning.global_position, Fx.SILVER, 2.0)
+	Fx.impact(get_parent(), spinning.global_position, Fx.GOLD, 1.2)
+	Fx.text(get_parent(), global_position + Vector2(0, -200), "¡PARRY!", Color(0.8, 0.95, 1.0))
+	return true
+
+func on_dagger_hit(spinning: Node2D, damage: int) -> void:
+	# Su propia daga le da: daño, aturdido, y la recupera.
+	var direction: int = 1 if spinning.global_position.x <= global_position.x else -1
+	thrown_dagger = null
+	dagger.visible = true
+	Fx.impact(get_parent(), spinning.global_position, Fx.ROAR, 1.6)
+	Ferocity.add("dagger_return", 30.0, "SU PROPIA DAGA", Ferocity.BONUS_COLOR)
+	take_hit(spinning.global_position, direction, damage)
+	if defeated:
+		return
+	_start(State.STAGGER, 0.9, false)
+	visual.rotation = -0.15 * facing
+	Fx.text(get_parent(), global_position + Vector2(0, -190), "¡ATURDIDO!", Color(1.0, 0.85, 0.5))
 
 func _rapier_aim(player: Node2D) -> float:
 	# Ángulo del estoque hacia el cuerpo de Rengar; si está lejos o no hay jugador, estocada recta.
@@ -232,7 +323,7 @@ func _check_blade(player: Node2D, pivot: Node2D, length: float, damage: int) -> 
 		_hit_player(player, damage)
 
 func is_warning() -> bool:
-	return state in [State.THRUST_WINDUP, State.DAGGER_WINDUP, State.DASH_WINDUP]
+	return state in [State.THRUST_WINDUP, State.DAGGER_WINDUP, State.DASH_WINDUP, State.THROW_WINDUP]
 
 func on_deflected(_by: Node) -> void:
 	if not state in [State.THRUST, State.DAGGER, State.DASH]:
@@ -258,10 +349,13 @@ func _on_block() -> void:
 
 func _on_defeat() -> void:
 	trail.clear_points()
+	_recover_dagger()
 
 func _on_reset() -> void:
 	_start(State.IDLE, 0.6, false)
 	dash_cooldown = 0.0
+	throw_cooldown = 1.5
+	_recover_dagger()
 	guard_timer = 0.0
 	rapier_pivot.rotation = RAPIER_IDLE
 	rapier_pivot.position = Vector2(14, -86)

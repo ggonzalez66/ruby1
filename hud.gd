@@ -88,18 +88,21 @@ func _banner_line() -> ColorRect:
 	return line
 
 func _update_boss_banner() -> void:
-	var boss := get_tree().get_first_node_in_group(&"boss")
-	var fighting: bool = boss != null and boss.combat_started and not boss.is_defeated()
+	var bosses := get_tree().get_nodes_in_group(&"boss")
+	if bosses.is_empty():
+		return
+	var boss: Node = bosses[0]
+	var fighting: bool = boss.combat_started and not boss.is_defeated()
 	if fighting and banner_boss != boss:
 		banner_boss = boss
-		_show_boss_banner(boss)
-	elif boss != null and not boss.combat_started and not boss.is_defeated():
+		_show_boss_banner(boss, bosses.size())
+	elif not boss.combat_started and not boss.is_defeated():
 		# Al reaparecer en el checkpoint el combate se reinicia: se vuelve a presentar.
 		banner_boss = null
 
-func _show_boss_banner(boss: Node) -> void:
-	boss_banner_name.text = boss.boss_name
-	boss_banner_subtitle.text = boss.boss_subtitle
+func _show_boss_banner(boss: Node, count: int = 1) -> void:
+	boss_banner_name.text = boss.boss_name if count == 1 else "LOS TRES GUARDIANES"
+	boss_banner_subtitle.text = boss.boss_subtitle if count == 1 else "Pesado, ágil y arquero a la vez"
 	boss_banner.visible = true
 	boss_banner.reset_size()
 	var screen := get_viewport().get_visible_rect().size
@@ -215,8 +218,8 @@ func _build_boss_indicator() -> void:
 	boss_indicator.add_child(boss_arrow)
 
 func _update_boss_indicator() -> void:
-	var boss := get_tree().get_first_node_in_group(&"boss") as Node2D
-	if boss == null or not boss.combat_started or boss.is_defeated():
+	var boss := _indicated_boss()
+	if boss == null:
 		boss_indicator.visible = false
 		return
 	boss_view.world_2d = get_viewport().world_2d
@@ -246,6 +249,23 @@ func _update_boss_indicator() -> void:
 	var border := Color(1.0, 0.25, 0.2) if warning and blink else PANEL_BORDER
 	boss_indicator_style.border_color = border
 	boss_arrow.color = border
+
+func _indicated_boss() -> Node2D:
+	# El guardián en combate más cercano a Rengar que esté fuera de la pantalla (en el trío hay varios).
+	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	var screen := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size).grow(-20.0)
+	var best: Node2D = null
+	var best_distance := INF
+	for boss in get_tree().get_nodes_in_group(&"boss"):
+		if not boss.combat_started or boss.is_defeated():
+			continue
+		if screen.has_point(get_viewport().get_canvas_transform() * (boss.global_position + Vector2(0, -90))):
+			continue
+		var distance: float = boss.global_position.distance_to(player.global_position) if player else 0.0
+		if distance < best_distance:
+			best = boss
+			best_distance = distance
+	return best
 
 func _build() -> void:
 	var panel := PanelContainer.new()

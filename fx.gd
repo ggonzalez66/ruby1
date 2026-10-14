@@ -93,6 +93,24 @@ static func air_ring(parent: Node, point: Vector2) -> void:
 	tween.tween_property(ring, "modulate:a", 0.0, 0.25)
 	tween.chain().tween_callback(burst.queue_free)
 
+# Shine de un enemigo: un Cubo de Metatrón de su color que aparece de golpe y se desvanece girando.
+static func shine(parent: Node, point: Vector2, color: Color, radius: float = 36.0) -> void:
+	var burst := _spawn(parent, point)
+	burst.z_index = 5
+	var cube: Node2D = load("res://metatron_cube.gd").new()
+	cube.outer_radius = radius
+	cube.line_color = Color(color, 0.95)
+	cube.glow_color = Color(color.darkened(0.3), 0.25)
+	cube.line_width = 1.5
+	burst.add_child(cube)
+	cube.modulate = Color(1.4, 1.4, 1.4)
+	var tween := burst.create_tween().set_parallel(true)
+	tween.tween_property(cube, "rotation", 0.9, 0.35)
+	tween.tween_property(cube, "scale", Vector2.ONE * 1.15, 0.35)
+	tween.tween_property(cube, "modulate:a", 0.0, 0.35).set_delay(0.1)
+	tween.chain().tween_callback(burst.queue_free)
+	impact(parent, point, [color.darkened(0.6), color, Color(1.0, 0.97, 0.95)], 1.2)
+
 # Nubecilla para cosas que desaparecen (proyectiles contra la pared).
 static func puff(parent: Node, point: Vector2, color: Color) -> void:
 	var burst := _spawn(parent, point)

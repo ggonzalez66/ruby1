@@ -2,6 +2,11 @@ extends Node2D
 
 # Cuchillo lanzado por Rengar: vuela en arco, se clava en enemigos o en el escenario
 # (a veces cae suelto) y vuelve a la mano al hacer recall, golpeando por el camino.
+# - Riposte a distancia (lanzado justo tras devolver un proyectil): rojo parpadeante, pega el doble
+#   y al volver a la mano cura (si golpeó algo).
+# - Shine knife: si vuelve mientras el aura del rugido está activa, sale disparado en línea recta
+#   contra el último enemigo en que estuvo clavado y se vuelve a enterrar; así se encadenan.
+# - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
 const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/rengar_knife.png")
 const KNIFE_REGION := Rect2(48, 271, 243, 227)
@@ -24,8 +29,15 @@ const PULL_STRENGTH := 70.0
 const RETURN_START_SPEED := 500.0
 const RETURN_MAX_SPEED := 1500.0
 const RETURN_ACCELERATION := 3200.0
+const SHINE_SPEED := 1300.0
+# Tras un shine vuela recto (sin gravedad) este tiempo; si no encuentra nada, empieza a caer.
+const SHINE_STRAIGHT_TIME := 0.9
+const HOSTILE_SPEED := 900.0
+const HOSTILE_DAMAGE := 10
+const HOSTILE_TIME := 2.5
+const RIPOSTE_COLOR := Color(1.0, 0.12, 0.08)
 
-enum State { FLYING, FALLING, STUCK_ENEMY, STUCK_WORLD, BOUNCING, DROPPED, RETURNING }
+enum State { FLYING, FALLING, STUCK_ENEMY, STUCK_WORLD, BOUNCING, DROPPED, RETURNING, HOSTILE }
 
 var state := State.FLYING
 var velocity := Vector2.ZERO
@@ -38,6 +50,17 @@ var recall_hits: Array = []
 var sprite: Sprite2D
 var trail: Line2D
 var spin_direction := 1.0
+# Riposte a distancia: doble daño y cura al recuperarlo si golpeó algo.
+var empowered := false
+var hit_any := false
+# Veces que se ha shineado (Rengar o enemigos) y cuántas fueron de Rengar (para el "SHINE KNIFE xN").
+var shine_level := 0
+var player_shines := 0
+var straight_timer := 0.0
+var hostile_timer := 0.0
+var last_target: Node2D
+var return_direction := Vector2.ZERO
+var trail_gradient: Gradient
 
 func _ready() -> void:
 	z_index = 2
@@ -45,10 +68,10 @@ func _ready() -> void:
 	trail = Line2D.new()
 	trail.top_level = true
 	trail.width = 9.0
-	var gradient := Gradient.new()
-	gradient.set_color(0, Color(0.85, 0.9, 1.0, 0.0))
-	gradient.set_color(1, Color(1.0, 0.95, 0.75, 0.75))
-	trail.gradient = gradient
+	trail_gradient = Gradient.new()
+	trail_gradient.set_color(0, Color(0.85, 0.9, 1.0, 0.0))
+	trail_gradient.set_color(1, Color(1.0, 0.95, 0.75, 0.75))
+	trail.gradient = trail_gradient
 	var width_curve := Curve.new()
 	width_curve.add_point(Vector2(0.0, 0.1))
 	width_curve.add_point(Vector2(1.0, 1.0))
@@ -73,7 +96,8 @@ func is_returning() -> bool:
 	return state == State.RETURNING
 
 func recall() -> void:
-	if state == State.RETURNING:
+	# Si un enemigo lo devolvió, no se puede llamar: hay que esquivarlo o shinearlo.
+	if state == State.RETURNING or state == State.HOSTILE:
 		return
 	# Al arrancarlo de un enemigo lo golpea otra vez.
 	if state == State.STUCK_ENEMY and _is_target_alive(target):
@@ -83,9 +107,12 @@ func recall() -> void:
 
 func _physics_process(delta: float) -> void:
 	_update_trail()
+	_update_look()
 	match state:
 		State.FLYING, State.FALLING, State.BOUNCING:
 			_fly(delta)
+		State.HOSTILE:
+			_fly_hostile(delta)
 		State.STUCK_ENEMY:
 			if _is_target_alive(target):
 				global_position = target.to_global(target_offset)
@@ -97,7 +124,10 @@ func _physics_process(delta: float) -> void:
 			_return(delta)
 
 func _fly(delta: float) -> void:
-	velocity.y += GRAVITY * delta
+	if straight_timer > 0.0:
+		straight_timer -= delta
+	else:
+		velocity.y += GRAVITY * delta
 	var from := global_position
 	var to := from + velocity * delta
 	var query := PhysicsRayQueryParameters2D.create(from, to, WORLD_MASK)
@@ -147,14 +177,21 @@ func _lie_down(normal: Vector2) -> void:
 	rotation = -TIP_ANGLE if velocity.x >= 0.0 else PI - TIP_ANGLE
 
 func _stick_in_enemy(enemy: Node2D) -> void:
+	# Algunos enemigos lo shinean de vuelta en vez de dejar que se clave.
+	if enemy.has_method("try_shine") and enemy.try_shine(self):
+		_enemy_shine(enemy)
+		return
 	var direction: int = 1 if velocity.x >= 0.0 else -1
-	enemy.take_hit(global_position, direction, int(round(DAMAGE_THROW * Ferocity.damage_multiplier())))
+	enemy.take_hit(global_position, direction, _damage(DAMAGE_THROW))
 	Ferocity.add("knife", 12.0, "CUCHILLO")
+	_on_damage_dealt()
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
 	state = State.STUCK_ENEMY
+	straight_timer = 0.0
 	was_dropped = false
 	target = enemy
+	last_target = enemy
 	target_offset = enemy.to_local(global_position)
 
 func _return(delta: float) -> void:
@@ -167,10 +204,15 @@ func _return(delta: float) -> void:
 	var step: float = return_speed * delta
 	if offset.length() <= step + 14.0:
 		if player.has_method("on_knife_caught"):
-			player.on_knife_caught()
+			player.on_knife_caught(self)
 		queue_free()
 		return
+	# Shine knife: el aura del rugido lo despide de nuevo antes de que llegue a la mano.
+	if _player_aura_reaches():
+		_player_shine()
+		return
 	var move := offset.normalized() * step
+	return_direction = move.normalized()
 	global_position += move
 	rotation += SPIN_SPEED * delta * (1.0 if move.x >= 0.0 else -1.0)
 	var enemy := _find_enemy(recall_hits)
@@ -180,13 +222,116 @@ func _return(delta: float) -> void:
 func _recall_hit(enemy: Node2D) -> void:
 	recall_hits.append(enemy)
 	var direction: int = 1 if player.global_position.x >= enemy.global_position.x else -1
-	enemy.take_hit(global_position, direction, int(round(DAMAGE_RECALL * Ferocity.damage_multiplier())))
+	enemy.take_hit(global_position, direction, _damage(DAMAGE_RECALL))
+	_on_damage_dealt()
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
 	# Si el cuchillo estaba tirado en el suelo solo golpea; si no, atrae hacia Rengar.
 	if not was_dropped and enemy.has_method("pull_towards"):
 		Ferocity.add("knife_pull", 15.0, "ATRAÍDO")
 		enemy.pull_towards(player.global_position, PULL_STRENGTH)
+
+# ---------- Shine y riposte
+
+func _damage(base: int) -> int:
+	# El primer shine de Rengar ya pega más que un lanzamiento normal; el riposte lo duplica.
+	var amount: float = base * Ferocity.damage_multiplier() * Shine.multiplier(shine_level + 1)
+	if empowered:
+		amount *= 2.0
+	return int(round(amount))
+
+func _on_damage_dealt() -> void:
+	if empowered and not hit_any:
+		Fx.text(get_parent(), global_position + Vector2(0, -30), "¡RIPOSTE!", Color(1.0, 0.4, 0.3))
+		Ferocity.add("ranged_riposte", 40.0, "RIPOSTE A DISTANCIA", Ferocity.BONUS_COLOR)
+	hit_any = true
+
+func _player_aura_reaches() -> bool:
+	return is_instance_valid(player) and player.is_roar_aura_active() and global_position.distance_to(player.get_roar_center()) <= player.roar_radius + 8.0
+
+func _player_shine() -> void:
+	# Sale recto y rápido hacia el último enemigo en que estuvo clavado (o por donde vino).
+	shine_level += 1
+	player_shines += 1
+	recall_hits.clear()
+	var direction: Vector2 = -return_direction if state == State.RETURNING else -velocity.normalized()
+	if _is_target_alive(last_target):
+		direction = (_target_center(last_target) - global_position).normalized()
+	if direction.length_squared() < 0.01:
+		direction = Vector2(float(player.facing), 0.0)
+	velocity = direction * SHINE_SPEED
+	state = State.FLYING
+	straight_timer = SHINE_STRAIGHT_TIME
+	was_dropped = false
+	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
+	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.2)
+	if player.has_method("on_knife_shined"):
+		player.on_knife_shined(self)
+
+func _enemy_shine(enemy: Node2D) -> void:
+	shine_level += 1
+	state = State.HOSTILE
+	hostile_timer = HOSTILE_TIME
+	straight_timer = 0.0
+	target = null
+	last_target = enemy
+	var goal: Vector2 = player.get_roar_center() if is_instance_valid(player) else global_position - velocity
+	velocity = (goal - global_position).normalized() * HOSTILE_SPEED
+	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
+	Fx.text(get_parent(), global_position + Vector2(0, -30), "¡SHINE!", Shine.color(shine_level, false).lightened(0.3))
+
+func _fly_hostile(delta: float) -> void:
+	# Devuelto por un enemigo: recto hacia Rengar. Si lo alcanza le hace daño y vuelve a su mano.
+	hostile_timer -= delta
+	if not is_instance_valid(player):
+		queue_free()
+		return
+	if _player_aura_reaches():
+		_player_shine()
+		return
+	var from := global_position
+	var to := from + velocity * delta
+	var hit := get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(from, to, WORLD_MASK))
+	if not hit.is_empty():
+		global_position = hit.position
+		_stick_in_world()
+		return
+	global_position = to
+	rotation += SPIN_SPEED * 1.4 * delta * spin_direction
+	if global_position.distance_to(player.global_position + Vector2(0, -16)) <= 24.0 and not player.dead:
+		player.take_damage(Shine.damage(HOSTILE_DAMAGE, shine_level), global_position)
+		if player.has_method("on_knife_caught"):
+			player.on_knife_caught(self)
+		queue_free()
+		return
+	if hostile_timer <= 0.0:
+		# Se le acabó el impulso: cae y queda como un cuchillo normal.
+		state = State.BOUNCING
+		was_dropped = true
+
+func _target_center(node: Node2D) -> Vector2:
+	var offset = node.get("impact_offset")
+	return node.global_position + (offset if offset is Vector2 else Vector2.ZERO)
+
+func _update_look() -> void:
+	# Más grande con cada shine; rojo parpadeante en riposte; tono enemigo si viene hacia Rengar.
+	sprite.scale = Vector2.ONE * VISUAL_SCALE * Shine.visual_scale(shine_level + 1 if shine_level > 0 else 0)
+	var tint := Color.WHITE
+	var trail_color := Color(1.0, 0.95, 0.75)
+	if state == State.HOSTILE:
+		trail_color = Shine.color(shine_level, false)
+		tint = Color.WHITE.lerp(trail_color, 0.6)
+	elif empowered:
+		var blink: bool = int(Time.get_ticks_msec() / 70) % 2 == 0
+		tint = RIPOSTE_COLOR.lightened(0.25) if blink else Color(1.0, 0.7, 0.65)
+		trail_color = RIPOSTE_COLOR
+	elif shine_level > 0:
+		trail_color = Shine.color(shine_level, true)
+		tint = Color.WHITE.lerp(trail_color, 0.35)
+	sprite.modulate = tint
+	trail.width = 9.0 * (1.0 + 0.25 * min(shine_level, 4))
+	trail_gradient.set_color(0, Color(trail_color, 0.0))
+	trail_gradient.set_color(1, Color(trail_color, 0.8))
 
 func _find_enemy(exclude: Array) -> Node2D:
 	var circle := CircleShape2D.new()
@@ -209,7 +354,7 @@ func _is_target_alive(node: Object) -> bool:
 	return is_instance_valid(node) and node.visible and node.get("monitorable") != false
 
 func _update_trail() -> void:
-	var moving: bool = state in [State.FLYING, State.FALLING, State.BOUNCING, State.RETURNING]
+	var moving: bool = state in [State.FLYING, State.FALLING, State.BOUNCING, State.RETURNING, State.HOSTILE]
 	if moving:
 		trail.add_point(global_position)
 		while trail.get_point_count() > TRAIL_LENGTH:

@@ -63,8 +63,13 @@ func _process(delta: float) -> void:
 		wallride_time += delta
 	if player.is_on_floor() and player.velocity.length() < 5.0 and not player._is_attack_active():
 		idle_time += delta
-	var boss := get_tree().get_first_node_in_group(&"boss")
-	if boss and boss.combat_started and not boss.is_defeated():
+	# Con varios guardianes (trío), el combate dura mientras quede alguno en pie y alguno haya empezado.
+	var started := false
+	var standing := false
+	for boss in get_tree().get_nodes_in_group(&"boss"):
+		started = started or boss.combat_started
+		standing = standing or not boss.is_defeated()
+	if started and standing:
 		boss_fight_time += delta
 
 func get_value(key: String) -> float:
