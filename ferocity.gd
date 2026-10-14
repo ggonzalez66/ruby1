@@ -1,7 +1,8 @@
 extends Node
 
 # Autoload "Ferocity": medidor de estilo al estilo ULTRAKILL.
-# - Se gana estilo corriendo, con trucos de movimiento y con combate; repetir el mismo truco rinde menos.
+# - Se gana estilo con trucos de movimiento y con combate (repetir el mismo truco rinde menos); correr
+#   llena la barra del rango actual pero nunca sube de rango.
 # - El estilo baja solo (más rápido cuanto más alto) y cae fuerte al recibir golpes.
 # - Desde el rango A Rengar es IMPARABLE: los golpes le quitan vida pero no lo frenan, a cambio de
 #   bajar dos rangos (en A y S aguanta un golpe; en SS y SSS, dos).
@@ -28,7 +29,7 @@ const RANKS := [
 ]
 const UNSTOPPABLE_RANK := 3
 const MAX_POINTS := RANK_POINTS * 7.0 - 0.01
-# Puntos al correr a toda velocidad; solo corriendo se llega a B, para más hacen falta trucos.
+# Puntos por segundo al correr a toda velocidad: llenan la barra, pero para subir de rango hacen falta trucos.
 const RUNNING_GAIN := 15.0
 const DRAIN_BASE := 2.0
 const DRAIN_PER_POINT := 0.045
@@ -86,7 +87,10 @@ func add(key: String, amount: float, label: String = "", color: Color = GOOD_COL
 		logged.emit("+" + label, color.darkened(0.35) if stale else color, stale, chain, count)
 
 func add_running(delta: float) -> void:
-	_set_points(points + RUNNING_GAIN * delta)
+	# Correr llena la barra del rango actual pero nunca sube de rango: el tope es el final de la barra.
+	var cap: float = min((rank + 1) * RANK_POINTS - 0.01, MAX_POINTS)
+	if points < cap:
+		_set_points(min(points + RUNNING_GAIN * delta, cap))
 
 func player_hit() -> bool:
 	# Golpe recibido. Devuelve true si Rengar lo aguanta sin frenarse (estado imparable).
