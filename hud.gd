@@ -25,6 +25,12 @@ var boss_camera: Camera2D
 var boss_warning: Label
 var boss_arrow: Polygon2D
 var death_panel: VBoxContainer
+var death_hint: Label
+var boss_banner: VBoxContainer
+var boss_banner_name: Label
+var boss_banner_subtitle: Label
+var boss_banner_tween: Tween
+var banner_boss: Node
 var flash_rect: ColorRect
 var flash_tween: Tween
 
@@ -37,12 +43,73 @@ func _ready() -> void:
 	_build_timer()
 	_build_boss_indicator()
 	_build_death_screen()
+	_build_boss_banner()
 	_connect_player.call_deferred()
 
 func _process(delta: float) -> void:
 	elapsed_time += delta
 	_update_timer_text()
 	_update_boss_indicator()
+	_update_boss_banner()
+
+func _build_boss_banner() -> void:
+	# Presentación del guardián al empezar el combate: nombre grande y subtítulo entre dos líneas.
+	boss_banner = VBoxContainer.new()
+	boss_banner.alignment = BoxContainer.ALIGNMENT_CENTER
+	boss_banner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	boss_banner.modulate.a = 0.0
+	boss_banner.visible = false
+	add_child(boss_banner)
+	boss_banner.add_child(_banner_line())
+	boss_banner_name = Label.new()
+	boss_banner_name.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_banner_name.add_theme_font_size_override("font_size", 46)
+	boss_banner_name.add_theme_color_override("font_color", Color(1.0, 0.86, 0.45))
+	boss_banner_name.add_theme_color_override("font_outline_color", Color(0.15, 0.06, 0.02))
+	boss_banner_name.add_theme_constant_override("outline_size", 10)
+	boss_banner.add_child(boss_banner_name)
+	boss_banner_subtitle = Label.new()
+	boss_banner_subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	boss_banner_subtitle.add_theme_font_size_override("font_size", 18)
+	boss_banner_subtitle.add_theme_color_override("font_color", Color(1.0, 0.95, 0.85))
+	boss_banner_subtitle.add_theme_color_override("font_outline_color", Color(0.1, 0.04, 0.02))
+	boss_banner_subtitle.add_theme_constant_override("outline_size", 6)
+	boss_banner.add_child(boss_banner_subtitle)
+	boss_banner.add_child(_banner_line())
+
+func _banner_line() -> ColorRect:
+	var line := ColorRect.new()
+	line.custom_minimum_size = Vector2(420, 2)
+	line.color = Color(0.9, 0.65, 0.25, 0.85)
+	line.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	return line
+
+func _update_boss_banner() -> void:
+	var boss := get_tree().get_first_node_in_group(&"boss")
+	var fighting: bool = boss != null and boss.combat_started and not boss.is_defeated()
+	if fighting and banner_boss != boss:
+		banner_boss = boss
+		_show_boss_banner(boss)
+	elif boss != null and not boss.combat_started and not boss.is_defeated():
+		# Al reaparecer en el checkpoint el combate se reinicia: se vuelve a presentar.
+		banner_boss = null
+
+func _show_boss_banner(boss: Node) -> void:
+	boss_banner_name.text = boss.boss_name
+	boss_banner_subtitle.text = boss.boss_subtitle
+	boss_banner.visible = true
+	boss_banner.reset_size()
+	var screen := get_viewport().get_visible_rect().size
+	boss_banner.position = Vector2(screen.x * 0.5 - boss_banner.size.x * 0.5, screen.y * 0.2)
+	if boss_banner_tween:
+		boss_banner_tween.kill()
+	boss_banner.modulate.a = 0.0
+	boss_banner.scale = Vector2.ONE
+	boss_banner_tween = create_tween()
+	boss_banner_tween.tween_property(boss_banner, "modulate:a", 1.0, 0.35)
+	boss_banner_tween.tween_interval(1.8)
+	boss_banner_tween.tween_property(boss_banner, "modulate:a", 0.0, 0.7)
+	boss_banner_tween.tween_callback(func(): boss_banner.visible = false)
 
 func _build_death_screen() -> void:
 	# Mensaje de muerte (aparece al instante) y destello dorado al volver al checkpoint.
@@ -60,7 +127,7 @@ func _build_death_screen() -> void:
 	title.add_theme_constant_override("outline_size", 12)
 	death_panel.add_child(title)
 	var hint := Label.new()
-	hint.text = "Presiona R o Select para cargar el último checkpoint"
+	death_hint = hint
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	hint.add_theme_font_size_override("font_size", 20)
 	hint.add_theme_color_override("font_color", Color(1.0, 0.45, 0.4))
@@ -75,6 +142,7 @@ func _build_death_screen() -> void:
 	add_child(flash_rect)
 
 func _on_player_died() -> void:
+	death_hint.text = "Presiona %s para cargar el último checkpoint" % InputHints.binding("respawn")
 	death_panel.visible = true
 	# En el tercio superior para que se vea a Rengar salir despedido (la cámara lo centra).
 	var screen := get_viewport().get_visible_rect().size

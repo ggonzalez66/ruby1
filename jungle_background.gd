@@ -10,6 +10,15 @@ const MID_TREE_COLOR := Color(0.055, 0.16, 0.13)
 const VINE_COLOR := Color(0.07, 0.2, 0.14)
 const MIST_COLOR := Color(0.72, 0.95, 0.82, 0.07)
 const FIREFLY_COLOR := Color(0.85, 1.0, 0.55, 0.9)
+# Al subir la torre el cielo pasa a un atardecer dorado (por encima de las copas).
+const HIGH_SKY_TOP := Color(0.17, 0.1, 0.16)
+const HIGH_SKY_BOTTOM := Color(0.86, 0.56, 0.26)
+const HIGH_RAY_COLOR := Color(1.0, 0.82, 0.5, 0.06)
+const TOWER_HEIGHT := 5500.0
+
+var sky: Polygon2D
+var rays: Array = []
+var height_ratio := -1.0
 
 func _ready() -> void:
 	layer = -100
@@ -21,7 +30,7 @@ func _ready() -> void:
 func _build_sky() -> void:
 	# Capa fija a la pantalla: degradado vertical y luciérnagas flotando.
 	var sky_layer := _new_layer(Vector2.ZERO, Vector2.ZERO)
-	var sky := Polygon2D.new()
+	sky = Polygon2D.new()
 	sky.polygon = PackedVector2Array([Vector2(-2000, -1500), Vector2(4000, -1500), Vector2(4000, 2500), Vector2(-2000, 2500)])
 	sky.vertex_colors = PackedColorArray([SKY_TOP, SKY_TOP, SKY_BOTTOM, SKY_BOTTOM])
 	sky_layer.add_child(sky)
@@ -33,6 +42,7 @@ func _build_sky() -> void:
 		ray.polygon = PackedVector2Array([Vector2(x - 30, -100), Vector2(x + 40, -100), Vector2(x + 190, 760), Vector2(x + 40, 760)])
 		ray.color = Color(0.78, 1.0, 0.75, 0.035)
 		sky_layer.add_child(ray)
+		rays.append(ray)
 
 	var fireflies := CPUParticles2D.new()
 	fireflies.amount = 36
@@ -55,6 +65,21 @@ func _build_sky() -> void:
 	fade.add_point(0.7, FIREFLY_COLOR)
 	fireflies.color_ramp = fade
 	sky_layer.add_child(fireflies)
+
+func _process(_delta: float) -> void:
+	var camera := get_viewport().get_camera_2d()
+	if camera == null:
+		return
+	var ratio: float = clamp(-camera.get_screen_center_position().y / TOWER_HEIGHT, 0.0, 1.0)
+	if abs(ratio - height_ratio) < 0.002:
+		return
+	height_ratio = ratio
+	var eased: float = smoothstep(0.0, 1.0, ratio)
+	var top := SKY_TOP.lerp(HIGH_SKY_TOP, eased)
+	var bottom := SKY_BOTTOM.lerp(HIGH_SKY_BOTTOM, eased)
+	sky.vertex_colors = PackedColorArray([top, top, bottom, bottom])
+	for ray in rays:
+		ray.color = Color(0.78, 1.0, 0.75, 0.035).lerp(HIGH_RAY_COLOR, eased)
 
 func _build_tree_layer(motion: Vector2, width: float, base_y: float, color: Color, count: int, height_range: Vector2, seed_value: int, with_vines: bool) -> void:
 	var tree_layer := _new_layer(motion, Vector2(width, 0.0))

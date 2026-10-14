@@ -4,6 +4,9 @@ extends CanvasLayer
 # Funciona con el juego pausado. Los ajustes se guardan en user://settings.cfg.
 
 const SETTINGS_PATH := "user://settings.cfg"
+# Al cambiar el esquema por defecto se sube la versión: los controles guardados con una
+# versión anterior se ignoran (el volumen sí se conserva).
+const INPUT_VERSION := 2
 const MUSIC_BUS := &"Music"
 
 const OVERLAY_COLOR := Color(0.01, 0.04, 0.03, 0.62)
@@ -29,6 +32,7 @@ const JOY_BUTTON_NAMES := {
 	0: "A", 1: "B", 2: "X", 3: "Y", 4: "Select", 5: "Guide", 6: "Start", 7: "L3", 8: "R3",
 	9: "LB", 10: "RB", 11: "D-pad ↑", 12: "D-pad ↓", 13: "D-pad ←", 14: "D-pad →",
 }
+const MOUSE_BUTTON_NAMES := {1: "Clic izquierdo", 2: "Clic derecho", 3: "Clic central", 4: "Rueda ↑", 5: "Rueda ↓", 8: "Botón lateral 1", 9: "Botón lateral 2"}
 const JOY_AXIS_NAMES := {0: "Stick izq. X", 1: "Stick izq. Y", 2: "Stick der. X", 3: "Stick der. Y", 4: "LT", 5: "RT"}
 
 var root_control: Control
@@ -186,7 +190,7 @@ func _build() -> void:
 	remap_page = _page(pages)
 	remap_title = _title("MAPEAR TECLADO")
 	remap_page.add_child(remap_title)
-	var hint := _label("Elige una acción y pulsa la nueva tecla o botón (Esc cancela)", 13, Color(0.7, 0.85, 0.66))
+	var hint := _label("Elige una acción y pulsa la nueva tecla, clic o botón (Esc cancela)", 13, Color(0.7, 0.85, 0.66))
 	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	remap_page.add_child(hint)
 	var scroll := ScrollContainer.new()
@@ -258,6 +262,10 @@ func _capture_event(event: InputEvent) -> InputEvent:
 			var key := InputEventKey.new()
 			key.physical_keycode = event.physical_keycode
 			return key
+	if remap_device == Device.KEYBOARD and event is InputEventMouseButton and event.pressed:
+		var mouse := InputEventMouseButton.new()
+		mouse.button_index = event.button_index
+		return mouse
 	if remap_device != Device.JOYPAD:
 		return null
 	if event is InputEventJoypadButton and event.pressed:
@@ -285,7 +293,7 @@ func _assign_event(action: String, new_event: InputEvent) -> void:
 
 func _is_remappable(action: String, event: InputEvent) -> bool:
 	if remap_device == Device.KEYBOARD:
-		return event is InputEventKey
+		return event is InputEventKey or event is InputEventMouseButton
 	if event is InputEventJoypadMotion and action in STICK_ACTIONS and event.axis <= 1:
 		return false
 	return event is InputEventJoypadButton or event is InputEventJoypadMotion
@@ -293,6 +301,8 @@ func _is_remappable(action: String, event: InputEvent) -> bool:
 func _same_input(a: InputEvent, b: InputEvent) -> bool:
 	if a is InputEventKey and b is InputEventKey:
 		return a.physical_keycode == b.physical_keycode
+	if a is InputEventMouseButton and b is InputEventMouseButton:
+		return a.button_index == b.button_index
 	if a is InputEventJoypadButton and b is InputEventJoypadButton:
 		return a.button_index == b.button_index
 	if a is InputEventJoypadMotion and b is InputEventJoypadMotion:
@@ -313,6 +323,8 @@ func _binding_text(action: String) -> String:
 func _event_name(event: InputEvent) -> String:
 	if event is InputEventKey:
 		return OS.get_keycode_string(event.physical_keycode)
+	if event is InputEventMouseButton:
+		return MOUSE_BUTTON_NAMES.get(event.button_index, "Ratón %d" % event.button_index)
 	if event is InputEventJoypadButton:
 		return JOY_BUTTON_NAMES.get(event.button_index, "Botón %d" % event.button_index)
 	if event is InputEventJoypadMotion:
@@ -363,7 +375,8 @@ func _load_settings() -> void:
 	var volume: float = 1.0
 	if config.load(SETTINGS_PATH) == OK:
 		volume = clamp(float(config.get_value("audio", "music_volume", 1.0)), 0.0, 1.0)
-		_load_bindings(config)
+		if int(config.get_value("input", "version", 1)) == INPUT_VERSION:
+			_load_bindings(config)
 	music_slider.set_value_no_signal(volume * 100.0)
 	music_value_label.text = "%d%%" % int(volume * 100.0)
 	_apply_music_volume(volume)
@@ -372,6 +385,7 @@ func _save_settings() -> void:
 	var config := ConfigFile.new()
 	config.load(SETTINGS_PATH)
 	config.set_value("audio", "music_volume", music_slider.value / 100.0)
+	config.set_value("input", "version", INPUT_VERSION)
 	for entry in REMAP_ACTIONS:
 		var action: String = entry[0]
 		var keys := []
@@ -379,6 +393,8 @@ func _save_settings() -> void:
 		for event in InputMap.action_get_events(action):
 			if event is InputEventKey:
 				keys.append(event.physical_keycode)
+			elif event is InputEventMouseButton:
+				keys.append("m:%d" % event.button_index)
 			elif event is InputEventJoypadButton:
 				pad.append("b:%d" % event.button_index)
 			elif event is InputEventJoypadMotion:
@@ -392,12 +408,17 @@ func _load_bindings(config: ConfigFile) -> void:
 		var action: String = entry[0]
 		if config.has_section_key("keyboard", action):
 			for existing in InputMap.action_get_events(action):
-				if existing is InputEventKey:
+				if existing is InputEventKey or existing is InputEventMouseButton:
 					InputMap.action_erase_event(action, existing)
 			for code in config.get_value("keyboard", action):
-				var key := InputEventKey.new()
-				key.physical_keycode = int(code)
-				InputMap.action_add_event(action, key)
+				if code is String and String(code).begins_with("m:"):
+					var mouse := InputEventMouseButton.new()
+					mouse.button_index = int(String(code).substr(2))
+					InputMap.action_add_event(action, mouse)
+				else:
+					var key := InputEventKey.new()
+					key.physical_keycode = int(code)
+					InputMap.action_add_event(action, key)
 		if config.has_section_key("joypad", action):
 			for existing in InputMap.action_get_events(action):
 				if existing is InputEventJoypadButton or existing is InputEventJoypadMotion:

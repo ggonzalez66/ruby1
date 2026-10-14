@@ -14,6 +14,9 @@ var reflected_damage := 2
 var shooter: Node2D
 var reflected := false
 var life := 6.0
+# "orb" (bola de energía de los dummies) o "arrow" (flecha del guardián arquero).
+var style := "orb"
+var fall_gravity := 0.0
 var glow: Polygon2D
 var core: Polygon2D
 
@@ -28,10 +31,19 @@ func _ready() -> void:
 	circle.radius = 7.0
 	shape.shape = circle
 	add_child(shape)
-	glow = _circle(11.0, Color(ENEMY_COLOR, 0.45))
-	core = _circle(6.0, ENEMY_CORE)
-	add_child(glow)
-	add_child(core)
+	if style == "arrow":
+		# Flecha apuntando a +x: astil, punta y plumas. El nodo rota según la velocidad.
+		core = _poly([Vector2(-30, -1.6), Vector2(12, -1.6), Vector2(12, 1.6), Vector2(-30, 1.6)], Color(0.45, 0.3, 0.18))
+		glow = _poly([Vector2(10, -6), Vector2(24, 0), Vector2(10, 6)], Color(0.85, 0.35, 0.3))
+		add_child(_poly([Vector2(-30, 0), Vector2(-38, -7), Vector2(-24, -1), Vector2(-24, 1), Vector2(-38, 7)], Color(0.9, 0.88, 0.8)))
+		add_child(core)
+		add_child(glow)
+		rotation = velocity.angle()
+	else:
+		glow = _circle(11.0, Color(ENEMY_COLOR, 0.45))
+		core = _circle(6.0, ENEMY_CORE)
+		add_child(glow)
+		add_child(core)
 	body_entered.connect(_on_body_entered)
 	area_entered.connect(_on_area_entered)
 
@@ -40,8 +52,12 @@ func _physics_process(delta: float) -> void:
 	if life <= 0.0:
 		queue_free()
 		return
+	velocity.y += fall_gravity * delta
 	global_position += velocity * delta
-	glow.scale = Vector2.ONE * (1.0 + 0.15 * sin(life * 20.0))
+	if style == "arrow":
+		rotation = velocity.angle()
+	else:
+		glow.scale = Vector2.ONE * (1.0 + 0.15 * sin(life * 20.0))
 	if reflected:
 		return
 	# El aura del rugido (también en sus frames latentes) devuelve el proyectil.
@@ -78,9 +94,10 @@ func _reflect(player: Node) -> void:
 	if is_instance_valid(shooter):
 		goal = shooter.global_position + shooter.get("impact_offset")
 	velocity = (goal - global_position).normalized() * max(velocity.length() * 2.0, 420.0)
+	fall_gravity = 0.0
 	life = 4.0
 	set_deferred("collision_mask", 2 | 8)
-	glow.color = Color(REFLECTED_COLOR, 0.45)
+	glow.color = Color(REFLECTED_COLOR, 1.0 if style == "arrow" else 0.45)
 	core.color = REFLECTED_CORE
 	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.0)
 	if player.has_method("on_projectile_reflected"):
@@ -89,6 +106,12 @@ func _reflect(player: Node) -> void:
 func _destroy() -> void:
 	Fx.puff(get_parent(), global_position, REFLECTED_COLOR if reflected else ENEMY_COLOR)
 	queue_free()
+
+func _poly(points: Array, color: Color) -> Polygon2D:
+	var poly := Polygon2D.new()
+	poly.polygon = PackedVector2Array(points)
+	poly.color = color
+	return poly
 
 func _circle(radius: float, color: Color) -> Polygon2D:
 	var poly := Polygon2D.new()

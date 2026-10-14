@@ -1,7 +1,7 @@
-[gd_scene load_steps=41 format=3 uid="uid://bsjw318ojxwhy"]
+[gd_scene load_steps=15 format=3 uid="uid://bsjw318ojxwhy"]
 
-[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_41u7p"]
-[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_2ax5n"]
+[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
 [ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
 [ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
 [ext_resource type="Script" path="res://hud.gd" id="5_hud"]
@@ -9,824 +9,1254 @@
 [ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
 [ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
 [ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
-[ext_resource type="Script" path="res://big_dummy.gd" id="10_boss"]
+[ext_resource type="Script" path="res://boss_spawner.gd" id="10_spawner"]
 [ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
 [ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
-size = Vector2(760, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_platform_long"]
-size = Vector2(260, 28)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_platform_medium"]
-size = Vector2(180, 24)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_wall"]
-size = Vector2(48, 220)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_block"]
-size = Vector2(100, 100)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_vertical"]
-size = Vector2(60, 4600)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_horizontal"]
-size = Vector2(7400, 60)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_bottom_left"]
-size = Vector2(620, 60)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_boundary_bottom_right"]
-size = Vector2(2910, 60)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground_spawn"]
-size = Vector2(220, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground_exit"]
-size = Vector2(360, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_pit_wall"]
-size = Vector2(42, 760)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground_arena"]
-size = Vector2(900, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_climb_wall"]
-size = Vector2(48, 420)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_shaft_ground"]
-size = Vector2(1140, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_shaft_wall"]
-size = Vector2(48, 970)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_6774x60"]
-size = Vector2(6774, 60)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_120x130"]
-size = Vector2(120, 130)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_120x260"]
-size = Vector2(120, 260)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_160x24"]
-size = Vector2(160, 24)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_180x24"]
-size = Vector2(180, 24)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_120x24"]
-size = Vector2(120, 24)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_48x450"]
-size = Vector2(48, 450)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_48x460"]
-size = Vector2(48, 460)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_48x920"]
-size = Vector2(48, 920)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_6788x60"]
-size = Vector2(6788, 60)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_60x140"]
-size = Vector2(60, 140)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_tower_200x24"]
-size = Vector2(200, 24)
+[ext_resource type="Script" path="res://platform.gd" id="13_platform"]
+[ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
 
 [node name="Main" type="Node2D"]
 
 [node name="JungleBackground" type="ParallaxBackground" parent="."]
 script = ExtResource("4_jungle")
 
-[node name="SunEnemy" parent="." instance=ExtResource("3_sun")]
-position = Vector2(1280, -180)
-
-[node name="GroundSpawn" type="StaticBody2D" parent="."]
-position = Vector2(-620, 300)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundSpawn"]
-shape = SubResource("RectangleShape2D_ground_spawn")
-
-[node name="Visual" type="Polygon2D" parent="GroundSpawn"]
-color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-110, -40, 110, -40, 110, 40, -110, 40)
-
-[node name="GroundPitExit" type="StaticBody2D" parent="."]
-position = Vector2(-120, 300)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundPitExit"]
-shape = SubResource("RectangleShape2D_ground_exit")
-
-[node name="Visual" type="Polygon2D" parent="GroundPitExit"]
-color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-180, -40, 180, -40, 180, 40, -180, 40)
-
-[node name="PitWallLeft" type="StaticBody2D" parent="."]
-position = Vector2(-510, 640)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallLeft"]
-shape = SubResource("RectangleShape2D_pit_wall")
-
-[node name="Visual" type="Polygon2D" parent="PitWallLeft"]
-color = Color(0.552941, 0.266667, 0.176471, 1)
-polygon = PackedVector2Array(-21, -380, 21, -380, 21, 380, -21, 380)
-
-[node name="PitWallRight" type="StaticBody2D" parent="."]
-position = Vector2(-300, 640)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="PitWallRight"]
-shape = SubResource("RectangleShape2D_pit_wall")
-
-[node name="Visual" type="Polygon2D" parent="PitWallRight"]
-color = Color(0.552941, 0.266667, 0.176471, 1)
-polygon = PackedVector2Array(-21, -380, 21, -380, 21, 380, -21, 380)
-
-[node name="GroundEast" type="StaticBody2D" parent="."]
-position = Vector2(620, 300)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="GroundEast"]
-shape = SubResource("RectangleShape2D_ground")
-
-[node name="Visual" type="Polygon2D" parent="GroundEast"]
-color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
-
-[node name="Bridge" type="StaticBody2D" parent="."]
-position = Vector2(150, 190)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Bridge"]
-shape = SubResource("RectangleShape2D_platform_medium")
-
-[node name="Visual" type="Polygon2D" parent="Bridge"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="LowPlatform" type="StaticBody2D" parent="."]
-position = Vector2(420, 140)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="LowPlatform"]
-shape = SubResource("RectangleShape2D_platform_long")
-
-[node name="Visual" type="Polygon2D" parent="LowPlatform"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
-
-[node name="StepPlatform" type="StaticBody2D" parent="."]
-position = Vector2(780, 70)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="StepPlatform"]
-shape = SubResource("RectangleShape2D_platform_medium")
-
-[node name="Visual" type="Polygon2D" parent="StepPlatform"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="TallWall" type="StaticBody2D" parent="."]
-position = Vector2(1140, 190)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="TallWall"]
-shape = SubResource("RectangleShape2D_wall")
-
-[node name="Visual" type="Polygon2D" parent="TallWall"]
-color = Color(0.509804, 0.247059, 0.160784, 1)
-polygon = PackedVector2Array(-24, -110, 24, -110, 24, 110, -24, 110)
-
-[node name="WallTop" type="StaticBody2D" parent="."]
-position = Vector2(1140, 50)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="WallTop"]
-shape = SubResource("RectangleShape2D_platform_medium")
-
-[node name="Visual" type="Polygon2D" parent="WallTop"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="FarPlatform" type="StaticBody2D" parent="."]
-position = Vector2(1460, -10)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="FarPlatform"]
-shape = SubResource("RectangleShape2D_platform_long")
-
-[node name="Visual" type="Polygon2D" parent="FarPlatform"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
-
-[node name="FinalBlock" type="StaticBody2D" parent="."]
-position = Vector2(1790, 140)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="FinalBlock"]
-shape = SubResource("RectangleShape2D_block")
-
-[node name="Visual" type="Polygon2D" parent="FinalBlock"]
-color = Color(0.611765, 0.301961, 0.188235, 1)
-polygon = PackedVector2Array(-50, -50, 50, -50, 50, 50, -50, 50)
-
 [node name="BoundaryLeft" type="StaticBody2D" parent="."]
-position = Vector2(-1200, -610)
+position = Vector2(-30, -3150)
 collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryLeft"]
-shape = SubResource("RectangleShape2D_boundary_vertical")
-
-[node name="Visual" type="Polygon2D" parent="BoundaryLeft"]
-color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-30, -2300, 30, -2300, 30, 2300, -30, 2300)
+script = ExtResource("13_platform")
+size = Vector2(60, 7020)
+style = 3
 
 [node name="BoundaryRight" type="StaticBody2D" parent="."]
-position = Vector2(5950, -610)
+position = Vector2(10230, -3150)
 collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryRight"]
-shape = SubResource("RectangleShape2D_boundary_vertical")
-
-[node name="Visual" type="Polygon2D" parent="BoundaryRight"]
-color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-30, -2300, 30, -2300, 30, 2300, -30, 2300)
+script = ExtResource("13_platform")
+size = Vector2(60, 7020)
+style = 3
 
 [node name="BoundaryTop" type="StaticBody2D" parent="."]
-position = Vector2(2340, -2880)
+position = Vector2(5100, -6600)
 collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(10320, 120)
+style = 1
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryTop"]
-shape = SubResource("RectangleShape2D_boundary_horizontal")
+[node name="TitleF1" type="Label" parent="."]
+offset_left = 60
+offset_top = -420
+offset_right = 960
+offset_bottom = -360
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "PISO 1 · FUNDAMENTOS"
 
-[node name="Visual" type="Polygon2D" parent="BoundaryTop"]
-color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-3700, -30, 3700, -30, 3700, 30, -3700, 30)
-
-[node name="BoundaryBottom" type="StaticBody2D" parent="."]
-position = Vector2(2340, 1320)
+[node name="F1Ground1" type="StaticBody2D" parent="."]
+position = Vector2(2000, 150)
 collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(4000, 300)
+style = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="BoundaryBottom"]
-shape = SubResource("RectangleShape2D_boundary_horizontal")
-
-[node name="Visual" type="Polygon2D" parent="BoundaryBottom"]
-color = Color(0.54902, 0.258824, 0.172549, 1)
-polygon = PackedVector2Array(-3700, -30, 3700, -30, 3700, 30, -3700, 30)
-
-[node name="ArenaGround" type="StaticBody2D" parent="."]
-position = Vector2(2450, 300)
+[node name="F1Ground2" type="StaticBody2D" parent="."]
+position = Vector2(4475, 150)
 collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(450, 300)
+style = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaGround"]
-shape = SubResource("RectangleShape2D_ground_arena")
-
-[node name="Visual" type="Polygon2D" parent="ArenaGround"]
-color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-450, -40, 450, -40, 450, 40, -450, 40)
-
-[node name="ArenaPlatformLeft" type="StaticBody2D" parent="."]
-position = Vector2(2200, 120)
+[node name="F1Ground3" type="StaticBody2D" parent="."]
+position = Vector2(7625, 150)
 collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(5150, 300)
+style = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaPlatformLeft"]
-shape = SubResource("RectangleShape2D_platform_medium")
-
-[node name="Visual" type="Polygon2D" parent="ArenaPlatformLeft"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="ArenaPlatformRight" type="StaticBody2D" parent="."]
-position = Vector2(2700, 120)
+[node name="F1PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(4125, 205)
 collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(250, 190)
+style = 0
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaPlatformRight"]
-shape = SubResource("RectangleShape2D_platform_medium")
+[node name="F1PitThorns1" type="Area2D" parent="."]
+position = Vector2(4125, 110)
+script = ExtResource("8_hazard")
+size = Vector2(250, 18)
+damage = 10
 
-[node name="Visual" type="Polygon2D" parent="ArenaPlatformRight"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="ArenaHighPlatform" type="StaticBody2D" parent="."]
-position = Vector2(2450, -40)
+[node name="F1PitFloor2" type="StaticBody2D" parent="."]
+position = Vector2(4875, 205)
 collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ArenaHighPlatform"]
-shape = SubResource("RectangleShape2D_platform_long")
-
-[node name="Visual" type="Polygon2D" parent="ArenaHighPlatform"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
-
-[node name="ClimbGround" type="StaticBody2D" parent="."]
-position = Vector2(3480, 300)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbGround"]
-shape = SubResource("RectangleShape2D_ground")
-
-[node name="Visual" type="Polygon2D" parent="ClimbGround"]
-color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
-
-[node name="ClimbStepLow" type="StaticBody2D" parent="."]
-position = Vector2(3620, 140)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbStepLow"]
-shape = SubResource("RectangleShape2D_platform_medium")
-
-[node name="Visual" type="Polygon2D" parent="ClimbStepLow"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="ClimbStepMid" type="StaticBody2D" parent="."]
-position = Vector2(3400, 10)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbStepMid"]
-shape = SubResource("RectangleShape2D_platform_medium")
-
-[node name="Visual" type="Polygon2D" parent="ClimbStepMid"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="ClimbStepHigh" type="StaticBody2D" parent="."]
-position = Vector2(3660, -110)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbStepHigh"]
-shape = SubResource("RectangleShape2D_platform_medium")
-
-[node name="Visual" type="Polygon2D" parent="ClimbStepHigh"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="ClimbWall" type="StaticBody2D" parent="."]
-position = Vector2(3880, 50)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ClimbWall"]
-shape = SubResource("RectangleShape2D_climb_wall")
-
-[node name="Visual" type="Polygon2D" parent="ClimbWall"]
-color = Color(0.509804, 0.247059, 0.160784, 1)
-polygon = PackedVector2Array(-24, -210, 24, -210, 24, 210, -24, 210)
-
-[node name="SummitPlatform" type="StaticBody2D" parent="."]
-position = Vector2(4034, -172)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="SummitPlatform"]
-shape = SubResource("RectangleShape2D_platform_long")
-
-[node name="Visual" type="Polygon2D" parent="SummitPlatform"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-130, -14, 130, -14, 130, 14, -130, 14)
-
-[node name="FinalGround" type="StaticBody2D" parent="."]
-position = Vector2(4400, 300)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="FinalGround"]
-shape = SubResource("RectangleShape2D_ground")
-
-[node name="Visual" type="Polygon2D" parent="FinalGround"]
-color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-380, -40, 380, -40, 380, 40, -380, 40)
-
-[node name="ShaftGround" type="StaticBody2D" parent="."]
-position = Vector2(5350, 300)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ShaftGround"]
-shape = SubResource("RectangleShape2D_shaft_ground")
-
-[node name="Visual" type="Polygon2D" parent="ShaftGround"]
-color = Color(0.701961, 0.352941, 0.239216, 1)
-polygon = PackedVector2Array(-570, -40, 570, -40, 570, 40, -570, 40)
-
-[node name="ShaftWall" type="StaticBody2D" parent="."]
-position = Vector2(5550, -365)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="ShaftWall"]
-shape = SubResource("RectangleShape2D_shaft_wall")
-
-[node name="Visual" type="Polygon2D" parent="ShaftWall"]
-color = Color(0.290196, 0.443137, 0.235294, 1)
-polygon = PackedVector2Array(-24, -485, 24, -485, 24, 485, -24, 485)
-
-
-[node name="ShaftMossRight" type="Polygon2D" parent="."]
-color = Color(0.290196, 0.443137, 0.235294, 1)
-polygon = PackedVector2Array(5910, -850, 5920, -850, 5920, 260, 5910, 260)
-
-[node name="ShaftHint" type="Label" parent="."]
-offset_left = 5600.0
-offset_top = 150.0
-offset_right = 5900.0
-offset_bottom = 200.0
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "↑ Running walljumps
-mantén correr y salta contra la pared"
-horizontal_alignment = 1
-
-[node name="Floor2Slab" type="StaticBody2D" parent="."]
-position = Vector2(2187, -820)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor2Slab"]
-shape = SubResource("RectangleShape2D_tower_6774x60")
-
-[node name="Visual" type="Polygon2D" parent="Floor2Slab"]
-color = Color(0.384314, 0.215686, 0.145098, 1)
-polygon = PackedVector2Array(-3387, -30, 3387, -30, 3387, 30, -3387, 30)
-
-[node name="F2MantleBlockLow" type="StaticBody2D" parent="."]
-position = Vector2(5040, -915)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F2MantleBlockLow"]
-shape = SubResource("RectangleShape2D_tower_120x130")
-
-[node name="Visual" type="Polygon2D" parent="F2MantleBlockLow"]
-color = Color(0.509804, 0.247059, 0.160784, 1)
-polygon = PackedVector2Array(-60, -65, 60, -65, 60, 65, -60, 65)
-
-[node name="F2MantleBlockHigh" type="StaticBody2D" parent="."]
-position = Vector2(4920, -980)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F2MantleBlockHigh"]
-shape = SubResource("RectangleShape2D_tower_120x260")
-
-[node name="Visual" type="Polygon2D" parent="F2MantleBlockHigh"]
-color = Color(0.509804, 0.247059, 0.160784, 1)
-polygon = PackedVector2Array(-60, -130, 60, -130, 60, 130, -60, 130)
-
-[node name="F2ReflectPerch" type="StaticBody2D" parent="."]
-position = Vector2(2280, -968)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F2ReflectPerch"]
-shape = SubResource("RectangleShape2D_tower_160x24")
-
-[node name="Visual" type="Polygon2D" parent="F2ReflectPerch"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-80, -12, 80, -12, 80, 12, -80, 12)
-
-[node name="F2ShooterPerch" type="StaticBody2D" parent="."]
-position = Vector2(2710, -1068)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F2ShooterPerch"]
-shape = SubResource("RectangleShape2D_tower_180x24")
-
-[node name="Visual" type="Polygon2D" parent="F2ShooterPerch"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="F2KnifePerch" type="StaticBody2D" parent="."]
-position = Vector2(1410, -1338)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F2KnifePerch"]
-shape = SubResource("RectangleShape2D_tower_120x24")
-
-[node name="Visual" type="Polygon2D" parent="F2KnifePerch"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-60, -12, 60, -12, 60, 12, -60, 12)
-
-[node name="F2ChimneyPillar" type="StaticBody2D" parent="."]
-position = Vector2(640, -1075)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F2ChimneyPillar"]
-shape = SubResource("RectangleShape2D_tower_48x450")
-
-[node name="Visual" type="Polygon2D" parent="F2ChimneyPillar"]
-color = Color(0.290196, 0.443137, 0.235294, 1)
-polygon = PackedVector2Array(-24, -225, 24, -225, 24, 225, -24, 225)
-
-[node name="F2ChimneyWall" type="StaticBody2D" parent="."]
-position = Vector2(924, -1220)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F2ChimneyWall"]
-shape = SubResource("RectangleShape2D_tower_48x460")
-
-[node name="Visual" type="Polygon2D" parent="F2ChimneyWall"]
-color = Color(0.290196, 0.443137, 0.235294, 1)
-polygon = PackedVector2Array(-24, -230, 24, -230, 24, 230, -24, 230)
-
-[node name="Shaft2Wall" type="StaticBody2D" parent="."]
-position = Vector2(-844, -1450)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Shaft2Wall"]
-shape = SubResource("RectangleShape2D_tower_48x920")
-
-[node name="Visual" type="Polygon2D" parent="Shaft2Wall"]
-color = Color(0.290196, 0.443137, 0.235294, 1)
-polygon = PackedVector2Array(-24, -460, 24, -460, 24, 460, -24, 460)
-
-[node name="Floor3Slab" type="StaticBody2D" parent="."]
-position = Vector2(2526, -1880)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Floor3Slab"]
-shape = SubResource("RectangleShape2D_tower_6788x60")
-
-[node name="Visual" type="Polygon2D" parent="Floor3Slab"]
-color = Color(0.384314, 0.215686, 0.145098, 1)
-polygon = PackedVector2Array(-3394, -30, 3394, -30, 3394, 30, -3394, 30)
-
-[node name="F3StepA" type="StaticBody2D" parent="."]
-position = Vector2(240, -1998)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F3StepA"]
-shape = SubResource("RectangleShape2D_tower_180x24")
-
-[node name="Visual" type="Polygon2D" parent="F3StepA"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="F3StepB" type="StaticBody2D" parent="."]
-position = Vector2(610, -2098)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F3StepB"]
-shape = SubResource("RectangleShape2D_tower_180x24")
-
-[node name="Visual" type="Polygon2D" parent="F3StepB"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="F3StepC" type="StaticBody2D" parent="."]
-position = Vector2(990, -1998)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F3StepC"]
-shape = SubResource("RectangleShape2D_tower_180x24")
-
-[node name="Visual" type="Polygon2D" parent="F3StepC"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-90, -12, 90, -12, 90, 12, -90, 12)
-
-[node name="F3MantleWall" type="StaticBody2D" parent="."]
-position = Vector2(1330, -1980)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F3MantleWall"]
-shape = SubResource("RectangleShape2D_tower_60x140")
-
-[node name="Visual" type="Polygon2D" parent="F3MantleWall"]
-color = Color(0.509804, 0.247059, 0.160784, 1)
-polygon = PackedVector2Array(-30, -70, 30, -70, 30, 70, -30, 70)
-
-[node name="F3ArenaPlatformLeft" type="StaticBody2D" parent="."]
-position = Vector2(2400, -2068)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F3ArenaPlatformLeft"]
-shape = SubResource("RectangleShape2D_tower_200x24")
-
-[node name="Visual" type="Polygon2D" parent="F3ArenaPlatformLeft"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-100, -12, 100, -12, 100, 12, -100, 12)
-
-[node name="F3ArenaPlatformRight" type="StaticBody2D" parent="."]
-position = Vector2(3800, -2068)
-collision_layer = 2
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="F3ArenaPlatformRight"]
-shape = SubResource("RectangleShape2D_tower_200x24")
-
-[node name="Visual" type="Polygon2D" parent="F3ArenaPlatformRight"]
-color = Color(0.521569, 0.278431, 0.184314, 1)
-polygon = PackedVector2Array(-100, -12, 100, -12, 100, 12, -100, 12)
-
-[node name="Shaft2MossLeft" type="Polygon2D" parent="."]
-color = Color(0.290196, 0.443137, 0.235294, 1)
-polygon = PackedVector2Array(-1170, -1910, -1160, -1910, -1160, -850, -1170, -850)
-
-[node name="CheckpointFloor2" type="Area2D" parent="."]
-position = Vector2(5420, -850)
+script = ExtResource("13_platform")
+size = Vector2(350, 190)
+style = 0
+
+[node name="F1PitThorns2" type="Area2D" parent="."]
+position = Vector2(4875, 110)
+script = ExtResource("8_hazard")
+size = Vector2(350, 18)
+damage = 10
+
+[node name="CheckpointStart" type="Area2D" parent="."]
+position = Vector2(120, 0)
 script = ExtResource("9_checkpoint")
 
-[node name="CheckpointFloor3" type="Area2D" parent="."]
-position = Vector2(-700, -1910)
+[node name="SignMove" type="Node2D" parent="."]
+position = Vector2(340, 0)
+script = ExtResource("14_sign")
+text = "Usa {move} para moverte.
+Acércate a los carteles como este: cada uno enseña una técnica nueva."
+title = "Moverse"
+panel_width = 320
+
+[node name="SignJump" type="Node2D" parent="."]
+position = Vector2(640, 0)
+script = ExtResource("14_sign")
+text = "Pulsa {jump} para saltar.
+Si lo sueltas antes, el salto es más corto."
+title = "Saltar"
+panel_width = 320
+
+[node name="F1Step" type="StaticBody2D" parent="."]
+position = Vector2(880, -30)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(120, 60)
+style = 0
+
+[node name="SignDoubleJump" type="Node2D" parent="."]
+position = Vector2(1150, 0)
+script = ExtResource("14_sign")
+text = "En el aire, pulsa {jump} otra vez: doble salto."
+title = "Doble salto"
+panel_width = 320
+
+[node name="F1DoubleBlock" type="StaticBody2D" parent="."]
+position = Vector2(1430, -95)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(180, 190)
+style = 0
+
+[node name="SignCombo" type="Node2D" parent="."]
+position = Vector2(1780, 0)
+script = ExtResource("14_sign")
+text = "{attack} ataca con las garras.
+Pulsa 3 veces seguidas: el tercer golpe es un remate más fuerte."
+title = "Combo"
+panel_width = 320
+
+[node name="DummyCombo1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1990, 0)
+
+[node name="DummyCombo2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2120, 0)
+
+[node name="SignCharged" type="Node2D" parent="."]
+position = Vector2(2350, 0)
+script = ExtResource("14_sign")
+text = "Mantén {attack} hasta que Rengar brille y suéltalo: ataque cargado que avanza."
+title = "Ataque cargado"
+panel_width = 320
+
+[node name="DummyCharged" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2580, 0)
+max_health = 8
+
+[node name="SignHeavy" type="Node2D" parent="."]
+position = Vector2(2820, 0)
+script = ExtResource("14_sign")
+text = "{heavy_attack} da un golpe pesado.
+En el aire cae en picado: si golpea a un enemigo, rebotas y recuperas el doble salto."
+title = "Ataque pesado"
+panel_width = 320
+
+[node name="DummyHeavy" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3000, 0)
+max_health = 8
+
+[node name="DummyHeavyAir" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3190, -150)
+aerial = true
+max_health = 10
+
+[node name="SignUppercut" type="Node2D" parent="."]
+position = Vector2(3400, 0)
+script = ExtResource("14_sign")
+text = "Mantén {move_up} y pulsa {heavy_attack}: uppercut que te lanza hacia arriba."
+title = "Uppercut"
+panel_width = 320
+
+[node name="DummyUppercut" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3600, -200)
+aerial = true
+max_health = 10
+
+[node name="SignDash" type="Node2D" parent="."]
+position = Vector2(3800, 0)
+script = ExtResource("14_sign")
+text = "{dash} hace un dash rápido, también en el aire.
+Salta y haz dash para cruzar el foso."
+title = "Dash"
+panel_width = 320
+
+[node name="SignSprint" type="Node2D" parent="."]
+position = Vector2(4450, 0)
+script = ExtResource("14_sign")
+text = "Mantén {dash} al terminar el dash para seguir corriendo a toda velocidad.
+Salta mientras corres: salto largo."
+title = "Carrera y salto largo"
+panel_width = 320
+
+[node name="SignMantle" type="Node2D" parent="."]
+position = Vector2(5300, 0)
+script = ExtResource("14_sign")
+text = "Si llegas justo al borde de un saliente, Rengar se agarra y sube solo."
+title = "Agarre"
+panel_width = 320
+
+[node name="F1MantleLow" type="StaticBody2D" parent="."]
+position = Vector2(5575, -65)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 130)
+style = 0
+
+[node name="F1MantleHigh" type="StaticBody2D" parent="."]
+position = Vector2(5725, -120)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 240)
+style = 0
+
+[node name="SignWallJump" type="Node2D" parent="."]
+position = Vector2(6050, 0)
+script = ExtResource("14_sign")
+text = "Salta contra una pared y pulsa {jump} para rebotar hacia el otro lado.
+Sube por la chimenea rebotando entre las dos paredes."
+title = "Walljump"
+panel_width = 320
+
+[node name="F1ChimneyLeft" type="StaticBody2D" parent="."]
+position = Vector2(6270, -315)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 410)
+style = 3
+
+[node name="F1ChimneyRight" type="StaticBody2D" parent="."]
+position = Vector2(6520, -260)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 520)
+style = 3
+
+[node name="SignChasers" type="Node2D" parent="."]
+position = Vector2(6820, 0)
+script = ExtResource("14_sign")
+text = "Los enemigos avisan con un (!) antes de atacar.
+Esquiva con {dash} o aléjate, y castígalos justo después de su golpe."
+title = "Perseguidores"
+panel_width = 320
+
+[node name="ChaserF1A" type="Area2D" parent="."]
+position = Vector2(7150, 0)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF1B" type="Area2D" parent="."]
+position = Vector2(7480, 0)
+script = ExtResource("12_chaser")
+
+[node name="SignSun" type="Node2D" parent="."]
+position = Vector2(7760, 0)
+script = ExtResource("14_sign")
+text = "El sol quema al tocarlo y no se puede destruir.
+Pasa por debajo sin saltar."
+title = "Sol"
+panel_width = 320
+
+[node name="SunEnemy" parent="." instance=ExtResource("3_sun")]
+position = Vector2(8000, -180)
+
+[node name="CheckpointF1End" type="Area2D" parent="."]
+position = Vector2(8350, 0)
 script = ExtResource("9_checkpoint")
 
-[node name="F2ThornsA" type="Area2D" parent="."]
-position = Vector2(4410, -850)
+[node name="SignClimbF1" type="Node2D" parent="."]
+position = Vector2(8700, 0)
+script = ExtResource("14_sign")
+text = "Encadena doble salto y agarre para subir al siguiente piso."
+title = "Subida"
+panel_width = 320
+
+[node name="F1Step1" type="StaticBody2D" parent="."]
+position = Vector2(10110, -160)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F1Step2" type="StaticBody2D" parent="."]
+position = Vector2(9860, -330)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F1Step3" type="StaticBody2D" parent="."]
+position = Vector2(10110, -500)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F1Step4" type="StaticBody2D" parent="."]
+position = Vector2(9860, -670)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F1Step5" type="StaticBody2D" parent="."]
+position = Vector2(10110, -840)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F1Step6" type="StaticBody2D" parent="."]
+position = Vector2(9860, -960)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="TitleF2" type="Label" parent="."]
+offset_left = 8600
+offset_top = -1580
+offset_right = 9500
+offset_bottom = -1520
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "PISO 2 · CARRERA"
+
+[node name="F2Slab1" type="StaticBody2D" parent="."]
+position = Vector2(770, -1070)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1540, 60)
+style = 1
+
+[node name="F2Slab2" type="StaticBody2D" parent="."]
+position = Vector2(3920, -1070)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3640, 60)
+style = 1
+
+[node name="F2Slab3" type="StaticBody2D" parent="."]
+position = Vector2(8025, -1070)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3450, 60)
+style = 1
+
+[node name="F2PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(6020, -960)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(640, 40)
+style = 1
+
+[node name="F2PitSide1" type="StaticBody2D" parent="."]
+position = Vector2(5720, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitSide2" type="StaticBody2D" parent="."]
+position = Vector2(6320, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitThorns1" type="Area2D" parent="."]
+position = Vector2(6020, -980)
+script = ExtResource("8_hazard")
+size = Vector2(560, 18)
+damage = 10
+
+[node name="F2PitFloor2" type="StaticBody2D" parent="."]
+position = Vector2(1820, -960)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(640, 40)
+style = 1
+
+[node name="F2PitSide3" type="StaticBody2D" parent="."]
+position = Vector2(1520, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitSide4" type="StaticBody2D" parent="."]
+position = Vector2(2120, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitThorns2" type="Area2D" parent="."]
+position = Vector2(1820, -980)
+script = ExtResource("8_hazard")
+size = Vector2(560, 18)
+damage = 10
+
+[node name="CheckpointF2" type="Area2D" parent="."]
+position = Vector2(9500, -1100)
+script = ExtResource("9_checkpoint")
+
+[node name="SignBackflip" type="Node2D" parent="."]
+position = Vector2(9250, -1100)
+script = ExtResource("14_sign")
+text = "Corriendo, pulsa la dirección contraria y salta mientras frenas: backflip.
+Sale hacia atrás y muy alto; en el aire aún te queda otro salto."
+title = "Backflip"
+panel_width = 340
+
+[node name="F2BackflipLedge" type="StaticBody2D" parent="."]
+position = Vector2(8925, -1235)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 270)
+style = 3
+
+[node name="SignBunnyhop" type="Node2D" parent="."]
+position = Vector2(8560, -1100)
+script = ExtResource("14_sign")
+text = "Salta corriendo y, justo al aterrizar, vuelve a pulsar {jump}: encadenas saltos largos sin perder velocidad.
+Cruza las espinas sin tocarlas."
+title = "Bunnyhop"
+panel_width = 340
+
+[node name="F2Hop1" type="Area2D" parent="."]
+position = Vector2(8160, -1100)
 script = ExtResource("8_hazard")
 size = Vector2(180, 18)
+damage = 10
 
-[node name="F2ThornsB" type="Area2D" parent="."]
-position = Vector2(3995, -850)
+[node name="F2Hop2" type="Area2D" parent="."]
+position = Vector2(7745, -1100)
 script = ExtResource("8_hazard")
 size = Vector2(180, 18)
+damage = 10
 
-[node name="F2ThornsC" type="Area2D" parent="."]
-position = Vector2(3580, -850)
+[node name="F2Hop3" type="Area2D" parent="."]
+position = Vector2(7330, -1100)
 script = ExtResource("8_hazard")
 size = Vector2(180, 18)
+damage = 10
 
-[node name="F2ThornsPit" type="Area2D" parent="."]
-position = Vector2(458, -850)
+[node name="F2Hop4" type="Area2D" parent="."]
+position = Vector2(6915, -1100)
 script = ExtResource("8_hazard")
-size = Vector2(316, 18)
+size = Vector2(180, 18)
+damage = 10
 
-[node name="F2HintMantle" type="Label" parent="."]
-offset_left = 4880
-offset_top = -1080
-offset_right = 5200
-offset_bottom = -1030
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "Mantle automático: choca contra el borde"
-horizontal_alignment = 1
+[node name="SignFrontflip" type="Node2D" parent="."]
+position = Vector2(6600, -1100)
+script = ExtResource("14_sign")
+text = "Durante un salto largo pulsa {jump} en el aire: frontflip, llega mucho más lejos."
+title = "Frontflip"
+panel_width = 320
 
-[node name="F2HintBhop" type="Label" parent="."]
-offset_left = 3835
-offset_top = -1050
-offset_right = 4155
-offset_bottom = -1000
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "Bunnyhop sobre las espinas"
-horizontal_alignment = 1
+[node name="SignWallride" type="Node2D" parent="."]
+position = Vector2(5300, -1100)
+script = ExtResource("14_sign")
+text = "Corriendo, salta contra la pared con enredaderas: Rengar corre por ella hacia arriba y se agarra al borde sin frenar."
+title = "Wallride"
+panel_width = 340
 
-[node name="F2HintReflect" type="Label" parent="."]
-offset_left = 2220
-offset_top = -1190
-offset_right = 2580
-offset_bottom = -1140
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "Rugido (A): refleja los proyectiles"
-horizontal_alignment = 1
+[node name="F2WallrideWall" type="StaticBody2D" parent="."]
+position = Vector2(4800, -1170)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 140)
+style = 4
 
-[node name="F2HintKnife" type="Label" parent="."]
-offset_left = 1250
-offset_top = -1450
-offset_right = 1570
-offset_bottom = -1400
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "Cuchillo hacia arriba (↑ + D)"
-horizontal_alignment = 1
+[node name="ChaserF2A" type="Area2D" parent="."]
+position = Vector2(4000, -1100)
+script = ExtResource("12_chaser")
 
-[node name="F2HintEmbed" type="Label" parent="."]
-offset_left = 590
-offset_top = -1410
-offset_right = 970
-offset_bottom = -1360
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "Chimenea: running walljumps
-(heavy aéreo para clavarte y descansar)"
-horizontal_alignment = 1
+[node name="ChaserF2B" type="Area2D" parent="."]
+position = Vector2(3600, -1100)
+script = ExtResource("12_chaser")
 
-[node name="F2HintShaft" type="Label" parent="."]
-offset_left = -1125
-offset_top = -1050
-offset_right = -865
-offset_bottom = -1000
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "↑ Running walljumps"
-horizontal_alignment = 1
+[node name="SignPracticeF2" type="Node2D" parent="."]
+position = Vector2(3300, -1100)
+script = ExtResource("14_sign")
+text = "Combina lo aprendido: bunnyhop sobre las espinas y frontflip sobre el foso."
+title = "Práctica"
+panel_width = 320
 
-[node name="F3HintBoss" type="Label" parent="."]
-offset_left = 2770
-offset_top = -2330
-offset_right = 3230
-offset_bottom = -2280
-theme_override_colors/font_color = Color(0.92, 1, 0.82, 1)
-theme_override_colors/font_outline_color = Color(0.05, 0.12, 0.08, 1)
-theme_override_constants/outline_size = 6
-text = "GUARDIÁN DE LA TORRE
-ruge (A) justo cuando ataque para desviarlo"
-horizontal_alignment = 1
+[node name="F2Hop5" type="Area2D" parent="."]
+position = Vector2(2860, -1100)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
 
-[node name="Playerr" parent="." instance=ExtResource("1_41u7p")]
-position = Vector2(-620, 220)
+[node name="F2Hop6" type="Area2D" parent="."]
+position = Vector2(2445, -1100)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
 
-[node name="DummyStart" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(-170, 260)
+[node name="CheckpointF2Shaft" type="Area2D" parent="."]
+position = Vector2(1250, -1100)
+script = ExtResource("9_checkpoint")
 
-[node name="DummyBridge" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(150, 178)
+[node name="SignRunningWallJump" type="Node2D" parent="."]
+position = Vector2(760, -1100)
+script = ExtResource("14_sign")
+text = "Corriendo, salta contra una pared: Rengar se engancha un instante.
+Pulsa {jump} para saltar a la pared contraria con impulso y encadénalos para subir el pozo."
+title = "Running walljump"
+panel_width = 360
 
-[node name="DummyHigh" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(420, 126)
+[node name="F2ShaftWall" type="StaticBody2D" parent="."]
+position = Vector2(366, -1720)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 960)
+style = 4
 
-[node name="DummyTop" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(1140, 38)
+[node name="TitleF3" type="Label" parent="."]
+offset_left = 460
+offset_top = -2680
+offset_right = 1360
+offset_bottom = -2620
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "PISO 3 · CUCHILLO"
 
-[node name="DummyFar" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(1460, -24)
+[node name="F3Slab1" type="StaticBody2D" parent="."]
+position = Vector2(743, -2170)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(714, 60)
+style = 1
 
-[node name="DummyArenaPatrolA" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(2160, 260)
-base_color = Color(0.913725, 0.462745, 0.270588, 1)
-move_offset = Vector2(240, 0)
-move_period = 3.2
+[node name="F3Slab2" type="StaticBody2D" parent="."]
+position = Vector2(4650, -2170)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(6500, 60)
+style = 1
 
-[node name="DummyArenaPatrolB" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(2740, 260)
-base_color = Color(0.913725, 0.462745, 0.270588, 1)
-move_offset = Vector2(-220, 0)
-move_period = 2.6
-move_phase = 0.5
+[node name="F3Slab3" type="StaticBody2D" parent="."]
+position = Vector2(9300, -2170)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1800, 60)
+style = 1
 
-[node name="DummyArenaAirStill" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(2450, 170)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="F3PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(1250, -2060)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(380, 40)
+style = 1
+
+[node name="F3PitSide1" type="StaticBody2D" parent="."]
+position = Vector2(1080, -2110)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F3PitSide2" type="StaticBody2D" parent="."]
+position = Vector2(1420, -2110)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F3PitThorns1" type="Area2D" parent="."]
+position = Vector2(1250, -2080)
+script = ExtResource("8_hazard")
+size = Vector2(300, 18)
+damage = 10
+
+[node name="F3PitFloor2" type="StaticBody2D" parent="."]
+position = Vector2(8150, -2060)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(580, 40)
+style = 1
+
+[node name="F3PitSide3" type="StaticBody2D" parent="."]
+position = Vector2(7880, -2110)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F3PitSide4" type="StaticBody2D" parent="."]
+position = Vector2(8420, -2110)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F3PitThorns2" type="Area2D" parent="."]
+position = Vector2(8150, -2080)
+script = ExtResource("8_hazard")
+size = Vector2(500, 18)
+damage = 10
+
+[node name="CheckpointF3" type="Area2D" parent="."]
+position = Vector2(560, -2200)
+script = ExtResource("9_checkpoint")
+
+[node name="SignKnife" type="Node2D" parent="."]
+position = Vector2(820, -2200)
+script = ExtResource("14_sign")
+text = "{throw_knife} lanza el cuchillo: se clava en enemigos y paredes.
+Pulsa {throw_knife} otra vez para que vuelva a tu mano."
+title = "Cuchillo"
+panel_width = 320
+
+[node name="DummyKnifeTarget" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1700, -2200)
+max_health = 8
+
+[node name="SignKnifeAim" type="Node2D" parent="."]
+position = Vector2(2000, -2200)
+script = ExtResource("14_sign")
+text = "Mantén {move_up} al lanzar para tirar hacia arriba, o en diagonal si además te mueves."
+title = "Apuntar"
+panel_width = 320
+
+[node name="DummyKnifeHigh" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2250, -2560)
 aerial = true
+max_health = 6
 
-[node name="DummyArenaAirHigh" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(2450, -110)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="SignKnifePull" type="Node2D" parent="."]
+position = Vector2(2600, -2200)
+script = ExtResource("14_sign")
+text = "Si el cuchillo está clavado en un enemigo, al recuperarlo lo arrastras hacia ti.
+Baja al dummy de la plataforma alta: la caída lo destruye."
+title = "Atraer"
+panel_width = 340
+
+[node name="F3PullPlatform" type="StaticBody2D" parent="."]
+position = Vector2(2950, -2510)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 20)
+style = 2
+
+[node name="DummyKnifePull" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2950, -2520)
+max_health = 30
+
+[node name="SignEmbed" type="Node2D" parent="."]
+position = Vector2(3300, -2200)
+script = ExtResource("14_sign")
+text = "En el aire, {heavy_attack} contra una pared: Rengar se clava y explota, dañando a los enemigos cerca.
+Desde ahí puedes volver a saltar."
+title = "Clavarse"
+panel_width = 360
+
+[node name="F3ChimneyLeft" type="StaticBody2D" parent="."]
+position = Vector2(3520, -2580)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 480)
+style = 3
+
+[node name="F3ChimneyRight" type="StaticBody2D" parent="."]
+position = Vector2(3770, -2510)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 620)
+style = 3
+
+[node name="DummyEmbed" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3640, -2620)
 aerial = true
+max_health = 4
 
-[node name="DummyArenaAirSweep" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(2150, 30)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="F3PillarThorns" type="Area2D" parent="."]
+position = Vector2(3900, -2200)
+script = ExtResource("8_hazard")
+size = Vector2(200, 18)
+damage = 10
+
+[node name="SignBounce" type="Node2D" parent="."]
+position = Vector2(4300, -2200)
+script = ExtResource("14_sign")
+text = "Golpe pesado en el aire sobre un enemigo: rebotas y recuperas el doble salto.
+Cruza las espinas rebotando de dummy en dummy."
+title = "Rebote pesado"
+panel_width = 340
+
+[node name="F3BounceThornsA" type="Area2D" parent="."]
+position = Vector2(4800, -2200)
+script = ExtResource("8_hazard")
+size = Vector2(600, 18)
+damage = 10
+
+[node name="F3IslandA" type="StaticBody2D" parent="."]
+position = Vector2(5140, -2215)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(80, 30)
+style = 0
+
+[node name="F3BounceThornsB" type="Area2D" parent="."]
+position = Vector2(5440, -2200)
+script = ExtResource("8_hazard")
+size = Vector2(520, 18)
+damage = 10
+
+[node name="F3IslandB" type="StaticBody2D" parent="."]
+position = Vector2(5740, -2215)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(80, 30)
+style = 0
+
+[node name="F3BounceThornsC" type="Area2D" parent="."]
+position = Vector2(6040, -2200)
+script = ExtResource("8_hazard")
+size = Vector2(520, 18)
+damage = 10
+
+[node name="DummyBounce1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4700, -2330)
 aerial = true
-move_offset = Vector2(600, 0)
-move_period = 4.5
+max_health = 60
 
-[node name="DummyClimbPatrol" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(3220, 260)
-base_color = Color(0.913725, 0.462745, 0.270588, 1)
-move_offset = Vector2(320, 0)
-move_period = 3.0
-
-[node name="DummyClimbAirLift" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(3250, 190)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="DummyBounce2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4930, -2370)
 aerial = true
-move_offset = Vector2(0, -280)
-move_period = 3.6
+max_health = 60
 
-[node name="DummyClimbAirOrbit" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(3520, -120)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="DummyBounce3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5400, -2330)
 aerial = true
-orbit_radius = 90.0
-move_period = 3.0
+max_health = 60
 
-[node name="DummySummit" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(4034, -186)
-
-[node name="DummyFinalPatrol" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(4200, 260)
-base_color = Color(0.913725, 0.462745, 0.270588, 1)
-move_offset = Vector2(360, 0)
-move_period = 2.4
-
-[node name="DummyFinalAirStill" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(4620, 140)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="DummyBounce4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5560, -2370)
 aerial = true
+max_health = 60
 
-[node name="DummyFinalAirDiagonal" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(4150, 120)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="DummyBounce5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6000, -2330)
 aerial = true
-move_offset = Vector2(380, -180)
-move_period = 3.8
-move_phase = 0.25
+max_health = 60
 
-[node name="DummyShaftSummit" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(5250, -850)
-
-[node name="DummyShaftAir" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(5747, -100)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
+[node name="DummyBounce6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6180, -2370)
 aerial = true
-move_offset = Vector2(0, -320)
-move_period = 5.0
+max_health = 60
+
+[node name="CheckpointF3Mid" type="Area2D" parent="."]
+position = Vector2(6700, -2200)
+script = ExtResource("9_checkpoint")
+
+[node name="SignKnifeChaser" type="Node2D" parent="."]
+position = Vector2(6950, -2200)
+script = ExtResource("14_sign")
+text = "Clávale el cuchillo a un perseguidor y recupéralo: lo atraes hacia ti fuera de su guardia."
+title = "Cuchillo y perseguidores"
+panel_width = 340
+
+[node name="ChaserF3A" type="Area2D" parent="."]
+position = Vector2(7350, -2200)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF3B" type="Area2D" parent="."]
+position = Vector2(7650, -2200)
+script = ExtResource("12_chaser")
+
+[node name="DummyPitBounce" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(8150, -2340)
+aerial = true
+max_health = 60
+
+[node name="ChaserF3C" type="Area2D" parent="."]
+position = Vector2(8900, -2200)
+script = ExtResource("12_chaser")
+
+[node name="SignShaftF3" type="Node2D" parent="."]
+position = Vector2(9500, -2200)
+script = ExtResource("14_sign")
+text = "Otra vez running walljumps: corre hacia la pared y encadena saltos."
+title = "Pozo"
+panel_width = 320
+
+[node name="F3ShaftWall" type="StaticBody2D" parent="."]
+position = Vector2(9834, -2820)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 960)
+style = 4
+
+[node name="TitleF4" type="Label" parent="."]
+offset_left = 8600
+offset_top = -3780
+offset_right = 9500
+offset_bottom = -3720
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "PISO 4 · RUGIDO"
+
+[node name="F4Slab1" type="StaticBody2D" parent="."]
+position = Vector2(1800, -3270)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3600, 60)
+style = 1
+
+[node name="F4Slab2" type="StaticBody2D" parent="."]
+position = Vector2(6957, -3270)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(5714, 60)
+style = 1
+
+[node name="F4PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(3850, -3160)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(580, 40)
+style = 1
+
+[node name="F4PitSide1" type="StaticBody2D" parent="."]
+position = Vector2(3580, -3210)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F4PitSide2" type="StaticBody2D" parent="."]
+position = Vector2(4120, -3210)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F4PitThorns1" type="Area2D" parent="."]
+position = Vector2(3850, -3180)
+script = ExtResource("8_hazard")
+size = Vector2(500, 18)
+damage = 10
+
+[node name="CheckpointF4" type="Area2D" parent="."]
+position = Vector2(9600, -3300)
+script = ExtResource("9_checkpoint")
+
+[node name="SignRoar" type="Node2D" parent="."]
+position = Vector2(9350, -3300)
+script = ExtResource("14_sign")
+text = "{roar} ruge: un instante en el que desvías ataques y proyectiles.
+En el aire te deja suspendido; cancélalo saltando o con {dash}."
+title = "Rugido"
+panel_width = 340
+
+[node name="SignReflect" type="Node2D" parent="."]
+position = Vector2(8900, -3300)
+script = ExtResource("14_sign")
+text = "Ruge justo cuando un proyectil te alcance: vuelve hacia quien lo disparó."
+title = "Devolver"
+panel_width = 320
+
+[node name="ShooterF4A" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(8300, -3300)
+aerial = false
+shoot_interval = 2.2
+shoot_direction = Vector2(1, 0)
+
+[node name="ShooterF4B" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(7950, -3560)
+aerial = true
+shoot_interval = 2.6
+shoot_direction = Vector2(1, 0.35)
+
+[node name="SignParry" type="Node2D" parent="."]
+position = Vector2(7450, -3300)
+script = ExtResource("14_sign")
+text = "Ruge justo antes de que un perseguidor te golpee: queda aturdido.
+Tu siguiente {heavy_attack} hace el doble de daño."
+title = "Parry y contraataque"
+panel_width = 340
+
+[node name="ChaserF4A" type="Area2D" parent="."]
+position = Vector2(7000, -3300)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF4B" type="Area2D" parent="."]
+position = Vector2(6650, -3300)
+script = ExtResource("12_chaser")
+
+[node name="CheckpointF4Mid" type="Area2D" parent="."]
+position = Vector2(6200, -3300)
+script = ExtResource("9_checkpoint")
+
+[node name="SignMixF4" type="Node2D" parent="."]
+position = Vector2(5950, -3300)
+script = ExtResource("14_sign")
+text = "Tiradores y perseguidores a la vez: ruge en el momento justo."
+title = "Todo junto"
+panel_width = 320
+
+[node name="ShooterF4C" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5400, -3300)
+aerial = false
+shoot_interval = 2.4
+shoot_direction = Vector2(1, 0)
+
+[node name="F4ShooterPlatform" type="StaticBody2D" parent="."]
+position = Vector2(4900, -3490)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 20)
+style = 2
+
+[node name="ShooterF4D" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4900, -3500)
+aerial = false
+shoot_interval = 2.8
+shoot_direction = Vector2(1, 0.25)
+
+[node name="ChaserF4C" type="Area2D" parent="."]
+position = Vector2(4450, -3300)
+script = ExtResource("12_chaser")
+
+[node name="ShooterF4E" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3300, -3520)
+aerial = true
+shoot_interval = 2.6
+shoot_direction = Vector2(1, 0)
+
+[node name="ChaserF4D" type="Area2D" parent="."]
+position = Vector2(2600, -3300)
+script = ExtResource("12_chaser")
+
+[node name="SignClimbF4" type="Node2D" parent="."]
+position = Vector2(900, -3300)
+script = ExtResource("14_sign")
+text = "Sube por las plataformas. El tirador de arriba te dispara: ruge para devolverle sus disparos."
+title = "Subida"
+panel_width = 340
+
+[node name="ShooterF4Climb" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(760, -3920)
+aerial = true
+shoot_interval = 2.8
+shoot_direction = Vector2(-1, 0)
+
+[node name="F4Step1" type="StaticBody2D" parent="."]
+position = Vector2(90, -3460)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F4Step2" type="StaticBody2D" parent="."]
+position = Vector2(360, -3630)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F4Step3" type="StaticBody2D" parent="."]
+position = Vector2(90, -3800)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F4Step4" type="StaticBody2D" parent="."]
+position = Vector2(360, -3970)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F4Step5" type="StaticBody2D" parent="."]
+position = Vector2(90, -4140)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F4Step6" type="StaticBody2D" parent="."]
+position = Vector2(360, -4260)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="TitleF5" type="Label" parent="."]
+offset_left = 560
+offset_top = -4880
+offset_right = 1460
+offset_bottom = -4820
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "PISO 5 · PRUEBA FINAL"
+
+[node name="F5Slab1" type="StaticBody2D" parent="."]
+position = Vector2(1860, -4370)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(2680, 60)
+style = 1
+
+[node name="F5Slab2" type="StaticBody2D" parent="."]
+position = Vector2(7000, -4370)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(6400, 60)
+style = 1
+
+[node name="F5PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(3500, -4260)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(680, 40)
+style = 1
+
+[node name="F5PitSide1" type="StaticBody2D" parent="."]
+position = Vector2(3180, -4310)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F5PitSide2" type="StaticBody2D" parent="."]
+position = Vector2(3820, -4310)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F5PitThorns1" type="Area2D" parent="."]
+position = Vector2(3500, -4280)
+script = ExtResource("8_hazard")
+size = Vector2(600, 18)
+damage = 10
+
+[node name="CheckpointF5" type="Area2D" parent="."]
+position = Vector2(650, -4400)
+script = ExtResource("9_checkpoint")
+
+[node name="SignFinalTrial" type="Node2D" parent="."]
+position = Vector2(900, -4400)
+script = ExtResource("14_sign")
+text = "Todo lo aprendido, sin más carteles.
+¡Suerte!"
+title = "Prueba final"
+panel_width = 320
+
+[node name="F5WallrideWall" type="StaticBody2D" parent="."]
+position = Vector2(1400, -4470)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 140)
+style = 4
+
+[node name="F5Hop1" type="Area2D" parent="."]
+position = Vector2(1990, -4400)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
+
+[node name="F5Hop2" type="Area2D" parent="."]
+position = Vector2(2405, -4400)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
+
+[node name="F5Hop3" type="Area2D" parent="."]
+position = Vector2(2820, -4400)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
+
+[node name="SunEnemyF5" parent="." instance=ExtResource("3_sun")]
+position = Vector2(3500, -4660)
+
+[node name="ChaserF5A" type="Area2D" parent="."]
+position = Vector2(4200, -4400)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF5B" type="Area2D" parent="."]
+position = Vector2(4450, -4400)
+script = ExtResource("12_chaser")
+
+[node name="F5ShooterPlatform" type="StaticBody2D" parent="."]
+position = Vector2(4800, -4610)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 20)
+style = 2
+
+[node name="ShooterF5A" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4800, -4620)
+aerial = false
+shoot_interval = 2.6
+shoot_direction = Vector2(-1, 0.2)
+
+[node name="F5BackflipLedge" type="StaticBody2D" parent="."]
+position = Vector2(5375, -4535)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 270)
+style = 3
+
+[node name="F5BounceThorns" type="Area2D" parent="."]
+position = Vector2(6300, -4400)
+script = ExtResource("8_hazard")
+size = Vector2(1000, 18)
+damage = 10
+
+[node name="DummyF5Bounce1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5950, -4530)
+aerial = true
+max_health = 60
+
+[node name="DummyF5Bounce2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6200, -4570)
+aerial = true
+max_health = 60
+
+[node name="DummyF5Bounce3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6450, -4530)
+aerial = true
+max_health = 60
+
+[node name="DummyF5Bounce4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6650, -4570)
+aerial = true
+max_health = 60
+
+[node name="CheckpointF5Mid" type="Area2D" parent="."]
+position = Vector2(7100, -4400)
+script = ExtResource("9_checkpoint")
+
+[node name="F5ChimneyLeft" type="StaticBody2D" parent="."]
+position = Vector2(7620, -4750)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 420)
+style = 3
+
+[node name="F5ChimneyRight" type="StaticBody2D" parent="."]
+position = Vector2(7870, -4680)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 560)
+style = 3
+
+[node name="ChaserF5C" type="Area2D" parent="."]
+position = Vector2(8300, -4400)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF5D" type="Area2D" parent="."]
+position = Vector2(8600, -4400)
+script = ExtResource("12_chaser")
+
+[node name="ShooterF5B" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(9000, -4400)
+aerial = false
+shoot_interval = 2.4
+shoot_direction = Vector2(-1, 0)
+
+[node name="F5ShaftWall" type="StaticBody2D" parent="."]
+position = Vector2(9834, -5020)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 960)
+style = 4
+
+[node name="TitleF6" type="Label" parent="."]
+offset_left = 8400
+offset_top = -6020
+offset_right = 9300
+offset_bottom = -5960
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "PISO 6 · GUARDIÁN DE LA TORRE"
+
+[node name="F6Slab1" type="StaticBody2D" parent="."]
+position = Vector2(7307, -5470)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(5014, 60)
+style = 1
+
+[node name="F6EndWall" type="StaticBody2D" parent="."]
+position = Vector2(2430, -5990)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(4860, 1100)
+style = 3
+
+[node name="CheckpointBoss" type="Area2D" parent="."]
+position = Vector2(9400, -5500)
+script = ExtResource("9_checkpoint")
+
+[node name="SignBoss" type="Node2D" parent="."]
+position = Vector2(9150, -5500)
+script = ExtResource("14_sign")
+text = "El guardián cambia en cada partida: pesado, ágil o arquero.
+Observa sus avisos (!), ruge para desviar y castiga tras sus ataques."
+title = "Guardián"
+panel_width = 360
+
+[node name="F6ArenaPlatformLeft" type="StaticBody2D" parent="."]
+position = Vector2(5950, -5660)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(300, 20)
+style = 2
+
+[node name="F6ArenaPlatformRight" type="StaticBody2D" parent="."]
+position = Vector2(7650, -5660)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(300, 20)
+style = 2
+
+[node name="BossSpawner" type="Node2D" parent="."]
+script = ExtResource("10_spawner")
+spawn_point = Vector2(6800, -5500)
+arena_min_x = 5000
+arena_max_x = 8800
+
+[node name="Playerr" parent="." instance=ExtResource("1_player")]
+position = Vector2(220, -2)
 
 [node name="HUD" type="CanvasLayer" parent="."]
 script = ExtResource("5_hud")
@@ -841,78 +1271,5 @@ bus = &"Music"
 [node name="PauseMenu" type="CanvasLayer" parent="."]
 script = ExtResource("7_pause")
 
-[node name="DummyF2Hop" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(3600, -1050)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
-aerial = true
-
-[node name="DummyF2ShooterGround" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(1950, -850)
-base_color = Color(0.623529, 0.360784, 0.8, 1)
-shoot_interval = 2.2
-shoot_direction = Vector2(1, 0)
-
-[node name="DummyF2ShooterPerch" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(2710, -1080)
-base_color = Color(0.623529, 0.360784, 0.8, 1)
-shoot_interval = 2.6
-shoot_direction = Vector2(1, 0.6)
-
-[node name="DummyF2ShooterAir" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(2350, -1150)
-base_color = Color(0.623529, 0.360784, 0.8, 1)
-aerial = true
-shoot_interval = 3.0
-shoot_direction = Vector2(1, 0)
-
-[node name="DummyF2KnifeTarget" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(1410, -1350)
-
-[node name="DummyF2Pull" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(1750, -850)
-
-[node name="DummyF3Air" parent="." instance=ExtResource("2_2ax5n")]
-position = Vector2(600, -2240)
-base_color = Color(0.45098, 0.701961, 0.94902, 1)
-aerial = true
-move_offset = Vector2(0, -80)
-move_period = 3.0
-
-[node name="TowerGuardian" type="Area2D" parent="."]
-position = Vector2(3000, -1910)
-script = ExtResource("10_boss")
-
 [node name="DemoComplete" type="CanvasLayer" parent="."]
 script = ExtResource("11_demo")
-
-[node name="ChaserArena" type="Area2D" parent="."]
-position = Vector2(2600, 260)
-script = ExtResource("12_chaser")
-
-[node name="ChaserClimb" type="Area2D" parent="."]
-position = Vector2(3350, 260)
-script = ExtResource("12_chaser")
-
-[node name="ChaserFinal" type="Area2D" parent="."]
-position = Vector2(4550, 260)
-script = ExtResource("12_chaser")
-
-[node name="ChaserHighPerch" type="Area2D" parent="."]
-position = Vector2(2450, -54)
-script = ExtResource("12_chaser")
-
-[node name="ChaserF2Middle" type="Area2D" parent="."]
-position = Vector2(3050, -850)
-script = ExtResource("12_chaser")
-
-[node name="ChaserF2Gallery" type="Area2D" parent="."]
-position = Vector2(2550, -850)
-script = ExtResource("12_chaser")
-
-[node name="ChaserF3Path" type="Area2D" parent="."]
-position = Vector2(250, -1910)
-script = ExtResource("12_chaser")
-
-[node name="ChaserF3Gate" type="Area2D" parent="."]
-position = Vector2(1750, -1910)
-script = ExtResource("12_chaser")
