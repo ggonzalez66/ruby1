@@ -191,6 +191,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var mantle_duration := 0.14
 @export var roar_explosive_duration := 0.16
 @export var riposte_duration := 1.0
+# Única curación en combate: conectar el riposte (una vez por riposte, aunque golpee a varios).
+@export var riposte_heal := 20
 @export var roar_stall_duration := 1.0
 @export var roar_lock_duration := 0.25
 @export var roar_radius := 46.0
@@ -202,6 +204,10 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var wall_explosion_radius := 60.0
 @export var wall_explosion_duration := 0.3
 @export var wallride_speed := 430.0
+# El wallride sube siempre la misma distancia desde donde tocas la pared, sin pasar de
+# wallride_max_height sobre el último suelo pisado (para que no se salte muros pensados para otra técnica).
+@export var wallride_distance := 120.0
+@export var wallride_max_height := 190.0
 @export var running_wall_cling_time := 0.35
 @export var running_wall_cling_slide_speed := 40.0
 @export var running_wall_jump_vertical_speed := -620.0
@@ -282,6 +288,7 @@ var dead := false
 var death_spin := 0.0
 var death_rest_angle := 0.0
 var riposte_attack := false
+var riposte_healed := false
 var hitstop_token := 0
 var invulnerability_timer := 0.0
 var hurt_lock_timer := 0.0
@@ -290,8 +297,10 @@ var wall_embedded := false
 var wallride_active := false
 var wallride_risen := 0.0
 var wallride_target := 0.0
-# Altura desde la que empezó el último salto (suelo o frontflip): el wallride no la supera en más de un salto.
+# Altura desde la que empezó el último salto (suelo o frontflip).
 var jump_origin_y := 0.0
+# Altura del último suelo pisado: tope del wallride.
+var last_floor_y := 0.0
 # Un wallride por salto desde el suelo: entre pared y pared se usa el enganche normal.
 var wallride_available := true
 var dash_jump_buffered := false
@@ -433,8 +442,12 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
 		_begin_attack_charge()
 
-	if Input.is_action_just_pressed("heavy_attack") and not _blocks_actions():
-		_start_heavy_attack()
+	if Input.is_action_just_pressed("heavy_attack"):
+		# Tras un parry, el pesado cancela el rugido para contraatacar al instante.
+		if roar_active and riposte_timer > 0.0:
+			_end_roar()
+		if not _blocks_actions():
+			_start_heavy_attack()
 
 	if Input.is_action_just_pressed("throw_knife"):
 		_on_knife_input(move_input)
@@ -542,6 +555,7 @@ func _physics_process(delta: float) -> void:
 		frontflip_active = false
 		jump_cut_available = false
 		wallride_available = true
+		last_floor_y = global_position.y
 		if long_jump_active:
 			_land_long_jump(move_input)
 		if backflip_active:
@@ -1027,16 +1041,16 @@ func _start_running_wall_cling() -> void:
 		_try_start_running_wall_jump()
 
 func _start_wallride() -> void:
-	# Saltar corriendo contra una pared: sube por ella hasta la altura de un salto.
+	# Saltar corriendo contra una pared: sube por ella una distancia fija.
 	wall_cling_direction = int(sign(get_wall_normal().x))
 	if wall_cling_direction == 0:
 		return
 	wallride_available = false
 	wallride_active = true
 	wallride_risen = 0.0
-	# Sube hasta la altura de un salto normal desde donde empezó el salto (mínimo un pequeño tramo).
-	var jump_height: float = jump_velocity * jump_velocity / (2.0 * gravity)
-	wallride_target = clamp(global_position.y - (jump_origin_y - jump_height), 24.0, jump_height)
+	# Distancia fija, recortada solo si superaría el tope sobre el último suelo (mínimo un pequeño tramo).
+	var room_left: float = global_position.y - (last_floor_y - wallride_max_height)
+	wallride_target = clamp(min(wallride_distance, room_left), 24.0, wallride_distance)
 	wall_contact_direction = wall_cling_direction
 	wall_visual_direction = wall_cling_direction
 	facing = -wall_cling_direction
@@ -1242,7 +1256,21 @@ func _on_attack_blocked(area: Node2D) -> void:
 
 func _consume_riposte() -> void:
 	riposte_attack = riposte_timer > 0.0
+	riposte_healed = false
 	riposte_timer = 0.0
+
+func heal(amount: int) -> int:
+	# Devuelve cuánto se curó de verdad (sin pasar del máximo) y lo muestra sobre Rengar.
+	if dead or amount <= 0:
+		return 0
+	var healed: int = min(amount, max_health - current_health)
+	if healed <= 0:
+		return 0
+	current_health += healed
+	Stats.add("health_healed", healed)
+	health_changed.emit(current_health, max_health)
+	Fx.text(get_parent(), global_position + Vector2(0, -52), "+%d" % healed, Color(0.45, 1.0, 0.5))
+	return healed
 
 func _update_riposte_visual() -> void:
 	# Brillo rojo-dorado pulsante mientras el riposte está disponible (el de carga es amarillo).
@@ -1264,6 +1292,9 @@ func _spawn_hit_feedback(area: Node2D) -> void:
 		Fx.impact(get_parent(), point, Fx.ROAR, 1.4)
 		Fx.text(get_parent(), point + Vector2(0, -36), "¡RIPOSTE!", Color(1.0, 0.55, 0.25))
 		_apply_hitstop(hitstop_deflect)
+		if not riposte_healed:
+			riposte_healed = true
+			heal(riposte_heal)
 		return
 	Fx.impact(get_parent(), point, Fx.GOLD if heavy else Fx.SILVER, 1.35 if heavy or finisher else 1.0)
 	if heavy:
@@ -1662,6 +1693,13 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 func _consume_sprint_air_jump() -> void:
 	if jump_buffer_timer <= 0.0 or air_jumps_remaining <= 0 or _is_attack_active():
 		return
+	# Manteniendo la dirección contraria, el frontflip sale hacia ese lado: gira el facing y la carrera.
+	var input_direction := int(sign(Input.get_axis("move_left", "move_right")))
+	if input_direction != 0 and input_direction != sprint_direction:
+		sprint_direction = input_direction
+		facing = input_direction
+		_update_facing_visual()
+		velocity.x = sprint_direction * sprint_speed
 	_perform_frontflip()
 
 func _start_sprint(direction: int) -> void:

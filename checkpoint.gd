@@ -2,6 +2,9 @@ extends Area2D
 
 # Farol de checkpoint: al tocarlo, Rengar reaparecerá aquí (morir o pulsar R).
 
+# Al encender un checkpoint por primera vez cura esta fracción de la vida máxima (solo una vez cada uno).
+@export var heal_fraction := 0.35
+
 const POLE_COLOR := Color(0.2, 0.13, 0.08)
 const OFF_COLOR := Color(0.3, 0.42, 0.32)
 const ON_COLOR := Color(0.75, 1.0, 0.55)
@@ -9,6 +12,7 @@ const ON_COLOR := Color(0.75, 1.0, 0.55)
 var lamp: Polygon2D
 var glow: Polygon2D
 var active := false
+var heal_used := false
 
 func _ready() -> void:
 	collision_layer = 0
@@ -45,6 +49,9 @@ func _on_body_entered(body: Node) -> void:
 		other.set_active(false)
 	set_active(true)
 	Fx.text(get_parent(), global_position + Vector2(0, -90), "Checkpoint", ON_COLOR)
+	if not heal_used and body.has_method("heal"):
+		heal_used = true
+		body.heal(int(round(body.max_health * heal_fraction)))
 
 func set_active(value: bool) -> void:
 	active = value

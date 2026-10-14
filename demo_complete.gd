@@ -94,6 +94,7 @@ func _fill_stats() -> void:
 		["Combate contra el guardián", Stats.format_time(Stats.boss_fight_time)],
 		["Dummies derrotados", Stats.get_count("dummies_killed")],
 		["Parries", Stats.get_count("parries")],
+		["Vida recuperada", Stats.get_count("health_healed")],
 		["Proyectiles devueltos", Stats.get_count("projectiles_reflected")],
 		["Ataques bloqueados por el guardián", Stats.get_count("blocked")],
 		["Cuchillos lanzados", Stats.get_count("knife_throws")],

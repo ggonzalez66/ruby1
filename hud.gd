@@ -14,6 +14,7 @@ var fill: ColorRect
 var trail: ColorRect
 var value_label: Label
 var trail_tween: Tween
+var fill_tween: Tween
 var elapsed_time := 0.0
 var timer_main_label: Label
 var timer_millis_label: Label
@@ -364,7 +365,18 @@ func _on_health_changed(current: int, maximum: int) -> void:
 	var ratio: float = clamp(float(current) / float(max(maximum, 1)), 0.0, 1.0)
 	var target_width: float = BAR_WIDTH * ratio
 	var took_damage: bool = target_width < fill.size.x
-	fill.size.x = target_width
+	var healed: bool = target_width > fill.size.x + 0.5
+	if fill_tween:
+		fill_tween.kill()
+	if healed and fill.size.x > 0.0:
+		# Curación: la barra crece con un destello verde claro.
+		fill_tween = create_tween().set_parallel(true)
+		fill_tween.tween_property(fill, "size:x", target_width, 0.35).set_ease(Tween.EASE_OUT)
+		fill.modulate = Color(1.6, 1.6, 1.3)
+		fill_tween.tween_property(fill, "modulate", Color.WHITE, 0.5)
+	else:
+		fill.size.x = target_width
+		fill.modulate = Color.WHITE
 	fill.color = BAR_FILL_LOW if ratio <= 0.3 else BAR_FILL
 	value_label.text = "%d / %d" % [current, maximum]
 
