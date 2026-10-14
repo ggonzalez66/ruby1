@@ -148,7 +148,7 @@ spawn_point = Vector2(3150, 0)
 arena_min_x = 1800
 arena_max_x = 4300
 forced_boss = 3
-trio_entry_from_left = true
+entry_from_left = true
 
 [node name="Playerr" parent="." instance=ExtResource("1_player")]
 position = Vector2(220, -2)

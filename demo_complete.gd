@@ -43,6 +43,12 @@ class MedalIcon extends Control:
 
 # Título de la pantalla (cada escenario pone el suyo).
 @export var title_text := "DEMO COMPLETADA"
+# Escena de la etapa siguiente: si hay, el primer botón es "Siguiente etapa" (las estadísticas siguen).
+@export var next_scene := ""
+# Pantalla del final del juego: solo se puede volver al menú principal.
+@export var final_screen := false
+# Mensaje bajo el título ("" = la felicitación de siempre).
+@export var message_text := ""
 
 const MAIN_MENU := "res://main_menu.tscn"
 
@@ -61,7 +67,7 @@ func _ready() -> void:
 	root_control.visible = false
 
 func show_results() -> void:
-	message_label.text = Stats.congratulation_message()
+	message_label.text = message_text if message_text != "" else Stats.congratulation_message()
 	_fill_medals()
 	_fill_stats()
 	root_control.visible = true
@@ -199,8 +205,17 @@ func _build() -> void:
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	column.add_child(buttons)
-	continue_button = _button("Seguir jugando", _continue)
-	buttons.add_child(continue_button)
+	if final_screen:
+		continue_button = _button("Menú principal", _main_menu)
+		buttons.add_child(continue_button)
+		return
+	if next_scene != "":
+		continue_button = _button("Siguiente etapa", _next_stage)
+		buttons.add_child(continue_button)
+		buttons.add_child(_button("Seguir jugando", _continue))
+	else:
+		continue_button = _button("Seguir jugando", _continue)
+		buttons.add_child(continue_button)
 	buttons.add_child(_button("Último checkpoint", _retry_from_checkpoint))
 	buttons.add_child(_button("Reiniciar todo", _restart))
 	buttons.add_child(_button("Menú principal", _main_menu))
@@ -222,6 +237,11 @@ func _restart() -> void:
 	get_tree().paused = false
 	Stats.reset()
 	get_tree().reload_current_scene()
+
+func _next_stage() -> void:
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	get_tree().change_scene_to_file(next_scene)
 
 func _main_menu() -> void:
 	get_tree().paused = false

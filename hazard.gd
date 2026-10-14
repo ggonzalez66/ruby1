@@ -1,9 +1,12 @@
 extends Area2D
 
 # Franja de espinas: daña a Rengar al tocarla. El origen es el nivel del suelo.
+# Con send_to_checkpoint (plataformeo de la etapa final) además lo devuelve al último checkpoint, para
+# que no se puedan cruzar caminando y aguantando el daño.
 
 @export var size := Vector2(250, 18)
 @export var damage := 10
+@export var send_to_checkpoint := false
 
 const THORN_DARK := Color(0.16, 0.07, 0.2)
 const THORN_LIGHT := Color(0.55, 0.25, 0.55)
@@ -32,6 +35,8 @@ func _ready() -> void:
 
 func _physics_process(_delta: float) -> void:
 	for body in get_overlapping_bodies():
-		if body.has_method("take_damage"):
+		if send_to_checkpoint and body.has_method("return_to_checkpoint"):
+			body.return_to_checkpoint(damage)
+		elif body.has_method("take_damage"):
 			# El daño viene desde abajo: el retroceso lanza hacia arriba.
 			body.take_damage(damage, Vector2(body.global_position.x, global_position.y + 40.0))

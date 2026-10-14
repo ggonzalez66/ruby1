@@ -177,6 +177,8 @@ func _start(scene: String) -> void:
 	# Partida nueva: estadísticas y estilo desde cero.
 	Stats.reset()
 	Ferocity.reset()
+	# La partida de tres etapas empieza sin guardianes vencidos.
+	Stats.set_meta(&"defeated_bosses", [])
 	get_tree().change_scene_to_file(scene)
 
 func _open_options() -> void:

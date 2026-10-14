@@ -105,8 +105,11 @@ func _update_boss_banner() -> void:
 		banner_boss = null
 
 func _show_boss_banner(boss: Node, count: int = 1) -> void:
-	boss_banner_name.text = boss.boss_name if count == 1 else "LOS TRES GUARDIANES"
-	boss_banner_subtitle.text = boss.boss_subtitle if count == 1 else "Pesado, ágil y arquero a la vez"
+	boss_banner_name.text = boss.boss_name
+	boss_banner_subtitle.text = boss.boss_subtitle
+	if count >= 3:
+		boss_banner_name.text = "LOS TRES GUARDIANES"
+		boss_banner_subtitle.text = "Pesado, ágil y arquero a la vez"
 	boss_banner.visible = true
 	boss_banner.reset_size()
 	var screen := get_viewport().get_visible_rect().size

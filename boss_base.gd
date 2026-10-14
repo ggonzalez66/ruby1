@@ -16,6 +16,8 @@ extends Area2D
 # Probabilidad de shinear de vuelta proyectiles devueltos y el cuchillo (0 = nunca).
 @export var shine_chance := 0.0
 
+signal boss_defeated
+
 const WARNING_COLOR := Color(1.0, 0.25, 0.2)
 const HIT_FLASH := Color(1.0, 0.5, 0.45)
 
@@ -166,6 +168,7 @@ func _defeat() -> void:
 	warning_label.visible = false
 	set_deferred("monitorable", false)
 	_on_defeat()
+	boss_defeated.emit()
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(visual, "rotation", 1.4 * -facing, 0.6)
 	tween.tween_property(visual, "modulate:a", 0.25, 0.8)

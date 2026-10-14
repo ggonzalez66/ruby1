@@ -1,21 +1,24 @@
 extends Node2D
 
-# Elige al azar el guardián final de la torre: pesado, ágil o arquero; a veces salen los tres juntos
-# (con menos vida cada uno). Cada reinicio (volver al checkpoint o "Reiniciar todo") cambia a un
-# combate distinto del actual. El spawner debe estar en el origen para que las coordenadas del jefe
-# sean las globales.
+# Elige el guardián del final de la etapa. En la partida de tres etapas se va venciendo a los tres:
+# la torre trae uno al azar (pesado, ágil o arquero), la etapa 2 uno de los que quedan y la etapa 3 el
+# último (con una probabilidad de que salgan los tres juntos como gran final). El Gauntlet trae siempre
+# el trío. Cada reinicio (volver al checkpoint o "Reiniciar todo") cambia, si se puede, a un combate
+# distinto del actual. El spawner debe estar en el origen para que las coordenadas del jefe sean las
+# globales.
 
 @export var spawn_point := Vector2(6800, 0)
 @export var arena_min_x := 5400.0
 @export var arena_max_x := 8800.0
-# -1 = aleatorio; 0 pesado, 1 ágil, 2 arquero, 3 los tres juntos (para pruebas).
+# -1 = aleatorio; 0 pesado, 1 ágil, 2 arquero, 3 los tres juntos, 4 uno de los que aún no se vencieron
+# en esta partida.
 @export var forced_boss := -1
 @export var trio_chance := 0.2
 # En el trío cada guardián tiene esta fracción de su vida normal.
 @export var trio_health_factor := 0.6
-# El trío se coloca pensando en que Rengar entra por la derecha (torre); si entra por la izquierda
-# (Gauntlet) se refleja: el ágil más cerca de la entrada y el arquero al fondo.
-@export var trio_entry_from_left := false
+# Las posiciones del trío piensan en que Rengar entra por la derecha (torre); si entra por la izquierda
+# se reflejan: el ágil más cerca de la entrada y el arquero al fondo.
+@export var entry_from_left := false
 
 const BOSSES := [
 	{"script": preload("res://boss_heavy.gd"), "name": "GUARDIÁN PESADO", "subtitle": "El coloso del espadón", "health": 105, "resist": 0.35, "block": 0.2},
@@ -24,6 +27,9 @@ const BOSSES := [
 ]
 
 const TRIO := 3
+const NEXT_UNDEFEATED := 4
+# Guardianes vencidos en la partida actual (índices de BOSSES); el menú principal la vacía.
+const DEFEATED_META := &"defeated_bosses"
 # Posiciones del trío respecto al punto de aparición: el pesado en el centro, el ágil más cerca de la
 # entrada (Rengar llega por la derecha) y el arquero al fondo, a distancia.
 const TRIO_OFFSETS := [Vector2(0, 0), Vector2(650, 0), Vector2(-1000, 0)]
@@ -44,12 +50,14 @@ func _on_player_respawned() -> void:
 	_spawn(_pick_next(boss_index))
 
 func _pick_next(previous: int) -> int:
+	if forced_boss == NEXT_UNDEFEATED:
+		return _pick_undefeated(previous)
 	if forced_boss >= 0:
 		return forced_boss
 	# El trío no se repite dos veces seguidas.
 	if previous != TRIO and randf() < trio_chance:
 		return TRIO
-	if previous < 0 or previous == TRIO:
+	if previous < 0 or previous >= TRIO:
 		return randi() % BOSSES.size()
 	# Uno de los otros dos, al azar.
 	return (previous + 1 + randi() % (BOSSES.size() - 1)) % BOSSES.size()
@@ -66,12 +74,38 @@ func _spawn(index: int) -> void:
 	Stats.set_meta(&"last_boss", index)
 	if index == TRIO:
 		for which in range(BOSSES.size()):
-			var offset: Vector2 = TRIO_OFFSETS[which]
-			if trio_entry_from_left:
-				offset.x = -offset.x
-			_add_boss(which, spawn_point + offset, trio_health_factor)
+			_add_boss(which, spawn_point + _entry_offset(TRIO_OFFSETS[which]), trio_health_factor)
 	else:
 		_add_boss(index, spawn_point, 1.0)
+
+func _entry_offset(offset: Vector2) -> Vector2:
+	return Vector2(-offset.x, offset.y) if entry_from_left else offset
+
+func _pick_undefeated(previous: int) -> int:
+	# Uno de los guardianes que faltan por vencer (distinto del actual si hay más de uno); cuando ya
+	# solo queda uno, a veces salen los tres juntos (trio_chance), sin repetir el trío dos veces seguidas.
+	var remaining := []
+	for index in range(BOSSES.size()):
+		if not index in Stats.get_meta(DEFEATED_META, []):
+			remaining.append(index)
+	if remaining.is_empty():
+		remaining = range(BOSSES.size())
+	if remaining.size() == 1 and previous != TRIO and randf() < trio_chance:
+		return TRIO
+	if remaining.size() > 1:
+		remaining.erase(previous)
+	return remaining[randi() % remaining.size()]
+
+func _on_boss_defeated() -> void:
+	# Se apunta quién cayó: las etapas siguientes traen a los que faltan.
+	for boss in bosses:
+		if not boss.is_defeated():
+			return
+	var defeated: Array = Stats.get_meta(DEFEATED_META, []).duplicate()
+	for index in (range(BOSSES.size()) if boss_index == TRIO else [boss_index]):
+		if not index in defeated:
+			defeated.append(index)
+	Stats.set_meta(DEFEATED_META, defeated)
 
 func _add_boss(which: int, at: Vector2, health_factor: float) -> void:
 	var data: Dictionary = BOSSES[which]
@@ -87,3 +121,4 @@ func _add_boss(which: int, at: Vector2, health_factor: float) -> void:
 	boss.position = Vector2(clamp(at.x, arena_min_x + 100.0, arena_max_x - 100.0), at.y)
 	add_child(boss)
 	bosses.append(boss)
+	boss.boss_defeated.connect(_on_boss_defeated)

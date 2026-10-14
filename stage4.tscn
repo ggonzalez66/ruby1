@@ -1,0 +1,302 @@
+[gd_scene load_steps=16 format=3]
+
+[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
+[ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
+[ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
+[ext_resource type="Script" path="res://hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://music_player.gd" id="6_music"]
+[ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
+[ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
+[ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
+[ext_resource type="Script" path="res://boss_spawner.gd" id="10_spawner"]
+[ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
+[ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
+[ext_resource type="Script" path="res://platform.gd" id="13_platform"]
+[ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
+[ext_resource type="Script" path="res://ruby_crystal.gd" id="15_ruby"]
+
+[node name="Main" type="Node2D"]
+
+[node name="JungleBackground" type="ParallaxBackground" parent="."]
+script = ExtResource("4_jungle")
+altitude_offset = 1
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-30, -700)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 2120)
+style = 3
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(7630, -700)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 2120)
+style = 3
+
+[node name="BoundaryTop" type="StaticBody2D" parent="."]
+position = Vector2(3800, -1730)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(7720, 60)
+style = 1
+
+[node name="TitleStage4" type="Label" parent="."]
+offset_left = 140
+offset_top = -460
+offset_right = 1040
+offset_bottom = -400
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "ETAPA FINAL · EL CAMINO AL RUBY"
+
+[node name="Island1" type="StaticBody2D" parent="."]
+position = Vector2(225, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(450, 300)
+style = 0
+
+[node name="Island2" type="StaticBody2D" parent="."]
+position = Vector2(2025, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(250, 300)
+style = 0
+
+[node name="Island3" type="StaticBody2D" parent="."]
+position = Vector2(3825, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(250, 300)
+style = 0
+
+[node name="Island4" type="StaticBody2D" parent="."]
+position = Vector2(7300, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(600, 300)
+style = 0
+
+[node name="PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(1175, 205)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1450, 190)
+style = 0
+
+[node name="PitThorns1" type="Area2D" parent="."]
+position = Vector2(1175, 110)
+script = ExtResource("8_hazard")
+size = Vector2(1450, 18)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitFloor2" type="StaticBody2D" parent="."]
+position = Vector2(2925, 205)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1550, 190)
+style = 0
+
+[node name="PitThorns2" type="Area2D" parent="."]
+position = Vector2(2925, 110)
+script = ExtResource("8_hazard")
+size = Vector2(1550, 18)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitFloor3" type="StaticBody2D" parent="."]
+position = Vector2(4500, 205)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1100, 190)
+style = 0
+
+[node name="PitThorns3" type="Area2D" parent="."]
+position = Vector2(4500, 110)
+script = ExtResource("8_hazard")
+size = Vector2(1100, 18)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitFloor4" type="StaticBody2D" parent="."]
+position = Vector2(6175, 205)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1650, 190)
+style = 0
+
+[node name="PitThorns4" type="Area2D" parent="."]
+position = Vector2(6175, 110)
+script = ExtResource("8_hazard")
+size = Vector2(1650, 18)
+damage = 20
+send_to_checkpoint = true
+
+[node name="Pillar" type="StaticBody2D" parent="."]
+position = Vector2(5200, -200)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(300, 1000)
+style = 0
+
+[node name="CheckpointStart" type="Area2D" parent="."]
+position = Vector2(150, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="SignStage4" type="Node2D" parent="."]
+position = Vector2(320, 0)
+script = ExtResource("14_sign")
+text = "Solo queda el camino al Ruby. Las espinas te devuelven al último checkpoint.
+Rebota con {heavy_attack} en los voladores; mantén {dash} para rebotar hacia delante, y con {move_down} en picado rebotas más alto."
+title = "Etapa final"
+panel_width = 380
+
+[node name="FlyerA1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(620, -150)
+aerial = true
+max_health = 9999
+
+[node name="FlyerA2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(900, -190)
+aerial = true
+max_health = 9999
+
+[node name="FlyerA3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1200, -150)
+aerial = true
+max_health = 9999
+
+[node name="FlyerA4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1500, -200)
+aerial = true
+max_health = 9999
+
+[node name="FlyerA5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1780, -160)
+aerial = true
+max_health = 9999
+
+[node name="CheckpointMoving" type="Area2D" parent="."]
+position = Vector2(2020, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="FlyerB1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2400, -170)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, -90)
+move_period = 2.4
+
+[node name="FlyerB2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2750, -200)
+aerial = true
+max_health = 9999
+move_offset = Vector2(140, 0)
+move_period = 3
+
+[node name="FlyerB3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3100, -160)
+aerial = true
+max_health = 9999
+orbit_radius = 60
+move_period = 3
+
+[node name="FlyerB4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3450, -220)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 110)
+move_period = 2.2
+move_phase = 0.5
+
+[node name="CheckpointClimb" type="Area2D" parent="."]
+position = Vector2(3820, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="FlyerC1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4150, -170)
+aerial = true
+max_health = 9999
+
+[node name="FlyerC2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4400, -330)
+aerial = true
+max_health = 9999
+
+[node name="FlyerC3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4650, -480)
+aerial = true
+max_health = 9999
+
+[node name="FlyerC4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4900, -640)
+aerial = true
+max_health = 9999
+
+[node name="CheckpointPillar" type="Area2D" parent="."]
+position = Vector2(5200, -700)
+script = ExtResource("9_checkpoint")
+
+[node name="FlyerD1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5600, -560)
+aerial = true
+max_health = 9999
+
+[node name="FlyerD2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5900, -430)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 80)
+move_period = 2.6
+
+[node name="FlyerD3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6200, -320)
+aerial = true
+max_health = 9999
+
+[node name="FlyerD4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6500, -450)
+aerial = true
+max_health = 9999
+orbit_radius = 50
+move_period = 3.2
+
+[node name="FlyerD5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6870, -270)
+aerial = true
+max_health = 9999
+
+[node name="CheckpointRuby" type="Area2D" parent="."]
+position = Vector2(7080, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="Ruby1" type="Area2D" parent="."]
+position = Vector2(7380, 0)
+script = ExtResource("15_ruby")
+
+[node name="Playerr" parent="." instance=ExtResource("1_player")]
+position = Vector2(220, -2)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+process_mode = 3
+script = ExtResource("6_music")
+volume_db = -6.0
+bus = &"Music"
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("7_pause")
+
+[node name="DemoComplete" type="CanvasLayer" parent="."]
+script = ExtResource("11_demo")
+title_text = "RUBY1"
+message_text = "Te fundiste con el Ruby1. ¡Fin de la demo!"
+final_screen = true

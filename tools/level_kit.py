@@ -101,13 +101,16 @@ def platform(name, x0, x1, y_top, thickness=20):
     block(name, x0, x1, y_top, y_top + thickness, PLATFORM)
 
 
-def thorns(name, x0, x1, y, damage=10):
-    S.node(name or unique("Thorns"), "Area2D", {
+def thorns(name, x0, x1, y, damage=10, to_checkpoint=False):
+    values = {
         "position": vec((x0 + x1) / 2, y),
         "script": f'ExtResource("{HAZARD}")',
         "size": vec(x1 - x0, 18),
         "damage": damage,
-    })
+    }
+    if to_checkpoint:
+        values["send_to_checkpoint"] = "true"
+    S.node(name or unique("Thorns"), "Area2D", values)
 
 
 def sign(name, x, y, title, text, width=320):
@@ -176,3 +179,66 @@ def player_and_ui(x, y, demo_props=None):
     props = {"script": f'ExtResource("{DEMO}")'}
     props.update(demo_props or {})
     S.node("DemoComplete", "CanvasLayer", props)
+
+
+class Tower:
+    """Pisos apilados de una torre (o de un tramo de varios niveles): el piso N tiene el suelo en
+    y = -(N-1) * floor_height y los pisos superiores son losas de "slab" px."""
+
+    def __init__(self, width, floor_height, slab=60):
+        self.width = width
+        self.floor_height = floor_height
+        self.slab = slab
+
+    def G(self, floor):
+        """Altura del suelo del piso (1..n)."""
+        return -(floor - 1) * self.floor_height
+
+    def slab_with_gaps(self, floor, gaps):
+        """Losa del piso a lo ancho de la torre, con huecos [(x0, x1), ...]."""
+        y = self.G(floor)
+        x = 0
+        for gap_start, gap_end in sorted(gaps) + [(self.width, self.width)]:
+            if gap_start > x:
+                block(unique(f"F{floor}Slab"), x, gap_start, y, y + self.slab, SLAB_STYLE)
+            x = gap_end
+
+    def thorn_pit(self, floor, x0, x1, depth=120):
+        """Foso con espinas en el fondo, dentro de una losa (cerrado por debajo para no caer al piso inferior)."""
+        y = self.G(floor)
+        block(unique(f"F{floor}PitFloor"), x0 - 40, x1 + 40, y + depth, y + depth + 40, SLAB_STYLE)
+        block(unique(f"F{floor}PitSide"), x0 - 40, x0, y + self.slab, y + depth, SLAB_STYLE)
+        block(unique(f"F{floor}PitSide"), x1, x1 + 40, y + self.slab, y + depth, SLAB_STYLE)
+        thorns(unique(f"F{floor}PitThorns"), x0, x1, y + depth)
+
+    def bunny_strips(self, floor, start, count, direction):
+        """Franjas de espinas al ritmo del bunnyhop (180 de espinas + 235 de hueco)."""
+        y = self.G(floor)
+        for index in range(count):
+            a = start + direction * index * 415
+            b = a + direction * 180
+            thorns(unique(f"F{floor}Hop"), min(a, b), max(a, b), y)
+
+    def shaft(self, floor, side):
+        """Pozo de running walljumps de 346 de ancho que sube del piso al siguiente.
+        side = "left" (x 0..346) o "right" (x width-346..width). Deja una entrada de 140 abajo."""
+        top = self.G(floor + 1)
+        bottom = self.G(floor) - 140
+        if side == "left":
+            block(f"F{floor}ShaftWall", 346, 386, top, bottom, CLIMB_WALL)
+        else:
+            block(f"F{floor}ShaftWall", self.width - 386, self.width - 346, top, bottom, CLIMB_WALL)
+
+    def stairs(self, floor, x_left, x_right, start_side, steps=6, gap=170, width=160):
+        """Escalera de plataformas alternadas (doble salto + agarre) dentro del hueco de la losa superior."""
+        y = self.G(floor)
+        side = start_side
+        for index in range(steps):
+            y_top = y - gap * (index + 1)
+            if index == steps - 1:
+                y_top = max(y_top, self.G(floor + 1) + 130)
+            if side == "left":
+                platform(unique(f"F{floor}Step"), x_left, x_left + width, y_top)
+            else:
+                platform(unique(f"F{floor}Step"), x_right - width, x_right, y_top)
+            side = "right" if side == "left" else "left"

@@ -13,26 +13,31 @@ var idle_time := 0.0
 var boss_fight_time := 0.0
 
 # Medallas: [clave, umbral, nombre, descripción]. Se consiguen al llegar al umbral de la estadística.
+# Los umbrales cuentan toda la partida (las cuatro etapas): están pensados para que cueste conseguirlas.
 const ACHIEVEMENTS := [
-	["parries", 3, "Parrygod de Sekiro", "Parrea 3 ataques"],
-	["projectiles_reflected", 5, "Devuelto al remitente", "Devuelve 5 proyectiles"],
-	["knife_throws", 12, "Cuchillo boomerang", "Lanza el cuchillo 12 veces"],
-	["backflips", 10, "Leon Scott Kennedy", "Más backflips innecesarios que Leon (10)"],
-	["frontflips", 10, "Maromas en el aire", "Haz 10 frontflips"],
-	["sun_hits_dealt", 8, "Mata-soles (fallido)", "Intenta matar al sol 8 veces: es inmortal"],
-	["sun_hits_taken", 3, "Bronceado extremo", "Que el sol te queme 3 veces"],
-	["wallride_seconds", 3, "Segundo piso", "3 segundos de wallride"],
-	["running_walljumps", 20, "Paredes = escaleras", "20 running walljumps"],
-	["mantles", 10, "Buen felino", "Trepa 10 bordes"],
-	["bunnyhops", 15, "Counter-Strike", "Encadena 15 bunnyhops"],
-	["roars", 30, "Rey León", "Ruge 30 veces"],
-	["dummies_killed", 25, "Ni un dummy sano", "Derrota 25 dummies"],
-	["idle_seconds", 60, "Contemplando la jungla", "1 minuto quieto"],
-	["running_seconds", 60, "Sonic estaría orgulloso", "1 minuto corriendo"],
-	["deaths", 5, "Morir es entrenar", "Muere 5 veces"],
-	["wall_embeds", 5, "Pared de mantequilla", "Clava el cuchillo en 5 paredes"],
+	["parries", 15, "Parrygod de Sekiro", "Parrea 15 ataques"],
+	["projectiles_reflected", 25, "Devuelto al remitente", "Devuelve 25 proyectiles"],
+	["knife_shines", 10, "Malabarista", "Haz 10 shine knifes"],
+	["knife_throws", 60, "Cuchillo boomerang", "Lanza el cuchillo 60 veces"],
+	["backflips", 40, "Leon Scott Kennedy", "Más backflips innecesarios que Leon (40)"],
+	["frontflips", 50, "Maromas en el aire", "Haz 50 frontflips"],
+	["sun_hits_dealt", 25, "Mata-soles (fallido)", "Intenta matar al sol 25 veces: es inmortal"],
+	["sun_hits_taken", 8, "Bronceado extremo", "Que el sol te queme 8 veces"],
+	["wallride_seconds", 15, "Segundo piso", "15 segundos de wallride"],
+	["running_walljumps", 60, "Paredes = escaleras", "60 running walljumps"],
+	["mantles", 40, "Buen felino", "Trepa 40 bordes"],
+	["bunnyhops", 50, "Counter-Strike", "Encadena 50 bunnyhops"],
+	["roars", 120, "Rey León", "Ruge 120 veces"],
+	["dummies_killed", 80, "Ni un dummy sano", "Derrota 80 dummies"],
+	["idle_seconds", 180, "Contemplando la jungla", "3 minutos quieto"],
+	["running_seconds", 240, "Sonic estaría orgulloso", "4 minutos corriendo"],
+	["deaths", 15, "Morir es entrenar", "Muere 15 veces"],
+	["wall_embeds", 20, "Pared de mantequilla", "Clava el cuchillo en 20 paredes"],
 	["ferocity_sss", 1, "Supremacía felina", "Alcanza Ferocity SSS"],
 ]
+# Medallas especiales (ver medals()).
+const BOSS_RUSH_SECONDS := 100.0
+const SPEEDRUN_SECONDS := 720.0
 
 func _ready() -> void:
 	reset()
@@ -89,8 +94,8 @@ func medals() -> Array:
 	for achievement in ACHIEVEMENTS:
 		result.append({"name": achievement[2], "description": achievement[3], "earned": get_value(achievement[0]) >= float(achievement[1])})
 	result.append({"name": "Intocable", "description": "Termina la demo sin morir", "earned": get_count("deaths") == 0})
-	result.append({"name": "Ni lo vio venir", "description": "Derrota al guardián en menos de 45 s", "earned": boss_fight_time > 0.0 and boss_fight_time < 45.0})
-	result.append({"name": "Speedrunner", "description": "Termina la demo en menos de 5 minutos", "earned": total_time < 300.0})
+	result.append({"name": "Ni lo vio venir", "description": "Vence a los guardianes en menos de %d s sumando todos los combates" % int(BOSS_RUSH_SECONDS), "earned": boss_fight_time > 0.0 and boss_fight_time < BOSS_RUSH_SECONDS})
+	result.append({"name": "Speedrunner", "description": "Termina la demo en menos de %d minutos" % int(SPEEDRUN_SECONDS / 60.0), "earned": total_time < SPEEDRUN_SECONDS})
 	return result
 
 func congratulation_message() -> String:

@@ -20,63 +20,8 @@ FLOORS = 6
 TOP = -FLOOR_HEIGHT * FLOORS
 
 
-def G(floor):
-    """Altura del suelo del piso (1..6)."""
-    return -(floor - 1) * FLOOR_HEIGHT
-
-
-def slab_with_gaps(floor, gaps):
-    """Losa del piso a lo ancho de la torre, con huecos [(x0, x1), ...]."""
-    y = G(floor)
-    x = 0
-    for gap_start, gap_end in sorted(gaps) + [(WIDTH, WIDTH)]:
-        if gap_start > x:
-            block(unique(f"F{floor}Slab"), x, gap_start, y, y + SLAB, SLAB_STYLE)
-        x = gap_end
-
-
-def thorn_pit(floor, x0, x1, depth=120):
-    """Foso con espinas en el fondo, dentro de una losa (cerrado por debajo para no caer al piso inferior)."""
-    y = G(floor)
-    block(unique(f"F{floor}PitFloor"), x0 - 40, x1 + 40, y + depth, y + depth + 40, SLAB_STYLE)
-    block(unique(f"F{floor}PitSide"), x0 - 40, x0, y + SLAB, y + depth, SLAB_STYLE)
-    block(unique(f"F{floor}PitSide"), x1, x1 + 40, y + SLAB, y + depth, SLAB_STYLE)
-    thorns(unique(f"F{floor}PitThorns"), x0, x1, y + depth)
-
-
-def bunny_strips(floor, start, count, direction):
-    """Franjas de espinas al ritmo del bunnyhop (180 de espinas + 235 de hueco)."""
-    y = G(floor)
-    for index in range(count):
-        a = start + direction * index * 415
-        b = a + direction * 180
-        thorns(unique(f"F{floor}Hop"), min(a, b), max(a, b), y)
-
-
-def shaft(floor, side):
-    """Pozo de running walljumps de 346 de ancho que sube del piso al siguiente.
-    side = "left" (x 0..346) o "right" (x WIDTH-346..WIDTH). Deja una entrada de 140 abajo."""
-    top = G(floor + 1)
-    bottom = G(floor) - 140
-    if side == "left":
-        block(f"F{floor}ShaftWall", 346, 386, top, bottom, CLIMB_WALL)
-    else:
-        block(f"F{floor}ShaftWall", WIDTH - 386, WIDTH - 346, top, bottom, CLIMB_WALL)
-
-
-def stairs(floor, x_left, x_right, start_side, steps=6, gap=170, width=160):
-    """Escalera de plataformas alternadas (doble salto + agarre) dentro del hueco de la losa superior."""
-    y = G(floor)
-    side = start_side
-    for index in range(steps):
-        y_top = y - gap * (index + 1)
-        if index == steps - 1:
-            y_top = max(y_top, G(floor + 1) + 130)
-        if side == "left":
-            platform(unique(f"F{floor}Step"), x_left, x_left + width, y_top)
-        else:
-            platform(unique(f"F{floor}Step"), x_right - width, x_right, y_top)
-        side = "right" if side == "left" else "left"
+T = Tower(WIDTH, FLOOR_HEIGHT, SLAB)
+G, slab_with_gaps, thorn_pit, bunny_strips, shaft, stairs = T.G, T.slab_with_gaps, T.thorn_pit, T.bunny_strips, T.shaft, T.stairs
 
 
 # ---------------------------------------------------------------- Escena base
@@ -254,7 +199,7 @@ floor_title("TitleF6", 8400, g - 520, "PISO 6 · GUARDIÁN DE LA TORRE")
 slab_with_gaps(6, [(0, 4800), (WIDTH - 386, WIDTH)])
 block("F6EndWall", 0, 4860, TOP + 60, g + SLAB, WALL)
 checkpoint("CheckpointBoss", 9400, g)
-sign("SignBoss", 9150, g, "Guardián", "El guardián cambia en cada partida: pesado, ágil o arquero (y a veces, los tres a la vez).\nObserva sus avisos (!), ruge para desviar y castiga tras sus ataques.", 360)
+sign("SignBoss", 9150, g, "Guardián", "El guardián cambia en cada partida: pesado, ágil o arquero. Los otros dos esperan en las etapas siguientes.\nObserva sus avisos (!), ruge para desviar y castiga tras sus ataques.", 360)
 platform("F6ArenaPlatformLeft", 5800, 6100, g - 170)
 platform("F6ArenaPlatformRight", 7500, 7800, g - 170)
 S.node("BossSpawner", "Node2D", {
@@ -262,10 +207,12 @@ S.node("BossSpawner", "Node2D", {
     "spawn_point": vec(6800, g),
     "arena_min_x": "5000",
     "arena_max_x": "8800",
+    # Partida de tres etapas: aquí siempre un solo guardián (el trío puede salir al final de la etapa 3).
+    "trio_chance": "0",
 })
 
 # ---------------------------------------------------------------- Rengar, HUD y menús
-player_and_ui(220, G(1) - 2)
+player_and_ui(220, G(1) - 2, {"title_text": '"ETAPA 1 COMPLETADA"', "next_scene": '"res://stage2.tscn"'})
 
 S.write(PROJECT / "main.tscn", "uid://bsjw318ojxwhy")
 print("main.tscn generado con", len(S.nodes), "nodos")

@@ -53,7 +53,7 @@ S.node("BossSpawner", "Node2D", {
     "arena_min_x": f"{ARENA_MIN:g}",
     "arena_max_x": f"{ARENA_MAX:g}",
     "forced_boss": "3",
-    "trio_entry_from_left": "true",
+    "entry_from_left": "true",
 })
 
 # ---------------------------------------------------------------- Rengar, HUD y menús

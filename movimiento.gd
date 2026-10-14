@@ -1195,6 +1195,33 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		push_direction = -facing
 	velocity = Vector2(push_direction * hurt_knockback.x, hurt_knockback.y)
 
+func return_to_checkpoint(amount: int) -> void:
+	# Espinas del plataformeo final: daño y de vuelta al último checkpoint (sin reiniciar el nivel).
+	if dead:
+		return
+	var from := global_position
+	take_damage(amount, global_position + Vector2(0.0, 40.0))
+	if dead:
+		return
+	_cancel_all_states()
+	hurt_lock_timer = 0.0
+	global_position = spawn_position
+	velocity = Vector2.ZERO
+	Fx.puff(get_parent(), from + Vector2(0, -14), Color(0.55, 0.25, 0.55, 0.9))
+	Fx.impact(get_parent(), global_position + Vector2(0, -14), Fx.ROAR, 1.0)
+
+func begin_merge() -> void:
+	# Final: Rengar deja de responder y queda flotando mientras se funde con el Ruby1.
+	_cancel_all_states()
+	velocity = Vector2.ZERO
+	invulnerability_timer = 999.0
+	set_physics_process(false)
+	shadow.visible = false
+	animated_sprite.rotation = 0.0
+	animated_sprite.play(ANIMATION_FALL)
+	_align_character_animation(ANIMATION_FALL)
+	charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.25, 0.3))
+
 # ---------- Muerte
 
 func _start_death(source_position: Vector2, amount: int) -> void:

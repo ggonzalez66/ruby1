@@ -1,0 +1,441 @@
+[gd_scene load_steps=15 format=3]
+
+[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
+[ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
+[ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
+[ext_resource type="Script" path="res://hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://music_player.gd" id="6_music"]
+[ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
+[ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
+[ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
+[ext_resource type="Script" path="res://boss_spawner.gd" id="10_spawner"]
+[ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
+[ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
+[ext_resource type="Script" path="res://platform.gd" id="13_platform"]
+[ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
+
+[node name="Main" type="Node2D"]
+
+[node name="JungleBackground" type="ParallaxBackground" parent="."]
+script = ExtResource("4_jungle")
+altitude_offset = 0.6
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-30, -1500)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 3720)
+style = 3
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(7030, -1500)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 3720)
+style = 4
+
+[node name="BoundaryTop" type="StaticBody2D" parent="."]
+position = Vector2(3500, -3330)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(7120, 60)
+style = 1
+
+[node name="TitleStage3" type="Label" parent="."]
+offset_left = 140
+offset_top = -460
+offset_right = 1040
+offset_bottom = -400
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "ETAPA 3 · LA CIMA"
+
+[node name="F1Ground1" type="StaticBody2D" parent="."]
+position = Vector2(750, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1500, 300)
+style = 0
+
+[node name="F1Ground2" type="StaticBody2D" parent="."]
+position = Vector2(2750, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1900, 300)
+style = 0
+
+[node name="F1Ground3" type="StaticBody2D" parent="."]
+position = Vector2(5525, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(2950, 300)
+style = 0
+
+[node name="F1PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(1650, 205)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(300, 190)
+style = 0
+
+[node name="F1PitThorns1" type="Area2D" parent="."]
+position = Vector2(1650, 110)
+script = ExtResource("8_hazard")
+size = Vector2(300, 18)
+damage = 10
+
+[node name="F1PitFloor2" type="StaticBody2D" parent="."]
+position = Vector2(3875, 205)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(350, 190)
+style = 0
+
+[node name="F1PitThorns2" type="Area2D" parent="."]
+position = Vector2(3875, 110)
+script = ExtResource("8_hazard")
+size = Vector2(350, 18)
+damage = 10
+
+[node name="CheckpointStart" type="Area2D" parent="."]
+position = Vector2(150, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="SignStage3" type="Node2D" parent="."]
+position = Vector2(400, 0)
+script = ExtResource("14_sign")
+text = "La cima. Los tiradores de aquí devuelven tus disparos más a menudo.
+Arriba espera el último guardián."
+title = "Etapa 3"
+panel_width = 340
+
+[node name="ChaserF1A" type="Area2D" parent="."]
+position = Vector2(900, 0)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF1B" type="Area2D" parent="."]
+position = Vector2(1150, 0)
+script = ExtResource("12_chaser")
+
+[node name="F1ShooterPlatform" type="StaticBody2D" parent="."]
+position = Vector2(2150, -200)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 20)
+style = 2
+
+[node name="ShooterF1A" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2150, -210)
+aerial = false
+shoot_interval = 2.4
+shoot_direction = Vector2(-1, 0.25)
+shine_chance = 0.35
+
+[node name="F1Hop1" type="Area2D" parent="."]
+position = Vector2(2590, 0)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
+
+[node name="F1Hop2" type="Area2D" parent="."]
+position = Vector2(3005, 0)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
+
+[node name="F1Hop3" type="Area2D" parent="."]
+position = Vector2(3420, 0)
+script = ExtResource("8_hazard")
+size = Vector2(180, 18)
+damage = 10
+
+[node name="SunF1" parent="." instance=ExtResource("3_sun")]
+position = Vector2(3875, -260)
+
+[node name="CheckpointF1Mid" type="Area2D" parent="."]
+position = Vector2(4300, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="ChaserF1C" type="Area2D" parent="."]
+position = Vector2(4650, 0)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF1D" type="Area2D" parent="."]
+position = Vector2(4900, 0)
+script = ExtResource("12_chaser")
+
+[node name="F1BackflipLedge" type="StaticBody2D" parent="."]
+position = Vector2(5375, -135)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 270)
+style = 3
+
+[node name="ShooterF1B" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5750, 0)
+aerial = false
+shoot_interval = 2.4
+shoot_direction = Vector2(-1, 0)
+shine_chance = 0.35
+
+[node name="CheckpointF1Shaft" type="Area2D" parent="."]
+position = Vector2(6200, 0)
+script = ExtResource("9_checkpoint")
+
+[node name="F1ShaftWall" type="StaticBody2D" parent="."]
+position = Vector2(6634, -620)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 960)
+style = 4
+
+[node name="F2Slab1" type="StaticBody2D" parent="."]
+position = Vector2(850, -1070)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1700, 60)
+style = 1
+
+[node name="F2Slab2" type="StaticBody2D" parent="."]
+position = Vector2(3250, -1070)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(2100, 60)
+style = 1
+
+[node name="F2Slab3" type="StaticBody2D" parent="."]
+position = Vector2(5707, -1070)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1814, 60)
+style = 1
+
+[node name="F2PitFloor1" type="StaticBody2D" parent="."]
+position = Vector2(4550, -960)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(580, 40)
+style = 1
+
+[node name="F2PitSide1" type="StaticBody2D" parent="."]
+position = Vector2(4280, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitSide2" type="StaticBody2D" parent="."]
+position = Vector2(4820, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitThorns1" type="Area2D" parent="."]
+position = Vector2(4550, -980)
+script = ExtResource("8_hazard")
+size = Vector2(500, 18)
+damage = 10
+
+[node name="F2PitFloor2" type="StaticBody2D" parent="."]
+position = Vector2(1950, -960)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(580, 40)
+style = 1
+
+[node name="F2PitSide3" type="StaticBody2D" parent="."]
+position = Vector2(1680, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitSide4" type="StaticBody2D" parent="."]
+position = Vector2(2220, -1010)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(40, 60)
+style = 1
+
+[node name="F2PitThorns2" type="Area2D" parent="."]
+position = Vector2(1950, -980)
+script = ExtResource("8_hazard")
+size = Vector2(500, 18)
+damage = 10
+
+[node name="CheckpointF2" type="Area2D" parent="."]
+position = Vector2(6350, -1100)
+script = ExtResource("9_checkpoint")
+
+[node name="ChaserF2A" type="Area2D" parent="."]
+position = Vector2(5800, -1100)
+script = ExtResource("12_chaser")
+
+[node name="DummyF2Bounce1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4450, -1240)
+aerial = true
+max_health = 60
+
+[node name="DummyF2Bounce2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4650, -1280)
+aerial = true
+max_health = 60
+
+[node name="F2WallrideWall" type="StaticBody2D" parent="."]
+position = Vector2(3600, -1190)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 180)
+style = 4
+
+[node name="ShooterF2A" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3100, -1360)
+aerial = true
+shoot_interval = 2.6
+shoot_direction = Vector2(1, 0.2)
+shine_chance = 0.35
+
+[node name="ChaserF2B" type="Area2D" parent="."]
+position = Vector2(2750, -1100)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF2C" type="Area2D" parent="."]
+position = Vector2(2500, -1100)
+script = ExtResource("12_chaser")
+
+[node name="ChaserF2D" type="Area2D" parent="."]
+position = Vector2(1300, -1100)
+script = ExtResource("12_chaser")
+
+[node name="CheckpointF2Stairs" type="Area2D" parent="."]
+position = Vector2(900, -1100)
+script = ExtResource("9_checkpoint")
+
+[node name="F2Step1" type="StaticBody2D" parent="."]
+position = Vector2(90, -1260)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F2Step2" type="StaticBody2D" parent="."]
+position = Vector2(360, -1430)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F2Step3" type="StaticBody2D" parent="."]
+position = Vector2(90, -1600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F2Step4" type="StaticBody2D" parent="."]
+position = Vector2(360, -1770)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F2Step5" type="StaticBody2D" parent="."]
+position = Vector2(90, -1940)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F2Step6" type="StaticBody2D" parent="."]
+position = Vector2(360, -2060)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="F3Slab1" type="StaticBody2D" parent="."]
+position = Vector2(3760, -2170)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(6480, 60)
+style = 1
+
+[node name="CheckpointArena" type="Area2D" parent="."]
+position = Vector2(650, -2200)
+script = ExtResource("9_checkpoint")
+
+[node name="SignLastGuardian" type="Node2D" parent="."]
+position = Vector2(900, -2200)
+script = ExtResource("14_sign")
+text = "El que queda por vencer... aunque a veces, como gran final, vuelven los tres a la vez."
+title = "El último guardián"
+panel_width = 340
+
+[node name="ArenaLowA" type="StaticBody2D" parent="."]
+position = Vector2(2610, -2360)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 2
+
+[node name="ArenaHighA" type="StaticBody2D" parent="."]
+position = Vector2(2930, -2670)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaMid" type="StaticBody2D" parent="."]
+position = Vector2(4290, -2510)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(280, 20)
+style = 2
+
+[node name="ArenaHighB" type="StaticBody2D" parent="."]
+position = Vector2(5480, -2670)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaLowB" type="StaticBody2D" parent="."]
+position = Vector2(5810, -2360)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 2
+
+[node name="BossSpawner" type="Node2D" parent="."]
+script = ExtResource("10_spawner")
+spawn_point = Vector2(4300, -2200)
+arena_min_x = 1500
+arena_max_x = 6800
+forced_boss = 4
+trio_chance = 0.2
+trio_health_factor = 0.75
+entry_from_left = true
+
+[node name="Playerr" parent="." instance=ExtResource("1_player")]
+position = Vector2(220, -2)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+process_mode = 3
+script = ExtResource("6_music")
+volume_db = -6.0
+bus = &"Music"
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("7_pause")
+
+[node name="DemoComplete" type="CanvasLayer" parent="."]
+script = ExtResource("11_demo")
+title_text = "ETAPA 3 COMPLETADA"
+next_scene = "res://stage4.tscn"

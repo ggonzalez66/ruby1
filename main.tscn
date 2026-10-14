@@ -1241,7 +1241,7 @@ script = ExtResource("9_checkpoint")
 [node name="SignBoss" type="Node2D" parent="."]
 position = Vector2(9150, -5500)
 script = ExtResource("14_sign")
-text = "El guardián cambia en cada partida: pesado, ágil o arquero (y a veces, los tres a la vez).
+text = "El guardián cambia en cada partida: pesado, ágil o arquero. Los otros dos esperan en las etapas siguientes.
 Observa sus avisos (!), ruge para desviar y castiga tras sus ataques."
 title = "Guardián"
 panel_width = 360
@@ -1265,6 +1265,7 @@ script = ExtResource("10_spawner")
 spawn_point = Vector2(6800, -5500)
 arena_min_x = 5000
 arena_max_x = 8800
+trio_chance = 0
 
 [node name="Playerr" parent="." instance=ExtResource("1_player")]
 position = Vector2(220, -2)
@@ -1283,3 +1284,5 @@ script = ExtResource("7_pause")
 
 [node name="DemoComplete" type="CanvasLayer" parent="."]
 script = ExtResource("11_demo")
+title_text = "ETAPA 1 COMPLETADA"
+next_scene = "res://stage2.tscn"
