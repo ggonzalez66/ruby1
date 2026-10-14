@@ -7,12 +7,12 @@ extends Area2D
 @export var max_health := 8
 @export var speed := 150.0
 @export var detect_range := 520.0
-# Empieza a atacar desde lejos (el doble que antes) para que dé tiempo a leerlo y parrearlo; al soltar
-# el zarpazo avanza de golpe hasta quedar a "strike_distance", así el golpe sigue llegando.
-@export var attack_range := 170.0
+# Empieza a atacar desde lejos (el triple que al principio) para que dé tiempo a leerlo y parrearlo; al
+# soltar el zarpazo avanza de golpe hasta quedar a "strike_distance", así el golpe sigue llegando.
+@export var attack_range := 255.0
 @export var attack_reach := 104.0
 @export var strike_distance := 70.0
-@export var max_lunge := 120.0
+@export var max_lunge := 200.0
 @export var attack_damage := 12
 @export var telegraph_time := 0.45
 @export var swing_time := 0.12
