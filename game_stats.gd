@@ -3,6 +3,8 @@ extends Node
 # Estadísticas de la partida (autoload "Stats"). Los contadores se suman desde el juego con add();
 # los tiempos se miden aquí mirando el estado de Rengar cada frame.
 
+signal counter_added(key: String, amount: int)
+
 var counters := {}
 var total_time := 0.0
 var running_time := 0.0
@@ -29,6 +31,7 @@ const ACHIEVEMENTS := [
 	["running_seconds", 60, "Sonic estaría orgulloso", "1 minuto corriendo"],
 	["deaths", 5, "Morir es entrenar", "Muere 5 veces"],
 	["wall_embeds", 5, "Pared de mantequilla", "Clava el cuchillo en 5 paredes"],
+	["ferocity_sss", 1, "Supremacía felina", "Alcanza Ferocity SSS"],
 ]
 
 func _ready() -> void:
@@ -44,6 +47,7 @@ func reset() -> void:
 
 func add(key: String, amount: int = 1) -> void:
 	counters[key] = get_count(key) + amount
+	counter_added.emit(key, amount)
 
 func get_count(key: String) -> int:
 	return int(counters.get(key, 0))

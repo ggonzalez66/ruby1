@@ -1,6 +1,7 @@
-[gd_scene load_steps=5 format=3 uid="uid://b50evv40bm1pk"]
+[gd_scene load_steps=6 format=3 uid="uid://b50evv40bm1pk"]
 
 [ext_resource type="Script" path="res://movimiento.gd" id="1_8x1c5"]
+[ext_resource type="Script" path="res://camera_rig.gd" id="3_camera"]
 [ext_resource type="Texture2D" path="res://assets/sprites/player/reng_shadow.png" id="2_shadow"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_65urh"]
@@ -66,6 +67,7 @@ points = PackedVector2Array(-17, -9, 17, -9, 17, 9, -17, 9, -17, -9)
 
 [node name="Camera2D" type="Camera2D" parent="."]
 zoom = Vector2(0.85, 0.85)
+script = ExtResource("3_camera")
 position_smoothing_enabled = true
 position_smoothing_speed = 8.0
 

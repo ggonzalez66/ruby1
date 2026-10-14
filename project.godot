@@ -20,6 +20,12 @@ config/windows_native_icon="res://assets/icons/rubyicon.ico"
 
 Stats="*res://game_stats.gd"
 InputHints="*res://input_hints.gd"
+Ferocity="*res://ferocity.gd"
+
+[display]
+
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
 
 [input]
 

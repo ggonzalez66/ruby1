@@ -251,6 +251,7 @@ func pull_towards(point: Vector2, strength: float) -> void:
 	knock_velocity = sign(point.x - global_position.x) * strength * 5.0
 
 func _explode() -> void:
+	Ferocity.add("void_kill", 40.0, "AL VACÍO", Ferocity.BONUS_COLOR)
 	var center := global_position + impact_offset
 	Fx.impact(get_parent(), center, Fx.GOLD, 2.4)
 	Fx.puff(get_parent(), center, Color(1.0, 0.6, 0.2, 0.9))

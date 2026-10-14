@@ -148,7 +148,8 @@ func _lie_down(normal: Vector2) -> void:
 
 func _stick_in_enemy(enemy: Node2D) -> void:
 	var direction: int = 1 if velocity.x >= 0.0 else -1
-	enemy.take_hit(global_position, direction, DAMAGE_THROW)
+	enemy.take_hit(global_position, direction, int(round(DAMAGE_THROW * Ferocity.damage_multiplier())))
+	Ferocity.add("knife", 12.0, "CUCHILLO")
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
 	state = State.STUCK_ENEMY
@@ -179,11 +180,12 @@ func _return(delta: float) -> void:
 func _recall_hit(enemy: Node2D) -> void:
 	recall_hits.append(enemy)
 	var direction: int = 1 if player.global_position.x >= enemy.global_position.x else -1
-	enemy.take_hit(global_position, direction, DAMAGE_RECALL)
+	enemy.take_hit(global_position, direction, int(round(DAMAGE_RECALL * Ferocity.damage_multiplier())))
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
 	# Si el cuchillo estaba tirado en el suelo solo golpea; si no, atrae hacia Rengar.
 	if not was_dropped and enemy.has_method("pull_towards"):
+		Ferocity.add("knife_pull", 15.0, "ATRAÍDO")
 		enemy.pull_towards(player.global_position, PULL_STRENGTH)
 
 func _find_enemy(exclude: Array) -> Node2D:

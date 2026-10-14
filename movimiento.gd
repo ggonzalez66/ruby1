@@ -197,6 +197,9 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var roar_lock_duration := 0.25
 @export var roar_radius := 46.0
 @export var roar_momentum_keep := 0.15
+# En el aire: si el rugido se suelta (o se cancela saltando) dentro de esta ventana desde que empezó
+# y se mantiene correr, se recupera la velocidad de carrera que se llevaba. Parrys sin frenar.
+@export var roar_air_momentum_grace := 0.4
 @export var roar_damage := 1
 @export var hurt_invulnerability_time := 1.0
 @export var hurt_control_lock_time := 0.25
@@ -274,6 +277,10 @@ var mantle_height := 0.0
 var mantle_dir := 1
 var mantle_keep_sprint := false
 var roar_active := false
+var roar_elapsed := 0.0
+var roar_saved_speed := 0.0
+var roar_saved_direction := 0
+var roar_saved_long_jump := false
 var roar_explosive_timer := 0.0
 var roar_stall_timer := 0.0
 var roar_lock_timer := 0.0
@@ -309,6 +316,9 @@ var frontflip_rotation_duration := 0.0
 var afterimage_timer := 0.0
 var afterimage_container: Node2D
 var afterimage_material: ShaderMaterial
+var afterimage_unstoppable_material: ShaderMaterial
+# Estado imparable de Ferocity y haciendo algo con afterimage: brilla como el speed booster.
+var unstoppable_glow := false
 var wall_jump_lock_timer := 0.0
 var wall_jump_animation_timer := 0.0
 var wall_contact_direction := 0
@@ -484,6 +494,7 @@ func _physics_process(delta: float) -> void:
 			roar_aura_on = roar_aura_on and Input.is_action_pressed("roar")
 			if not roar_aura_on and roar_lock_timer <= 0.0:
 				_end_roar()
+				_resume_roar_momentum()
 	_update_roar_aura()
 
 	if mantle_active:
@@ -1052,6 +1063,7 @@ func _start_wallride() -> void:
 	wallride_available = false
 	wallride_active = true
 	wallride_risen = 0.0
+	Ferocity.add("wallride", 18.0, "WALLRIDE")
 	wallride_target = wallride_distance
 	wall_contact_direction = wall_cling_direction
 	wall_visual_direction = wall_cling_direction
@@ -1126,6 +1138,12 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		return
 
 	invulnerability_timer = hurt_invulnerability_time
+	_camera_kick(0.6)
+	if Ferocity.player_hit():
+		# Imparable: pierde vida y estilo, pero sigue con lo que estaba haciendo.
+		Fx.impact(get_parent(), global_position + Vector2(0, -14), Fx.ROAR, 1.2)
+		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡IMPARABLE!", Ferocity.rank_info()["color"])
+		return
 	hurt_lock_timer = hurt_control_lock_time
 	# Interrumpe cualquier estado de movimiento o ataque y empuja lejos del origen del daño.
 	_stop_sprint()
@@ -1154,6 +1172,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 func _start_death(source_position: Vector2, amount: int) -> void:
 	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
 	dead = true
+	Ferocity.reset()
 	_cancel_all_states()
 	var push_direction: float = sign(global_position.x - source_position.x)
 	if push_direction == 0.0:
@@ -1282,6 +1301,13 @@ func _update_riposte_visual() -> void:
 		var pulse: float = 0.5 + 0.5 * sin(Time.get_ticks_msec() / 45.0)
 		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.35, 0.12))
 		charge_glow_material.set_shader_parameter("glow_amount", lerp(0.35, 0.8, pulse))
+	elif unstoppable_glow:
+		# Parpadeo rápido entre blanco y el color del rango, como el speed booster de Samus.
+		var rank_color: Color = Ferocity.rank_info()["color"]
+		var flash: bool = int(Time.get_ticks_msec() / 50) % 2 == 0
+		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.97, 0.88) if flash else rank_color)
+		charge_glow_material.set_shader_parameter("glow_amount", 0.75 if flash else 0.55)
+		afterimage_unstoppable_material.set_shader_parameter("glow_color", rank_color)
 	else:
 		charge_glow_material.set_shader_parameter("glow_amount", 0.0)
 
@@ -1293,18 +1319,52 @@ func _spawn_hit_feedback(area: Node2D) -> void:
 		Fx.impact(get_parent(), point, Fx.GOLD, 2.2)
 		Fx.impact(get_parent(), point, Fx.ROAR, 1.4)
 		Fx.text(get_parent(), point + Vector2(0, -36), "¡RIPOSTE!", Color(1.0, 0.55, 0.25))
-		_apply_hitstop(hitstop_deflect)
+		_apply_hitstop(hitstop_deflect * Ferocity.impact_multiplier())
+		_camera_kick(0.55, 0.06)
 		if not riposte_healed:
 			riposte_healed = true
 			heal(riposte_heal)
 		return
 	Fx.impact(get_parent(), point, Fx.GOLD if heavy else Fx.SILVER, 1.35 if heavy or finisher else 1.0)
+	var impact: float = Ferocity.impact_multiplier()
 	if heavy:
-		_apply_hitstop(hitstop_heavy)
+		_apply_hitstop(hitstop_heavy * impact)
+		_camera_kick(0.32, 0.035)
 	elif finisher:
-		_apply_hitstop(hitstop_light + 0.03)
+		_apply_hitstop((hitstop_light + 0.03) * impact)
+		_camera_kick(0.22, 0.02)
 	else:
-		_apply_hitstop(hitstop_light)
+		_apply_hitstop(hitstop_light * impact)
+		_camera_kick(0.1)
+
+func _add_hit_style() -> void:
+	# Estilo por golpe: más por los golpes fuertes y por pegar en el aire.
+	match attack_mode:
+		ATTACK_HEAVY, ATTACK_HEAVY_GROUND:
+			if riposte_attack:
+				Ferocity.add("riposte", 50.0, "RIPOSTE", Ferocity.BONUS_COLOR)
+			else:
+				Ferocity.add("heavy_hit", 18.0, "GOLPE PESADO")
+		ATTACK_UPPERCUT:
+			Ferocity.add("uppercut", 18.0, "UPPERCUT")
+		ATTACK_GROUND_CHARGED, ATTACK_LIGHT_CHARGED_AIR:
+			Ferocity.add("charged", 12.0, "CARGADO")
+		ATTACK_SPIN:
+			Ferocity.add("spin", 10.0, "GIRO")
+		_:
+			if light_combo_step == 3:
+				Ferocity.add("finisher", 18.0, "REMATE")
+			else:
+				Ferocity.add("light_hit", 8.0)
+	if not is_on_floor() and attack_mode != ATTACK_HEAVY:
+		Ferocity.add("air_hit", 6.0, "AÉREO")
+
+func _camera_kick(trauma: float, punch: float = 0.0) -> void:
+	var camera := get_viewport().get_camera_2d()
+	if camera and camera.has_method("add_trauma"):
+		camera.add_trauma(trauma)
+		if punch > 0.0:
+			camera.punch(punch)
 
 func _get_target_center(target: Node2D) -> Vector2:
 	var offset = target.get("impact_offset")
@@ -1432,6 +1492,13 @@ func _apply_mantle(delta: float) -> void:
 func _start_roar() -> void:
 	if roar_active or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0:
 		return
+	# En el aire se recuerda la velocidad de carrera para poder recuperarla al soltar a tiempo.
+	roar_elapsed = 0.0
+	roar_saved_direction = 0
+	if not is_on_floor() and abs(velocity.x) >= sprint_speed - 1.0:
+		roar_saved_speed = abs(velocity.x)
+		roar_saved_direction = 1 if velocity.x > 0.0 else -1
+		roar_saved_long_jump = long_jump_active
 	_stop_sprint()
 	long_jump_active = false
 	frontflip_active = false
@@ -1481,8 +1548,22 @@ func _try_roar_jump_cancel() -> void:
 	velocity.y = jump_velocity
 	jump_cut_available = true
 	animated_sprite.play(ANIMATION_JUMP)
+	_resume_roar_momentum()
+
+func _resume_roar_momentum() -> void:
+	# Soltar el rugido a tiempo en el aire manteniendo correr: vuelve a la carrera que se llevaba.
+	if roar_saved_direction == 0 or roar_elapsed > roar_air_momentum_grace or is_on_floor():
+		return
+	if not Input.is_action_pressed("dash"):
+		return
+	_start_sprint(roar_saved_direction)
+	velocity.x = roar_saved_direction * max(roar_saved_speed, sprint_speed)
+	# Si iba en salto largo, lo retoma (misma velocidad y se puede encadenar el bunnyhop al caer).
+	long_jump_active = roar_saved_long_jump
+	roar_saved_direction = 0
 
 func _apply_roar_movement(delta: float) -> void:
+	roar_elapsed += delta
 	velocity.x = move_toward(velocity.x, 0.0, 1600.0 * delta)
 	if roar_stall_timer > 0.0 and not is_on_floor():
 		# Stall en el aire durante el primer segundo del rugido.
@@ -1566,6 +1647,9 @@ func _create_afterimage_container() -> void:
 	afterimage_material.shader = CHARGE_GLOW_SHADER
 	afterimage_material.set_shader_parameter("glow_color", afterimage_color)
 	afterimage_material.set_shader_parameter("glow_amount", afterimage_tint)
+	afterimage_unstoppable_material = ShaderMaterial.new()
+	afterimage_unstoppable_material.shader = CHARGE_GLOW_SHADER
+	afterimage_unstoppable_material.set_shader_parameter("glow_amount", 0.85)
 
 func _attach_afterimage_container() -> void:
 	# Vive en el nivel, justo antes del jugador: las sombras se quedan donde se crearon
@@ -1583,6 +1667,9 @@ func _update_afterimages(delta: float) -> void:
 	afterimage_timer = max(afterimage_timer - delta, 0.0)
 	# Sombras estilo Alucard a partir de la velocidad de carrera; el backflip es la excepción.
 	var fast_enough: bool = abs(velocity.x) >= sprint_speed - 1.0 or backflip_active or wallride_active
+	if fast_enough and not dead:
+		Ferocity.add_running(delta)
+	unstoppable_glow = fast_enough and Ferocity.is_unstoppable() and not dead
 	if not fast_enough or afterimage_timer > 0.0 or not afterimage_container.is_inside_tree():
 		return
 	afterimage_timer = afterimage_interval
@@ -1592,7 +1679,7 @@ func _spawn_afterimage() -> void:
 	var ghost := Sprite2D.new()
 	ghost.texture = animated_sprite.sprite_frames.get_frame_texture(animated_sprite.animation, animated_sprite.frame)
 	ghost.flip_h = animated_sprite.flip_h
-	ghost.material = afterimage_material
+	ghost.material = afterimage_unstoppable_material if unstoppable_glow else afterimage_material
 	ghost.modulate = Color(1.0, 1.0, 1.0, afterimage_alpha)
 	afterimage_container.add_child(ghost)
 	ghost.global_transform = animated_sprite.global_transform
@@ -2504,8 +2591,12 @@ func _hit_area(area: Area2D) -> void:
 		return
 
 	if area.has_method("take_hit"):
-		area.take_hit(global_position, facing, _get_attack_damage())
+		area.take_hit(global_position, facing, int(round(_get_attack_damage() * Ferocity.damage_multiplier())))
+		# Más estilo, más impacto: los perseguidores salen despedidos más lejos.
+		if area.get("knock_velocity") != null:
+			area.knock_velocity *= Ferocity.impact_multiplier()
 		_spawn_hit_feedback(area)
+		_add_hit_style()
 
 	if attack_mode == ATTACK_HEAVY:
 		# Diferido: puede venir de la señal de colisión, donde no se puede desactivar la hitbox.
@@ -2740,6 +2831,8 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	if hit_enemy and not is_sprinting and Input.is_action_pressed("dash"):
 		_start_sprint(facing)
 		Stats.add("running_bounces")
+	elif hit_enemy:
+		Ferocity.add("bounce", 18.0, "REBOTE")
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * heavy_bounce_vertical_ratio
 	jump_cut_available = false
@@ -2804,6 +2897,7 @@ func _can_start_air_uppercut() -> bool:
 
 func _respawn_player() -> void:
 	dead = false
+	Ferocity.reset()
 	animated_sprite.rotation = 0.0
 	get_tree().call_group(&"training_dummies", &"reset_dummy")
 	global_position = spawn_position

@@ -93,6 +93,7 @@ func _fill_stats() -> void:
 		["Tiempo total", Stats.format_time(Stats.total_time)],
 		["Combate contra el guardián", Stats.format_time(Stats.boss_fight_time)],
 		["Dummies derrotados", Stats.get_count("dummies_killed")],
+		["Ferocity máxima", Ferocity.RANKS[Stats.get_count("ferocity_peak")]["letter"]],
 		["Parries", Stats.get_count("parries")],
 		["Vida recuperada", Stats.get_count("health_healed")],
 		["Proyectiles devueltos", Stats.get_count("projectiles_reflected")],

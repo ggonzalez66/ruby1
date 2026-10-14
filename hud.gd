@@ -35,6 +35,7 @@ var banner_boss: Node
 var flash_rect: ColorRect
 var flash_tween: Tween
 
+const FEROCITY_HUD := preload("res://ferocity_hud.gd")
 const BOSS_INDICATOR_SIZE := 72.0
 const BOSS_INDICATOR_MARGIN := 14.0
 
@@ -45,6 +46,7 @@ func _ready() -> void:
 	_build_boss_indicator()
 	_build_death_screen()
 	_build_boss_banner()
+	add_child(FEROCITY_HUD.new())
 	_connect_player.call_deferred()
 
 func _process(delta: float) -> void:

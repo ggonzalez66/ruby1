@@ -147,6 +147,7 @@ func try_block(_source_position: Vector2) -> bool:
 
 func _defeat() -> void:
 	defeated = true
+	Ferocity.add("boss_kill", 200.0, "GUARDIÁN CAÍDO", Ferocity.BONUS_COLOR)
 	warning_label.visible = false
 	set_deferred("monitorable", false)
 	_on_defeat()
