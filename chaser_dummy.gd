@@ -252,6 +252,13 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 	if current_health == 0:
 		_die()
 
+func on_shine_hit(direction: int, strength: float) -> void:
+	# El golpe del shine no interrumpe su ataque: solo lo empuja (el triple que un golpe normal).
+	if state == State.DEAD:
+		return
+	knock_velocity = direction * strength
+	flash_timer = 0.1
+
 func on_deflected(_by: Node) -> void:
 	if state != State.SWING:
 		return

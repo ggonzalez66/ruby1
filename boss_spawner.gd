@@ -19,6 +19,9 @@ extends Node2D
 # Las posiciones del trío piensan en que Rengar entra por la derecha (torre); si entra por la izquierda
 # se reflejan: el ágil más cerca de la entrada y el arquero al fondo.
 @export var entry_from_left := false
+# Gauntlet: no aparece solo; el director de oleadas lo llama con spawn_round() y lo quita con
+# clear_bosses().
+@export var auto_spawn := true
 
 const BOSSES := [
 	{"script": preload("res://boss_heavy.gd"), "name": "GUARDIÁN PESADO", "subtitle": "El coloso del espadón", "health": 105, "resist": 0.35, "block": 0.2},
@@ -38,7 +41,8 @@ var bosses: Array = []
 var boss_index := 0
 
 func _ready() -> void:
-	_spawn(_pick_next(int(Stats.get_meta(&"last_boss", -1))))
+	if auto_spawn:
+		_spawn(_pick_next(int(Stats.get_meta(&"last_boss", -1))))
 	_connect_player.call_deferred()
 
 func _connect_player() -> void:
@@ -47,7 +51,21 @@ func _connect_player() -> void:
 		player.respawned.connect(_on_player_respawned)
 
 func _on_player_respawned() -> void:
-	_spawn(_pick_next(boss_index))
+	if auto_spawn:
+		_spawn(_pick_next(boss_index))
+	else:
+		clear_bosses()
+
+func spawn_round() -> void:
+	_spawn(_pick_next(boss_index if not bosses.is_empty() else int(Stats.get_meta(&"last_boss", -1))))
+
+func clear_bosses() -> void:
+	for old in bosses:
+		old._on_reset()
+		old.remove_from_group(&"boss")
+		old.remove_from_group(&"training_dummies")
+		old.queue_free()
+	bosses.clear()
 
 func _pick_next(previous: int) -> int:
 	if forced_boss == NEXT_UNDEFEATED:
@@ -63,13 +81,8 @@ func _pick_next(previous: int) -> int:
 	return (previous + 1 + randi() % (BOSSES.size() - 1)) % BOSSES.size()
 
 func _spawn(index: int) -> void:
-	for old in bosses:
-		# Fuera de los grupos ya mismo para que el HUD y las estadísticas no lo encuentren este frame.
-		old._on_reset()
-		old.remove_from_group(&"boss")
-		old.remove_from_group(&"training_dummies")
-		old.queue_free()
-	bosses.clear()
+	# Los anteriores, fuera de los grupos ya mismo para que el HUD y las estadísticas no los encuentren.
+	clear_bosses()
 	boss_index = index
 	Stats.set_meta(&"last_boss", index)
 	if index == TRIO:

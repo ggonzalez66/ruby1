@@ -1,11 +1,13 @@
 extends Node2D
 
-# Menú principal: Subir Torre (la torre de 6 pisos), Entrar al Gauntlet (los tres guardianes en una
-# arena abierta), Opciones (las mismas del menú de pausa) y Salir. De fondo, Rengar corre sin fin por
-# la jungla con el efecto de rango SS (brillo de imparable y afterimages del color del rango).
+# Menú principal: Subir Torre (la partida de cuatro etapas), Entrar al Gauntlet (oleadas y guardianes),
+# Escalera al Cielo (plataformeo puro hasta fundirse con el sol), Opciones (las mismas del menú de
+# pausa) y Salir. De fondo, Rengar corre sin fin por la jungla con el efecto de rango SSS (brillo de
+# imparable y afterimages del color del rango).
 
 const TOWER_SCENE := "res://main.tscn"
 const GAUNTLET_SCENE := "res://gauntlet.tscn"
+const SKY_SCENE := "res://sky_stairs.tscn"
 const JUNGLE_SCRIPT := preload("res://jungle_background.gd")
 const PAUSE_MENU_SCRIPT := preload("res://pause_menu.gd")
 const MUSIC_SCRIPT := preload("res://music_player.gd")
@@ -34,7 +36,7 @@ const GROUND_Y := 24.0
 const GROUND_SEGMENT := 2400.0
 const AFTERIMAGE_INTERVAL := 0.06
 const AFTERIMAGE_LIFETIME := 0.42
-const SS_RANK := 5
+const RUN_RANK := 6
 
 var camera: Camera2D
 var menu_root: Control
@@ -121,12 +123,12 @@ func _build_runner() -> void:
 		grounds.append(ground)
 	ghosts = Node2D.new()
 	add_child(ghosts)
-	var ss_color: Color = Ferocity.RANKS[SS_RANK]["color"]
+	var rank_color: Color = Ferocity.RANKS[RUN_RANK]["color"]
 	runner_material = ShaderMaterial.new()
 	runner_material.shader = GLOW_SHADER
 	ghost_material = ShaderMaterial.new()
 	ghost_material.shader = GLOW_SHADER
-	ghost_material.set_shader_parameter("glow_color", ss_color)
+	ghost_material.set_shader_parameter("glow_color", rank_color)
 	ghost_material.set_shader_parameter("glow_amount", 0.85)
 	runner = Sprite2D.new()
 	runner.texture = SPRINT_SHEET
@@ -140,9 +142,9 @@ func _update_runner(delta: float) -> void:
 	runner.frame = int(run_time * RUN_FPS) % runner.hframes
 	runner.position = Vector2(camera.position.x + RUNNER_SCREEN_X, GROUND_Y - SPRINT_SHEET.get_height() * RUN_SCALE * 0.5)
 	# Brillo de imparable: parpadeo rápido entre blanco y el color del rango, como en el juego.
-	var ss_color: Color = Ferocity.RANKS[SS_RANK]["color"]
+	var rank_color: Color = Ferocity.RANKS[RUN_RANK]["color"]
 	var flash: bool = int(Time.get_ticks_msec() / 50) % 2 == 0
-	runner_material.set_shader_parameter("glow_color", Color(1.0, 0.97, 0.88) if flash else ss_color)
+	runner_material.set_shader_parameter("glow_color", Color(1.0, 0.97, 0.88) if flash else rank_color)
 	runner_material.set_shader_parameter("glow_amount", 0.75 if flash else 0.55)
 	afterimage_timer -= delta
 	if afterimage_timer <= 0.0:
@@ -247,6 +249,7 @@ func _build() -> void:
 	first_button = _button("Subir Torre", _start.bind(TOWER_SCENE))
 	buttons.add_child(first_button)
 	buttons.add_child(_button("Entrar al Gauntlet", _start.bind(GAUNTLET_SCENE)))
+	buttons.add_child(_button("Escalera al Cielo", _start.bind(SKY_SCENE)))
 	buttons.add_child(_button("Opciones", _open_options))
 	buttons.add_child(_button("Salir", _quit))
 

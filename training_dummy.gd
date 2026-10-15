@@ -155,6 +155,17 @@ func _explode() -> void:
 	_update_health_bar()
 	_die()
 
+func on_shine_hit(direction: int, _strength: float) -> void:
+	# El golpe del shine no lo daña: lo empuja (el triple de lo que se mueve al recibir un golpe).
+	if current_health <= 0:
+		return
+	flash_timer = flash_duration
+	wobble = clamp(wobble + float(direction), -1.0, 1.0)
+	if pull_tween:
+		pull_tween.kill()
+	pull_tween = create_tween()
+	pull_tween.tween_property(self, "pull_offset", pull_offset + Vector2(direction * push_distance * 3.0, 0.0), 0.15).set_ease(Tween.EASE_OUT)
+
 func pull_towards(point: Vector2, strength: float) -> void:
 	# El recall del cuchillo arrastra al dummy hacia Rengar; los de suelo solo en horizontal.
 	var center := global_position + impact_offset

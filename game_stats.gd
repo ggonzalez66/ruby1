@@ -19,7 +19,7 @@ const ACHIEVEMENTS := [
 	["projectiles_reflected", 25, "Devuelto al remitente", "Devuelve 25 proyectiles"],
 	["knife_shines", 10, "Malabarista", "Haz 10 shine knifes"],
 	["knife_throws", 60, "Cuchillo boomerang", "Lanza el cuchillo 60 veces"],
-	["backflips", 40, "Leon Scott Kennedy", "Más backflips innecesarios que Leon (40)"],
+	["backflips", 40, "Leon Scott Kennedy", "Unnecessary backflips (40)"],
 	["frontflips", 50, "Maromas en el aire", "Haz 50 frontflips"],
 	["sun_hits_dealt", 25, "Mata-soles (fallido)", "Intenta matar al sol 25 veces: es inmortal"],
 	["sun_hits_taken", 8, "Bronceado extremo", "Que el sol te queme 8 veces"],

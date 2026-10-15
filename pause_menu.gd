@@ -32,7 +32,7 @@ const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
 	["throw_knife", "Lanzar cuchillo"], ["roar", "Rugido"], ["pause", "Pausa"], ["respawn", "Reiniciar"],
-	["toggle_hitbox_visuals", "Ver hitboxes"],
+	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).
 const STICK_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
@@ -53,6 +53,10 @@ var resume_button: Button
 var music_slider: HSlider
 var music_value_label: Label
 var tutorials_button: Button
+# Pausa de frame (P): congela el juego justo donde está, sin menú, para inspeccionar ese frame
+# (con H se ven las hitboxes). Otra P lo reanuda.
+var frame_paused := false
+var frame_label: Label
 
 var remap_device := Device.KEYBOARD
 var waiting_action := ""
@@ -98,11 +102,22 @@ func _unhandled_input(event: InputEvent) -> void:
 	if menu_mode:
 		_menu_mode_input(event)
 		return
+	if event.is_action_pressed("frame_pause") and not root_control.visible:
+		get_viewport().set_input_as_handled()
+		_toggle_frame_pause()
+		return
+	if frame_paused and event.is_action_pressed("toggle_hitbox_visuals"):
+		# Con el juego congelado Rengar no procesa entradas: las hitboxes se cambian desde aquí.
+		get_viewport().set_input_as_handled()
+		var player := get_tree().get_first_node_in_group(&"player")
+		if player and player.has_method("toggle_hitbox_debug"):
+			player.toggle_hitbox_debug()
+		return
 	var back: bool = event.is_action_pressed("pause") or (get_tree().paused and event.is_action_pressed("ui_cancel"))
 	if not back:
 		return
 	get_viewport().set_input_as_handled()
-	if not get_tree().paused:
+	if not get_tree().paused or frame_paused:
 		_open()
 	elif remap_page.visible:
 		_show_options_page()
@@ -124,7 +139,14 @@ func open_options() -> void:
 	root_control.visible = true
 	_show_options_page()
 
+func _toggle_frame_pause() -> void:
+	frame_paused = not frame_paused
+	get_tree().paused = frame_paused
+	frame_label.visible = frame_paused
+
 func _open() -> void:
+	frame_paused = false
+	frame_label.visible = false
 	get_tree().paused = true
 	root_control.visible = true
 	_show_main_page()
@@ -166,6 +188,16 @@ func _show_remap_page(device: Device) -> void:
 # ---------- Construcción de la interfaz
 
 func _build() -> void:
+	frame_label = Label.new()
+	frame_label.text = "PAUSA DE FRAME  ·  P reanuda  ·  H hitboxes"
+	frame_label.add_theme_font_size_override("font_size", 16)
+	frame_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+	frame_label.add_theme_color_override("font_outline_color", Color(0.05, 0.03, 0.02))
+	frame_label.add_theme_constant_override("outline_size", 6)
+	frame_label.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	frame_label.position = Vector2(-190, -40)
+	frame_label.visible = false
+	add_child(frame_label)
 	root_control = Control.new()
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root_control)
@@ -261,7 +293,7 @@ func _rebuild_remap_rows() -> void:
 	var first: Button
 	for entry in REMAP_ACTIONS:
 		var action: String = entry[0]
-		if remap_device == Device.JOYPAD and action == "toggle_hitbox_visuals":
+		if remap_device == Device.JOYPAD and action in ["toggle_hitbox_visuals", "frame_pause"]:
 			continue
 		var row := HBoxContainer.new()
 		row.add_theme_constant_override("separation", 10)

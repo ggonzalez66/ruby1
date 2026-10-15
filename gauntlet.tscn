@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
 [ext_resource type="Script" path="res://platform.gd" id="13_platform"]
 [ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
+[ext_resource type="Script" path="res://gauntlet_director.gd" id="16_director"]
 
 [node name="Main" type="Node2D"]
 
@@ -58,7 +59,7 @@ theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
 theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 34
-text = "GAUNTLET · LOS TRES GUARDIANES"
+text = "GAUNTLET · OLEADAS"
 
 [node name="CheckpointStart" type="Area2D" parent="."]
 position = Vector2(120, 0)
@@ -67,45 +68,10 @@ script = ExtResource("9_checkpoint")
 [node name="SignGauntlet" type="Node2D" parent="."]
 position = Vector2(360, 0)
 script = ExtResource("14_sign")
-text = "Los tres guardianes te esperan al fondo.
-Calienta con sus centinelas: el estilo que acumules llega contigo al combate."
+text = "Por oleadas: acaba con todos los enemigos y después con el guardián (a veces salen los tres).
+Al ganar, el portal de la derecha sigue a la siguiente ronda y el de la izquierda termina."
 title = "Gauntlet"
-panel_width = 340
-
-[node name="DummyBounceA" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(640, -150)
-aerial = true
-max_health = 60
-
-[node name="DummyBounceB" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(860, -190)
-aerial = true
-max_health = 60
-
-[node name="ChaserA" type="Area2D" parent="."]
-position = Vector2(1050, 0)
-script = ExtResource("12_chaser")
-
-[node name="ShooterPlatform" type="StaticBody2D" parent="."]
-position = Vector2(1280, -200)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(200, 20)
-style = 2
-
-[node name="ShooterHigh" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(1280, -210)
-aerial = false
-shoot_interval = 2.6
-shoot_direction = Vector2(-1, 0.25)
-
-[node name="ChaserB" type="Area2D" parent="."]
-position = Vector2(1450, 0)
-script = ExtResource("12_chaser")
-
-[node name="CheckpointArena" type="Area2D" parent="."]
-position = Vector2(1650, 0)
-script = ExtResource("9_checkpoint")
+panel_width = 380
 
 [node name="ArenaLowA" type="StaticBody2D" parent="."]
 position = Vector2(2360, -160)
@@ -147,8 +113,18 @@ script = ExtResource("10_spawner")
 spawn_point = Vector2(3150, 0)
 arena_min_x = 1800
 arena_max_x = 4300
-forced_boss = 3
+forced_boss = -1
+trio_chance = 0.25
+auto_spawn = false
 entry_from_left = true
+
+[node name="GauntletDirector" type="Node2D" parent="."]
+script = ExtResource("16_director")
+arena_min_x = 1400
+arena_max_x = 4100
+spawner_path = NodePath("../BossSpawner")
+left_portal_x = 600
+right_portal_x = 4150
 
 [node name="Playerr" parent="." instance=ExtResource("1_player")]
 position = Vector2(220, -2)
@@ -168,3 +144,4 @@ script = ExtResource("7_pause")
 [node name="DemoComplete" type="CanvasLayer" parent="."]
 script = ExtResource("11_demo")
 title_text = "GAUNTLET COMPLETADO"
+final_screen = true

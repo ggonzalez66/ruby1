@@ -1,8 +1,11 @@
 extends Area2D
 
-# El Ruby1: un rubí gigante que flota y brilla al final de la etapa final. Al tocarlo, Rengar flota
-# lentamente hacia su centro, se encoge y se funde en rojo mientras la pantalla se va a blanco; al
-# terminar aparece la pantalla de logros (con volver al menú principal).
+# Meta de fusión: el Ruby1 (un rubí gigante al final de la etapa final) o el sol (al final de la
+# Escalera al Cielo). Al tocarlo, Rengar flota lentamente hacia su centro, se encoge y se funde con él
+# mientras la pantalla se va a blanco; al terminar aparece la pantalla de logros (con volver al menú
+# principal).
+
+@export_enum("ruby", "sun") var goal_style := "ruby"
 
 const GEM_CENTER := Vector2(0, -170)
 const GEM_HEIGHT := 210.0
@@ -15,6 +18,10 @@ const RUBY_MID := Color(0.82, 0.06, 0.16)
 const RUBY_LIGHT := Color(1.0, 0.35, 0.42)
 const RUBY_SHINE := Color(1.0, 0.85, 0.88)
 const GLOW := Color(1.0, 0.18, 0.28)
+const SUN_GLOW := Color(1.0, 0.72, 0.18)
+const SUN_CORE := Color(1.0, 0.95, 0.7)
+const SUN_MID := Color(1.0, 0.8, 0.3)
+const SUN_EDGE := Color(1.0, 0.55, 0.12)
 
 var time := 0.0
 # 0..1: cuánto brilla de más durante la fusión.
@@ -58,15 +65,20 @@ func _draw() -> void:
 		var length: float = 230.0 + 40.0 * sin(time * 1.3 + index)
 		var spread: float = 0.09
 		var ray := PackedVector2Array([center, center + Vector2(cos(angle - spread), sin(angle - spread)) * length, center + Vector2(cos(angle + spread), sin(angle + spread)) * length])
-		draw_colored_polygon(ray, Color(GLOW, 0.07 + 0.08 * intensity))
+		draw_colored_polygon(ray, Color(_glow(), 0.07 + 0.08 * intensity))
 	# Halo en capas que late.
 	for layer in range(5):
 		var radius: float = 70.0 + layer * 26.0 + 10.0 * pulse + 60.0 * intensity
-		draw_circle(center, radius, Color(GLOW, (0.09 - layer * 0.014) * (1.0 + 2.0 * intensity)))
-	_draw_gem(center)
+		draw_circle(center, radius, Color(_glow(), (0.09 - layer * 0.014) * (1.0 + 2.0 * intensity)))
+	if goal_style == "sun":
+		_draw_sun(center, pulse)
+	else:
+		_draw_gem(center)
 	for sparkle in sparkles:
 		var life: float = sin(sparkle["age"] / 0.7 * PI)
-		_draw_star(sparkle["position"] + bob, sparkle["size"] * life, Color(RUBY_SHINE, life))
+		_draw_star(sparkle["position"] + bob, sparkle["size"] * life, Color(RUBY_SHINE if goal_style == "ruby" else SUN_CORE, life))
+	if goal_style == "sun":
+		return
 	# Pedestal de piedra con musgo.
 	draw_rect(Rect2(-70, -24, 140, 24), Color(0.3, 0.27, 0.22))
 	draw_rect(Rect2(-56, -36, 112, 12), Color(0.38, 0.34, 0.28))
@@ -104,6 +116,22 @@ func _draw_gem(center: Vector2) -> void:
 		var x: float = lerp(-w, w, glint)
 		draw_line(center + Vector2(x - 10, -h * 0.42), center + Vector2(x + 18, -h * 0.1), Color(1, 1, 1, 0.55 * sin(glint * PI)), 6.0, true)
 
+func _glow() -> Color:
+	return SUN_GLOW if goal_style == "sun" else GLOW
+
+func _draw_sun(center: Vector2, pulse: float) -> void:
+	# Sol gigante y sereno: corona de puntas que gira, discos en capas y un brillo que late.
+	var corona := PackedVector2Array()
+	for index in range(32):
+		var angle: float = -time * 0.25 + TAU * index / 32.0
+		var radius: float = (118.0 if index % 2 == 0 else 96.0) + 6.0 * pulse
+		corona.append(center + Vector2(cos(angle), sin(angle)) * radius)
+	draw_colored_polygon(corona, SUN_EDGE.lerp(SUN_CORE, 0.3 * intensity))
+	draw_circle(center, 94.0, SUN_EDGE)
+	draw_circle(center, 84.0, SUN_MID.lerp(SUN_CORE, 0.4 * intensity))
+	draw_circle(center, 60.0 + 4.0 * pulse, SUN_CORE)
+	draw_circle(center + Vector2(-26, -28), 18.0, Color(1, 1, 1, 0.35 + 0.2 * intensity))
+
 func _draw_star(at: Vector2, size: float, color: Color) -> void:
 	if size <= 0.5:
 		return
@@ -123,13 +151,14 @@ func _on_body_entered(body: Node) -> void:
 
 func _merge(player: Node2D) -> void:
 	merging = true
-	Stats.add("ruby_reached")
+	Stats.add("sun_reached" if goal_style == "sun" else "ruby_reached")
 	player.begin_merge()
 	var sprite: Node2D = player.animated_sprite
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(player, "global_position", global_position + GEM_CENTER + Vector2(0, 14), MERGE_TIME).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	tween.tween_property(sprite, "scale", sprite.scale * 0.12, MERGE_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	tween.tween_property(sprite, "modulate", Color(2.2, 0.55, 0.6, 0.0), MERGE_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	var merge_tint := Color(2.2, 1.9, 0.9, 0.0) if goal_style == "sun" else Color(2.2, 0.55, 0.6, 0.0)
+	tween.tween_property(sprite, "modulate", merge_tint, MERGE_TIME).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	tween.tween_property(self, "intensity", 1.0, MERGE_TIME)
 	# La pantalla se funde a blanco rosado.
 	var layer := CanvasLayer.new()
@@ -138,7 +167,7 @@ func _merge(player: Node2D) -> void:
 	var fade := ColorRect.new()
 	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
 	fade.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	fade.color = Color(1.0, 0.9, 0.92, 0.0)
+	fade.color = Color(1.0, 0.97, 0.85, 0.0) if goal_style == "sun" else Color(1.0, 0.9, 0.92, 0.0)
 	layer.add_child(fade)
 	tween.tween_property(fade, "color:a", 1.0, FADE_TIME).set_delay(FADE_DELAY)
 	tween.chain().tween_callback(_finish.bind(layer))

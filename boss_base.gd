@@ -148,6 +148,15 @@ func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -
 	if current_health == 0:
 		_defeat()
 
+func on_shine_hit(direction: int, strength: float) -> void:
+	# El golpe del shine no interrumpe al guardián: solo lo empuja un poco hacia atrás.
+	if defeated:
+		return
+	flash_timer = 0.08
+	var target_x: float = clamp(position.x + direction * strength * 0.07, min_x, max_x)
+	var tween := create_tween()
+	tween.tween_property(self, "position:x", target_x, 0.15).set_ease(Tween.EASE_OUT)
+
 func try_shine(_thing: Node) -> bool:
 	if defeated or shine_chance <= 0.0 or randf() >= shine_chance:
 		return false
@@ -184,6 +193,11 @@ func _show_demo_complete() -> void:
 	for other in get_tree().get_nodes_in_group(&"boss"):
 		if not other.is_defeated():
 			return
+	# En el Gauntlet decide el director de oleadas (portales para seguir o terminar).
+	var director := get_tree().get_first_node_in_group(&"gauntlet_director")
+	if director:
+		director.on_bosses_defeated()
+		return
 	var screen := get_tree().get_first_node_in_group(&"demo_complete")
 	if screen:
 		screen.show_results()

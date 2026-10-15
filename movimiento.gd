@@ -23,6 +23,7 @@ const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-
 const KNIFE_SCRIPT := preload("res://knife.gd")
 const METATRON_SCRIPT := preload("res://metatron_cube.gd")
 const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
+const ELECTRIC_FX_SCRIPT := preload("res://electric_fx.gd")
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
 const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
@@ -225,9 +226,12 @@ const DAMAGE_WALL_EXPLOSION := 2
 # solo ocurre si el golpe llega al cuerpo de Rengar (como era antes).
 @export var parry_uses_aura_radius := true
 # Bloqueo: un golpe recibido en las frames latentes del shine (sin parry) se bloquea: no quita vida,
-# gasta durabilidad y empuja a Rengar (knockback moderado igual para todos los ataques, por ahora).
-# Durante el empuje solo se puede hacer dash (y correr) o shine; solo un parry lo cancela.
-@export var block_knockback := Vector2(320.0, -140.0)
+# gasta durabilidad y empuja a Rengar (el mismo knockback para todos los ataques, por ahora), sin
+# apagar el shine. Durante el empuje solo se puede hacer dash (y correr) o shine; solo un parry lo
+# cancela.
+# El golpe del shine (frames explosivas) no interrumpe a los enemigos: los empuja y los electrocuta.
+@export var shine_push_strength := 600.0
+@export var block_knockback := Vector2(640.0, -280.0)
 @export var block_stun_time := 0.32
 @export var block_stun_friction := 1100.0
 # Durabilidad del shine: bloquear y devolver proyectiles la gastan; parrear la recupera. Se recarga
@@ -479,8 +483,7 @@ func _physics_process(delta: float) -> void:
 	var air_jumps_before: int = air_jumps_remaining
 
 	if Input.is_action_just_pressed("toggle_hitbox_visuals"):
-		show_hitbox_debug = not show_hitbox_debug
-		_update_hitbox_visual_visibility()
+		toggle_hitbox_debug()
 
 	if Input.is_action_just_pressed("roar"):
 		_start_roar()
@@ -1723,16 +1726,29 @@ func _roar_explosive_hits() -> void:
 			continue
 		roar_hit_targets.append(target)
 		var direction: int = 1 if target.global_position.x >= global_position.x else -1
-		target.take_hit(get_roar_center(), direction, roar_damage)
+		# No interrumpe lo que esté haciendo el enemigo: lo empuja y lo electrocuta.
+		if target.has_method("on_shine_hit"):
+			target.on_shine_hit(direction, shine_push_strength)
+		else:
+			target.take_hit(get_roar_center(), direction, roar_damage)
 		Fx.impact(get_parent(), _get_target_center(target), Fx.ROAR, 1.0)
+		_electrocute(target)
 		hit_any = true
 	if hit_any:
 		_apply_hitstop(hitstop_light)
 
+func _electrocute(target: Node2D) -> void:
+	var zap: Node2D = ELECTRIC_FX_SCRIPT.new()
+	zap.target = target
+	var offset = target.get("impact_offset")
+	zap.center_offset = offset if offset is Vector2 else Vector2.ZERO
+	var size = target.get("body_size")
+	zap.radius = clamp((size.y * 0.35) if size is Vector2 else 34.0, 30.0, 70.0)
+	get_parent().add_child(zap)
+
 func on_enemy_shine(point: Vector2) -> void:
-	# Un enemigo devolvió algo con un shine: el mismo stop y golpe de cámara que los del jugador,
-	# para que se note.
-	_apply_hitstop(hitstop_deflect * 0.6)
+	# Un enemigo devolvió algo con un shine: un stop largo y golpe de cámara, para que se note bien.
+	_apply_hitstop(hitstop_deflect * 1.2)
 	_camera_kick(0.4, 0.035)
 	Fx.impact(get_parent(), point, [Color(0.35, 0.02, 0.12), Color(1.0, 0.3, 0.55), Color(1.0, 0.92, 0.96)], 1.6)
 
@@ -1758,7 +1774,7 @@ func _block_hit(source_position: Vector2) -> void:
 	var push: float = sign(global_position.x - source_position.x)
 	if push == 0.0:
 		push = -facing
-	_end_roar()
+	# El shine sigue activo: se puede seguir bloqueando o parrear durante el empuje.
 	_stop_sprint()
 	long_jump_active = false
 	frontflip_active = false
@@ -2150,9 +2166,6 @@ func _on_attack_input() -> void:
 	var combo_open: bool = light_combo_window_timer > 0.0 and light_combo_step < 3
 	if _is_attack_active() or (attack_cooldown_timer > 0.0 and not combo_open):
 		return
-	if not has_knife:
-		_show_knife_missing()
-		return
 	_start_attack()
 
 func _can_running_attack() -> bool:
@@ -2180,8 +2193,8 @@ func _start_running_attack() -> void:
 		_start_light_charged_air_attack()
 
 func _start_attack() -> void:
-	# Sin cuchillo no hay combo ligero.
-	if _is_attack_active() or dash_timer > 0.0 or not has_knife:
+	# El combo ligero (zarpazos) también se puede hacer sin el cuchillo.
+	if _is_attack_active() or dash_timer > 0.0:
 		return
 
 	if light_combo_window_timer > 0.0 and light_combo_step > 0 and light_combo_step < 3:
@@ -2502,6 +2515,17 @@ func _set_attack_active(active: bool) -> void:
 	slash_area_visual.color = slash_area_base_color if active else Color(slash_area_base_color.r, slash_area_base_color.g, slash_area_base_color.b, 0.0)
 	slash_outline.default_color = slash_outline_base_color if active else Color(slash_outline_base_color.r, slash_outline_base_color.g, slash_outline_base_color.b, 0.0)
 
+func toggle_hitbox_debug() -> void:
+	# H: las hitboxes de los ataques de Rengar y, además, las formas de colisión de todo (hurtboxes de
+	# enemigos, escenario...). Funciona también con la pausa de frame (P).
+	show_hitbox_debug = not show_hitbox_debug
+	_update_hitbox_visual_visibility()
+	get_tree().debug_collisions_hint = show_hitbox_debug
+	for node in get_tree().root.find_children("*", "CollisionShape2D", true, false):
+		node.queue_redraw()
+	for node in get_tree().root.find_children("*", "CollisionPolygon2D", true, false):
+		node.queue_redraw()
+
 func _update_hitbox_visual_visibility() -> void:
 	var attacking := _is_attack_active()
 	var show_hitboxes := show_hitbox_debug and attacking
@@ -2789,15 +2813,16 @@ func _animate_heavy_attack() -> void:
 	slash_outline.default_color = Color(0.7, 0.97, 1.0, 0.9)
 
 func _animate_heavy_dive() -> void:
-	# En picado se cae desde arriba: la hitbox cubre los pies por delante y por detrás.
-	hitbox_shape.position = Vector2(0.0, -6.0)
-	hitbox_shape.scale = Vector2(3.6, 2.4)
+	# En picado se cae desde arriba: la hitbox cubre los pies por delante y por detrás, y baja un poco
+	# más que ellos para golpear antes de que el cuerpo de Rengar toque al enemigo.
+	hitbox_shape.position = Vector2(0.0, 2.0)
+	hitbox_shape.scale = Vector2(3.6, 3.0)
 	hitbox.rotation = 0.0
 	for visual in [slash_visual, slash_area_visual, slash_outline]:
-		visual.position = Vector2(0.0, -6.0)
+		visual.position = Vector2(0.0, 2.0)
 		visual.rotation = 0.0
-	slash_visual.scale = Vector2(3.4, 2.2)
-	slash_area_visual.scale = Vector2(3.6, 2.4)
+	slash_visual.scale = Vector2(3.4, 2.8)
+	slash_area_visual.scale = Vector2(3.6, 3.0)
 	slash_outline.scale = slash_area_visual.scale
 	slash_visual.color = Color(0.88, 0.96, 1.0, 0.96)
 	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)
