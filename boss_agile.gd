@@ -275,6 +275,7 @@ func try_parry_dagger(spinning: Node2D) -> bool:
 	Fx.impact(get_parent(), spinning.global_position, Fx.SILVER, 2.0)
 	Fx.impact(get_parent(), spinning.global_position, Fx.GOLD, 1.2)
 	Fx.text(get_parent(), global_position + Vector2(0, -200), "¡PARRY!", Color(0.8, 0.95, 1.0))
+	Shine.enemy_feedback(get_tree(), spinning.global_position)
 	return true
 
 func on_dagger_hit(spinning: Node2D, damage: int) -> void:

@@ -106,19 +106,25 @@ func _on_area_entered(area: Area2D) -> void:
 func _reflect(player: Node) -> void:
 	reflected = true
 	shine_level += 1
+	# Perfect devolución (en las frames del parry): más rápida y un nivel de shine más fuerte.
+	var perfect: bool = player.has_method("is_perfect_shine") and player.is_perfect_shine()
+	if perfect:
+		shine_level += 1
 	Stats.add("projectiles_reflected")
 	# Vuelve hacia quien lo disparó; si golpea otra cosa por el camino, también vale.
 	var goal: Vector2 = global_position - velocity
 	if is_instance_valid(shooter):
 		goal = shooter.global_position + shooter.get("impact_offset")
 	velocity = (goal - global_position).normalized() * max(velocity.length() * 2.0, 420.0)
+	if perfect:
+		velocity *= player.perfect_reflect_speed
 	fall_gravity = 0.0
 	life = 4.0
 	set_deferred("collision_mask", 2 | 8)
 	_apply_shine_look(true)
-	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.0)
+	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.6 if perfect else 1.0)
 	if player.has_method("on_projectile_reflected"):
-		player.on_projectile_reflected()
+		player.on_projectile_reflected(perfect)
 
 func _enemy_shine(by: Node2D) -> void:
 	# Un enemigo lo devuelve hacia Rengar: vuelve a ser hostil, un nivel más fuerte y algo más rápido.

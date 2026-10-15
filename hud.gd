@@ -19,6 +19,14 @@ var elapsed_time := 0.0
 var timer_main_label: Label
 var timer_millis_label: Label
 var knife_icon: TextureRect
+# Barra vertical de durabilidad del shine (dentro del panel de vida, a la derecha).
+var shine_bar: Control
+var shine_fill: ColorRect
+var shine_back: ColorRect
+var shine_min_mark: ColorRect
+var shine_ratio := 1.0
+var shine_min_ratio := 0.35
+var shine_broken := false
 # Parpadeo rojo del icono del cuchillo al intentar atacar sin él.
 var knife_warn_timer := 0.0
 var knife_in_hand := true
@@ -58,6 +66,7 @@ func _process(delta: float) -> void:
 	_update_boss_indicator()
 	_update_boss_banner()
 	_update_knife_warning(delta)
+	_update_shine_bar()
 
 func _build_boss_banner() -> void:
 	# Presentación del guardián al empezar el combate: nombre grande y subtítulo entre dos líneas.
@@ -289,9 +298,27 @@ func _build() -> void:
 	panel.add_theme_stylebox_override("panel", style)
 	add_child(panel)
 
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	panel.add_child(row)
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 4)
-	panel.add_child(column)
+	row.add_child(column)
+	# Durabilidad del shine: se vacía al bloquear y devolver, se enrojece y parpadea si se rompe.
+	shine_bar = Control.new()
+	shine_bar.custom_minimum_size = Vector2(10, 0)
+	shine_bar.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	row.add_child(shine_bar)
+	shine_back = ColorRect.new()
+	shine_back.color = BAR_BACK
+	shine_back.set_anchors_preset(Control.PRESET_FULL_RECT)
+	shine_bar.add_child(shine_back)
+	shine_fill = ColorRect.new()
+	shine_bar.add_child(shine_fill)
+	shine_min_mark = ColorRect.new()
+	shine_min_mark.color = Color(1.0, 1.0, 1.0, 0.8)
+	shine_min_mark.visible = false
+	shine_bar.add_child(shine_min_mark)
 
 	var header := HBoxContainer.new()
 	column.add_child(header)
@@ -382,6 +409,8 @@ func _connect_player() -> void:
 		return
 	player.health_changed.connect(_on_health_changed)
 	player.knife_changed.connect(_on_knife_changed)
+	player.shine_changed.connect(_on_shine_changed)
+	shine_min_ratio = player.shine_min_to_use / max(player.shine_max_durability, 1.0)
 	player.knife_missing.connect(func(): knife_warn_timer = 0.6)
 	player.died.connect(_on_player_died)
 	player.respawned.connect(_on_player_respawned)
@@ -402,6 +431,27 @@ func _update_knife_warning(delta: float) -> void:
 	knife_icon.modulate = Color(1.0, 0.25, 0.2) if blink and knife_warn_timer > 0.0 else Color(0.4, 0.45, 0.4, 0.35)
 	if knife_warn_timer == 0.0:
 		_on_knife_changed(knife_in_hand)
+
+func _on_shine_changed(durability: float, maximum: float, broken: bool) -> void:
+	shine_ratio = durability / max(maximum, 1.0)
+	shine_broken = broken
+
+func _update_shine_bar() -> void:
+	var height: float = shine_bar.size.y
+	var fill_height: float = height * shine_ratio
+	shine_fill.position = Vector2(0, height - fill_height)
+	shine_fill.size = Vector2(shine_bar.size.x, fill_height)
+	# Dorado lleno, rojo vacío; roto: parpadea en rojo y blanco y marca el mínimo para volver a usarlo.
+	var color := Color(1.0, 0.8, 0.28).lerp(Color(1.0, 0.15, 0.1), 1.0 - shine_ratio)
+	if shine_broken:
+		var blink: bool = int(Time.get_ticks_msec() / 110) % 2 == 0
+		color = Color(1.0, 0.95, 0.9) if blink else Color(0.9, 0.08, 0.06)
+	shine_fill.color = color
+	# Rota y vacía, el relleno no se ve: también parpadea el fondo.
+	shine_back.color = Color(0.45, 0.04, 0.04) if shine_broken and int(Time.get_ticks_msec() / 110) % 2 == 0 else BAR_BACK
+	shine_min_mark.visible = shine_broken
+	shine_min_mark.position = Vector2(-2, height * (1.0 - shine_min_ratio) - 1.0)
+	shine_min_mark.size = Vector2(shine_bar.size.x + 4, 2)
 
 func _on_health_changed(current: int, maximum: int) -> void:
 	var ratio: float = clamp(float(current) / float(max(maximum, 1)), 0.0, 1.0)

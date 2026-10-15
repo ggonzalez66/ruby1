@@ -152,6 +152,7 @@ func try_shine(_thing: Node) -> bool:
 	if defeated or shine_chance <= 0.0 or randf() >= shine_chance:
 		return false
 	Fx.shine(get_parent(), global_position + impact_offset, _shine_color(), 48.0)
+	Shine.enemy_feedback(get_tree(), global_position + impact_offset)
 	_on_shine()
 	return true
 

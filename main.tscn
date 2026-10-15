@@ -875,10 +875,10 @@ script = ExtResource("9_checkpoint")
 [node name="SignRoar" type="Node2D" parent="."]
 position = Vector2(9350, -3300)
 script = ExtResource("14_sign")
-text = "{roar} ruge: un instante en el que desvías ataques y proyectiles.
-En el aire te deja suspendido; cancélalo saltando o con {dash}."
+text = "{roar} ruge: al principio desvías ataques (parry) y proyectiles. En el aire te deja suspendido; cancélalo saltando o con {dash}.
+Mantenido, bloquea golpes (te empuja) y devuelve proyectiles, pero gasta la durabilidad del shine (barra vertical junto a la vida). Si se rompe, espera a que se recargue."
 title = "Rugido"
-panel_width = 340
+panel_width = 400
 
 [node name="SignReflect" type="Node2D" parent="."]
 position = Vector2(8900, -3300)

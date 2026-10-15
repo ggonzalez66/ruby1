@@ -34,6 +34,7 @@ var shine_level := 0
 # Golpea a Rengar una vez por pasada (ida, vuelta o tras un parry).
 var hit_this_pass := false
 var life := LIFETIME
+var reflect_speed := REFLECT_SPEED
 var wheel: Node2D
 var blades: Array = []
 var blur: Line2D
@@ -128,7 +129,7 @@ func _physics_process(delta: float) -> void:
 			# Hacia el centro del guardián; al llegar, o la para o se la come.
 			var goal: Vector2 = boss.global_position + boss.impact_offset
 			var offset := goal - global_position
-			var step: float = REFLECT_SPEED * delta
+			var step: float = reflect_speed * delta
 			if offset.length() <= step + 40.0:
 				_reach_boss(player)
 				return
@@ -162,12 +163,17 @@ func on_deflected(by: Node) -> void:
 func _player_shine(player: Node) -> void:
 	state = State.REFLECTED
 	shine_level += 1
+	# Perfect devolución (en las frames del parry): un nivel más fuerte y más rápida.
+	var perfect: bool = player.has_method("is_perfect_shine") and player.is_perfect_shine()
+	if perfect:
+		shine_level += 1
+	reflect_speed = REFLECT_SPEED * (player.perfect_reflect_speed if perfect else 1.0)
 	hit_this_pass = false
 	Stats.add("projectiles_reflected")
-	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.3)
+	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.8 if perfect else 1.3)
 	_apply_look()
 	if player.has_method("on_projectile_reflected"):
-		player.on_projectile_reflected()
+		player.on_projectile_reflected(perfect)
 
 func _reach_boss(player: Node2D) -> void:
 	if boss.has_method("try_parry_dagger") and boss.try_parry_dagger(self):

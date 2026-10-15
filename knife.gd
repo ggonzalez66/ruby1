@@ -231,14 +231,15 @@ func _return(delta: float) -> void:
 	var offset := goal - global_position
 	return_speed = min(return_speed + RETURN_ACCELERATION * delta, RETURN_MAX_SPEED)
 	var step: float = return_speed * delta
+	# Shine knife: el aura del rugido lo despide de nuevo antes de que llegue a la mano. Se mira antes
+	# de atraparlo (y en todo el tramo de este frame): si no, a veces entraba en la mano de un salto.
+	if _player_aura_reaches() or _aura_reaches_segment(global_position, global_position + offset.normalized() * min(step, offset.length())):
+		_player_shine()
+		return
 	if offset.length() <= step + 14.0:
 		if player.has_method("on_knife_caught"):
 			player.on_knife_caught(self)
 		queue_free()
-		return
-	# Shine knife: el aura del rugido lo despide de nuevo antes de que llegue a la mano.
-	if _player_aura_reaches():
-		_player_shine()
 		return
 	var move := offset.normalized() * step
 	return_direction = move.normalized()
@@ -275,12 +276,20 @@ func _on_damage_dealt() -> void:
 		Ferocity.add("ranged_riposte", 40.0, "RIPOSTE A DISTANCIA", Ferocity.BONUS_COLOR)
 	hit_any = true
 
+func _aura_reaches_segment(from: Vector2, to: Vector2) -> bool:
+	if not is_instance_valid(player) or not player.is_roar_aura_active():
+		return false
+	var center: Vector2 = player.get_roar_center()
+	return Geometry2D.get_closest_point_to_segment(center, from, to).distance_to(center) <= player.roar_radius + 8.0
+
 func _player_aura_reaches() -> bool:
 	return is_instance_valid(player) and player.is_roar_aura_active() and global_position.distance_to(player.get_roar_center()) <= player.roar_radius + 8.0
 
 func _player_shine() -> void:
 	# Sale recto y rápido hacia el último enemigo en que estuvo clavado (o por donde vino).
-	shine_level += 1
+	var from_enemy: bool = state == State.HOSTILE
+	var perfect: bool = player.has_method("is_perfect_shine") and player.is_perfect_shine()
+	shine_level += 2 if perfect and from_enemy else 1
 	player_shines += 1
 	recall_hits.clear()
 	var direction: Vector2 = -return_direction if state == State.RETURNING else -velocity.normalized()
@@ -288,7 +297,7 @@ func _player_shine() -> void:
 		direction = (_target_center(last_target) - global_position).normalized()
 	if direction.length_squared() < 0.01:
 		direction = Vector2(float(player.facing), 0.0)
-	velocity = direction * SHINE_SPEED
+	velocity = direction * SHINE_SPEED * (player.perfect_reflect_speed if perfect and from_enemy else 1.0)
 	state = State.FLYING
 	straight_timer = SHINE_STRAIGHT_TIME
 	was_dropped = false
@@ -296,6 +305,9 @@ func _player_shine() -> void:
 	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.2)
 	if player.has_method("on_knife_shined"):
 		player.on_knife_shined(self)
+	# Si venía devuelto por un enemigo, cuenta como devolver un proyectil (gasta durabilidad salvo perfect).
+	if from_enemy and player.has_method("on_projectile_reflected"):
+		player.on_projectile_reflected(perfect)
 
 func _enemy_shine(enemy: Node2D) -> void:
 	shine_level += 1

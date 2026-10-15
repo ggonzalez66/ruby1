@@ -13,6 +13,12 @@ const PLAYER_COLORS: Array[Color] = [Color(1.0, 0.8, 0.28), Color(1.0, 0.62, 0.1
 # Del magenta enemigo al rojo sangre.
 const ENEMY_COLORS: Array[Color] = [Color(0.85, 0.25, 0.55), Color(1.0, 0.2, 0.4), Color(1.0, 0.1, 0.18), Color(1.0, 0.75, 0.8)]
 
+static func enemy_feedback(tree: SceneTree, point: Vector2) -> void:
+	# Un enemigo shineó algo: Rengar lo siente (hitstop y cámara).
+	var player := tree.get_first_node_in_group(&"player")
+	if player and player.has_method("on_enemy_shine"):
+		player.on_enemy_shine(point)
+
 static func multiplier(level: int) -> float:
 	return 1.0 + DAMAGE_STEP * max(level - 1, 0)
 

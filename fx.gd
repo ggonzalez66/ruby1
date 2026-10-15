@@ -111,6 +111,29 @@ static func shine(parent: Node, point: Vector2, color: Color, radius: float = 36
 	tween.chain().tween_callback(burst.queue_free)
 	impact(parent, point, [color.darkened(0.6), color, Color(1.0, 0.97, 0.95)], 1.2)
 
+# Rotura del shine: fragmentos de líneas que salen despedidos girando y se apagan.
+static func shatter(parent: Node, point: Vector2, color: Color, radius: float = 46.0) -> void:
+	var burst := _spawn(parent, point)
+	burst.z_index = 6
+	var tween := burst.create_tween().set_parallel(true)
+	for index in range(16):
+		var angle: float = TAU * index / 16.0 + randf_range(-0.2, 0.2)
+		var direction := Vector2(cos(angle), sin(angle))
+		var shard := Line2D.new()
+		var length: float = randf_range(10.0, 22.0)
+		shard.points = PackedVector2Array([Vector2(-length * 0.5, 0), Vector2(length * 0.5, 0)])
+		shard.width = 2.5
+		shard.default_color = color if index % 2 == 0 else color.lightened(0.4)
+		shard.position = direction * radius * randf_range(0.3, 1.0)
+		shard.rotation = randf() * TAU
+		burst.add_child(shard)
+		var travel: Vector2 = shard.position + direction * randf_range(40.0, 80.0) + Vector2(0, 30)
+		tween.tween_property(shard, "position", travel, 0.5).set_ease(Tween.EASE_OUT)
+		tween.tween_property(shard, "rotation", shard.rotation + randf_range(-6.0, 6.0), 0.5)
+		tween.tween_property(shard, "modulate:a", 0.0, 0.5).set_delay(0.15)
+	tween.chain().tween_callback(burst.queue_free)
+	impact(parent, point, [color.darkened(0.6), color, Color(1.0, 0.9, 0.85)], 1.8)
+
 # Nubecilla para cosas que desaparecen (proyectiles contra la pared).
 static func puff(parent: Node, point: Vector2, color: Color) -> void:
 	var burst := _spawn(parent, point)

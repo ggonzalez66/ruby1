@@ -75,13 +75,14 @@ func _reflect(player: Node) -> void:
 	# El rugido la devuelve: cambia de sentido, acelera y ahora daña a los enemigos.
 	reflected = true
 	Stats.add("projectiles_reflected")
+	var perfect: bool = player.has_method("is_perfect_shine") and player.is_perfect_shine()
 	direction = -direction
-	speed *= 1.4
+	speed *= 1.4 * (player.perfect_reflect_speed if perfect else 1.0)
 	distance_left = 900.0
 	modulate.a = 1.0
 	visual.scale.x = direction
 	visual.color = REFLECTED_FILL
 	set_deferred("collision_mask", 8)
-	Fx.impact(get_parent(), global_position + Vector2(0, -14), Fx.ROAR, 1.2)
+	Fx.impact(get_parent(), global_position + Vector2(0, -14), Fx.ROAR, 1.8 if perfect else 1.2)
 	if player.has_method("on_projectile_reflected"):
-		player.on_projectile_reflected()
+		player.on_projectile_reflected(perfect)

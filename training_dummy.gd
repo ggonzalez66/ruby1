@@ -117,6 +117,7 @@ func try_shine(_thing: Node) -> bool:
 	if shoot_interval <= 0.0 or current_health <= 0 or randf() >= shine_chance:
 		return false
 	Fx.shine(get_parent(), global_position + impact_offset, SHINE_COLOR, 30.0)
+	Shine.enemy_feedback(get_tree(), global_position + impact_offset)
 	flash_timer = 0.0
 	wobble = 0.0
 	# Recarga un poco el disparo para que no dispare justo encima del shine.

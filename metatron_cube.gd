@@ -13,6 +13,12 @@ extends Node2D
 func _ready() -> void:
 	queue_redraw()
 
+func set_tint(line: Color, glow: Color) -> void:
+	# Cambia los colores del dibujo (p. ej. se enrojece al gastarse la durabilidad del shine).
+	line_color = line
+	glow_color = glow
+	queue_redraw()
+
 func get_centers() -> PackedVector2Array:
 	# Separación entre centros: el borde exterior (2d + d/2) coincide con outer_radius.
 	var spacing: float = outer_radius / 2.5

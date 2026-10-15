@@ -145,7 +145,7 @@ slab_with_gaps(4, [(WIDTH - 386, WIDTH)] + F4_PITS)
 for a, b in F4_PITS:
     thorn_pit(4, a, b)
 checkpoint("CheckpointF4", 9600, g)
-sign("SignRoar", 9350, g, "Rugido", "{roar} ruge: un instante en el que desvías ataques y proyectiles.\nEn el aire te deja suspendido; cancélalo saltando o con {dash}.", 340)
+sign("SignRoar", 9350, g, "Rugido", "{roar} ruge: al principio desvías ataques (parry) y proyectiles. En el aire te deja suspendido; cancélalo saltando o con {dash}.\nMantenido, bloquea golpes (te empuja) y devuelve proyectiles, pero gasta la durabilidad del shine (barra vertical junto a la vida). Si se rompe, espera a que se recargue.", 400)
 sign("SignReflect", 8900, g, "Devolver", "Ruge justo cuando un proyectil te alcance: vuelve hacia quien lo disparó.\nDevolverlo abre el riposte: lanza el cuchillo enseguida, pega el doble y te cura al sacarlo.\nOjo: a veces el tirador te lo devuelve, cada vez más fuerte.", 360)
 shooter("ShooterF4A", 8300, g, (1, 0), 2.2)
 shooter("ShooterF4B", 7950, g - 260, (1, 0.35), 2.6, True)

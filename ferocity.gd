@@ -9,6 +9,9 @@ extends Node
 # - Desde el rango A Rengar es IMPARABLE: los golpes le quitan vida pero no lo frenan, a cambio de
 #   bajar dos rangos (en A y S aguanta un golpe; en SS y SSS, dos).
 # - Cuanto más estilo, más daño e impacto (hitstop) tienen sus golpes.
+# - SS: los ataques fuertes (heavy aéreo y terrestre, giro del dash attack) curan al conectar.
+#   SSS: además, esos ataques destruyen proyectiles, y el heavy aéreo y el giro dan i-frames hasta que
+#   terminan (ver movimiento.gd).
 
 signal rank_changed(rank: int, previous: int)
 # chain: acciones encadenadas que el HUD agrupa en una línea ("+REBOTE x3"); count es el número exacto
@@ -27,9 +30,9 @@ const RANKS := [
 	{"letter": "C", "name": "CRUEL", "rest": "ruel", "color": Color(0.45, 1.0, 0.55)},
 	{"letter": "B", "name": "BRUTAL", "rest": "rutal", "color": Color(1.0, 0.9, 0.3)},
 	{"letter": "A", "name": "ATROZ", "rest": "troz", "color": Color(1.0, 0.6, 0.2)},
-	{"letter": "S", "name": "SALVAJE", "rest": "alvaje", "color": Color(1.0, 0.32, 0.22)},
-	{"letter": "SS", "name": "SANGUINARIO", "rest": "anguinario", "color": Color(1.0, 0.18, 0.4)},
-	{"letter": "SSS", "name": "SUPREMACÍA", "rest": "upremacía", "color": Color(1.0, 0.86, 0.4)},
+	{"letter": "S", "name": "SALVAJE", "rest": "alvaje", "color": Color(1.0, 0.86, 0.4)},
+	{"letter": "SS", "name": "SANGUINARIO", "rest": "anguinario", "color": Color(1.0, 0.32, 0.22)},
+	{"letter": "SSS", "name": "SUPREMACÍA", "rest": "upremacía", "color": Color(1.0, 0.18, 0.4)},
 ]
 const UNSTOPPABLE_RANK := 3
 const MAX_POINTS := RANK_POINTS * 7.0 - 0.01

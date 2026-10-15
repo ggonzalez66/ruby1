@@ -4,6 +4,8 @@ signal health_changed(current: int, maximum: int)
 signal knife_changed(in_hand: bool)
 # Se intentó un ataque que necesita el cuchillo sin tenerlo (para el aviso del HUD).
 signal knife_missing
+# Durabilidad del shine (para la barra vertical del HUD).
+signal shine_changed(durability: float, maximum: float, broken: bool)
 signal died
 signal respawned
 
@@ -222,6 +224,27 @@ const DAMAGE_WALL_EXPLOSION := 2
 # Parry cuerpo a cuerpo con el radio del aura del rugido (igual que los proyectiles). En false, el parry
 # solo ocurre si el golpe llega al cuerpo de Rengar (como era antes).
 @export var parry_uses_aura_radius := true
+# Bloqueo: un golpe recibido en las frames latentes del shine (sin parry) se bloquea: no quita vida,
+# gasta durabilidad y empuja a Rengar (knockback moderado igual para todos los ataques, por ahora).
+# Durante el empuje solo se puede hacer dash (y correr) o shine; solo un parry lo cancela.
+@export var block_knockback := Vector2(320.0, -140.0)
+@export var block_stun_time := 0.32
+@export var block_stun_friction := 1100.0
+# Durabilidad del shine: bloquear y devolver proyectiles la gastan; parrear la recupera. Se recarga
+# sola al no usar el shine; si se rompe, no hay shine hasta recargar el mínimo.
+@export var shine_max_durability := 100.0
+@export var shine_block_cost := 25.0
+@export var shine_reflect_cost := 12.0
+@export var shine_parry_restore := 20.0
+@export var shine_regen_rate := 14.0
+@export var shine_regen_delay := 0.9
+@export var shine_min_to_use := 35.0
+# Perfect devolución (en las frames del parry): no gasta durabilidad y sale con más fuerza.
+@export var perfect_reflect_speed := 1.5
+# Rango SS: los ataques fuertes (heavy aéreo y terrestre, giro del dash attack) curan al conectar.
+@export var rank_heal := 8
+const SS_RANK := 5
+const SSS_RANK := 6
 @export var roar_momentum_keep := 0.15
 # En el aire: si el rugido se suelta (o se cancela saltando) dentro de esta ventana desde que empezó
 # y se mantiene correr, se recupera la velocidad de carrera que se llevaba. Parrys sin frenar.
@@ -318,6 +341,12 @@ var roar_aura: Node2D
 var roar_aura_spin := 0.0
 var hitstop_end_msec := 0
 var riposte_timer := 0.0
+var block_stun_timer := 0.0
+var shine_durability := 100.0
+var shine_broken := false
+var shine_idle_time := 0.0
+var shine_tint_ratio := -1.0
+var rank_heal_done := false
 # Rebotes del heavy aéreo encadenados sin tocar el suelo ("REBOTE x3").
 var bounce_chain := 0
 var dead := false
@@ -431,6 +460,8 @@ func _ready() -> void:
 	_set_dash_visual_active(false)
 	_set_impact_wave_active(false)
 	_update_character_animation()
+	shine_durability = shine_max_durability
+	_emit_shine_changed.call_deferred()
 
 func _physics_process(delta: float) -> void:
 	if dead:
@@ -454,7 +485,8 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("roar"):
 		_start_roar()
 
-	if Input.is_action_just_pressed("jump"):
+	var stunned: bool = block_stun_timer > 0.0
+	if Input.is_action_just_pressed("jump") and not stunned:
 		if roar_active:
 			# El rugido solo se cancela saltando.
 			_try_roar_jump_cancel()
@@ -490,7 +522,7 @@ func _physics_process(delta: float) -> void:
 		if not _blocks_actions():
 			_start_heavy_attack()
 
-	if Input.is_action_just_pressed("throw_knife"):
+	if Input.is_action_just_pressed("throw_knife") and not stunned:
 		_on_knife_input(move_input)
 
 	if Input.is_action_just_pressed("respawn"):
@@ -501,13 +533,14 @@ func _physics_process(delta: float) -> void:
 		if roar_active and dash_cooldown_timer <= 0.0:
 			# El bloqueo del rugido se cancela con salto o con dash.
 			_end_roar()
-		if not _blocks_actions():
+		# El dash también saca del empuje de un bloqueo.
+		if not roar_active and not mantle_active:
 			_start_dash()
 
 	if Input.is_action_just_released("dash") and dash_timer <= 0.0:
 		_stop_sprint()
 
-	if move_input != 0.0 and not _locks_facing():
+	if move_input != 0.0 and not _locks_facing() and not stunned:
 		facing = 1 if move_input > 0.0 else -1
 		_update_facing_visual()
 
@@ -527,6 +560,8 @@ func _physics_process(delta: float) -> void:
 
 	if mantle_active:
 		_apply_mantle(delta)
+	elif block_stun_timer > 0.0 and dash_timer <= 0.0:
+		_apply_block_stun_movement(delta)
 	elif roar_active:
 		_apply_roar_movement(delta)
 	elif dash_timer > 0.0:
@@ -557,6 +592,7 @@ func _physics_process(delta: float) -> void:
 		_apply_horizontal_movement(move_input, delta)
 
 	_update_attack_animation()
+	_destroy_projectiles_with_attack()
 	_update_riposte_visual()
 	_update_dash_visual()
 	_update_impact_wave_visual()
@@ -831,6 +867,8 @@ func _update_timers(delta: float) -> void:
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
 	riposte_timer = max(riposte_timer - delta, 0.0)
+	block_stun_timer = max(block_stun_timer - delta, 0.0)
+	_update_shine_durability(delta)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
 		if light_combo_window_timer == 0.0 and attack_mode != ATTACK_SLASH:
@@ -1153,8 +1191,16 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 			_apply_hitstop(hitstop_deflect)
 			# Riposte: durante un instante el siguiente ataque fuerte hace el doble de daño.
 			riposte_timer = riposte_duration
+			# El parry no gasta durabilidad: la recupera, y saca del empuje de un bloqueo.
+			block_stun_timer = 0.0
+			_change_shine_durability(shine_parry_restore)
+		return
+	if _has_sss_iframes():
 		return
 	if invulnerability_timer > 0.0 or current_health <= 0:
+		return
+	if roar_active and attacker != null:
+		_block_hit(source_position)
 		return
 	_end_roar()
 	mantle_active = false
@@ -1298,7 +1344,7 @@ func _update_hurt_visual() -> void:
 		animated_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0 if visible_phase else 0.35)
 
 func _blocks_actions() -> bool:
-	return roar_active or mantle_active
+	return roar_active or mantle_active or block_stun_timer > 0.0
 
 # ---------- Hitstop e impactos
 
@@ -1365,7 +1411,8 @@ func _spawn_hit_feedback(area: Node2D) -> void:
 	var heavy: bool = attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND
 	var finisher: bool = attack_mode == ATTACK_SLASH and light_combo_step == 3
 	var point: Vector2 = _get_target_center(area).lerp(global_position + Vector2(0.0, -14.0), 0.35)
-	if heavy and riposte_attack:
+	# El riposte vale con el heavy y con el dash attack (estocada y giro).
+	if riposte_attack and attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_GROUND_CHARGED, ATTACK_LIGHT_CHARGED_AIR, ATTACK_SPIN]:
 		Fx.impact(get_parent(), point, Fx.GOLD, 2.2)
 		Fx.impact(get_parent(), point, Fx.ROAR, 1.4)
 		Fx.text(get_parent(), point + Vector2(0, -36), "¡RIPOSTE!", Color(1.0, 0.55, 0.25))
@@ -1398,9 +1445,15 @@ func _add_hit_style() -> void:
 		ATTACK_UPPERCUT:
 			Ferocity.add("uppercut", 18.0, "UPPERCUT")
 		ATTACK_GROUND_CHARGED, ATTACK_LIGHT_CHARGED_AIR:
-			Ferocity.add("dash_attack", 12.0, "DASH ATTACK")
+			if riposte_attack:
+				Ferocity.add("riposte", 50.0, "RIPOSTE", Ferocity.BONUS_COLOR)
+			else:
+				Ferocity.add("dash_attack", 12.0, "DASH ATTACK")
 		ATTACK_SPIN:
-			Ferocity.add("spin", 10.0, "GIRO")
+			if riposte_attack:
+				Ferocity.add("riposte", 50.0, "RIPOSTE", Ferocity.BONUS_COLOR)
+			else:
+				Ferocity.add("spin", 10.0, "GIRO")
 		_:
 			if light_combo_step == 3:
 				Ferocity.add("finisher", 18.0, "REMATE")
@@ -1574,8 +1627,9 @@ func _apply_mantle(delta: float) -> void:
 # ---------- Rugido (shine / deflect)
 
 func _start_roar() -> void:
-	if roar_active or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0:
+	if roar_active or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0 or shine_broken:
 		return
+	var stunned: bool = block_stun_timer > 0.0
 	# En el aire se recuerda la velocidad de carrera para poder recuperarla al soltar a tiempo.
 	roar_elapsed = 0.0
 	roar_saved_direction = 0
@@ -1596,14 +1650,16 @@ func _start_roar() -> void:
 	if _is_attack_active():
 		_cancel_attack_for_chain()
 	jump_cut_available = false
-	# Frena casi todo el impulso de golpe (no en seco).
-	velocity *= roar_momentum_keep
+	# Frena casi todo el impulso de golpe (no en seco); en el empuje de un bloqueo no lo toca.
+	if not stunned:
+		velocity *= roar_momentum_keep
 	roar_active = true
 	Stats.add("roars")
 	roar_explosive_timer = roar_explosive_duration
 	roar_lock_timer = roar_lock_duration
 	roar_aura_on = true
-	roar_stall_timer = 0.0 if is_on_floor() else roar_stall_duration
+	roar_stall_timer = 0.0 if is_on_floor() or stunned else roar_stall_duration
+	shine_idle_time = 0.0
 	roar_hit_targets.clear()
 	Fx.impact(get_parent(), get_roar_center(), Fx.ROAR, 2.0)
 	_roar_explosive_hits()
@@ -1673,10 +1729,112 @@ func _roar_explosive_hits() -> void:
 	if hit_any:
 		_apply_hitstop(hitstop_light)
 
-func on_projectile_reflected() -> void:
-	_apply_hitstop(0.04)
-	# Devolver un proyectil abre el riposte, igual que un parry.
+func on_enemy_shine(point: Vector2) -> void:
+	# Un enemigo devolvió algo con un shine: el mismo stop y golpe de cámara que los del jugador,
+	# para que se note.
+	_apply_hitstop(hitstop_deflect * 0.6)
+	_camera_kick(0.4, 0.035)
+	Fx.impact(get_parent(), point, [Color(0.35, 0.02, 0.12), Color(1.0, 0.3, 0.55), Color(1.0, 0.92, 0.96)], 1.6)
+
+func is_perfect_shine() -> bool:
+	# Las frames del parry: devolver aquí es una perfect devolución.
+	return _is_roar_invincible()
+
+func on_projectile_reflected(perfect: bool = false) -> void:
+	_apply_hitstop(0.07 if perfect else 0.04)
+	# Devolver un proyectil abre el riposte, igual que un parry (no saca del empuje de un bloqueo).
 	riposte_timer = riposte_duration
+	if perfect:
+		Fx.text(get_parent(), global_position + Vector2(0, -62), "¡PERFECTO!", Color(1.0, 0.95, 0.6))
+		_camera_kick(0.25, 0.02)
+	else:
+		# Los proyectiles gastan durabilidad (salvo en la perfect devolución).
+		_change_shine_durability(-shine_reflect_cost)
+
+# ---------- Bloqueo y durabilidad del shine
+
+func _block_hit(source_position: Vector2) -> void:
+	# Golpe en las frames latentes del shine: no quita vida, gasta durabilidad y empuja.
+	var push: float = sign(global_position.x - source_position.x)
+	if push == 0.0:
+		push = -facing
+	_end_roar()
+	_stop_sprint()
+	long_jump_active = false
+	frontflip_active = false
+	backflip_active = false
+	wall_cling_timer = 0.0
+	wallride_active = false
+	if _is_attack_active():
+		_cancel_attack_for_chain()
+	velocity = Vector2(push * block_knockback.x, 0.0 if is_on_floor() else block_knockback.y)
+	block_stun_timer = block_stun_time
+	Stats.add("blocks")
+	Fx.impact(get_parent(), get_roar_center() + Vector2(-push * 20.0, 0), Fx.ROAR, 1.3)
+	Fx.text(get_parent(), global_position + Vector2(0, -62), "¡BLOQUEO!", Color(1.0, 0.85, 0.45))
+	_apply_hitstop(hitstop_light + 0.03)
+	_camera_kick(0.3, 0.02)
+	_change_shine_durability(-shine_block_cost)
+
+func _apply_block_stun_movement(delta: float) -> void:
+	# Empujado: frena poco a poco (frame de frenado), sin control horizontal.
+	velocity.x = move_toward(velocity.x, 0.0, block_stun_friction * delta)
+	_apply_gravity(delta)
+
+func _change_shine_durability(amount: float) -> void:
+	shine_durability = clamp(shine_durability + amount, 0.0, shine_max_durability)
+	if amount < 0.0:
+		shine_idle_time = 0.0
+	if shine_durability <= 0.0 and not shine_broken:
+		_break_shine()
+	_emit_shine_changed()
+
+func _break_shine() -> void:
+	# Se rompe: el Metatrón estalla y no hay shine hasta recargar el mínimo.
+	shine_broken = true
+	Fx.shatter(get_parent(), get_roar_center(), Color(1.0, 0.2, 0.15), roar_radius)
+	Fx.text(get_parent(), global_position + Vector2(0, -70), "¡SHINE ROTO!", Color(1.0, 0.3, 0.25))
+	_end_roar()
+	_camera_kick(0.5, 0.04)
+	_apply_hitstop(hitstop_heavy)
+
+func _update_shine_durability(delta: float) -> void:
+	# Se recarga sola un rato después de dejar de usar el shine.
+	if roar_active:
+		shine_idle_time = 0.0
+		return
+	shine_idle_time += delta
+	if shine_idle_time < shine_regen_delay or (shine_durability >= shine_max_durability and not shine_broken):
+		return
+	shine_durability = min(shine_durability + shine_regen_rate * delta, shine_max_durability)
+	if shine_broken and shine_durability >= shine_min_to_use:
+		shine_broken = false
+	_emit_shine_changed()
+
+func _emit_shine_changed() -> void:
+	shine_changed.emit(shine_durability, shine_max_durability, shine_broken)
+	# El Metatrón se va enrojeciendo con menos durabilidad.
+	var ratio: float = shine_durability / max(shine_max_durability, 1.0)
+	if abs(ratio - shine_tint_ratio) >= 0.02:
+		shine_tint_ratio = ratio
+		var worn: float = 1.0 - ratio
+		roar_aura.set_tint(Color(0.88, 0.64, 0.2, 0.9).lerp(Color(1.0, 0.12, 0.1, 0.95), worn), Color(0.75, 0.45, 0.08, 0.2).lerp(Color(0.85, 0.05, 0.05, 0.3), worn))
+
+func _has_sss_iframes() -> bool:
+	# SSS: el heavy aéreo y el giro del dash attack son invulnerables hasta que terminan.
+	return Ferocity.rank >= SSS_RANK and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN)
+
+func _destroy_projectiles_with_attack() -> void:
+	# SSS: los ataques fuertes (heavy terrestre y aéreo, giro) destruyen proyectiles que tocan.
+	if Ferocity.rank < SSS_RANK or not attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN]:
+		return
+	var center: Vector2 = hitbox_shape.global_position
+	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
+		if projectile.get("reflected") == true:
+			continue
+		if projectile.global_position.distance_to(center) <= 64.0 and projectile.has_method("_destroy"):
+			Fx.impact(get_parent(), projectile.global_position, Fx.GOLD, 1.1)
+			projectile._destroy()
 
 func parry_reaches(from: Vector2, to: Vector2) -> bool:
 	# Los enemigos cuerpo a cuerpo preguntan si su arma (segmento en coordenadas globales) toca el aura
@@ -2078,6 +2236,7 @@ func _get_claw_scale() -> float:
 func _start_ground_charged_attack() -> void:
 	_face_attack_input()
 	attack_mode = ATTACK_GROUND_CHARGED
+	_consume_riposte()
 	attack_timer = charged_ground_duration
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
@@ -2178,6 +2337,7 @@ func _start_ground_heavy_attack() -> void:
 func _start_light_charged_air_attack() -> void:
 	_face_attack_input()
 	attack_mode = ATTACK_LIGHT_CHARGED_AIR
+	_consume_riposte()
 	attack_timer = charged_ground_duration
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
@@ -2333,6 +2493,7 @@ func _set_attack_active(active: bool) -> void:
 		frontflip_active = false
 		wall_embedded = false
 		wallride_active = false
+		rank_heal_done = false
 	else:
 		riposte_attack = false
 	claw_hitbox_shape.disabled = true
@@ -2602,6 +2763,9 @@ func _animate_ground_charged_attack() -> void:
 	slash_outline.default_color = Color(1.0, 0.93, 0.65, lerp(1.0, 0.45, progress))
 
 func _animate_heavy_attack() -> void:
+	if heavy_trajectory == HEAVY_DIVE:
+		_animate_heavy_dive()
+		return
 	var progress: float = heavy_attack_visual_progress
 	var arc_angle: float = lerp(-1.42, 0.22, progress)
 	var arc_offset := Vector2(cos(arc_angle) * 22.0, sin(arc_angle) * 30.0 - 6.0)
@@ -2619,6 +2783,21 @@ func _animate_heavy_attack() -> void:
 	slash_outline.rotation = blade_rotation
 	slash_visual.scale = Vector2(1.18 * pulse, 2.0 * pulse)
 	slash_area_visual.scale = Vector2(1.34, 2.32)
+	slash_outline.scale = slash_area_visual.scale
+	slash_visual.color = Color(0.88, 0.96, 1.0, 0.96)
+	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)
+	slash_outline.default_color = Color(0.7, 0.97, 1.0, 0.9)
+
+func _animate_heavy_dive() -> void:
+	# En picado se cae desde arriba: la hitbox cubre los pies por delante y por detrás.
+	hitbox_shape.position = Vector2(0.0, -6.0)
+	hitbox_shape.scale = Vector2(3.6, 2.4)
+	hitbox.rotation = 0.0
+	for visual in [slash_visual, slash_area_visual, slash_outline]:
+		visual.position = Vector2(0.0, -6.0)
+		visual.rotation = 0.0
+	slash_visual.scale = Vector2(3.4, 2.2)
+	slash_area_visual.scale = Vector2(3.6, 2.4)
 	slash_outline.scale = slash_area_visual.scale
 	slash_visual.color = Color(0.88, 0.96, 1.0, 0.96)
 	slash_area_visual.color = Color(0.35, 0.86, 1.0, 0.38)
@@ -2720,6 +2899,10 @@ func _hit_area(area: Area2D) -> void:
 			area.knock_velocity *= Ferocity.impact_multiplier()
 		_spawn_hit_feedback(area)
 		_add_hit_style()
+		if Ferocity.rank >= SS_RANK and not rank_heal_done and attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN]:
+			# SS y SSS: los ataques fuertes curan (una vez por ataque).
+			rank_heal_done = true
+			heal(rank_heal)
 
 	if attack_mode == ATTACK_HEAVY:
 		# Diferido: puede venir de la señal de colisión, donde no se puede desactivar la hitbox.
@@ -2733,6 +2916,7 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
 		return
+	block_stun_timer = 0.0
 
 	_stop_sprint()
 	long_jump_active = false
@@ -2979,15 +3163,15 @@ func _get_attack_damage() -> int:
 	var multiplier := 2 if riposte_attack else 1
 	match attack_mode:
 		ATTACK_GROUND_CHARGED:
-			return DAMAGE_GROUND_CHARGED
+			return DAMAGE_GROUND_CHARGED * multiplier
 		ATTACK_HEAVY:
 			return DAMAGE_HEAVY * multiplier
 		ATTACK_HEAVY_GROUND:
 			return DAMAGE_HEAVY_GROUND * multiplier
 		ATTACK_SPIN:
-			return DAMAGE_SPIN
+			return DAMAGE_SPIN * multiplier
 		ATTACK_LIGHT_CHARGED_AIR:
-			return DAMAGE_LIGHT_CHARGED_AIR
+			return DAMAGE_LIGHT_CHARGED_AIR * multiplier
 		ATTACK_UPPERCUT:
 			return DAMAGE_UPPERCUT
 		_:
@@ -3069,6 +3253,11 @@ func _respawn_player() -> void:
 	jump_cut_available = false
 	riposte_timer = 0.0
 	running_attack_cooldown_timer = 0.0
+	block_stun_timer = 0.0
+	shine_broken = false
+	shine_durability = shine_max_durability
+	shine_idle_time = 0.0
+	_emit_shine_changed()
 	bounce_chain = 0
 	attack_buffered = false
 	riposte_attack = false
