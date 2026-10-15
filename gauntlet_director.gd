@@ -5,7 +5,9 @@ extends Node2D
 # 2. Con todos muertos, se prepara el guardián (a veces salen los tres) y aparece.
 # 3. Al vencerlo aparecen dos portales: el de la derecha sigue a la siguiente ronda; el de la izquierda
 #    termina el Gauntlet y muestra la pantalla de fin con las medallas.
-# Si Rengar muere, la ronda actual empieza de nuevo desde su oleada.
+# Si Rengar muere se acaba: tras un momento aparece la pantalla de fin con las oleadas sobrevividas y
+# "Empezar de nuevo" (sin checkpoint, y la tecla de reinicio no funciona, para que no haya trampa).
+# Junto al reloj se muestra la oleada actual y los enemigos que quedan por matar.
 
 const CHASER_SCRIPT := preload("res://chaser_dummy.gd")
 const DUMMY_SCENE := preload("res://training_dummy.tscn")
@@ -20,6 +22,7 @@ enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE }
 @export var boss_intro_time := 2.5
 @export var left_portal_x := 600.0
 @export var right_portal_x := 4150.0
+@export var death_screen_delay := 2.5
 
 var round_number := 1
 var phase := Phase.WAVE
@@ -29,6 +32,9 @@ var portals: Array = []
 var spawner: Node
 var banner: Label
 var banner_tween: Tween
+var counter_label: Label
+# Rondas completadas (oleada + guardián vencidos).
+var rounds_cleared := 0
 
 func _ready() -> void:
 	add_to_group(&"gauntlet_director")
@@ -39,8 +45,12 @@ func _ready() -> void:
 func _start() -> void:
 	var player := get_tree().get_first_node_in_group(&"player")
 	if player:
-		player.respawned.connect(_restart_round)
+		player.respawn_enabled = false
+		player.died.connect(_on_player_died)
 	_start_wave()
+
+func _process(_delta: float) -> void:
+	_update_counter()
 
 func _physics_process(delta: float) -> void:
 	match phase:
@@ -104,6 +114,7 @@ func on_bosses_defeated() -> void:
 	if phase != Phase.BOSS:
 		return
 	phase = Phase.PORTALS
+	rounds_cleared = round_number
 	_show_banner("¡RONDA %d SUPERADA!" % round_number, Color(0.6, 1.0, 0.6))
 	_spawn_portal(left_portal_x, "TERMINAR", Color(1.0, 0.55, 0.35), _finish)
 	_spawn_portal(right_portal_x, "SEGUIR", Color(0.4, 0.8, 1.0), _next_round)
@@ -117,14 +128,25 @@ func _finish() -> void:
 	_clear_portals()
 	var screen := get_tree().get_first_node_in_group(&"demo_complete")
 	if screen:
-		screen.message_text = "Rondas superadas: %d" % round_number
+		screen.message_text = "Rondas superadas: %d" % rounds_cleared
 		screen.show_results()
 
-func _restart_round() -> void:
-	# Rengar murió o reinició: la ronda actual vuelve a su oleada.
+func _on_player_died() -> void:
+	# Sin checkpoint: tras un momento, pantalla de fin con lo sobrevivido.
 	if phase == Phase.DONE:
 		return
-	_start_wave()
+	phase = Phase.DONE
+	get_tree().create_timer(death_screen_delay).timeout.connect(_show_death_screen)
+
+func _show_death_screen() -> void:
+	var screen := get_tree().get_first_node_in_group(&"demo_complete")
+	if screen == null:
+		return
+	screen.title_text = "FIN DEL GAUNTLET"
+	screen.title_label.text = "FIN DEL GAUNTLET"
+	screen.message_text = "Oleadas sobrevividas: %d" % rounds_cleared
+	screen.show_custom_buttons([["Empezar de nuevo", screen.restart_scene], ["Menú principal", screen.go_to_main_menu]])
+	screen.show_results()
 
 func _spawn_portal(x: float, text: String, color: Color, action: Callable) -> void:
 	var portal: Area2D = Area2D.new()
@@ -151,10 +173,52 @@ func _clear_portals() -> void:
 
 # ---------- Cartel
 
+func _update_counter() -> void:
+	# Junto al reloj: oleada actual y enemigos vivos (o guardianes en pie).
+	var text := "OLEADA %d" % round_number
+	match phase:
+		Phase.WAVE:
+			text += "  ·  ENEMIGOS: %d" % _alive_enemies()
+		Phase.BOSS_INTRO:
+			text += "  ·  GUARDIÁN EN CAMINO"
+		Phase.BOSS:
+			var standing := 0
+			for boss in get_tree().get_nodes_in_group(&"boss"):
+				if not boss.is_defeated():
+					standing += 1
+			text += "  ·  GUARDIANES: %d" % standing
+		Phase.PORTALS:
+			text += "  ·  ¡SUPERADA!"
+		Phase.DONE:
+			text += "  ·  FIN"
+	counter_label.text = text
+
 func _build_banner() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 12
 	add_child(layer)
+	# Contador bajo el reloj (centrado arriba).
+	var counter_panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.05, 0.11, 0.09, 0.85)
+	style.border_color = Color(0.55, 0.82, 0.45, 0.9)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(6)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 2
+	style.content_margin_bottom = 3
+	counter_panel.add_theme_stylebox_override("panel", style)
+	var anchor := Control.new()
+	anchor.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	anchor.position.y = 66
+	layer.add_child(anchor)
+	anchor.add_child(counter_panel)
+	counter_label = Label.new()
+	counter_label.add_theme_font_size_override("font_size", 16)
+	counter_label.add_theme_color_override("font_color", Color(0.93, 1.0, 0.86))
+	counter_panel.add_child(counter_label)
+	counter_panel.resized.connect(func(): counter_panel.position.x = -counter_panel.size.x * 0.5)
 	banner = Label.new()
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner.set_anchors_preset(Control.PRESET_CENTER_TOP)

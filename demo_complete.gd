@@ -53,6 +53,7 @@ class MedalIcon extends Control:
 const MAIN_MENU := "res://main_menu.tscn"
 
 var root_control: Control
+var title_label: Label
 var message_label: Label
 var medals_grid: GridContainer
 var medals_title: Label
@@ -65,6 +66,30 @@ func _ready() -> void:
 	add_to_group(&"demo_complete")
 	_build()
 	root_control.visible = false
+
+func show_custom_buttons(entries: Array) -> void:
+	# Reemplaza los botones de abajo por [[texto, acción], ...] (p. ej. el fin del Gauntlet al morir).
+	var row: Node = continue_button.get_parent()
+	for child in row.get_children():
+		row.remove_child(child)
+		child.queue_free()
+	for index in range(entries.size()):
+		var button := _button(entries[index][0], entries[index][1])
+		row.add_child(button)
+		if index == 0:
+			continue_button = button
+
+func restart_scene() -> void:
+	# Empezar de nuevo desde cero (estadísticas y estilo incluidos).
+	root_control.visible = false
+	get_tree().paused = false
+	Engine.time_scale = 1.0
+	Stats.reset()
+	Ferocity.reset()
+	get_tree().reload_current_scene()
+
+func go_to_main_menu() -> void:
+	_main_menu()
 
 func show_results() -> void:
 	message_label.text = message_text if message_text != "" else Stats.congratulation_message()
@@ -159,6 +184,7 @@ func _build() -> void:
 	column.add_theme_constant_override("separation", 10)
 	panel.add_child(column)
 	var title := _label(title_text, 32, TITLE_COLOR)
+	title_label = title
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
 	message_label = _label("", 20, TEXT_COLOR)

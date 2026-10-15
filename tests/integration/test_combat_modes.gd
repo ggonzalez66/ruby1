@@ -274,6 +274,7 @@ func _run() -> void:
 	var first_wave: int = director.enemies.size()
 	check(first_wave >= 3, "oleada 1: %d enemigos" % first_wave)
 	await frames(30)
+	check(director.counter_label.text.contains("OLEADA 1") and director.counter_label.text.contains("ENEMIGOS: %d" % first_wave), "junto al reloj: %s" % director.counter_label.text)
 	check(director.phase == director.Phase.WAVE, "no pasa al guardián con enemigos vivos")
 	for round_index in range(2):
 		for enemy in director.enemies:
@@ -300,6 +301,30 @@ func _run() -> void:
 			await frames(5)
 			check(demo.root_control.visible and demo.continue_button.text == "Menú principal" and demo.message_label.text.contains("2"), "TERMINAR: pantalla de fin con medallas (%s)" % demo.message_label.text)
 	paused = false
+
+	print("== Gauntlet: morir termina la partida")
+	change_scene_to_file("res://gauntlet.tscn")
+	await frames(15)
+	director = get_first_node_in_group(&"gauntlet_director")
+	player = get_first_node_in_group(&"player")
+	check(not player.respawn_enabled, "la tecla de reinicio está desactivada")
+	player.take_damage(999, player.global_position + Vector2(40, 0))
+	await frames(5)
+	check(player.dead, "Rengar muere")
+	Input.action_press("respawn")
+	await frames(2)
+	Input.action_release("respawn")
+	check(player.dead, "R no lo revive (sin checkpoint)")
+	var end_demo: Node = get_first_node_in_group(&"demo_complete")
+	check(not end_demo.root_control.visible, "la pantalla no sale al instante")
+	await frames(170)
+	var end_buttons: Array = end_demo.continue_button.get_parent().get_children().filter(func(b): return not b.is_queued_for_deletion()).map(func(b): return b.text)
+	check(end_demo.root_control.visible and end_demo.title_label.text == "FIN DEL GAUNTLET" and end_demo.message_label.text == "Oleadas sobrevividas: 0", "tras un momento: %s / %s" % [end_demo.title_label.text, end_demo.message_label.text])
+	check(end_buttons == ["Empezar de nuevo", "Menú principal"], "botones: %s" % [end_buttons])
+	end_demo.restart_scene()
+	await frames(15)
+	player = get_first_node_in_group(&"player")
+	check(current_scene.scene_file_path == "res://gauntlet.tscn" and not player.dead and not paused, "Empezar de nuevo recarga el Gauntlet")
 
 	print("== Escalera al Cielo")
 	change_scene_to_file("res://sky_stairs.tscn")

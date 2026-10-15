@@ -40,6 +40,21 @@ platform("ArenaLowB", 3780, 4000, -170)
 platform("ArenaMid", 2980, 3260, -320)
 platform("ArenaHighA", 2600, 2760, -480)
 platform("ArenaHighB", 3480, 3640, -480)
+# Más arriba: subida en zigzag por los dos lados (cada nivel 160 px más alto, a doble salto y agarre
+# del anterior) hasta una plataforma en lo alto del centro.
+platform("ArenaLeftLow", 1550, 1750, -170)
+platform("ArenaLeftMid", 1850, 2010, -330)
+platform("ArenaTier4L", 2300, 2460, -640)
+platform("ArenaTier4C", 3040, 3200, -640)
+platform("ArenaTier4R", 3780, 3940, -640)
+platform("ArenaTier5L", 2620, 2780, -800)
+platform("ArenaTier5R", 3460, 3620, -800)
+platform("ArenaTier6C", 2960, 3240, -960)
+platform("ArenaTier6L", 2300, 2440, -960)
+platform("ArenaTier6R", 3800, 3940, -960)
+platform("ArenaTier7L", 2620, 2760, -1120)
+platform("ArenaTier7R", 3480, 3620, -1120)
+platform("ArenaTop", 2900, 3060, -1280)
 S.node("BossSpawner", "Node2D", {
     "script": f'ExtResource("{SPAWNER}")',
     "spawn_point": vec(3150, 0),

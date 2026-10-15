@@ -108,6 +108,97 @@ script = ExtResource("13_platform")
 size = Vector2(160, 20)
 style = 2
 
+[node name="ArenaLeftLow" type="StaticBody2D" parent="."]
+position = Vector2(1650, -160)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(200, 20)
+style = 2
+
+[node name="ArenaLeftMid" type="StaticBody2D" parent="."]
+position = Vector2(1930, -320)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaTier4L" type="StaticBody2D" parent="."]
+position = Vector2(2380, -630)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaTier4C" type="StaticBody2D" parent="."]
+position = Vector2(3120, -630)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaTier4R" type="StaticBody2D" parent="."]
+position = Vector2(3860, -630)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaTier5L" type="StaticBody2D" parent="."]
+position = Vector2(2700, -790)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaTier5R" type="StaticBody2D" parent="."]
+position = Vector2(3540, -790)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
+[node name="ArenaTier6C" type="StaticBody2D" parent="."]
+position = Vector2(3100, -950)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(280, 20)
+style = 2
+
+[node name="ArenaTier6L" type="StaticBody2D" parent="."]
+position = Vector2(2370, -950)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(140, 20)
+style = 2
+
+[node name="ArenaTier6R" type="StaticBody2D" parent="."]
+position = Vector2(3870, -950)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(140, 20)
+style = 2
+
+[node name="ArenaTier7L" type="StaticBody2D" parent="."]
+position = Vector2(2690, -1110)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(140, 20)
+style = 2
+
+[node name="ArenaTier7R" type="StaticBody2D" parent="."]
+position = Vector2(3550, -1110)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(140, 20)
+style = 2
+
+[node name="ArenaTop" type="StaticBody2D" parent="."]
+position = Vector2(2980, -1270)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 2
+
 [node name="BossSpawner" type="Node2D" parent="."]
 script = ExtResource("10_spawner")
 spawn_point = Vector2(3150, 0)

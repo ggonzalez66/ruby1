@@ -16,7 +16,13 @@ from level_kit import *  # noqa: F401,F403 (escena S, recursos y helpers comunes
 
 FLYER_HEALTH = 9999
 THORN_DAMAGE = 20
-SEGMENTS = ["C", "A", "C", "B", "C", "C"]
+# 18 tramos (el triple que al principio). Solo se encadenan transiciones ya comprobadas con la búsqueda
+# de recorrido: inicio→C, C→A, A→C, C→B, B→C y C→C.
+SEGMENTS = [
+    "C", "A", "C", "B", "C", "C",
+    "A", "C", "B", "C", "C", "A",
+    "C", "B", "C", "C", "A", "C",
+]
 GOAL = S.ext_res("Script", "res://ruby_crystal.gd", "15_goal")
 
 

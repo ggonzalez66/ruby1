@@ -225,6 +225,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 # Parry cuerpo a cuerpo con el radio del aura del rugido (igual que los proyectiles). En false, el parry
 # solo ocurre si el golpe llega al cuerpo de Rengar (como era antes).
 @export var parry_uses_aura_radius := true
+# Con false (Gauntlet) no se puede reiniciar desde el checkpoint con la tecla de reinicio.
+@export var respawn_enabled := true
 # Bloqueo: un golpe recibido en las frames latentes del shine (sin parry) se bloquea: no quita vida,
 # gasta durabilidad y empuja a Rengar (el mismo knockback para todos los ataques, por ahora), sin
 # apagar el shine. Durante el empuje solo se puede hacer dash (y correr) o shine; solo un parry lo
@@ -528,7 +530,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("throw_knife") and not stunned:
 		_on_knife_input(move_input)
 
-	if Input.is_action_just_pressed("respawn"):
+	if Input.is_action_just_pressed("respawn") and respawn_enabled:
 		_respawn_player()
 		return
 
@@ -1292,7 +1294,7 @@ func _start_death(source_position: Vector2, amount: int) -> void:
 	died.emit()
 
 func _update_death(delta: float) -> void:
-	if Input.is_action_just_pressed("respawn"):
+	if Input.is_action_just_pressed("respawn") and respawn_enabled:
 		_respawn_player()
 		return
 	# Rebota en paredes, techo y suelo; al final queda tirado de lado.

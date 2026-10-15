@@ -165,6 +165,9 @@ func _build_death_screen() -> void:
 
 func _on_player_died() -> void:
 	death_hint.text = "Presiona %s para cargar el último checkpoint" % InputHints.binding("respawn")
+	# En el Gauntlet no hay checkpoint: al morir se termina.
+	if get_tree().get_first_node_in_group(&"gauntlet_director"):
+		death_hint.text = "Fin del Gauntlet"
 	death_panel.visible = true
 	# En el tercio superior para que se vea a Rengar salir despedido (la cámara lo centra).
 	var screen := get_viewport().get_visible_rect().size
