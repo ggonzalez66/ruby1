@@ -14,7 +14,7 @@ const MUSIC_SCRIPT := preload("res://music_player.gd")
 const PLATFORM_SCRIPT := preload("res://platform.gd")
 const SPRINT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprintingNEW.png")
 # Las 3 celdas de 724 px, recortadas abajo a la altura de los pies.
-const SPRINT_REGION := Rect2(0, 0, 2172, 642)
+const SPRINT_REGION := Rect2(0, 0, 2430, 642)
 const GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const TITLE_GLINT_SHADER: Shader = preload("res://shaders/title_glint.gdshader")
 

@@ -762,12 +762,13 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
 	# Rugido (shine): la pose del aerial stall.
 	_add_region_animation(frames, ANIMATION_ROAR, AERIAL_STALL_NEW, [AERIAL_STALL_REGION], 1.0, false)
-	# Mantle: solo el tercer frame de la hoja de trepar.
-	_add_grid_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, Vector2(543, 724), 600, [Vector2i(2, 0)], 1.0, false)
+	# Mantle: solo el tercer frame de la hoja de trepar, recortado 4 px por lado (centrado igual) para que
+	# no se cuele el borde del cuarto frame.
+	_add_region_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, [Rect2(1090, 0, 535, 600)], 1.0, false)
 	# Wallride: Rengar corriendo pared arriba (dibujado de pie, mirando a la pared).
 	_add_region_animation(frames, ANIMATION_WALLRIDE, WALLRUN_SHEET, WALLRUN_REGIONS, 14.0, true)
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
-	_add_grid_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(724, 724), 642, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)], 12.0, true)
+	_add_grid_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(810, 724), 642, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)], 12.0, true)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
 	_add_region_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_NEW, [HEAVY_AERIAL_REGION], 1.0, false)

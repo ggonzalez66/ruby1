@@ -44,7 +44,7 @@ func _run() -> void:
 		var path: String = texture.atlas.resource_path if texture is AtlasTexture else texture.resource_path
 		check(sprite_frames.get_frame_count(anim) == expected[anim][0] and path.contains(expected[anim][1]), "%s: %d frames de %s" % [anim, sprite_frames.get_frame_count(anim), path.get_file()])
 	var mantle: AtlasTexture = sprite_frames.get_frame_texture("mantle", 0)
-	check(mantle.region.position.x == 543.0 * 2.0, "mantle: solo el tercer frame")
+	check(mantle.region.position.x > 543.0 * 2.0 and mantle.region.end.x < 543.0 * 3.0, "mantle: solo el tercer frame")
 	# Los pies quedan en el origen: el borde de abajo del frame en y = 0.
 	for anim in ["idle", "proud", "walk", "sprint", "mantle", "charge", "jump", "jump_squat", "roar", "backflip", "uppercut", "wall_jump", "heavy_aerial"]:
 		player.animated_sprite.play(StringName(anim))
@@ -56,6 +56,30 @@ func _run() -> void:
 	for i in range(sprite_frames.get_frame_count("proud")):
 		proud_cells[sprite_frames.get_frame_texture("proud", i).region] = true
 	check(proud_cells.size() <= 3, "orgulloso: como mucho 3 frames distintos (%d)" % proud_cells.size())
+
+	# Ningún frame se mete en la celda del vecino: los bordes laterales de cada región (salvo el borde de la
+	# hoja) tienen que estar vacíos; si no, se ve un pedazo del frame de al lado (pasó con el sprint).
+	# Las hojas viejas de golpes ligeros y pesado tocan el borde sin cruzarlo, se dejan fuera.
+	var touching_ok := ["reng-heavy.png", "reng_light_hits-sheet.png"]
+	var images := {}
+	for anim in sprite_frames.get_animation_names():
+		for i in range(sprite_frames.get_frame_count(anim)):
+			var frame_texture := sprite_frames.get_frame_texture(anim, i)
+			if not frame_texture is AtlasTexture or frame_texture.atlas.resource_path.get_file() in touching_ok:
+				continue
+			var path: String = frame_texture.atlas.resource_path
+			if not images.has(path):
+				images[path] = frame_texture.atlas.get_image()
+			var image: Image = images[path]
+			var region: Rect2i = Rect2i(frame_texture.region)
+			var opaque := 0
+			for column in [region.position.x, region.end.x - 1]:
+				if column == 0 or column == image.get_width() - 1:
+					continue
+				for y in range(region.position.y, region.end.y):
+					if image.get_pixel(column, y).a > 0.08:
+						opaque += 1
+			check(opaque == 0, "%s #%d: sin pedazos del frame vecino en los bordes (%d px)" % [anim, i, opaque])
 
 	print("== Salto y uppercut")
 	release_all()
