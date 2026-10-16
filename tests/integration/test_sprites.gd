@@ -38,7 +38,7 @@ func _run() -> void:
 
 	print("== Animaciones nuevas")
 	var sprite_frames: SpriteFrames = player.animated_sprite.sprite_frames
-	var expected := {"idle": [6, "rengar_standing"], "proud": [14, "reng_standingProud"], "walk": [8, "reng_walkingNew"], "sprint": [3, "reng_sprintingNEW"], "wallride": [5, "reng_wallrun"], "mantle": [1, "reng_mantling"], "wall_slide": [1, "reng_cling_wallNEW"], "charge": [1, "reng_dashattackNEW"]}
+	var expected := {"idle": [6, "rengar_standing"], "proud": [4, "reng_standingProud"], "walk": [8, "reng_walkingNew"], "sprint": [3, "reng_sprintingNEW"], "wallride": [5, "reng_wallrun"], "mantle": [1, "reng_mantling"], "wall_slide": [1, "reng_cling_wallNEW"], "charge": [1, "reng_dashattackNEW"], "jump": [3, "reng_jumpingNEW3"], "jump_squat": [1, "reng_jumpingNEW1"], "fall": [1, "reng_jumpingNEW3"], "roar": [1, "reng_aerialStallNEW"], "backflip": [1, "reng_backflipNEW"], "uppercut": [1, "reng_uppercutNEW"], "wall_jump": [1, "reng_jump_off_wall"], "long_jump": [1, "reng_jump_off_wall"], "heavy_aerial": [1, "reng_heavy_aerialNEW1"]}
 	for anim in expected:
 		var texture := sprite_frames.get_frame_texture(anim, 0)
 		var path: String = texture.atlas.resource_path if texture is AtlasTexture else texture.resource_path
@@ -46,11 +46,37 @@ func _run() -> void:
 	var mantle: AtlasTexture = sprite_frames.get_frame_texture("mantle", 0)
 	check(mantle.region.position.x == 543.0 * 2.0, "mantle: solo el tercer frame")
 	# Los pies quedan en el origen: el borde de abajo del frame en y = 0.
-	for anim in ["idle", "proud", "walk", "sprint", "mantle", "charge"]:
+	for anim in ["idle", "proud", "walk", "sprint", "mantle", "charge", "jump", "jump_squat", "roar", "backflip", "uppercut", "wall_jump", "heavy_aerial"]:
 		player.animated_sprite.play(StringName(anim))
 		player._align_character_animation(StringName(anim))
 		var height: float = sprite_frames.get_frame_texture(anim, 0).get_height() * player.animated_sprite.scale.y
 		check(abs(player.animated_sprite.position.y + height * 0.5) < 0.5 and height > 45.0 and height < 140.0, "%s: alineado a los pies (alto %.0f px)" % [anim, height])
+
+	var proud_cells := {}
+	for i in range(sprite_frames.get_frame_count("proud")):
+		proud_cells[sprite_frames.get_frame_texture("proud", i).region] = true
+	check(proud_cells.size() <= 3, "orgulloso: como mucho 3 frames distintos (%d)" % proud_cells.size())
+
+	print("== Salto y uppercut")
+	release_all()
+	player._respawn_player()
+	player.global_position = GROUND
+	await frames(10)
+	Input.action_press("jump")
+	await frames(2)
+	check(player.animated_sprite.animation == &"jump_squat", "al despegar del suelo: agachado")
+	await frames(8)
+	check(player.animated_sprite.animation == &"jump", "luego los frames del aire")
+	Input.action_release("jump")
+	await frames(60)
+	Input.action_press("move_up")
+	Input.action_press("heavy_attack")
+	await frames(1)
+	Input.action_release("heavy_attack")
+	Input.action_release("move_up")
+	await frames(10)
+	check(player.attack_mode != player.ATTACK_UPPERCUT and player.animated_sprite.animation == &"uppercut", "la pose del uppercut se mantiene mientras sube")
+	await frames(60)
 
 	print("== Pose orgullosa")
 	release_all()

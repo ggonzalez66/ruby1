@@ -36,6 +36,22 @@ const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_mant
 const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dashattackNEW.png")
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_cling_wallNEW.png")
 const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/reng_wallrun.png")
+const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/reng_aerialStallNEW.png")
+const BACKFLIP_NEW: Texture2D = preload("res://assets/sprites/player/reng_backflipNEW.png")
+const UPPERCUT_NEW: Texture2D = preload("res://assets/sprites/player/reng_uppercutNEW.png")
+const JUMP_OFF_WALL_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jump_off_wall.png")
+const JUMP_SQUAT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumpingNEW1.png")
+const JUMP_AIR_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumpingNEW3.png")
+const HEAVY_AERIAL_NEW: Texture2D = preload("res://assets/sprites/player/reng_heavy_aerialNEW1.png")
+# Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
+# frames del aire (misma altura, centrados en cada cuerpo).
+const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
+const BACKFLIP_REGION := Rect2(122, 62, 1069, 1077)
+const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
+const JUMP_OFF_WALL_REGION := Rect2(1160, 64, 846, 542)
+const JUMP_SQUAT_REGION := Rect2(898, 271, 851, 545)
+const HEAVY_AERIAL_REGION := Rect2(138, 230, 983, 1223)
+const JUMP_AIR_REGIONS := [Rect2(122, 115, 560, 545), Rect2(822, 80, 560, 545), Rect2(1536, 48, 560, 545)]
 # Wallrun: frames 2 a 6 de la hoja (el 1º es la postura agachada de arranque). Cada uno recortado
 # alrededor de su cuerpo con la misma altura y los pies abajo, porque en la hoja van subiendo.
 const WALLRUN_REGIONS := [Rect2(324, 241, 360, 454), Rect2(688, 164, 360, 454), Rect2(1050, 144, 360, 454), Rect2(1405, 74, 360, 454), Rect2(1795, 0, 360, 454)]
@@ -74,6 +90,8 @@ const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
 # Pose orgullosa: tras unos segundos quieto (respira y sube el medidor de estilo).
 const ANIMATION_PROUD := &"proud"
+# Agachado justo al despegar de un salto desde el suelo.
+const ANIMATION_JUMP_SQUAT := &"jump_squat"
 const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
@@ -81,28 +99,29 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_IDLE: 0.854,
 	ANIMATION_PROUD: 1.13,
 	ANIMATION_WALK: 1.05,
-	ANIMATION_JUMP: 1.0,
+	ANIMATION_JUMP: 0.65,
+	ANIMATION_JUMP_SQUAT: 0.556,
 	ANIMATION_SPIN: 1.05,
-	ANIMATION_UPPERCUT: 1.2,
+	ANIMATION_UPPERCUT: 0.39,
 	ANIMATION_CHARGE_IDLE: 1.2,
 	ANIMATION_WALL_SLIDE: 0.38,
-	ANIMATION_WALL_JUMP: 0.92,
-	ANIMATION_LONG_JUMP: 0.92,
+	ANIMATION_WALL_JUMP: 0.687,
+	ANIMATION_LONG_JUMP: 0.687,
 	ANIMATION_CHARGE: 0.336,
-	ANIMATION_HEAVY_AERIAL: 0.48,
-	ANIMATION_FALL: 0.8,
+	ANIMATION_HEAVY_AERIAL: 0.39,
+	ANIMATION_FALL: 0.65,
 	ANIMATION_DASH: 1.2,
 	ANIMATION_LIGHT_HIT: 1.25,
 	ANIMATION_LIGHT_HIT_2: 1.25,
 	ANIMATION_LIGHT_FINISHER: 1.25,
-	ANIMATION_ROAR: 0.8,
+	ANIMATION_ROAR: 0.42,
 	ANIMATION_MANTLE: 0.74,
 	ANIMATION_WALLRIDE: 0.95,
 	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 1.3,
 	ANIMATION_SPRINT: 0.655,
-	ANIMATION_BACKFLIP: 0.8,
-	ANIMATION_FRONTFLIP: 1.0,
+	ANIMATION_BACKFLIP: 0.38,
+	ANIMATION_FRONTFLIP: 0.65,
 	ANIMATION_SPRINT_BRAKE: 1.2,
 }
 
@@ -360,6 +379,8 @@ var roar_lock_timer := 0.0
 var roar_aura_on := false
 var step_fx_timer := 0.0
 var still_time := 0.0
+var jump_squat_timer := 0.0
+var uppercut_pose_timer := 0.0
 var proud_active := false
 var roar_hit_targets: Array = []
 var roar_aura: Node2D
@@ -722,34 +743,39 @@ func _configure_character_animations() -> void:
 	frames.remove_animation(&"default")
 	# De pie: 4 frames respirando (ida y vuelta). Orgulloso: 8 frames en 2 filas, también respirando.
 	_add_grid_animation(frames, ANIMATION_IDLE, STANDING_SHEET, Vector2(543, 724), 616, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(2, 0), Vector2i(1, 0)], 5.0, true)
-	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(543, 362), 356, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1), Vector2i(2, 1), Vector2i(1, 1), Vector2i(0, 1), Vector2i(3, 0), Vector2i(2, 0), Vector2i(1, 0)], 5.0, true)
+	# Orgulloso: solo los 3 frames que menos se desplazan (5º, 1º y 2º de la hoja), respirando.
+	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(543, 362), 356, [Vector2i(0, 1), Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 0)], 4.0, true)
 	_add_grid_animation(frames, ANIMATION_WALK, WALKING_SHEET, Vector2(543, 362), 358, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)], 12.0, true)
-	_add_sheet_animation(frames, ANIMATION_JUMP, JUMPING_SHEET, 3, 10.0, false)
+	# Salto: el agachado al despegar (pose aparte, está dibujado a otra escala) y los 3 frames del aire.
+	_add_region_animation(frames, ANIMATION_JUMP_SQUAT, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
+	_add_region_animation(frames, ANIMATION_JUMP, JUMP_AIR_SHEET, JUMP_AIR_REGIONS, 10.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPIN, AERIAL_SPINNING_SHEET, 3, 12.0, true)
-	_add_sheet_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_SHEET, 3, 30.0, false)
+	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_NEW, [UPPERCUT_REGION], 1.0, false)
 	# Enganchado a la pared (mira hacia una pared a la derecha; ver _update_character_orientation).
 	_add_single_frame_animation(frames, ANIMATION_WALL_SLIDE, CLING_WALL_TEXTURE)
-	_add_sheet_animation(frames, ANIMATION_WALL_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
+	# Salto de pared y salto largo/bunnyhop: el 2º frame de despegar de la pared.
+	_add_region_animation(frames, ANIMATION_WALL_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_sheet_animation(frames, ANIMATION_CHARGE_IDLE, UPPERCUT_SHEET, 3, 1.0, false, [0])
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_HITS_SHEET, 2, 12.5, false)
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_HITS_SHEET, 2, 12.5, false, [1, 0])
 	_add_sheet_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_HITS_SHEET, 2, 9.0, false)
 	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
-	# Placeholder del rugido: la pose de puño en alto.
-	_add_single_frame_animation(frames, ANIMATION_ROAR, AERIAL_STALL_TEXTURE)
+	# Rugido (shine): la pose del aerial stall.
+	_add_region_animation(frames, ANIMATION_ROAR, AERIAL_STALL_NEW, [AERIAL_STALL_REGION], 1.0, false)
 	# Mantle: solo el tercer frame de la hoja de trepar.
 	_add_grid_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, Vector2(543, 724), 600, [Vector2i(2, 0)], 1.0, false)
 	# Wallride: Rengar corriendo pared arriba (dibujado de pie, mirando a la pared).
 	_add_region_animation(frames, ANIMATION_WALLRIDE, WALLRUN_SHEET, WALLRUN_REGIONS, 14.0, true)
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
 	_add_grid_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(724, 724), 642, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)], 12.0, true)
-	_add_sheet_animation(frames, ANIMATION_LONG_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
+	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
-	_add_single_frame_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_TEXTURE)
-	_add_single_frame_animation(frames, ANIMATION_FALL, AERIAL_STALL_TEXTURE)
+	_add_region_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_NEW, [HEAVY_AERIAL_REGION], 1.0, false)
+	# Caída: el último frame del aire.
+	_add_region_animation(frames, ANIMATION_FALL, JUMP_AIR_SHEET, [JUMP_AIR_REGIONS[2]], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
-	_add_single_frame_animation(frames, ANIMATION_BACKFLIP, BACKFLIP_TEXTURE)
-	_add_sheet_animation(frames, ANIMATION_FRONTFLIP, JUMPING_SHEET, 3, 8.0, false)
+	_add_region_animation(frames, ANIMATION_BACKFLIP, BACKFLIP_NEW, [BACKFLIP_REGION], 1.0, false)
+	_add_region_animation(frames, ANIMATION_FRONTFLIP, JUMP_AIR_SHEET, JUMP_AIR_REGIONS, 8.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPRINT_BRAKE, UPPERCUT_SHEET, 3, 1.0, false, [0])
 	animated_sprite.sprite_frames = frames
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
@@ -845,6 +871,11 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_WALL_SLIDE
 	elif long_jump_squat_timer > 0.0 or long_jump_active:
 		next_animation = ANIMATION_LONG_JUMP
+	elif jump_squat_timer > 0.0:
+		next_animation = ANIMATION_JUMP_SQUAT
+	elif uppercut_pose_timer > 0.0 and not is_on_floor() and velocity.y < 0.0:
+		# Tras el golpe del uppercut se mantiene la pose mientras sube.
+		next_animation = ANIMATION_UPPERCUT
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
 	elif is_sprinting and sprint_turn_timer > 0.0:
@@ -907,6 +938,8 @@ func _update_timers(delta: float) -> void:
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
 	riposte_timer = max(riposte_timer - delta, 0.0)
 	block_stun_timer = max(block_stun_timer - delta, 0.0)
+	jump_squat_timer = max(jump_squat_timer - delta, 0.0)
+	uppercut_pose_timer = max(uppercut_pose_timer - delta, 0.0)
 	_update_shine_durability(delta)
 	if light_combo_window_timer > 0.0:
 		light_combo_window_timer = max(light_combo_window_timer - delta, 0.0)
@@ -973,6 +1006,7 @@ func _consume_jump_buffer() -> void:
 		coyote_timer = 0.0
 		wall_contact_direction = 0
 		velocity.y = jump_velocity
+		jump_squat_timer = 0.07
 		jump_cut_available = true
 		jump_origin_y = global_position.y
 		return
@@ -1718,6 +1752,7 @@ func _try_roar_jump_cancel() -> void:
 	jump_buffer_timer = 0.0
 	if grounded:
 		coyote_timer = 0.0
+		jump_squat_timer = 0.07
 	else:
 		air_jumps_remaining -= 1
 	velocity.y = jump_velocity
@@ -1925,13 +1960,14 @@ func _update_roar_aura() -> void:
 		# Frames explosivos: aparece al instante, derecho y a tamaño completo, con un destello.
 		var progress: float = 1.0 - roar_explosive_timer / roar_explosive_duration
 		roar_aura.scale = Vector2.ONE
-		roar_aura.modulate = Color(1.0, 1.0, 1.0, 1.0).lerp(Color(1.3, 1.2, 1.05, 1.0), 1.0 - progress)
+		# Algo transparente para que el sprite no se vea plano (con el destello de brillo al aparecer).
+		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.8).lerp(Color(1.3, 1.2, 1.05, 0.8), 1.0 - progress)
 		roar_aura_spin = 0.0
 	else:
 		# Aura latente (manteniendo): empieza a girar despacio y pulsa; solo devuelve proyectiles.
 		var pulse: float = sin(Time.get_ticks_msec() / 110.0)
 		roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse)
-		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.7 + 0.12 * pulse)
+		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.6 + 0.1 * pulse)
 		roar_aura_spin += 0.9 * delta
 	roar_aura.rotation = roar_aura_spin
 
@@ -2408,6 +2444,8 @@ func _start_uppercut_attack(from_air: bool) -> void:
 	jump_cut_available = false
 	# Sale del suelo por el uppercut: no hay coyote time que convierta el siguiente salto en uno de suelo.
 	coyote_timer = 0.0
+	uppercut_pose_timer = 0.35
+	jump_squat_timer = 0.0
 	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
 	velocity.y = light_uppercut_velocity
 	_set_attack_active(true)
@@ -2706,16 +2744,21 @@ func _effect_charged_lunge() -> void:
 		_set_effect_stroke(index, points, width, EFFECT_PALETTE_SILVER, alpha)
 
 func _effect_uppercut() -> void:
-	# Media luna vertical que sube por delante del personaje.
+	# El sprite del uppercut es solo la pose: el golpe se dibuja con dos medias lunas doradas que suben
+	# por delante siguiendo la hitbox, y una estela vertical del puño.
 	var progress: float = 1.0 - (attack_timer / light_uppercut_duration)
 	var sweep: float = 1.0 - pow(1.0 - progress, 2.0)
-	var start_angle: float = deg_to_rad(60.0)
-	var head: float = lerp(start_angle, deg_to_rad(-110.0), max(sweep, 0.15))
+	var start_angle: float = deg_to_rad(70.0)
+	var head: float = lerp(start_angle, deg_to_rad(-115.0), max(sweep, 0.2))
+	var rise: float = lerp(6.0, -40.0, progress)
 	for index in range(2):
-		var radius: float = 30.0 + index * 10.0
-		var width: float = 6.0 if index == 0 else 4.5
-		_set_effect_stroke(index, _effect_arc_points(Vector2(6.0, -12.0), Vector2(radius, radius), start_angle, head - index * 0.12), width, EFFECT_PALETTE_SILVER, 1.0)
-	_hide_effect_strokes(2)
+		var radius: float = 36.0 + index * 14.0
+		var width: float = 9.0 if index == 0 else 6.0
+		_set_effect_stroke(index, _effect_arc_points(Vector2(8.0, -14.0 + rise * 0.4), Vector2(radius * 0.85, radius), start_angle, head - index * 0.14), width, EFFECT_PALETTE_GOLD, 1.0)
+	var streak := PackedVector2Array()
+	for step in range(6):
+		streak.append(Vector2(12.0, lerp(24.0, rise - 34.0, step / 5.0)))
+	_set_effect_stroke(2, streak, 7.0, EFFECT_PALETTE_GOLD, 0.9)
 
 func _effect_spin() -> void:
 	# Anillo de cortes plateados que gira junto con la hitbox.
@@ -3317,6 +3360,8 @@ func _respawn_player() -> void:
 	running_attack_cooldown_timer = 0.0
 	still_time = 0.0
 	proud_active = false
+	jump_squat_timer = 0.0
+	uppercut_pose_timer = 0.0
 	block_stun_timer = 0.0
 	shine_broken = false
 	shine_durability = shine_max_durability
