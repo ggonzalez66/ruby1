@@ -12,7 +12,9 @@ const JUNGLE_SCRIPT := preload("res://jungle_background.gd")
 const PAUSE_MENU_SCRIPT := preload("res://pause_menu.gd")
 const MUSIC_SCRIPT := preload("res://music_player.gd")
 const PLATFORM_SCRIPT := preload("res://platform.gd")
-const SPRINT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
+const SPRINT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprintingNEW.png")
+# Las 3 celdas de 724 px, recortadas abajo a la altura de los pies.
+const SPRINT_REGION := Rect2(0, 0, 2172, 642)
 const GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const TITLE_GLINT_SHADER: Shader = preload("res://shaders/title_glint.gdshader")
 
@@ -30,7 +32,7 @@ const GLINT_PAUSE_MAX := 4.5
 # Rengar corre a su velocidad de sprint; la cámara lo acompaña y el suelo se recicla.
 const RUN_SPEED := 560.0
 const RUN_FPS := 12.0
-const RUN_SCALE := 0.18 * 1.15 * 1.5
+const RUN_SCALE := 0.177
 const RUNNER_SCREEN_X := -370.0
 const GROUND_Y := 24.0
 const GROUND_SEGMENT := 2400.0
@@ -132,6 +134,8 @@ func _build_runner() -> void:
 	ghost_material.set_shader_parameter("glow_amount", 0.85)
 	runner = Sprite2D.new()
 	runner.texture = SPRINT_SHEET
+	runner.region_enabled = true
+	runner.region_rect = SPRINT_REGION
 	runner.hframes = 3
 	runner.scale = Vector2.ONE * RUN_SCALE
 	runner.material = runner_material
@@ -140,7 +144,7 @@ func _build_runner() -> void:
 func _update_runner(delta: float) -> void:
 	run_time += delta
 	runner.frame = int(run_time * RUN_FPS) % runner.hframes
-	runner.position = Vector2(camera.position.x + RUNNER_SCREEN_X, GROUND_Y - SPRINT_SHEET.get_height() * RUN_SCALE * 0.5)
+	runner.position = Vector2(camera.position.x + RUNNER_SCREEN_X, GROUND_Y - SPRINT_REGION.size.y * RUN_SCALE * 0.5)
 	# Brillo de imparable: parpadeo rápido entre blanco y el color del rango, como en el juego.
 	var rank_color: Color = Ferocity.RANKS[RUN_RANK]["color"]
 	var flash: bool = int(Time.get_ticks_msec() / 50) % 2 == 0
@@ -162,6 +166,8 @@ func _spawn_afterimage() -> void:
 	# Sombra del frame actual que se queda donde estaba y se desvanece (queda atrás al correr).
 	var ghost := Sprite2D.new()
 	ghost.texture = runner.texture
+	ghost.region_enabled = true
+	ghost.region_rect = SPRINT_REGION
 	ghost.hframes = runner.hframes
 	ghost.frame = runner.frame
 	ghost.scale = runner.scale

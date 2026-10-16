@@ -27,6 +27,18 @@ const ELECTRIC_FX_SCRIPT := preload("res://electric_fx.gd")
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
 const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
+# Sprites nuevos (hojas en cuadrícula: celdas de ancho fijo con el borde de abajo recortado a los pies).
+const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/rengar_standing.png")
+const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/reng_standingProud.png")
+const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_walkingNew.png")
+const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprintingNEW.png")
+const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_mantling.png")
+const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dashattackNEW.png")
+const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_cling_wallNEW.png")
+const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/reng_wallrun.png")
+# Wallrun: frames 2 a 6 de la hoja (el 1º es la postura agachada de arranque). Cada uno recortado
+# alrededor de su cuerpo con la misma altura y los pies abajo, porque en la hoja van subiendo.
+const WALLRUN_REGIONS := [Rect2(324, 241, 360, 454), Rect2(688, 164, 360, 454), Rect2(1050, 144, 360, 454), Rect2(1405, 74, 360, 454), Rect2(1795, 0, 360, 454)]
 
 const CHARACTER_VISUAL_SCALE := 0.18
 const CLAW_ARC_SEGMENTS := 14
@@ -60,20 +72,23 @@ const ANIMATION_ROAR := &"roar"
 const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
+# Pose orgullosa: tras unos segundos quieto (respira y sube el medidor de estilo).
+const ANIMATION_PROUD := &"proud"
 const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
-	ANIMATION_IDLE: 1.0,
-	ANIMATION_WALK: 1.0,
+	ANIMATION_IDLE: 0.854,
+	ANIMATION_PROUD: 1.13,
+	ANIMATION_WALK: 1.05,
 	ANIMATION_JUMP: 1.0,
 	ANIMATION_SPIN: 1.05,
 	ANIMATION_UPPERCUT: 1.2,
 	ANIMATION_CHARGE_IDLE: 1.2,
-	ANIMATION_WALL_SLIDE: 0.92,
+	ANIMATION_WALL_SLIDE: 0.38,
 	ANIMATION_WALL_JUMP: 0.92,
 	ANIMATION_LONG_JUMP: 0.92,
-	ANIMATION_CHARGE: 0.62,
+	ANIMATION_CHARGE: 0.336,
 	ANIMATION_HEAVY_AERIAL: 0.48,
 	ANIMATION_FALL: 0.8,
 	ANIMATION_DASH: 1.2,
@@ -81,11 +96,11 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_LIGHT_HIT_2: 1.25,
 	ANIMATION_LIGHT_FINISHER: 1.25,
 	ANIMATION_ROAR: 0.8,
-	ANIMATION_MANTLE: 1.2,
-	ANIMATION_WALLRIDE: 1.15,
+	ANIMATION_MANTLE: 0.74,
+	ANIMATION_WALLRIDE: 0.95,
 	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 1.3,
-	ANIMATION_SPRINT: 1.15,
+	ANIMATION_SPRINT: 0.655,
 	ANIMATION_BACKFLIP: 0.8,
 	ANIMATION_FRONTFLIP: 1.0,
 	ANIMATION_SPRINT_BRAKE: 1.2,
@@ -225,6 +240,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 # Parry cuerpo a cuerpo con el radio del aura del rugido (igual que los proyectiles). En false, el parry
 # solo ocurre si el golpe llega al cuerpo de Rengar (como era antes).
 @export var parry_uses_aura_radius := true
+# Quieto este tiempo, Rengar pasa a la pose orgullosa (y el medidor de estilo sube solo).
+@export var proud_delay := 4.0
 # Con false (Gauntlet) no se puede reiniciar desde el checkpoint con la tecla de reinicio.
 @export var respawn_enabled := true
 # Bloqueo: un golpe recibido en las frames latentes del shine (sin parry) se bloquea: no quita vida,
@@ -342,6 +359,8 @@ var roar_stall_timer := 0.0
 var roar_lock_timer := 0.0
 var roar_aura_on := false
 var step_fx_timer := 0.0
+var still_time := 0.0
+var proud_active := false
 var roar_hit_targets: Array = []
 var roar_aura: Node2D
 var roar_aura_spin := 0.0
@@ -653,9 +672,21 @@ func _physics_process(delta: float) -> void:
 			_consume_jump_buffer()
 
 	_update_movement_fx(delta, was_on_floor, air_jumps_before, fall_speed)
+	_update_proud(delta, move_input)
 	_update_afterimages(delta)
 	_update_character_animation()
 	_update_hurt_visual()
+
+func _update_proud(delta: float, move_input: float) -> void:
+	# Quieto en el suelo un rato (sin moverse, atacar, rugir ni pulsar nada): pose orgullosa, y mientras
+	# dura el medidor de estilo sube solo.
+	var still: bool = is_on_floor() and velocity.length() < 5.0 and move_input == 0.0 and not _is_attack_active() \
+		and not roar_active and not mantle_active and dash_timer <= 0.0 and block_stun_timer <= 0.0 \
+		and hurt_lock_timer <= 0.0 and not Input.is_anything_pressed()
+	still_time = still_time + delta if still else 0.0
+	proud_active = still_time >= proud_delay
+	if proud_active:
+		Ferocity.add_pride(delta)
 
 func _update_movement_fx(delta: float, was_on_floor: bool, air_jumps_before: int, fall_speed: float) -> void:
 	var level := get_parent()
@@ -689,12 +720,15 @@ func _spawn_walljump_fx(away_direction: int) -> void:
 func _configure_character_animations() -> void:
 	var frames := SpriteFrames.new()
 	frames.remove_animation(&"default")
-	_add_sheet_animation(frames, ANIMATION_IDLE, STANDING_AND_WALKING_SHEET, 3, 5.0, true, [0])
-	_add_sheet_animation(frames, ANIMATION_WALK, STANDING_AND_WALKING_SHEET, 3, 8.0, true)
+	# De pie: 4 frames respirando (ida y vuelta). Orgulloso: 8 frames en 2 filas, también respirando.
+	_add_grid_animation(frames, ANIMATION_IDLE, STANDING_SHEET, Vector2(543, 724), 616, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(2, 0), Vector2i(1, 0)], 5.0, true)
+	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(543, 362), 356, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1), Vector2i(2, 1), Vector2i(1, 1), Vector2i(0, 1), Vector2i(3, 0), Vector2i(2, 0), Vector2i(1, 0)], 5.0, true)
+	_add_grid_animation(frames, ANIMATION_WALK, WALKING_SHEET, Vector2(543, 362), 358, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)], 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_JUMP, JUMPING_SHEET, 3, 10.0, false)
 	_add_sheet_animation(frames, ANIMATION_SPIN, AERIAL_SPINNING_SHEET, 3, 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_SHEET, 3, 30.0, false)
-	_add_sheet_animation(frames, ANIMATION_WALL_SLIDE, WALLJUMP_SHEET, 2, 1.0, false, [0])
+	# Enganchado a la pared (mira hacia una pared a la derecha; ver _update_character_orientation).
+	_add_single_frame_animation(frames, ANIMATION_WALL_SLIDE, CLING_WALL_TEXTURE)
 	_add_sheet_animation(frames, ANIMATION_WALL_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
 	_add_sheet_animation(frames, ANIMATION_CHARGE_IDLE, UPPERCUT_SHEET, 3, 1.0, false, [0])
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_HITS_SHEET, 2, 12.5, false)
@@ -703,14 +737,14 @@ func _configure_character_animations() -> void:
 	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
 	# Placeholder del rugido: la pose de puño en alto.
 	_add_single_frame_animation(frames, ANIMATION_ROAR, AERIAL_STALL_TEXTURE)
-	# Placeholder del mantle: el frame del uppercut con el brazo estirado hacia arriba.
-	_add_sheet_animation(frames, ANIMATION_MANTLE, UPPERCUT_SHEET, 3, 1.0, false, [2])
-	# Wallride: la carrera girada 90° para correr pared arriba.
-	_add_sheet_animation(frames, ANIMATION_WALLRIDE, SPRINTING_SHEET, 3, 16.0, true)
+	# Mantle: solo el tercer frame de la hoja de trepar.
+	_add_grid_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, Vector2(543, 724), 600, [Vector2i(2, 0)], 1.0, false)
+	# Wallride: Rengar corriendo pared arriba (dibujado de pie, mirando a la pared).
+	_add_region_animation(frames, ANIMATION_WALLRIDE, WALLRUN_SHEET, WALLRUN_REGIONS, 14.0, true)
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
-	_add_sheet_animation(frames, ANIMATION_SPRINT, SPRINTING_SHEET, 3, 12.0, true)
+	_add_grid_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(724, 724), 642, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)], 12.0, true)
 	_add_sheet_animation(frames, ANIMATION_LONG_JUMP, WALLJUMP_SHEET, 2, 1.0, false, [1])
-	_add_single_frame_animation(frames, ANIMATION_CHARGE, CHARGE_LIGHT_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_FALL, AERIAL_STALL_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
@@ -747,6 +781,31 @@ func _add_sheet_animation(
 		var atlas_frame := AtlasTexture.new()
 		atlas_frame.atlas = texture
 		atlas_frame.region = Rect2(frame_width * index, 0.0, frame_width, texture.get_height())
+		atlas_frame.filter_clip = true
+		frames.add_frame(animation_name, atlas_frame)
+
+func _add_grid_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D, cell: Vector2, crop_height: float, cells: Array, fps: float, loops: bool) -> void:
+	# Hoja en cuadrícula: cada frame es una celda (columna, fila) recortada abajo a la altura de los pies,
+	# para que al alinear por la base del frame los pies queden en el suelo.
+	frames.add_animation(animation_name)
+	frames.set_animation_speed(animation_name, fps)
+	frames.set_animation_loop(animation_name, loops)
+	for coords in cells:
+		var atlas_frame := AtlasTexture.new()
+		atlas_frame.atlas = texture
+		atlas_frame.region = Rect2(cell.x * coords.x, cell.y * coords.y, cell.x, crop_height)
+		atlas_frame.filter_clip = true
+		frames.add_frame(animation_name, atlas_frame)
+
+func _add_region_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D, regions: Array, fps: float, loops: bool) -> void:
+	# Frames con regiones a medida (todas de la misma altura, con los pies en el borde de abajo).
+	frames.add_animation(animation_name)
+	frames.set_animation_speed(animation_name, fps)
+	frames.set_animation_loop(animation_name, loops)
+	for region in regions:
+		var atlas_frame := AtlasTexture.new()
+		atlas_frame.atlas = texture
+		atlas_frame.region = region
 		atlas_frame.filter_clip = true
 		frames.add_frame(animation_name, atlas_frame)
 
@@ -794,6 +853,8 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_SPRINT
 	elif abs(velocity.x) > 10.0:
 		next_animation = ANIMATION_WALK
+	elif proud_active:
+		next_animation = ANIMATION_PROUD
 	else:
 		next_animation = ANIMATION_IDLE
 
@@ -809,49 +870,22 @@ func _update_character_orientation(animation_name: StringName) -> void:
 			animated_sprite.rotation = _get_flip_rotation(backflip_elapsed, backflip_rotation_duration, -facing)
 		ANIMATION_FRONTFLIP:
 			animated_sprite.rotation = _get_flip_rotation(frontflip_elapsed, frontflip_rotation_duration, facing)
-		ANIMATION_WALLRIDE:
-			# Mirando hacia la pared y girado para que los pies queden sobre ella.
-			animated_sprite.rotation = -facing * PI * 0.5
 		_:
 			animated_sprite.rotation = 0.0
-	if animation_name == ANIMATION_WALL_SLIDE or animation_name == ANIMATION_WALL_JUMP:
-		# Ambos frames representan una secuencia desde una pared situada a la izquierda:
-		# el primero mira hacia ella y el segundo salta en dirección contraria.
+	if animation_name == ANIMATION_WALL_SLIDE:
+		# El sprite de enganche mira hacia una pared a la derecha (normal hacia la izquierda).
+		animated_sprite.flip_h = wall_visual_direction > 0
+		return
+	if animation_name == ANIMATION_WALL_JUMP:
+		# El frame del salto de pared sale desde una pared a la izquierda, en dirección contraria.
 		animated_sprite.flip_h = wall_visual_direction < 0
 		return
 	animated_sprite.flip_h = facing < 0
 
 func _align_character_animation(animation_name: StringName) -> void:
-	var texture_height: float
-	match animation_name:
-		ANIMATION_IDLE, ANIMATION_WALK:
-			texture_height = STANDING_AND_WALKING_SHEET.get_height()
-		ANIMATION_JUMP, ANIMATION_FRONTFLIP:
-			texture_height = JUMPING_SHEET.get_height()
-		ANIMATION_SPIN:
-			texture_height = AERIAL_SPINNING_SHEET.get_height()
-		ANIMATION_UPPERCUT, ANIMATION_CHARGE_IDLE, ANIMATION_SPRINT_BRAKE, ANIMATION_MANTLE:
-			texture_height = UPPERCUT_SHEET.get_height()
-		ANIMATION_WALL_SLIDE, ANIMATION_WALL_JUMP:
-			texture_height = WALLJUMP_SHEET.get_height()
-		ANIMATION_CHARGE:
-			texture_height = CHARGE_LIGHT_TEXTURE.get_height()
-		ANIMATION_HEAVY_AERIAL:
-			texture_height = HEAVY_AERIAL_TEXTURE.get_height()
-		ANIMATION_FALL, ANIMATION_ROAR:
-			texture_height = AERIAL_STALL_TEXTURE.get_height()
-		ANIMATION_DASH:
-			texture_height = DASH_TEXTURE.get_height()
-		ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_KNIFE_THROW:
-			texture_height = LIGHT_HITS_SHEET.get_height()
-		ANIMATION_GROUND_HEAVY:
-			texture_height = GROUND_HEAVY_SHEET.get_height()
-		ANIMATION_SPRINT, ANIMATION_WALLRIDE:
-			texture_height = SPRINTING_SHEET.get_height()
-		ANIMATION_LONG_JUMP:
-			texture_height = WALLJUMP_SHEET.get_height()
-		ANIMATION_BACKFLIP:
-			texture_height = BACKFLIP_TEXTURE.get_height()
+	# La base del frame (sus pies) va en el origen de Rengar: se usa el alto del frame actual.
+	var texture := animated_sprite.sprite_frames.get_frame_texture(animation_name, 0)
+	var texture_height: float = texture.get_height() if texture else 0.0
 	var visual_scale: float = CHARACTER_VISUAL_SCALE * ANIMATION_VISUAL_SCALES.get(animation_name, 1.0)
 	animated_sprite.scale = Vector2.ONE * visual_scale
 	animated_sprite.position = Vector2(0.0, -texture_height * visual_scale * 0.5)
@@ -1835,8 +1869,8 @@ func _emit_shine_changed() -> void:
 	var ratio: float = shine_durability / max(shine_max_durability, 1.0)
 	if abs(ratio - shine_tint_ratio) >= 0.02:
 		shine_tint_ratio = ratio
-		var worn: float = 1.0 - ratio
-		roar_aura.set_tint(Color(0.88, 0.64, 0.2, 0.9).lerp(Color(1.0, 0.12, 0.1, 0.95), worn), Color(0.75, 0.45, 0.08, 0.2).lerp(Color(0.85, 0.05, 0.05, 0.3), worn))
+		# El sprite dorado se tiñe de rojo con el desgaste.
+		roar_aura.set_wear(1.0 - ratio)
 
 func _has_sss_iframes() -> bool:
 	# SSS: el heavy aéreo y el giro del dash attack son invulnerables hasta que terminan.
@@ -1874,6 +1908,7 @@ func _is_roar_invincible() -> bool:
 func _create_roar_aura() -> void:
 	# El aura del rugido es un Cubo de Metatrón dorado.
 	roar_aura = METATRON_SCRIPT.new()
+	roar_aura.texture = preload("res://assets/sprites/player/metatronNEW.png")
 	roar_aura.outer_radius = roar_radius
 	roar_aura.position = Vector2(0.0, -14.0)
 	roar_aura.z_index = 1
@@ -3280,6 +3315,8 @@ func _respawn_player() -> void:
 	jump_cut_available = false
 	riposte_timer = 0.0
 	running_attack_cooldown_timer = 0.0
+	still_time = 0.0
+	proud_active = false
 	block_stun_timer = 0.0
 	shine_broken = false
 	shine_durability = shine_max_durability

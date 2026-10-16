@@ -38,6 +38,8 @@ const UNSTOPPABLE_RANK := 3
 const MAX_POINTS := RANK_POINTS * 7.0 - 0.01
 # Puntos por segundo al correr a toda velocidad: llenan la barra, pero no suben de rango.
 const RUNNING_GAIN := 15.0
+# Pose orgullosa (quieto unos segundos): sube sola, pero como correr, sin pasar de rango.
+const PRIDE_GAIN := 10.0
 # Acrobacias: suben de rango como mucho hasta este (S); más arriba solo llenan la barra.
 const ACROBATIC_RANK_LIMIT := 4
 const ACROBATIC_KEYS := ["frontflips", "backflips", "bunnyhops", "running_walljumps", "wallride", "mantles", "wall_embeds", "bounce", "running_bounce"]
@@ -103,6 +105,12 @@ func add_running(delta: float) -> void:
 	var cap := _rank_top(rank)
 	if points < cap:
 		_set_points(min(points + RUNNING_GAIN * delta, cap))
+
+func add_pride(delta: float) -> void:
+	var cap := _rank_top(rank)
+	if points < cap:
+		grace = DRAIN_GRACE
+		_set_points(min(points + PRIDE_GAIN * delta, cap))
 
 func player_hit() -> bool:
 	# Golpe recibido. Devuelve true si Rengar lo aguanta sin frenarse (estado imparable).

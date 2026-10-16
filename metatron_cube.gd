@@ -9,9 +9,23 @@ extends Node2D
 @export var line_color := Color(0.88, 0.64, 0.2, 0.9)
 @export var glow_color := Color(0.75, 0.45, 0.08, 0.2)
 @export var line_width := 1.0
+# Con textura (el aura de Rengar) se dibuja el sprite en vez de las líneas; el desgaste lo tiñe de rojo.
+@export var texture: Texture2D
+# El cubo del sprite ocupa este ancho relativo al diámetro (el resto son destellos alrededor).
+@export var texture_fit := 1.15
+var wear_material: ShaderMaterial
 
 func _ready() -> void:
 	queue_redraw()
+
+func set_wear(amount: float) -> void:
+	# 0 = dorado intacto, 1 = rojo (casi sin durabilidad). Solo con textura.
+	if wear_material == null:
+		wear_material = ShaderMaterial.new()
+		wear_material.shader = load("res://shaders/charge_glow.gdshader")
+		material = wear_material
+	wear_material.set_shader_parameter("glow_color", Color(1.0, 0.08, 0.06))
+	wear_material.set_shader_parameter("glow_amount", clamp(amount, 0.0, 1.0) * 0.85)
 
 func set_tint(line: Color, glow: Color) -> void:
 	# Cambia los colores del dibujo (p. ej. se enrojece al gastarse la durabilidad del shine).
@@ -30,6 +44,12 @@ func get_centers() -> PackedVector2Array:
 	return centers
 
 func _draw() -> void:
+	if texture:
+		var width: float = outer_radius * 2.0 * texture_fit
+		var size := Vector2(width, width * texture.get_height() / texture.get_width())
+		# El cubo del sprite está un poco por encima del centro de la imagen.
+		draw_texture_rect(texture, Rect2(-size * 0.5 - Vector2(0, size.y * 0.02), size), false)
+		return
 	var spacing: float = outer_radius / 2.5
 	var circle_radius: float = spacing * 0.5
 	var centers := get_centers()

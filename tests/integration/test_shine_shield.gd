@@ -159,9 +159,8 @@ func _run() -> void:
 
 	print("== Rotura y recarga")
 	await reset()
-	var tint_full: Color = player.roar_aura.line_color
 	player._change_shine_durability(-60.0)
-	check(player.roar_aura.line_color.g < tint_full.g - 0.1, "con menos durabilidad el Metatrón se enrojece")
+	check(player.roar_aura.wear_material.get_shader_parameter("glow_amount") > 0.4, "con menos durabilidad el Metatrón se enrojece")
 	check(abs(hud.shine_ratio - 0.4) < 0.01, "la barra del HUD lo refleja (%.2f)" % hud.shine_ratio)
 	player._change_shine_durability(-60.0)
 	check(player.shine_broken and hud.shine_broken, "a cero se rompe")

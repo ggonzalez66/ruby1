@@ -8,11 +8,12 @@ extends Node2D
 #   contra el último enemigo en que estuvo clavado y se vuelve a enterrar; así se encadenan.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
-const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/rengar_knife.png")
-const KNIFE_REGION := Rect2(48, 271, 243, 227)
+const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_knifeNEW.png")
+const KNIFE_REGION := Rect2(141, 138, 958, 1038)
 # En el sprite la punta apunta hacia arriba a la izquierda (unos -138°).
-const TIP_ANGLE := -2.415
-const VISUAL_SCALE := 0.13
+const TIP_ANGLE := -2.30
+# Un 30 % más largo que el cuchillo anterior (~57 px de punta a pomo).
+const VISUAL_SCALE := 0.042
 const SPIN_SPEED := 24.0
 const TRAIL_LENGTH := 9
 const BOUNCE_RESTITUTION := 0.55
@@ -21,7 +22,9 @@ const REST_SPEED := 90.0
 const GRAVITY := 1100.0
 const WORLD_MASK := 2
 const ENEMY_MASK := 8
-const HIT_RADIUS := 14.0
+# Hitbox alargada a lo largo de la hoja (gira con el cuchillo), a la medida del sprite.
+const HIT_LENGTH := 52.0
+const HIT_WIDTH := 18.0
 const DAMAGE_THROW := 2
 const DAMAGE_RECALL := 1
 const DROP_CHANCE := 0.15
@@ -379,11 +382,12 @@ func _update_look() -> void:
 	trail_gradient.set_color(1, Color(trail_color, 0.8))
 
 func _find_enemy(exclude: Array) -> Node2D:
-	var circle := CircleShape2D.new()
-	circle.radius = HIT_RADIUS
+	var rect := RectangleShape2D.new()
+	# Crece con el cuchillo (shine) y sigue la orientación de la hoja.
+	rect.size = Vector2(HIT_LENGTH, HIT_WIDTH) * (sprite.scale.x / VISUAL_SCALE)
 	var query := PhysicsShapeQueryParameters2D.new()
-	query.shape = circle
-	query.transform = Transform2D(0.0, global_position)
+	query.shape = rect
+	query.transform = Transform2D(rotation + TIP_ANGLE, global_position)
 	query.collision_mask = ENEMY_MASK
 	query.collide_with_areas = true
 	query.collide_with_bodies = false

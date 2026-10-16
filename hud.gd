@@ -334,8 +334,8 @@ func _build() -> void:
 	# Icono del cuchillo: brillante en la mano, apagado cuando está lanzado.
 	knife_icon = TextureRect.new()
 	var knife_texture := AtlasTexture.new()
-	knife_texture.atlas = load("res://assets/sprites/player/rengar_knife.png")
-	knife_texture.region = Rect2(48, 271, 243, 227)
+	knife_texture.atlas = load("res://assets/sprites/player/reng_knifeNEW.png")
+	knife_texture.region = Rect2(141, 138, 958, 1038)
 	knife_icon.texture = knife_texture
 	knife_icon.custom_minimum_size = Vector2(22, 20)
 	knife_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
