@@ -326,7 +326,7 @@ func _build() -> void:
 	var header := HBoxContainer.new()
 	column.add_child(header)
 	var name_label := Label.new()
-	name_label.text = "RENGAR"
+	name_label.text = "VIRIDY"
 	name_label.add_theme_color_override("font_color", Color(0.93, 1.0, 0.86))
 	name_label.add_theme_font_size_override("font_size", 16)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -334,7 +334,7 @@ func _build() -> void:
 	# Icono del cuchillo: brillante en la mano, apagado cuando está lanzado.
 	knife_icon = TextureRect.new()
 	var knife_texture := AtlasTexture.new()
-	knife_texture.atlas = load("res://assets/sprites/player/reng_knifeNEW.png")
+	knife_texture.atlas = load("res://assets/sprites/player/viridy/viridy_knife.png")
 	knife_texture.region = Rect2(141, 138, 958, 1038)
 	knife_icon.texture = knife_texture
 	knife_icon.custom_minimum_size = Vector2(22, 20)

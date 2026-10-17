@@ -61,7 +61,7 @@ def check_output(path, count, target, label):
 
 with tempfile.TemporaryDirectory() as tmp:
     print("== Hoja tipo IA: fondo opaco, 1536x1024, frames mal espaciados que se pisan en horizontal")
-    frames = frames_of("assets/sprites/player/reng_sprintingNEW.png", 810, 3)
+    frames = frames_of("assets/sprites/player/rengar/reng_sprintingNEW.png", 810, 3)
     scale = 0.55
     frames = [f.resize((round(f.width * scale), round(f.height * scale)), Image.LANCZOS) for f in frames]
     sheet = Image.new("RGBA", (1536, 1024), (236, 240, 232, 255))
@@ -81,13 +81,13 @@ with tempfile.TemporaryDirectory() as tmp:
 
     print("== Hoja de 2 filas (caminar, 8 frames)")
     output = os.path.join(tmp, "walk.png")
-    result = run(os.path.join(ROOT, "assets/sprites/player/reng_walkingNew.png"), output, "--frames", "8", "--filas", "2", "--alto", "384")
+    result = run(os.path.join(ROOT, "assets/sprites/player/rengar/reng_walkingNew.png"), output, "--frames", "8", "--filas", "2", "--alto", "384")
     check(result.returncode == 0, "se normaliza" + ("" if result.returncode == 0 else ": " + result.stderr))
     if result.returncode == 0:
         check_output(output, 8, 384, "walk")
 
     print("== Frames pegados entre sí")
-    frames = frames_of("assets/sprites/player/rengar_standing.png", 543, 3)
+    frames = frames_of("assets/sprites/player/rengar/rengar_standing.png", 543, 3)
     sheet = Image.new("RGBA", (1800, 724), (0, 0, 0, 0))
     for k, frame in enumerate(frames):
         sheet.alpha_composite(frame, (k * (frame.width - 60) + 10, 724 - frame.height - 10))
@@ -97,7 +97,7 @@ with tempfile.TemporaryDirectory() as tmp:
     check(result.returncode != 0 and "pegados" in result.stderr, "da error claro en vez de una hoja rota")
 
     print("== Pose demasiado grande para la celda")
-    result = run(os.path.join(ROOT, "assets/sprites/player/reng_walkingNew.png"), os.path.join(tmp, "x.png"),
+    result = run(os.path.join(ROOT, "assets/sprites/player/rengar/reng_walkingNew.png"), os.path.join(tmp, "x.png"),
                  "--frames", "8", "--filas", "2", "--alto", "900")
     check(result.returncode != 0 and "no cabe" in result.stderr, "da error y no guarda nada")
 

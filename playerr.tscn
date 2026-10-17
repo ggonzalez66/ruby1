@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" path="res://movimiento.gd" id="1_8x1c5"]
 [ext_resource type="Script" path="res://camera_rig.gd" id="3_camera"]
-[ext_resource type="Texture2D" path="res://assets/sprites/player/reng_shadow.png" id="2_shadow"]
+[ext_resource type="Texture2D" path="res://assets/sprites/player/viridy/viridy_shadow.png" id="2_shadow"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_65urh"]
 size = Vector2(20, 28)

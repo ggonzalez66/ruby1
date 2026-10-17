@@ -38,7 +38,7 @@ func _run() -> void:
 
 	print("== Animaciones nuevas")
 	var sprite_frames: SpriteFrames = player.animated_sprite.sprite_frames
-	var expected := {"idle": [6, "rengar_standing"], "proud": [4, "reng_standingProud"], "walk": [8, "reng_walkingNew"], "sprint": [3, "reng_sprintingNEW"], "wallride": [5, "reng_wallrun"], "mantle": [1, "reng_mantling"], "wall_slide": [1, "reng_cling_wallNEW"], "charge": [1, "reng_dashattackNEW"], "jump": [3, "reng_jumpingNEW3"], "jump_squat": [1, "reng_jumpingNEW1"], "fall": [1, "reng_jumpingNEW3"], "roar": [1, "reng_aerialStallNEW"], "backflip": [1, "reng_backflipNEW"], "uppercut": [1, "reng_uppercutNEW"], "wall_jump": [1, "reng_jump_off_wall"], "long_jump": [1, "reng_jump_off_wall"], "heavy_aerial": [1, "reng_heavy_aerialNEW1"]}
+	var expected := {"idle": [6, "viridy_idle"], "proud": [4, "viridy_proud"], "walk": [8, "viridy_walk"], "sprint": [3, "viridy_sprint"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_attack"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [1, "viridy_heavy_aerial"]}
 	for anim in expected:
 		var texture := sprite_frames.get_frame_texture(anim, 0)
 		var path: String = texture.atlas.resource_path if texture is AtlasTexture else texture.resource_path
@@ -60,7 +60,7 @@ func _run() -> void:
 	# Ningún frame se mete en la celda del vecino: los bordes laterales de cada región (salvo el borde de la
 	# hoja) tienen que estar vacíos; si no, se ve un pedazo del frame de al lado (pasó con el sprint).
 	# Las hojas viejas de golpes ligeros y pesado tocan el borde sin cruzarlo, se dejan fuera.
-	var touching_ok := ["reng-heavy.png", "reng_light_hits-sheet.png"]
+	var touching_ok := ["viridy_ground_heavy.png", "viridy_light_hits.png"]
 	var images := {}
 	for anim in sprite_frames.get_animation_names():
 		for i in range(sprite_frames.get_frame_count(anim)):
@@ -125,7 +125,7 @@ func _run() -> void:
 	var knife: Node2D = load("res://knife.gd").new()
 	level.add_child(knife)
 	await frames(1)
-	check(knife.sprite.texture.resource_path.ends_with("reng_knifeNEW.png"), "usa el sprite nuevo")
+	check(knife.sprite.texture.resource_path.ends_with("viridy_knife.png"), "usa el sprite nuevo")
 	var length: float = knife.KNIFE_REGION.size.length() * knife.VISUAL_SCALE
 	check(length > 52.0 and length < 64.0, "un 30 %% más largo que antes (%.0f px)" % length)
 	var target: Node2D = load("res://training_dummy.tscn").instantiate()

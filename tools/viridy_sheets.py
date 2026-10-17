@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Arma las hojas de Viridy: transforma con tools/viridy.py cada región que el juego usa de las hojas de Rengar
-y la pega en una hoja nueva del mismo tamaño y con las mismas posiciones (assets/sprites/player/viridy/),
-para que movimiento.gd solo tenga que cambiar la ruta.
+"""Arma las hojas de Viridy: transforma con tools/viridy.py cada región que el juego usa de las hojas de Viridy,
+partiendo de la hoja de Rengar equivalente (assets/sprites/player/rengar/, mismo tamaño y mismas regiones),
+y la guarda en assets/sprites/player/viridy/.
 
 Las regiones salen de Godot (una línea "R|animación|frame|res://hoja|x|y|ancho|alto" por frame). Cada frame
 transformado se guarda en --trabajo; si ya existe se reutiliza, así que se puede cortar y volver a lanzar.
@@ -22,8 +22,22 @@ import viridy  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUTPUT_DIR = os.path.join(ROOT, "assets", "sprites", "player", "viridy")
+SOURCE_DIR = os.path.join(ROOT, "assets", "sprites", "player", "rengar")
+# Hoja de Viridy -> hoja de Rengar de la que sale (mismo tamaño y mismas regiones).
+SOURCES = {
+    "viridy_idle.png": "rengar_standing.png", "viridy_proud.png": "reng_standingProud.png",
+    "viridy_walk.png": "reng_walkingNew.png", "viridy_sprint.png": "reng_sprintingNEW.png",
+    "viridy_mantle.png": "reng_mantling.png", "viridy_dash_attack.png": "reng_dashattackNEW.png",
+    "viridy_wall_cling.png": "reng_cling_wallNEW.png", "viridy_wallrun.png": "reng_wallrun.png",
+    "viridy_roar.png": "reng_aerialStallNEW.png", "viridy_backflip.png": "reng_backflipNEW.png",
+    "viridy_uppercut.png": "reng_uppercutNEW.png", "viridy_wall_jump.png": "reng_jump_off_wall.png",
+    "viridy_jump_squat.png": "reng_jumpingNEW1.png", "viridy_jump.png": "reng_jumpingNEW3.png",
+    "viridy_heavy_aerial.png": "reng_heavy_aerialNEW1.png", "viridy_light_hits.png": "reng_light_hits-sheet.png",
+    "viridy_ground_heavy.png": "reng-heavy.png", "viridy_spin.png": "reng_aerial_spinning-sheet.png",
+    "viridy_dash.png": "reng_dash_1.png", "viridy_sprint_brake.png": "reng_uppercut-sheet.png",
+}
 # Hojas viejas (sprites de antes de la renovación); van aparte con --viejas.
-SKIP = {"reng_light_hits-sheet.png", "reng-heavy.png", "reng_aerial_spinning-sheet.png", "reng_uppercut-sheet.png", "reng_dash_1.png"}
+SKIP = {"viridy_light_hits.png", "viridy_ground_heavy.png", "viridy_spin.png", "viridy_sprint_brake.png", "viridy_dash.png"}
 BORDER = 2  # px que se dejan vacíos en el borde de cada región (que nada asome a la celda vecina)
 # Blanco que sobra del fondo de SD dentro del dibujo (encerrado entre piernas, suelo, armadura...).
 WHITE = 232
@@ -75,7 +89,7 @@ def read_regions(path, old_only=False):
             continue
         _, animation, index, resource, x, y, width, height = line.strip().split("|")
         name = resource.split("/")[-1]
-        if (name in SKIP) != old_only:
+        if name not in SOURCES or (name in SKIP) != old_only:
             continue
         region = (int(x), int(y), int(width), int(height))
         sheets.setdefault(name, {}).setdefault(region, f"{animation}{index}")
@@ -117,7 +131,7 @@ def main():
     done = 0
     started = time.time()
     for name, regions in sorted(sheets.items()):
-        source = Image.open(os.path.join(ROOT, "assets", "sprites", "player", name)).convert("RGBA")
+        source = Image.open(os.path.join(SOURCE_DIR, SOURCES[name])).convert("RGBA")
         sheet = Image.new("RGBA", source.size, (0, 0, 0, 0))
         stem = os.path.splitext(name)[0].replace(" ", "_")
         for (x, y, width, height), label in sorted(regions.items()):

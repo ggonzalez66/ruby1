@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Normaliza una hoja de sprites de Rengar (por ejemplo, generada por IA) al formato estándar del juego.
+"""Normaliza una hoja de sprites de Viridy (por ejemplo, generada por IA) al formato estándar del juego.
 
-Formato estándar: una fila de celdas de 768x768 px, fondo transparente, Rengar de pie mide 384 px, los
+Formato estándar: una fila de celdas de 768x768 px, fondo transparente, Viridy de pie mide 384 px, los
 pies de cada frame en la línea y = 704 y al menos 48 px libres a los lados y arriba. Ningún frame se mete
 en la celda del vecino.
 
@@ -9,11 +9,11 @@ Qué hace con la hoja de entrada (da igual su tamaño o cómo estén repartidos 
   1. Quita el ruido invisible (píxeles casi transparentes) y, con --quitar-fondo, un fondo de color liso.
   2. Separa cada frame por sus manchones de píxeles (aunque se pisen las "celdas" de la IA) y le asigna
      el polvo, chispas y trozos sueltos al frame más cercano.
-  3. Escala toda la hoja con un único factor para que Rengar quede del tamaño del juego (--animacion o --alto).
+  3. Escala toda la hoja con un único factor para que Viridy quede del tamaño del juego (--animacion o --alto).
   4. Centra cada frame en su celda y apoya los pies en la línea de suelo.
 
 Uso (desde la raíz del proyecto):
-  python3 tools/normalize_sheet.py hoja_ia.png assets/sprites/player/reng_sprint.png --frames 3 --animacion sprint
+  python3 tools/normalize_sheet.py hoja_ia.png assets/sprites/player/viridy/viridy_sprint.png --frames 3 --animacion sprint
   python3 tools/normalize_sheet.py hoja_ia.png salida.png --frames 8 --filas 2 --alto 330 --vista-previa vista.png
 
 Al terminar imprime la línea para movimiento.gd.
@@ -31,7 +31,7 @@ BASELINE = 704
 MARGIN = 48
 OPAQUE = 20  # alfa mínimo para contar un píxel como dibujo
 CHARACTER_VISUAL_SCALE = 0.18  # el de movimiento.gd
-# Escala en el juego de una hoja normalizada: Rengar de pie (384 px) mide lo mismo que la idle actual.
+# Escala en el juego de una hoja normalizada: Viridy de pie (384 px) mide lo mismo que la idle actual.
 IN_GAME_SCALE = 68.25 / STANDING_HEIGHT
 
 # Alto del cuerpo del frame más alto de cada animación, en px de la hoja normalizada, para que se vea
@@ -118,7 +118,7 @@ def remove_background(image, tolerance):
 
 def main():
     sys.stdout.reconfigure(line_buffering=True)
-    parser = argparse.ArgumentParser(description="Normaliza una hoja de sprites de Rengar al formato del juego.")
+    parser = argparse.ArgumentParser(description="Normaliza una hoja de sprites de Viridy al formato del juego.")
     parser.add_argument("entrada")
     parser.add_argument("salida")
     parser.add_argument("--frames", type=int, required=True, help="cuántos frames tiene la hoja")

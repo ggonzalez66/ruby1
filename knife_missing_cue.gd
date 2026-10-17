@@ -4,7 +4,7 @@ extends Node2D
 # rojo, una flecha que apunta hacia donde quedó y la tecla para llamarlo. Aparece con un pequeño
 # rebote y se desvanece solo.
 
-const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_knifeNEW.png")
+const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_knife.png")
 const KNIFE_REGION := Rect2(141, 138, 958, 1038)
 const LIFETIME := 0.8
 const WARN_COLOR := Color(1.0, 0.25, 0.2)

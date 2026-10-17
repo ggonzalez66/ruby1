@@ -8,7 +8,7 @@ extends Node2D
 #   contra el último enemigo en que estuvo clavado y se vuelve a enterrar; así se encadenan.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
-const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_knifeNEW.png")
+const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_knife.png")
 const KNIFE_REGION := Rect2(141, 138, 958, 1038)
 # En el sprite la punta apunta hacia arriba a la izquierda (unos -138°).
 const TIP_ANGLE := -2.30
