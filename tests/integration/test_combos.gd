@@ -130,7 +130,10 @@ func _run() -> void:
 	check(abs(angle_before - player.animated_sprite.rotation) > 1.0, "y gira rápido (%.1f rad en 4 frames)" % abs(angle_before - player.animated_sprite.rotation))
 	check(player.screw_embers.emitting, "con brasas de fuego verde")
 	var fire_line: Line2D = player.effect_strokes[0][1]
-	check(player.attack_effects.visible and fire_line.visible and fire_line.gradient.get_color(1).g > 0.8 and fire_line.gradient.get_color(1).r < 0.5, "y llamas verdes girando alrededor")
+	var flame: Color = fire_line.gradient.get_color(1)
+	check(player.attack_effects.visible and fire_line.visible and Color(flame, 1.0).is_equal_approx(Color(F.style_color(), 1.0)), "y llamas del color del rango girando alrededor (%s)" % flame.to_html(false))
+	var ember_mid: Color = player.screw_embers.color_ramp.get_color(1)
+	check(ember_mid.is_equal_approx(F.style_color()), "las brasas también")
 	await frames(40)
 	check(not player.screw_embers.emitting, "al terminar el giro se apagan las brasas")
 	release_all()
@@ -191,6 +194,51 @@ func _run() -> void:
 	await frames(10)
 	check(victim.current_health < victim_health, "y el tajo conecta con el enemigo de delante")
 	victim.queue_free()
+
+	print("== Uppercut corriendo contra una pared: wallrun")
+	await reset()
+	var wall: StaticBody2D = load("res://platform.gd").new()
+	wall.size = Vector2(60, 600)
+	wall.position = GROUND + Vector2(900, -300)
+	level.add_child(wall)
+	await frames(2)
+	await start_sprinting()
+	var gap: float = wall.global_position.x - 30.0 - player.global_position.x
+	check(player.is_sprinting and gap > 40.0, "corriendo hacia la pared (a %.0f px)" % gap)
+	for i in range(60):
+		await frames(1)
+		if wall.global_position.x - 30.0 - player.global_position.x < 70.0:
+			break
+	Input.action_press("move_up")
+	await frames(2)
+	Input.action_press("heavy_attack")
+	await frames(2)
+	Input.action_release("heavy_attack")
+	Input.action_release("move_up")
+	var saw_uppercut := false
+	var saw_wallride := false
+	for i in range(40):
+		await frames(1)
+		saw_uppercut = saw_uppercut or player.attack_mode == player.ATTACK_UPPERCUT
+		if player.wallride_active:
+			saw_wallride = true
+			break
+	check(saw_uppercut, "sale el uppercut corriendo")
+	check(saw_wallride, "y al tocar la pared empieza el wallrun")
+	release_all()
+	wall.queue_free()
+
+	print("== Tras el uppercut: aerial stall")
+	await reset()
+	await tap_up_heavy()
+	await frames(int((player.light_uppercut_duration + 0.35) * 60.0) + 4)
+	check(not player.is_on_floor() and player.animated_sprite.animation == &"aerial_stall", "al terminar el uppercut queda en aerial stall (%s)" % player.animated_sprite.animation)
+	for i in range(120):
+		await frames(1)
+		if player.is_on_floor():
+			break
+	await frames(2)
+	check(player.is_on_floor() and player.animated_sprite.animation != &"aerial_stall", "y al aterrizar lo deja")
 
 	print("== El buffer caduca")
 	await reset()

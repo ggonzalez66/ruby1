@@ -145,8 +145,8 @@ func _update_runner(delta: float) -> void:
 	run_time += delta
 	runner.frame = int(run_time * RUN_FPS) % runner.hframes
 	runner.position = Vector2(camera.position.x + RUNNER_SCREEN_X, GROUND_Y - SPRINT_REGION.size.y * RUN_SCALE * 0.5)
-	# Brillo de imparable: el mismo parpadeo oro solar / menta que en el juego.
-	var flash: Dictionary = Ferocity.unstoppable_flash()
+	# Brillo de imparable: el mismo parpadeo que en el juego, con el color del rango del corredor.
+	var flash: Dictionary = Ferocity.unstoppable_flash(Ferocity.RANKS[RUN_RANK]["color"])
 	runner_material.set_shader_parameter("glow_color", flash["color"])
 	runner_material.set_shader_parameter("glow_amount", flash["amount"])
 	afterimage_timer -= delta

@@ -60,8 +60,8 @@ const EFFECT_ARC_SEGMENTS := 16
 # Capas de cada trazo de efecto: contorno, cuerpo y núcleo brillante.
 const EFFECT_PALETTE_SILVER: Array[Color] = [Color(0.2, 0.22, 0.3), Color(0.74, 0.79, 0.88), Color(1.0, 1.0, 1.0)]
 const EFFECT_PALETTE_GOLD: Array[Color] = [Color(0.32, 0.16, 0.03), Color(1.0, 0.7, 0.14), Color(1.0, 0.97, 0.72)]
-# Fuego verde del giro (screw attack): borde oscuro, llama y núcleo casi blanco.
-const EFFECT_PALETTE_GREEN_FIRE: Array[Color] = [Color(0.03, 0.2, 0.09), Color(0.3, 0.95, 0.42), Color(0.86, 1.0, 0.76)]
+# El fuego del giro (screw attack) toma el color del rango de estilo: borde oscuro, llama y núcleo claro
+# (ver _style_fire_palette).
 # Vueltas por segundo del sprite durante el giro.
 const SCREW_SPIN_TURNS_PER_SECOND := 6.0
 const ANIMATION_IDLE := &"idle"
@@ -481,6 +481,8 @@ var attack_buffered := false
 var combo_buffer: StringName = &""
 var combo_buffer_timer := 0.0
 var uppercut_chain_timer := 0.0
+# Tras el uppercut (y su pose de subida) queda en aerial stall hasta aterrizar o hacer otra cosa.
+var uppercut_stall := false
 var running_attack_cooldown_timer := 0.0
 var air_uppercut_available := true
 var heavy_air_speed := 0.0
@@ -717,7 +719,7 @@ func _physics_process(delta: float) -> void:
 
 	# El ataque en carrera aéreo (y su giro) contra una pared, manteniendo correr, entra en el wallride
 	# sin perder el flow.
-	var attack_into_wall: bool = is_on_wall() and not is_on_floor() and Input.is_action_pressed("dash") and (attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_SPIN) and int(sign(get_wall_normal().x)) == -facing
+	var attack_into_wall: bool = is_on_wall() and not is_on_floor() and Input.is_action_pressed("dash") and (attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_UPPERCUT) and int(sign(get_wall_normal().x)) == -facing
 	if attack_into_wall:
 		_cancel_attack_for_chain()
 	if is_on_wall() and not is_on_floor() and (_uses_sprint_movement() or attack_into_wall):
@@ -920,6 +922,11 @@ func _update_character_animation() -> void:
 	var next_animation: StringName
 	if not is_on_floor():
 		brake_pending = false
+	# El aerial stall del uppercut se corta al aterrizar o al pasar a cualquier otra cosa.
+	if uppercut_stall and (is_on_floor() or roar_active or mantle_active or wallride_active or wall_cling_timer > 0.0 \
+			or wall_embedded or dash_timer > 0.0 or frontflip_active or backflip_active or long_jump_active \
+			or (attack_mode != ATTACK_NONE and attack_mode != ATTACK_UPPERCUT)):
+		uppercut_stall = false
 	if roar_active:
 		# El grito durante los frames explosivos (y un mínimo para que se vea); luego la guardia.
 		var shouting: bool = roar_explosive_timer > 0.0 or roar_elapsed < ROAR_SHOUT_TIME
@@ -962,6 +969,8 @@ func _update_character_animation() -> void:
 	elif uppercut_pose_timer > 0.0 and not is_on_floor() and velocity.y < 0.0:
 		# Tras el golpe del uppercut se mantiene la pose mientras sube.
 		next_animation = ANIMATION_UPPERCUT
+	elif uppercut_stall and attack_mode == ATTACK_NONE and not is_on_floor():
+		next_animation = ANIMATION_AERIAL_STALL
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
 	elif is_sprinting and sprint_turn_timer > 0.0:
@@ -998,8 +1007,11 @@ func _update_character_animation() -> void:
 		animated_sprite.play(next_animation)
 	_align_character_animation(next_animation)
 	_update_character_orientation(next_animation)
-	mane_emitter.follow(animated_sprite, facing, not dead)
+	var style_color: Color = Ferocity.style_color()
+	mane_emitter.follow(animated_sprite, facing, not dead, style_color)
 	screw_embers.emitting = attack_mode == ATTACK_SPIN and not dead
+	if screw_embers.emitting:
+		_set_screw_embers_color(style_color)
 	screw_embers.position = animated_sprite.position
 	shadow.visible = is_on_floor()
 
@@ -1019,13 +1031,21 @@ func _create_screw_embers() -> void:
 	screw_embers.initial_velocity_max = 70.0
 	screw_embers.scale_amount_min = 2.0
 	screw_embers.scale_amount_max = 4.0
-	var fade := Gradient.new()
-	fade.set_color(0, EFFECT_PALETTE_GREEN_FIRE[2])
-	fade.set_color(1, Color(EFFECT_PALETTE_GREEN_FIRE[0], 0.0))
-	fade.add_point(0.35, EFFECT_PALETTE_GREEN_FIRE[1])
-	screw_embers.color_ramp = fade
 	screw_embers.z_index = 1
+	_set_screw_embers_color(Ferocity.style_color())
 	add_child(screw_embers)
+
+func _style_fire_palette(color: Color) -> Array[Color]:
+	return [color.darkened(0.78), color, color.lerp(Color.WHITE, 0.7)]
+
+func _set_screw_embers_color(color: Color) -> void:
+	if screw_embers.color_ramp and screw_embers.color_ramp.get_color(1).is_equal_approx(color):
+		return
+	var palette: Array[Color] = _style_fire_palette(color)
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+	ramp.colors = PackedColorArray([palette[2], palette[1], Color(palette[0], 0.0)])
+	screw_embers.color_ramp = ramp
 
 func _is_braking() -> bool:
 	# Frenando la carrera en el suelo: ya no corre pero aún va más rápido que andando.
@@ -1178,6 +1198,7 @@ func _consume_jump_buffer() -> void:
 
 	jump_buffer_timer = 0.0
 	air_jumps_remaining -= 1
+	uppercut_stall = false
 	if velocity.y < jump_velocity:
 		# Ya sube más rápido que un salto (p. ej. tras un uppercut): el doble salto suma un
 		# empujón en vez de frenar la subida.
@@ -2652,6 +2673,7 @@ func _start_uppercut_attack(from_air: bool) -> void:
 	coyote_timer = 0.0
 	uppercut_pose_timer = 0.35
 	uppercut_chain_timer = light_uppercut_duration + UPPERCUT_CHAIN_WINDOW
+	uppercut_stall = true
 	jump_squat_timer = 0.0
 	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
 	velocity.y = light_uppercut_velocity
@@ -2968,8 +2990,9 @@ func _effect_uppercut() -> void:
 	_set_effect_stroke(2, streak, 7.0, EFFECT_PALETTE_GOLD, 0.9)
 
 func _effect_spin() -> void:
-	# Screw attack: tres medias lunas de fuego verde que envuelven el cuerpo, giran más rápido que el
-	# sprite y titilan como llamas.
+	# Screw attack: tres medias lunas de fuego (del color del rango de estilo) que envuelven el cuerpo,
+	# giran más rápido que el sprite y titilan como llamas.
+	var fire: Array[Color] = _style_fire_palette(Ferocity.style_color())
 	var progress: float = 1.0 - (attack_timer / spin_attack_duration)
 	var elapsed: float = spin_attack_duration - attack_timer
 	var head: float = elapsed * TAU * SCREW_SPIN_TURNS_PER_SECOND * 1.35
@@ -2979,7 +3002,7 @@ func _effect_spin() -> void:
 		var radius := Vector2(34.0 + index * 5.0 + flicker * 3.0, 30.0 + index * 4.0 + flicker * 2.0)
 		var stroke_head: float = head + index * TAU / 3.0
 		var width: float = 10.0 - index * 1.5 + flicker * 2.5
-		_set_effect_stroke(index, _effect_arc_points(Vector2(0.0, 2.0), radius, stroke_head - deg_to_rad(150.0), stroke_head), width, EFFECT_PALETTE_GREEN_FIRE, alpha * (0.8 + 0.2 * flicker))
+		_set_effect_stroke(index, _effect_arc_points(Vector2(0.0, 2.0), radius, stroke_head - deg_to_rad(150.0), stroke_head), width, fire, alpha * (0.8 + 0.2 * flicker))
 
 # Tajo del heavy de suelo: el cuchillo baja desde encima y detrás de la cabeza hasta el suelo delante.
 const GROUND_CHOP_CENTER := Vector2(6.0, -22.0)
@@ -3610,6 +3633,7 @@ func _respawn_player() -> void:
 	proud_cycle_timer = 0.0
 	brake_recover_timer = 0.0
 	brake_pending = false
+	uppercut_stall = false
 	flip_streak = 0
 	jump_squat_timer = 0.0
 	uppercut_pose_timer = 0.0

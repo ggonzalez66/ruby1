@@ -35,9 +35,7 @@ const RANKS := [
 	{"letter": "SSS", "name": "SUPREMACÍA", "rest": "upremacía", "color": Color(1.0, 0.18, 0.4)},
 ]
 const UNSTOPPABLE_RANK := 3
-# Destello de imparable de Viridy: oro solar (el león verde devora el sol) alternando con menta alquímica.
-const UNSTOPPABLE_GOLD := Color(1.0, 0.82, 0.3)
-const UNSTOPPABLE_MINT := Color(0.75, 1.0, 0.8)
+# Destello de imparable: alterna el color del rango de estilo y una versión más clara de ese color.
 const UNSTOPPABLE_FLASH_MS := 50
 const MAX_POINTS := RANK_POINTS * 7.0 - 0.01
 # Puntos por segundo al correr a toda velocidad: llenan la barra, pero no suben de rango.
@@ -148,10 +146,19 @@ func impact_multiplier() -> float:
 func is_unstoppable() -> bool:
 	return unstoppable
 
-func unstoppable_flash() -> Dictionary:
-	# Color y fuerza del brillo de imparable en este instante (cambia cada UNSTOPPABLE_FLASH_MS).
-	var gold: bool = int(Time.get_ticks_msec() / UNSTOPPABLE_FLASH_MS) % 2 == 0
-	return {"color": UNSTOPPABLE_GOLD if gold else UNSTOPPABLE_MINT, "amount": 0.7 if gold else 0.6}
+func style_color() -> Color:
+	# Color del rango de estilo actual (tiñe el fuego del giro, la melena y el destello de imparable).
+	return rank_info()["color"]
+
+func style_light(color: Color) -> Color:
+	return color.lerp(Color.WHITE, 0.6)
+
+func unstoppable_flash(color: Variant = null) -> Dictionary:
+	# Color y fuerza del brillo de imparable en este instante (cambia cada UNSTOPPABLE_FLASH_MS):
+	# el color del rango (o el que se pase) y su versión clara.
+	var base: Color = style_color() if color == null else color
+	var light: bool = int(Time.get_ticks_msec() / UNSTOPPABLE_FLASH_MS) % 2 == 0
+	return {"color": style_light(base) if light else base, "amount": 0.75 if light else 0.6}
 
 func rank_info(index: int = -1) -> Dictionary:
 	return RANKS[rank if index < 0 else index]

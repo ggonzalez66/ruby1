@@ -1,16 +1,15 @@
 extends CPUParticles2D
 
-# Melena evanescente de Viridy: motas verdes que se desprenden de la melena, suben y se quedan atrás
-# (en coordenadas del mundo) al moverse. La zona de la melena sale del contorno del frame que se está
+# Melena evanescente de Viridy: motas del color del rango de estilo que se desprenden de la melena, suben
+# y se quedan atrás (en coordenadas del mundo) al moverse. La zona de la melena sale del contorno del frame que se está
 # dibujando (arriba y hacia atrás), así sirve para cualquier animación, volteada o girando.
 
-const MANE_COLOR := Color(0.62, 0.95, 0.6, 0.85)
-const MANE_GLOW := Color(0.85, 1.0, 0.8, 0.95)
 # Dentro del contorno visible del frame (0..1): centro y medio tamaño de la zona de la melena.
 const MANE_CENTER := Vector2(0.42, 0.22)
 const MANE_HALF_SIZE := Vector2(0.22, 0.14)
 
 var _bounds_cache := {}
+var _color := Color.TRANSPARENT
 var _atlas_images := {}
 
 func _init() -> void:
@@ -27,13 +26,21 @@ func _init() -> void:
 	damping_max = 10.0
 	scale_amount_min = 1.0
 	scale_amount_max = 2.5
-	var fade := Gradient.new()
-	fade.set_color(0, MANE_GLOW)
-	fade.set_color(1, Color(MANE_COLOR, 0.0))
-	fade.add_point(0.35, MANE_COLOR)
-	color_ramp = fade
+	set_style_color(Color(0.45, 0.75, 1.0))
 
-func follow(sprite: AnimatedSprite2D, facing: float, active: bool) -> void:
+func set_style_color(color: Color) -> void:
+	if color.is_equal_approx(_color):
+		return
+	_color = color
+	var glow: Color = color.lerp(Color.WHITE, 0.55)
+	var ramp := Gradient.new()
+	ramp.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+	ramp.colors = PackedColorArray([Color(glow, 0.95), Color(color, 0.85), Color(color, 0.0)])
+	color_ramp = ramp
+
+func follow(sprite: AnimatedSprite2D, facing: float, active: bool, color: Color = Color.TRANSPARENT) -> void:
+	if color.a > 0.0:
+		set_style_color(color)
 	emitting = active and sprite.visible
 	if not emitting:
 		return

@@ -166,6 +166,7 @@ func _run() -> void:
 	check(abs(amount - 0.6 * 0.85) < 0.03, "se tiñe de rojo según el desgaste (%.2f)" % amount)
 
 	print("== Melena evanescente (emisor)")
+	F.reset()
 	release_all()
 	player._respawn_player()
 	player.global_position = GROUND
@@ -194,8 +195,15 @@ func _run() -> void:
 	player._respawn_player()
 	await frames(3)
 	check(mane.emitting, "y vuelve al reaparecer")
+	for rank in [0, 5]:
+		F.points = rank * F.RANK_POINTS + 1.0
+		F.rank = rank
+		await frames(2)
+		var mid: Color = mane.color_ramp.get_color(1)
+		check(Color(mid, 1.0).is_equal_approx(Color(F.RANKS[rank]["color"], 1.0)), "con rango %s la melena es de su color (%s)" % [F.RANKS[rank]["letter"], mid.to_html(false)])
+	F.reset()
 
-	print("== Destello de imparable (oro solar / menta)")
+	print("== Destello de imparable (color del rango de estilo)")
 	player.riposte_timer = 0.0
 	player.unstoppable_glow = true
 	var seen_colors := {}
@@ -203,7 +211,8 @@ func _run() -> void:
 		player._update_riposte_visual()
 		var glow: Color = player.charge_glow_material.get_shader_parameter("glow_color")
 		seen_colors[glow.to_html()] = true
-		check(glow.is_equal_approx(F.UNSTOPPABLE_GOLD) or glow.is_equal_approx(F.UNSTOPPABLE_MINT), "destello %d: oro o menta (%s)" % [i, glow.to_html()])
+		var rank_color: Color = F.style_color()
+		check(glow.is_equal_approx(rank_color) or glow.is_equal_approx(F.style_light(rank_color)), "destello %d: color del rango o su versión clara (%s)" % [i, glow.to_html()])
 		OS.delay_msec(30)
 	check(seen_colors.size() == 2, "alterna entre los dos colores")
 	var trail: Color = player.afterimage_unstoppable_material.get_shader_parameter("glow_color")
