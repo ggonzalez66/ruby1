@@ -88,8 +88,9 @@ const ANIMATION_ROAR_HOLD := &"roar_hold"
 const ANIMATION_AERIAL_STALL := &"aerial_stall"
 # Intermedio al terminar de frenar, antes de quedarse quieto.
 const ANIMATION_BRAKE_RECOVER := &"brake_recover"
-# Rugido con onda al entrar en la pose orgullosa.
+# Rugido con onda al entrar en la pose orgullosa; luego un ciclo de la pose y, en bucle, sus 2 últimos frames.
 const ANIMATION_PROUD_ROAR := &"proud_roar"
+const ANIMATION_PROUD_LOOP := &"proud_loop"
 const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
@@ -104,6 +105,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_IDLE: 0.854,
 	ANIMATION_PROUD: 0.987,
 	ANIMATION_PROUD_ROAR: 0.987,
+	ANIMATION_PROUD_LOOP: 0.987,
 	ANIMATION_WALK: 1.05,
 	ANIMATION_JUMP: 0.65,
 	ANIMATION_JUMP_SQUAT: 0.556,
@@ -133,9 +135,9 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_BRAKE_RECOVER: 0.514,
 }
 
-# Flips: el frontflip da la vuelta en el 70 % del vuelo (luego queda en aerial stall); el backflip, un
-# poco más rápido que el vuelo entero. Desde el 2º flip seguido, cada giro va más rápido.
-const FRONTFLIP_SPIN_FRACTION := 0.7
+# Flips: el frontflip da la vuelta en todo el vuelo; el backflip, un poco más rápido (y luego aerial
+# stall). Desde el 2º flip seguido, cada giro va más rápido. Al acabar la vuelta, aerial stall.
+const FRONTFLIP_SPIN_FRACTION := 1.0
 const BACKFLIP_SPIN_FRACTION := 0.85
 const CHAINED_FLIP_SPIN := 0.65
 # Rugido: el grito se ve al menos este tiempo antes de pasar a la guardia.
@@ -143,7 +145,21 @@ const ROAR_SHOUT_TIME := 0.3
 # Intermedio al terminar de frenar y rugido al entrar en la pose orgullosa.
 const BRAKE_RECOVER_TIME := 0.2
 const PROUD_ROAR_TIME := 0.7
+const PROUD_FPS := 4.0
 const PROUD_WAVE_COLOR := Color(0.62, 0.95, 0.6)
+
+# Uppercut: cuánto por delante de Viridy y como mínimo cuánto más arriba deja al enemigo, cuánto tarda
+# en subir y cuánto flota.
+const UPPERCUT_LAUNCH_AHEAD := 46.0
+const UPPERCUT_LAUNCH_HEIGHT := 200.0
+const UPPERCUT_LAUNCH_RISE := 0.42
+const UPPERCUT_LAUNCH_HANG := 0.4
+
+# Buffer de combate: un ataque pulsado cuando aún no puede salir se guarda este tiempo y sale en
+# cuanto pueda (p. ej. el pesado durante el giro sale al abrirse su ventana de cancelación).
+const COMBO_BUFFER_TIME := 0.3
+# Tras el uppercut, en el aire, el pesado o el ataque lo cancelan sin esperar al enfriamiento.
+const UPPERCUT_CHAIN_WINDOW := 0.45
 
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
@@ -231,7 +247,7 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var light_hit_scale := 1.3
 @export var spin_attack_duration := 0.34
 @export var spin_heavy_cancel_window := 0.12
-@export var light_uppercut_duration := 0.08
+@export var light_uppercut_duration := 0.24
 @export var light_uppercut_velocity := -980.0
 @export var light_uppercut_forward_speed := 260.0
 @export var ground_heavy_duration := 0.14
@@ -403,6 +419,7 @@ var jump_squat_timer := 0.0
 var uppercut_pose_timer := 0.0
 var proud_active := false
 var proud_roar_timer := 0.0
+var proud_cycle_timer := 0.0
 var brake_recover_timer := 0.0
 # Viene frenando la carrera sin pulsar dirección: mantiene la pose hasta pararse y luego el intermedio.
 var brake_pending := false
@@ -457,6 +474,9 @@ var wall_visual_direction := 0
 var attack_mode := ATTACK_NONE
 # Ataque pulsado durante el dash: sale al terminarlo.
 var attack_buffered := false
+var combo_buffer: StringName = &""
+var combo_buffer_timer := 0.0
+var uppercut_chain_timer := 0.0
 var running_attack_cooldown_timer := 0.0
 var air_uppercut_available := true
 var heavy_air_speed := 0.0
@@ -589,14 +609,20 @@ func _physics_process(delta: float) -> void:
 				dash_jump_buffered = true
 
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
-		_on_attack_input()
+		if _in_uppercut_chain():
+			_request_combat_action(&"attack")
+		else:
+			_on_attack_input()
 
 	if Input.is_action_just_pressed("heavy_attack"):
 		# Tras un parry, el pesado cancela el rugido para contraatacar al instante.
 		if roar_active and riposte_timer > 0.0:
 			_end_roar()
 		if not _blocks_actions():
-			_start_heavy_attack()
+			_request_combat_action(&"uppercut" if Input.is_action_pressed("move_up") else &"heavy")
+
+	if combo_buffer != &"" and not _blocks_actions() and _try_combat_action(combo_buffer):
+		combo_buffer = &""
 
 	if Input.is_action_just_pressed("throw_knife") and not stunned:
 		_on_knife_input(move_input)
@@ -747,6 +773,7 @@ func _update_proud(delta: float, move_input: float) -> void:
 
 func _start_proud_roar() -> void:
 	proud_roar_timer = PROUD_ROAR_TIME
+	proud_cycle_timer = PROUD_ROAR_TIME + 3.0 / PROUD_FPS
 	Fx.roar_wave(get_parent(), global_position + Vector2(facing * 6.0, -40.0), global_position, PROUD_WAVE_COLOR)
 
 func _update_movement_fx(delta: float, was_on_floor: bool, air_jumps_before: int, fall_speed: float) -> void:
@@ -785,7 +812,8 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_IDLE, STANDING_SHEET, Vector2(543, 724), 616, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(2, 0), Vector2i(1, 0)], 5.0, true)
 	# Orgulloso (hoja normalizada de 768 px): el 1er frame es el rugido de entrada; los otros 3, respirando.
 	_add_grid_animation(frames, ANIMATION_PROUD_ROAR, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(0, 0)], 1.0, false)
-	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(2, 0)], 4.0, true)
+	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, false)
+	_add_grid_animation(frames, ANIMATION_PROUD_LOOP, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, true)
 	_add_grid_animation(frames, ANIMATION_WALK, WALKING_SHEET, Vector2(543, 362), 358, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)], 12.0, true)
 	# Salto: el agachado al despegar (pose aparte, está dibujado a otra escala) y los 3 frames del aire.
 	_add_region_animation(frames, ANIMATION_JUMP_SQUAT, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
@@ -911,7 +939,7 @@ func _update_character_animation() -> void:
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
 	elif backflip_active:
-		next_animation = ANIMATION_BACKFLIP
+		next_animation = ANIMATION_BACKFLIP if backflip_elapsed < backflip_rotation_duration else ANIMATION_AERIAL_STALL
 	elif frontflip_active:
 		# Tras la vuelta, el aerial stall hasta aterrizar.
 		next_animation = ANIMATION_FRONTFLIP if frontflip_elapsed < frontflip_rotation_duration else ANIMATION_AERIAL_STALL
@@ -951,7 +979,12 @@ func _update_character_animation() -> void:
 		if brake_recover_timer > 0.0:
 			next_animation = ANIMATION_BRAKE_RECOVER
 		elif proud_active:
-			next_animation = ANIMATION_PROUD_ROAR if proud_roar_timer > 0.0 else ANIMATION_PROUD
+			if proud_roar_timer > 0.0:
+				next_animation = ANIMATION_PROUD_ROAR
+			elif proud_cycle_timer > 0.0:
+				next_animation = ANIMATION_PROUD
+			else:
+				next_animation = ANIMATION_PROUD_LOOP
 		else:
 			next_animation = ANIMATION_IDLE
 
@@ -1006,6 +1039,11 @@ func _update_timers(delta: float) -> void:
 	knife_throw_pose_timer = max(knife_throw_pose_timer - delta, 0.0)
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	proud_roar_timer = max(proud_roar_timer - delta, 0.0)
+	uppercut_chain_timer = max(uppercut_chain_timer - delta, 0.0)
+	combo_buffer_timer = max(combo_buffer_timer - delta, 0.0)
+	if combo_buffer_timer <= 0.0:
+		combo_buffer = &""
+	proud_cycle_timer = max(proud_cycle_timer - delta, 0.0)
 	brake_recover_timer = max(brake_recover_timer - delta, 0.0)
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
@@ -1482,6 +1520,8 @@ func _cancel_all_states() -> void:
 		_set_dash_visual_active(false)
 	if _is_attack_active():
 		_cancel_attack_for_chain()
+	combo_buffer = &""
+	uppercut_chain_timer = 0.0
 
 func _update_hurt_visual() -> void:
 	if invulnerability_timer <= 0.0:
@@ -2301,6 +2341,59 @@ func _apply_uppercut_movement(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, forward_speed, air_acceleration * 3.2 * delta)
 	_apply_gravity(delta)
 
+# ---------- Buffer de combos
+
+func _request_combat_action(kind: StringName) -> void:
+	if not _try_combat_action(kind):
+		combo_buffer = kind
+		combo_buffer_timer = COMBO_BUFFER_TIME
+
+func _try_combat_action(kind: StringName) -> bool:
+	# Devuelve si la acción salió (o se descartó con aviso); si no, se queda en el buffer.
+	match kind:
+		&"uppercut":
+			if attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window:
+				# Giro -> uppercut.
+				if not _can_start_air_uppercut():
+					return false
+				_cancel_attack_for_chain()
+				_start_uppercut_attack(true)
+				return true
+			var was_uppercut: bool = attack_mode == ATTACK_UPPERCUT
+			_try_heavy_uppercut()
+			return attack_mode == ATTACK_UPPERCUT and not was_uppercut
+		&"heavy":
+			if not has_knife:
+				_show_knife_missing()
+				return true
+			if _in_uppercut_chain():
+				# Uppercut -> heavy aéreo.
+				if not _uppercut_can_be_cancelled():
+					return false
+				_cancel_attack_for_chain()
+				attack_cooldown_timer = 0.0
+			var mode_before: int = attack_mode
+			_start_heavy_attack(false)
+			return attack_mode != mode_before and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND)
+		&"attack":
+			if _in_uppercut_chain():
+				# Uppercut -> dash attack aéreo (y de ahí, saltando, el giro).
+				if not _uppercut_can_be_cancelled():
+					return false
+				_cancel_attack_for_chain()
+				_start_light_charged_air_attack()
+				return true
+			_on_attack_input()
+			return true
+	return true
+
+func _in_uppercut_chain() -> bool:
+	return not is_on_floor() and uppercut_chain_timer > 0.0 and (attack_mode == ATTACK_UPPERCUT or not _is_attack_active())
+
+func _uppercut_can_be_cancelled() -> bool:
+	# Se deja terminar el barrido del uppercut, salvo que ya haya golpeado a alguien.
+	return attack_mode != ATTACK_UPPERCUT or not attack_targets_hit.is_empty()
+
 func _on_attack_input() -> void:
 	# Sin carga: corriendo sale el ataque en carrera (estocada que avanza); si no, el combo ligero.
 	if dash_timer > 0.0:
@@ -2410,8 +2503,8 @@ func _start_ground_charged_attack() -> void:
 	_update_attack_animation()
 	_refresh_attack_hits()
 
-func _start_heavy_attack() -> void:
-	if Input.is_action_pressed("move_up"):
+func _start_heavy_attack(allow_uppercut: bool = true) -> void:
+	if allow_uppercut and Input.is_action_pressed("move_up"):
 		_try_heavy_uppercut()
 		return
 	var canceling_from_spin: bool = attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window
@@ -2523,6 +2616,7 @@ func _start_uppercut_attack(from_air: bool) -> void:
 	# Sale del suelo por el uppercut: no hay coyote time que convierta el siguiente salto en uno de suelo.
 	coyote_timer = 0.0
 	uppercut_pose_timer = 0.35
+	uppercut_chain_timer = light_uppercut_duration + UPPERCUT_CHAIN_WINDOW
 	jump_squat_timer = 0.0
 	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
 	velocity.y = light_uppercut_velocity
@@ -3036,20 +3130,21 @@ func _animate_spin_attack() -> void:
 func _animate_uppercut_attack() -> void:
 	var progress: float = 1.0 - (attack_timer / light_uppercut_duration)
 	var arc_angle: float = lerp(-0.22, -1.72, progress)
-	var vertical_offset: float = lerp(6.0, -40.0, progress)
+	# Barre desde los pies hasta por encima de la cabeza, algo por delante: fácil de conectar.
+	var vertical_offset: float = lerp(12.0, -48.0, progress)
 	var pulse: float = 1.0 + 0.1 * sin(progress * PI * 3.6)
 
-	hitbox_shape.position = Vector2(10.0, vertical_offset)
-	hitbox_shape.scale = Vector2(1.46, 2.58)
-	slash_visual.position = Vector2(12.0, vertical_offset - 2.0)
-	slash_area_visual.position = Vector2(14.0, vertical_offset - 2.0)
-	slash_outline.position = Vector2(14.0, vertical_offset - 2.0)
+	hitbox_shape.position = Vector2(18.0, vertical_offset)
+	hitbox_shape.scale = Vector2(2.2, 3.4)
+	slash_visual.position = Vector2(18.0, vertical_offset - 2.0)
+	slash_area_visual.position = Vector2(20.0, vertical_offset - 2.0)
+	slash_outline.position = Vector2(20.0, vertical_offset - 2.0)
 	hitbox.rotation = arc_angle
 	slash_visual.rotation = arc_angle
 	slash_area_visual.rotation = arc_angle
 	slash_outline.rotation = arc_angle
-	slash_visual.scale = Vector2(1.22 * pulse, 2.18 * pulse)
-	slash_area_visual.scale = Vector2(1.46, 2.55)
+	slash_visual.scale = Vector2(1.8 * pulse, 2.9 * pulse)
+	slash_area_visual.scale = Vector2(2.2, 3.35)
 	slash_outline.scale = slash_area_visual.scale
 	slash_visual.color = Color(1.0, 0.94, 0.72, 0.96)
 	slash_area_visual.color = Color(1.0, 0.8, 0.24, 0.36)
@@ -3080,6 +3175,13 @@ func _hit_area(area: Area2D) -> void:
 		# Más estilo, más impacto: los perseguidores salen despedidos más lejos.
 		if area.get("knock_velocity") != null:
 			area.knock_velocity *= Ferocity.impact_multiplier()
+		if attack_mode == ATTACK_UPPERCUT and area.has_method("launch_to"):
+			# El uppercut lo levanta: queda en el aire delante de donde estará Viridy al subir, listo para
+			# seguir el combo (al menos UPPERCUT_LAUNCH_HEIGHT por encima de donde le pegó).
+			var t: float = UPPERCUT_LAUNCH_RISE
+			var ahead: Vector2 = global_position + Vector2(velocity.x * t, velocity.y * t + 0.5 * gravity * t * t)
+			var target := Vector2(ahead.x + facing * UPPERCUT_LAUNCH_AHEAD, min(ahead.y, global_position.y - UPPERCUT_LAUNCH_HEIGHT))
+			area.launch_to(target, UPPERCUT_LAUNCH_RISE, UPPERCUT_LAUNCH_HANG)
 		_spawn_hit_feedback(area)
 		_add_hit_style()
 		if Ferocity.rank >= SS_RANK and not rank_heal_done and attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN]:
@@ -3303,8 +3405,9 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 		return
 
 	if hit_enemy:
-		# Rebotar en un enemigo devuelve un salto aéreo, sin acumular más del máximo.
+		# Rebotar en un enemigo devuelve un salto aéreo (sin acumular más del máximo) y el uppercut del aire.
 		air_jumps_remaining = min(air_jumps_remaining + 1, max_air_jumps)
+		air_uppercut_available = true
 
 	_cancel_attack_for_chain()
 	long_jump_active = false
@@ -3439,6 +3542,7 @@ func _respawn_player() -> void:
 	still_time = 0.0
 	proud_active = false
 	proud_roar_timer = 0.0
+	proud_cycle_timer = 0.0
 	brake_recover_timer = 0.0
 	brake_pending = false
 	flip_streak = 0
@@ -3451,6 +3555,8 @@ func _respawn_player() -> void:
 	_emit_shine_changed()
 	bounce_chain = 0
 	attack_buffered = false
+	combo_buffer = &""
+	uppercut_chain_timer = 0.0
 	riposte_attack = false
 	invulnerability_timer = 0.0
 	hurt_lock_timer = 0.0

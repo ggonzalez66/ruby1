@@ -42,6 +42,14 @@ var flash_timer := 0.0
 var swing_hit_done := false
 var lunge_left := 0.0
 var spawn_position := Vector2.ZERO
+# Lanzado por un uppercut: sube hasta un punto, flota un momento y cae (esa caída no lo revienta).
+var launched := false
+var launch_elapsed := 0.0
+var launch_from := Vector2.ZERO
+var launch_target := Vector2.ZERO
+var launch_rise := 0.0
+var launch_hang := 0.0
+var juggle_fall := false
 
 var visual: Node2D
 var body_poly: Polygon2D
@@ -101,6 +109,8 @@ func _build() -> void:
 	bar.add_child(health_fill)
 
 func reset_dummy() -> void:
+	launched = false
+	juggle_fall = false
 	position = spawn_position
 	current_health = max_health
 	state = State.IDLE
@@ -123,6 +133,9 @@ func _physics_process(delta: float) -> void:
 	flash_timer = max(flash_timer - delta, 0.0)
 	state_timer -= delta
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	if launched:
+		_update_launch(delta)
+		return
 	var grounded := _apply_gravity(delta)
 	if state == State.DEAD:
 		return
@@ -177,6 +190,33 @@ func _physics_process(delta: float) -> void:
 	var blink: bool = state == State.TELEGRAPH and int(state_timer * 20.0) % 2 == 0
 	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else (WARNING_COLOR if blink else BODY_COLOR)
 
+func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
+	if state == State.DEAD:
+		return
+	launched = true
+	launch_elapsed = 0.0
+	launch_from = global_position
+	launch_target = point
+	launch_rise = max(rise_time, 0.01)
+	launch_hang = hang_time
+	knock_velocity = 0.0
+	state = State.STAGGER
+	state_timer = rise_time + hang_time + 0.3
+	warning_label.visible = false
+
+func _update_launch(delta: float) -> void:
+	launch_elapsed += delta
+	var t: float = clamp(launch_elapsed / launch_rise, 0.0, 1.0)
+	global_position = launch_from.lerp(launch_target, ease(t, 0.4))
+	visual.rotation = lerp(visual.rotation, -0.35 * facing, 8.0 * delta)
+	arm.rotation = lerp_angle(arm.rotation, 0.9, 6.0 * delta)
+	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else BODY_COLOR
+	if launch_elapsed >= launch_rise + launch_hang:
+		launched = false
+		fall_velocity = 0.0
+		fall_distance = 0.0
+		juggle_fall = true
+
 func _can_see(player: Node2D) -> bool:
 	var offset := player.global_position - global_position
 	return abs(offset.x) < detect_range and abs(offset.y) < 140.0 and player.current_health > 0
@@ -206,9 +246,10 @@ func _apply_gravity(delta: float) -> bool:
 	var query := PhysicsRayQueryParameters2D.create(global_position + Vector2(0, -4), global_position + Vector2(0, reach), 2)
 	var hit := get_world_2d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
-		if fall_distance > FALL_DEATH_HEIGHT:
+		if fall_distance > FALL_DEATH_HEIGHT and not juggle_fall:
 			_explode()
 			return true
+		juggle_fall = false
 		global_position.y = hit.position.y
 		fall_velocity = 0.0
 		fall_distance = 0.0

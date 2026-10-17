@@ -48,6 +48,9 @@ var current_health := 0
 var health_bar_full_width := 32.0
 var path_time := 0.0
 var pull_offset := Vector2.ZERO
+# Lanzado por un uppercut: sube a un punto delante de Viridy, flota y vuelve a su sitio.
+var juggle_offset := Vector2.ZERO
+var juggle_tween: Tween
 var fall_offset := 0.0
 var fall_velocity := 0.0
 var fall_distance := 0.0
@@ -64,6 +67,9 @@ func _ready() -> void:
 	reset_dummy()
 
 func reset_dummy() -> void:
+	if juggle_tween:
+		juggle_tween.kill()
+	juggle_offset = Vector2.ZERO
 	current_health = max_health
 	flash_timer = 0.0
 	wobble = 0.0
@@ -94,7 +100,7 @@ func _physics_process(delta: float) -> void:
 		_update_gravity(delta)
 		if current_health <= 0:
 			return
-	position = anchor_position + pull_offset + Vector2(0.0, fall_offset) + _get_path_offset() + Vector2(wobble * push_distance, -abs(wobble) * lift_distance)
+	position = anchor_position + pull_offset + Vector2(0.0, fall_offset) + _get_path_offset() + juggle_offset + Vector2(wobble * push_distance, -abs(wobble) * lift_distance)
 	rotation = wobble * 0.08
 	body.color = hit_color if flash_timer > 0.0 else base_color
 	if shoot_interval > 0.0:
@@ -111,6 +117,17 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 
 	if current_health == 0:
 		_die()
+
+func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
+	if current_health <= 0:
+		return
+	if juggle_tween:
+		juggle_tween.kill()
+	var target: Vector2 = juggle_offset + (point - global_position)
+	juggle_tween = create_tween()
+	juggle_tween.tween_property(self, "juggle_offset", target, rise_time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+	juggle_tween.tween_interval(hang_time)
+	juggle_tween.tween_property(self, "juggle_offset", Vector2.ZERO, 0.35).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
 
 func try_shine(_thing: Node) -> bool:
 	# Solo los tiradores, y no siempre: lo que les llega vuelve hacia Rengar.

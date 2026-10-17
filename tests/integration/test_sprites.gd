@@ -38,7 +38,7 @@ func _run() -> void:
 
 	print("== Animaciones nuevas")
 	var sprite_frames: SpriteFrames = player.animated_sprite.sprite_frames
-	var expected := {"idle": [6, "viridy_idle"], "proud": [4, "viridy_proud"], "walk": [8, "viridy_walk"], "sprint": [3, "viridy_sprint"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_attack"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [1, "viridy_heavy_aerial"], "dash": [1, "viridy_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
+	var expected := {"idle": [6, "viridy_idle"], "proud": [3, "viridy_proud"], "proud_loop": [2, "viridy_proud"], "walk": [8, "viridy_walk"], "sprint": [3, "viridy_sprint"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_attack"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [1, "viridy_heavy_aerial"], "dash": [1, "viridy_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
 	for anim in expected:
 		var texture := sprite_frames.get_frame_texture(anim, 0)
 		var path: String = texture.atlas.resource_path if texture is AtlasTexture else texture.resource_path
@@ -98,7 +98,7 @@ func _run() -> void:
 	await frames(1)
 	Input.action_release("heavy_attack")
 	Input.action_release("move_up")
-	await frames(10)
+	await frames(int(player.light_uppercut_duration * 60.0) + 2)
 	check(player.attack_mode != player.ATTACK_UPPERCUT and player.animated_sprite.animation == &"uppercut", "la pose del uppercut se mantiene mientras sube")
 	await frames(60)
 
@@ -109,12 +109,22 @@ func _run() -> void:
 	player.global_position = GROUND
 	await frames(30)
 	check(not player.proud_active, "recién quieto: de pie")
-	await frames(int(player.proud_delay * 60.0) + 4)
+	for i in range(int(player.proud_delay * 60.0) + 60):
+		await frames(1)
+		if player.proud_active:
+			break
+	await frames(2)
 	check(player.proud_active and player.animated_sprite.animation == &"proud_roar", "tras %.0f s quieto: primero ruge" % player.proud_delay)
 	var waves := level.get_children().filter(func(n): return n.get_child_count() > 0 and n.get_child(0) is Line2D and n.z_index == 4)
 	check(not waves.is_empty(), "con la onda del rugido")
 	await frames(int(player.PROUD_ROAR_TIME * 60.0) + 4)
 	check(player.animated_sprite.animation == &"proud", "y luego la pose orgullosa")
+	await frames(int(3.0 / player.PROUD_FPS * 60.0) + 4)
+	check(player.animated_sprite.animation == &"proud_loop", "tras un ciclo, repite sus 2 últimos frames")
+	var loop_cells := {}
+	for i in range(sprite_frames.get_frame_count("proud_loop")):
+		loop_cells[sprite_frames.get_frame_texture("proud_loop", i).region.position.x] = true
+	check(loop_cells.keys() == [768.0 * 2.0, 768.0 * 3.0], "que son los frames 3 y 4 de la hoja (%s)" % str(loop_cells.keys()))
 	var before: float = F.points
 	await frames(60)
 	check(F.points > before + 3.0, "y el medidor de estilo sube (%.1f → %.1f)" % [before, F.points])
@@ -226,10 +236,22 @@ func _run() -> void:
 	check(player.animated_sprite.animation == &"frontflip", "el frontflip usa la pose encogida")
 	check(abs(player.animated_sprite.rotation) > 0.01, "y gira")
 	var spin_frames: int = int(player.frontflip_rotation_duration * 60.0) + 3
-	check(player.frontflip_rotation_duration < player._get_flip_airtime(player.jump_velocity), "da la vuelta antes de acabar el vuelo")
+	check(abs(player.frontflip_rotation_duration - player._get_flip_airtime(player.jump_velocity)) < 0.001, "el primer frontflip gira en todo el vuelo (velocidad de siempre)")
 	await frames(spin_frames)
 	check(player.frontflip_active and player.animated_sprite.animation == &"aerial_stall", "tras la vuelta: aerial stall (%s)" % player.animated_sprite.animation)
 	check(abs(player.animated_sprite.rotation) < 0.01, "derecho")
+
+	print("== Backflip y aerial stall")
+	release_all()
+	player._respawn_player()
+	player.global_position = GROUND + Vector2(0, -500)
+	await frames(2)
+	player.flip_streak = 0
+	player._start_backflip()
+	await frames(2)
+	check(player.animated_sprite.animation == &"backflip", "el backflip gira con su pose")
+	await frames(int(player.backflip_rotation_duration * 60.0) + 3)
+	check(player.backflip_active and player.animated_sprite.animation == &"aerial_stall", "al terminar el giro: aerial stall (%s)" % player.animated_sprite.animation)
 
 	print("== Flips encadenados más rápidos")
 	release_all()
