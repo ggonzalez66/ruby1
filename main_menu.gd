@@ -145,11 +145,10 @@ func _update_runner(delta: float) -> void:
 	run_time += delta
 	runner.frame = int(run_time * RUN_FPS) % runner.hframes
 	runner.position = Vector2(camera.position.x + RUNNER_SCREEN_X, GROUND_Y - SPRINT_REGION.size.y * RUN_SCALE * 0.5)
-	# Brillo de imparable: parpadeo rápido entre blanco y el color del rango, como en el juego.
-	var rank_color: Color = Ferocity.RANKS[RUN_RANK]["color"]
-	var flash: bool = int(Time.get_ticks_msec() / 50) % 2 == 0
-	runner_material.set_shader_parameter("glow_color", Color(1.0, 0.97, 0.88) if flash else rank_color)
-	runner_material.set_shader_parameter("glow_amount", 0.75 if flash else 0.55)
+	# Brillo de imparable: el mismo parpadeo oro solar / menta que en el juego.
+	var flash: Dictionary = Ferocity.unstoppable_flash()
+	runner_material.set_shader_parameter("glow_color", flash["color"])
+	runner_material.set_shader_parameter("glow_amount", flash["amount"])
 	afterimage_timer -= delta
 	if afterimage_timer <= 0.0:
 		afterimage_timer = AFTERIMAGE_INTERVAL

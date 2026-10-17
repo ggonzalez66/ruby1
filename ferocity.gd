@@ -35,6 +35,10 @@ const RANKS := [
 	{"letter": "SSS", "name": "SUPREMACÍA", "rest": "upremacía", "color": Color(1.0, 0.18, 0.4)},
 ]
 const UNSTOPPABLE_RANK := 3
+# Destello de imparable de Viridy: oro solar (el león verde devora el sol) alternando con menta alquímica.
+const UNSTOPPABLE_GOLD := Color(1.0, 0.82, 0.3)
+const UNSTOPPABLE_MINT := Color(0.75, 1.0, 0.8)
+const UNSTOPPABLE_FLASH_MS := 50
 const MAX_POINTS := RANK_POINTS * 7.0 - 0.01
 # Puntos por segundo al correr a toda velocidad: llenan la barra, pero no suben de rango.
 const RUNNING_GAIN := 15.0
@@ -143,6 +147,11 @@ func impact_multiplier() -> float:
 
 func is_unstoppable() -> bool:
 	return unstoppable
+
+func unstoppable_flash() -> Dictionary:
+	# Color y fuerza del brillo de imparable en este instante (cambia cada UNSTOPPABLE_FLASH_MS).
+	var gold: bool = int(Time.get_ticks_msec() / UNSTOPPABLE_FLASH_MS) % 2 == 0
+	return {"color": UNSTOPPABLE_GOLD if gold else UNSTOPPABLE_MINT, "amount": 0.7 if gold else 0.6}
 
 func rank_info(index: int = -1) -> Dictionary:
 	return RANKS[rank if index < 0 else index]

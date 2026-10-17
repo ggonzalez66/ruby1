@@ -181,5 +181,21 @@ func _run() -> void:
 	await frames(3)
 	check(mane.emitting, "y vuelve al reaparecer")
 
+	print("== Destello de imparable (oro solar / menta)")
+	player.riposte_timer = 0.0
+	player.unstoppable_glow = true
+	var seen_colors := {}
+	for i in range(8):
+		player._update_riposte_visual()
+		var glow: Color = player.charge_glow_material.get_shader_parameter("glow_color")
+		seen_colors[glow.to_html()] = true
+		check(glow.is_equal_approx(F.UNSTOPPABLE_GOLD) or glow.is_equal_approx(F.UNSTOPPABLE_MINT), "destello %d: oro o menta (%s)" % [i, glow.to_html()])
+		OS.delay_msec(30)
+	check(seen_colors.size() == 2, "alterna entre los dos colores")
+	var trail: Color = player.afterimage_unstoppable_material.get_shader_parameter("glow_color")
+	check(trail.is_equal_approx(F.rank_info()["color"]), "las estelas siguen con el color del rango")
+	player.unstoppable_glow = false
+	player._update_riposte_visual()
+
 	print("RESULTADO: %d/%d OK" % [checks - fails, checks])
 	quit()

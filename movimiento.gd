@@ -1472,12 +1472,11 @@ func _update_riposte_visual() -> void:
 		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.35, 0.12))
 		charge_glow_material.set_shader_parameter("glow_amount", lerp(0.35, 0.8, pulse))
 	elif unstoppable_glow:
-		# Parpadeo rápido entre blanco y el color del rango, como el speed booster de Samus.
-		var rank_color: Color = Ferocity.rank_info()["color"]
-		var flash: bool = int(Time.get_ticks_msec() / 50) % 2 == 0
-		charge_glow_material.set_shader_parameter("glow_color", Color(1.0, 0.97, 0.88) if flash else rank_color)
-		charge_glow_material.set_shader_parameter("glow_amount", 0.75 if flash else 0.55)
-		afterimage_unstoppable_material.set_shader_parameter("glow_color", rank_color)
+		# Parpadeo rápido entre oro solar y menta, como el speed booster de Samus; las estelas llevan el color del rango.
+		var flash: Dictionary = Ferocity.unstoppable_flash()
+		charge_glow_material.set_shader_parameter("glow_color", flash["color"])
+		charge_glow_material.set_shader_parameter("glow_amount", flash["amount"])
+		afterimage_unstoppable_material.set_shader_parameter("glow_color", Ferocity.rank_info()["color"])
 	else:
 		charge_glow_material.set_shader_parameter("glow_amount", 0.0)
 
