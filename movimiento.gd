@@ -9,7 +9,6 @@ signal shine_changed(durability: float, maximum: float, broken: bool)
 signal died
 signal respawned
 
-const AERIAL_SPINNING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_spin.png")
 const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
 const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_ground_heavy.png")
@@ -61,6 +60,10 @@ const EFFECT_ARC_SEGMENTS := 16
 # Capas de cada trazo de efecto: contorno, cuerpo y núcleo brillante.
 const EFFECT_PALETTE_SILVER: Array[Color] = [Color(0.2, 0.22, 0.3), Color(0.74, 0.79, 0.88), Color(1.0, 1.0, 1.0)]
 const EFFECT_PALETTE_GOLD: Array[Color] = [Color(0.32, 0.16, 0.03), Color(1.0, 0.7, 0.14), Color(1.0, 0.97, 0.72)]
+# Fuego verde del giro (screw attack): borde oscuro, llama y núcleo casi blanco.
+const EFFECT_PALETTE_GREEN_FIRE: Array[Color] = [Color(0.03, 0.2, 0.09), Color(0.3, 0.95, 0.42), Color(0.86, 1.0, 0.76)]
+# Vueltas por segundo del sprite durante el giro.
+const SCREW_SPIN_TURNS_PER_SECOND := 6.0
 const ANIMATION_IDLE := &"idle"
 const ANIMATION_WALK := &"walk"
 const ANIMATION_JUMP := &"jump"
@@ -109,7 +112,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_WALK: 1.05,
 	ANIMATION_JUMP: 0.65,
 	ANIMATION_JUMP_SQUAT: 0.556,
-	ANIMATION_SPIN: 1.05,
+	ANIMATION_SPIN: 0.3,
 	ANIMATION_UPPERCUT: 0.39,
 	ANIMATION_WALL_SLIDE: 0.38,
 	ANIMATION_WALL_JUMP: 0.687,
@@ -440,6 +443,7 @@ var rank_heal_done := false
 var bounce_chain := 0
 var dead := false
 var mane_emitter: CPUParticles2D
+var screw_embers: CPUParticles2D
 var death_spin := 0.0
 var death_rest_angle := 0.0
 var riposte_attack := false
@@ -527,6 +531,7 @@ func _ready() -> void:
 	mane_emitter = MANE_EMITTER_SCRIPT.new()
 	add_child(mane_emitter)
 	move_child(mane_emitter, animated_sprite.get_index())
+	_create_screw_embers()
 	air_jumps_remaining = max_air_jumps
 	slash_base_color = slash_visual.color
 	slash_area_base_color = slash_area_visual.color
@@ -818,7 +823,8 @@ func _configure_character_animations() -> void:
 	# Salto: el agachado al despegar (pose aparte, está dibujado a otra escala) y los 3 frames del aire.
 	_add_region_animation(frames, ANIMATION_JUMP_SQUAT, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
 	_add_region_animation(frames, ANIMATION_JUMP, JUMP_AIR_SHEET, JUMP_AIR_REGIONS, 10.0, false)
-	_add_sheet_animation(frames, ANIMATION_SPIN, AERIAL_SPINNING_SHEET, 3, 12.0, true)
+	# Giro (tras el dash attack): la pose encogida del frontflip girando como un screw attack.
+	_add_single_frame_animation(frames, ANIMATION_SPIN, FRONTFLIP_TEXTURE)
 	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_NEW, [UPPERCUT_REGION], 1.0, false)
 	# Enganchado a la pared (mira hacia una pared a la derecha; ver _update_character_orientation).
 	_add_single_frame_animation(frames, ANIMATION_WALL_SLIDE, CLING_WALL_TEXTURE)
@@ -993,7 +999,33 @@ func _update_character_animation() -> void:
 	_align_character_animation(next_animation)
 	_update_character_orientation(next_animation)
 	mane_emitter.follow(animated_sprite, facing, not dead)
+	screw_embers.emitting = attack_mode == ATTACK_SPIN and not dead
+	screw_embers.position = animated_sprite.position
 	shadow.visible = is_on_floor()
+
+func _create_screw_embers() -> void:
+	# Brasas del giro: chispas de fuego verde que saltan del cuerpo y se quedan atrás (en el mundo).
+	screw_embers = CPUParticles2D.new()
+	screw_embers.emitting = false
+	screw_embers.amount = 48
+	screw_embers.lifetime = 0.35
+	screw_embers.local_coords = false
+	screw_embers.emission_shape = CPUParticles2D.EMISSION_SHAPE_SPHERE_SURFACE
+	screw_embers.emission_sphere_radius = 26.0
+	screw_embers.direction = Vector2(0, -1)
+	screw_embers.spread = 180.0
+	screw_embers.gravity = Vector2(0, -90)
+	screw_embers.initial_velocity_min = 20.0
+	screw_embers.initial_velocity_max = 70.0
+	screw_embers.scale_amount_min = 2.0
+	screw_embers.scale_amount_max = 4.0
+	var fade := Gradient.new()
+	fade.set_color(0, EFFECT_PALETTE_GREEN_FIRE[2])
+	fade.set_color(1, Color(EFFECT_PALETTE_GREEN_FIRE[0], 0.0))
+	fade.add_point(0.35, EFFECT_PALETTE_GREEN_FIRE[1])
+	screw_embers.color_ramp = fade
+	screw_embers.z_index = 1
+	add_child(screw_embers)
 
 func _is_braking() -> bool:
 	# Frenando la carrera en el suelo: ya no corre pero aún va más rápido que andando.
@@ -1005,6 +1037,9 @@ func _update_character_orientation(animation_name: StringName) -> void:
 			animated_sprite.rotation = _get_flip_rotation(backflip_elapsed, backflip_rotation_duration, -facing)
 		ANIMATION_FRONTFLIP:
 			animated_sprite.rotation = _get_flip_rotation(frontflip_elapsed, frontflip_rotation_duration, facing)
+		ANIMATION_SPIN:
+			var spin_elapsed: float = spin_attack_duration - attack_timer if attack_mode == ATTACK_SPIN else 0.0
+			animated_sprite.rotation = facing * spin_elapsed * TAU * SCREW_SPIN_TURNS_PER_SECOND
 		_:
 			animated_sprite.rotation = 0.0
 	if animation_name == ANIMATION_WALL_SLIDE:
@@ -2933,16 +2968,18 @@ func _effect_uppercut() -> void:
 	_set_effect_stroke(2, streak, 7.0, EFFECT_PALETTE_GOLD, 0.9)
 
 func _effect_spin() -> void:
-	# Anillo de cortes plateados que gira junto con la hitbox.
+	# Screw attack: tres medias lunas de fuego verde que envuelven el cuerpo, giran más rápido que el
+	# sprite y titilan como llamas.
 	var progress: float = 1.0 - (attack_timer / spin_attack_duration)
-	var head: float = progress * TAU * 1.6
-	var alpha: float = _effect_fade(progress, 0.75)
-	for index in range(2):
-		var radius: float = 36.0 + index * 10.0
-		var stroke_head: float = head - index * 0.35
-		var width: float = 6.0 if index == 0 else 4.5
-		_set_effect_stroke(index, _effect_arc_points(Vector2(0.0, 4.0), Vector2(radius, radius), stroke_head - deg_to_rad(230.0), stroke_head), width, EFFECT_PALETTE_SILVER, alpha)
-	_hide_effect_strokes(2)
+	var elapsed: float = spin_attack_duration - attack_timer
+	var head: float = elapsed * TAU * SCREW_SPIN_TURNS_PER_SECOND * 1.35
+	var alpha: float = _effect_fade(progress, 0.8)
+	for index in range(3):
+		var flicker: float = 0.5 + 0.5 * sin(elapsed * 55.0 + index * 2.1)
+		var radius := Vector2(34.0 + index * 5.0 + flicker * 3.0, 30.0 + index * 4.0 + flicker * 2.0)
+		var stroke_head: float = head + index * TAU / 3.0
+		var width: float = 10.0 - index * 1.5 + flicker * 2.5
+		_set_effect_stroke(index, _effect_arc_points(Vector2(0.0, 2.0), radius, stroke_head - deg_to_rad(150.0), stroke_head), width, EFFECT_PALETTE_GREEN_FIRE, alpha * (0.8 + 0.2 * flicker))
 
 func _effect_heavy_arc(progress: float, aerial: bool) -> void:
 	# Gran tajo dorado siguiendo la elipse de la hitbox pesada.

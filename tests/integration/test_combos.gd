@@ -116,6 +116,25 @@ func _run() -> void:
 	var seen: Array = await watch_modes(20)
 	check(player.ATTACK_HEAVY in seen, "y sale el heavy aéreo al abrirse la ventana")
 
+	print("== Giro como screw attack")
+	await reset()
+	await start_sprinting()
+	await tap("attack")
+	await frames(2)
+	await tap("jump")
+	await frames(2)
+	var texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"spin", 0)
+	check(player.animated_sprite.animation == &"spin" and texture.resource_path.ends_with("viridy_frontflip.png"), "el giro usa la pose encogida del frontflip")
+	var angle_before: float = player.animated_sprite.rotation
+	await frames(4)
+	check(abs(angle_before - player.animated_sprite.rotation) > 1.0, "y gira rápido (%.1f rad en 4 frames)" % abs(angle_before - player.animated_sprite.rotation))
+	check(player.screw_embers.emitting, "con brasas de fuego verde")
+	var fire_line: Line2D = player.effect_strokes[0][1]
+	check(player.attack_effects.visible and fire_line.visible and fire_line.gradient.get_color(1).g > 0.8 and fire_line.gradient.get_color(1).r < 0.5, "y llamas verdes girando alrededor")
+	await frames(40)
+	check(not player.screw_embers.emitting, "al terminar el giro se apagan las brasas")
+	release_all()
+
 	print("== Combo: dash attack -> giro -> uppercut -> heavy aéreo")
 	await reset()
 	await start_sprinting()
