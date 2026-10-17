@@ -9,40 +9,33 @@ signal shine_changed(durability: float, maximum: float, broken: bool)
 signal died
 signal respawned
 
-const STANDING_AND_WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_standing_and_walking-sheet.png")
-const JUMPING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumping-sheet.png")
-const AERIAL_SPINNING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_aerial_spinning-sheet.png")
-const UPPERCUT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_uppercut-sheet.png")
-const WALLJUMP_SHEET: Texture2D = preload("res://assets/sprites/player/reng_walljump-sheet.png")
-const CHARGE_LIGHT_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_charge_light.png")
-const HEAVY_AERIAL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_heavy_aerial.png")
-const AERIAL_STALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_aerial-stall.png")
-const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dash_1.png")
-const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/reng_light_hits-sheet.png")
-const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/reng-heavy.png")
+const AERIAL_SPINNING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_aerial_spinning-sheet.png")
+const UPPERCUT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_uppercut-sheet.png")
+const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/reng_dash_1.png")
+const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_light_hits-sheet.png")
+const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng-heavy.png")
 const KNIFE_SCRIPT := preload("res://knife.gd")
 const METATRON_SCRIPT := preload("res://metatron_cube.gd")
 const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
 const ELECTRIC_FX_SCRIPT := preload("res://electric_fx.gd")
+const MANE_EMITTER_SCRIPT := preload("res://mane_emitter.gd")
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
-const SPRINTING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprinting.png")
-const BACKFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/backflip rengar.png")
 # Sprites nuevos (hojas en cuadrícula: celdas de ancho fijo con el borde de abajo recortado a los pies).
-const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/rengar_standing.png")
-const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/reng_standingProud.png")
-const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_walkingNew.png")
-const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/reng_sprintingNEW.png")
-const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/reng_mantling.png")
-const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_dashattackNEW.png")
-const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/reng_cling_wallNEW.png")
-const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/reng_wallrun.png")
-const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/reng_aerialStallNEW.png")
-const BACKFLIP_NEW: Texture2D = preload("res://assets/sprites/player/reng_backflipNEW.png")
-const UPPERCUT_NEW: Texture2D = preload("res://assets/sprites/player/reng_uppercutNEW.png")
-const JUMP_OFF_WALL_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jump_off_wall.png")
-const JUMP_SQUAT_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumpingNEW1.png")
-const JUMP_AIR_SHEET: Texture2D = preload("res://assets/sprites/player/reng_jumpingNEW3.png")
-const HEAVY_AERIAL_NEW: Texture2D = preload("res://assets/sprites/player/reng_heavy_aerialNEW1.png")
+const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/rengar_standing.png")
+const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_standingProud.png")
+const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_walkingNew.png")
+const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_sprintingNEW.png")
+const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_mantling.png")
+const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/reng_dashattackNEW.png")
+const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/reng_cling_wallNEW.png")
+const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_wallrun.png")
+const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/reng_aerialStallNEW.png")
+const BACKFLIP_NEW: Texture2D = preload("res://assets/sprites/player/viridy/reng_backflipNEW.png")
+const UPPERCUT_NEW: Texture2D = preload("res://assets/sprites/player/viridy/reng_uppercutNEW.png")
+const JUMP_OFF_WALL_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_jump_off_wall.png")
+const JUMP_SQUAT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_jumpingNEW1.png")
+const JUMP_AIR_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/reng_jumpingNEW3.png")
+const HEAVY_AERIAL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/reng_heavy_aerialNEW1.png")
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -396,6 +389,7 @@ var rank_heal_done := false
 # Rebotes del heavy aéreo encadenados sin tocar el suelo ("REBOTE x3").
 var bounce_chain := 0
 var dead := false
+var mane_emitter: CPUParticles2D
 var death_spin := 0.0
 var death_rest_angle := 0.0
 var riposte_attack := false
@@ -476,6 +470,10 @@ func _ready() -> void:
 	animated_sprite.material = charge_glow_material
 	_create_afterimage_container()
 	_create_roar_aura()
+	# Melena evanescente: detrás del sprite (se dibuja antes que él).
+	mane_emitter = MANE_EMITTER_SCRIPT.new()
+	add_child(mane_emitter)
+	move_child(mane_emitter, animated_sprite.get_index())
 	air_jumps_remaining = max_air_jumps
 	slash_base_color = slash_visual.color
 	slash_area_base_color = slash_area_visual.color
@@ -894,6 +892,7 @@ func _update_character_animation() -> void:
 		animated_sprite.play(next_animation)
 	_align_character_animation(next_animation)
 	_update_character_orientation(next_animation)
+	mane_emitter.follow(animated_sprite, facing, not dead)
 	shadow.visible = is_on_floor()
 
 func _update_character_orientation(animation_name: StringName) -> void:
@@ -1347,6 +1346,7 @@ func begin_merge() -> void:
 func _start_death(source_position: Vector2, amount: int) -> void:
 	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
 	dead = true
+	mane_emitter.emitting = false
 	Ferocity.reset()
 	_cancel_all_states()
 	var push_direction: float = sign(global_position.x - source_position.x)

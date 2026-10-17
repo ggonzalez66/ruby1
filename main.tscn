@@ -202,7 +202,7 @@ panel_width = 320
 [node name="SignMantle" type="Node2D" parent="."]
 position = Vector2(5300, 0)
 script = ExtResource("14_sign")
-text = "Si llegas justo al borde de un saliente, Rengar se agarra y sube solo."
+text = "Si llegas justo al borde de un saliente, Viridy se agarra y sube solo."
 title = "Agarre"
 panel_width = 320
 
@@ -469,7 +469,7 @@ panel_width = 320
 [node name="SignWallride" type="Node2D" parent="."]
 position = Vector2(5300, -1100)
 script = ExtResource("14_sign")
-text = "Corriendo, salta contra la pared con enredaderas: Rengar corre por ella hacia arriba y se agarra al borde sin frenar."
+text = "Corriendo, salta contra la pared con enredaderas: Viridy corre por ella hacia arriba y se agarra al borde sin frenar."
 title = "Wallride"
 panel_width = 340
 
@@ -526,7 +526,7 @@ script = ExtResource("9_checkpoint")
 [node name="SignRunningWallJump" type="Node2D" parent="."]
 position = Vector2(760, -1100)
 script = ExtResource("14_sign")
-text = "Corriendo, salta contra una pared: Rengar se engancha un instante.
+text = "Corriendo, salta contra una pared: Viridy se engancha un instante.
 Pulsa {jump} para saltar a la pared contraria con impulso y encadénalos para subir el pozo."
 title = "Running walljump"
 panel_width = 360
@@ -674,7 +674,7 @@ max_health = 30
 [node name="SignEmbed" type="Node2D" parent="."]
 position = Vector2(3300, -2200)
 script = ExtResource("14_sign")
-text = "En el aire, {heavy_attack} contra una pared: Rengar se clava y explota, dañando a los enemigos cerca.
+text = "En el aire, {heavy_attack} contra una pared: Viridy se clava y explota, dañando a los enemigos cerca.
 Desde ahí puedes volver a saltar."
 title = "Clavarse"
 panel_width = 360

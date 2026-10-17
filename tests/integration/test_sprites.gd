@@ -151,5 +151,35 @@ func _run() -> void:
 	var amount: float = player.roar_aura.wear_material.get_shader_parameter("glow_amount")
 	check(abs(amount - 0.6 * 0.85) < 0.03, "se tiñe de rojo según el desgaste (%.2f)" % amount)
 
+	print("== Melena evanescente (emisor)")
+	release_all()
+	player._respawn_player()
+	player.global_position = GROUND
+	await frames(10)
+	var mane: CPUParticles2D = player.mane_emitter
+	check(mane != null and mane.emitting, "el emisor de la melena está activo")
+	check(mane.get_index() < player.animated_sprite.get_index(), "se dibuja detrás del sprite")
+	check(not mane.local_coords, "las motas se quedan en el mundo (estela al moverse)")
+	for side in [1.0, -1.0]:
+		player.facing = side
+		await frames(2)
+		check(mane.position.y < -30.0, "mirando %s: la melena está arriba (y %.0f)" % ["derecha" if side > 0 else "izquierda", mane.position.y])
+		check(sign(mane.position.x) == -side or abs(mane.position.x) < 4.0, "mirando %s: hacia atrás de la cara (x %.0f)" % ["derecha" if side > 0 else "izquierda", mane.position.x])
+		check(sign(mane.direction.x) == -side, "las motas salen hacia atrás")
+	player.facing = 1.0
+	for anim in ["sprint", "jump", "uppercut", "wall_slide", "roar", "backflip"]:
+		player.animated_sprite.play(StringName(anim))
+		player._align_character_animation(StringName(anim))
+		mane.follow(player.animated_sprite, 1.0, true)
+		var extents: Vector2 = mane.emission_rect_extents
+		check(extents.x > 2.0 and extents.y > 2.0 and mane.position.length() < 120.0, "%s: zona de la melena razonable (pos %s, mitad %s)" % [anim, mane.position.round(), extents.round()])
+	player.invulnerability_timer = 0.0
+	player.take_damage(9999, player.global_position + Vector2(40, 0))
+	await frames(2)
+	check(player.dead and not mane.emitting, "al morir deja de echar motas")
+	player._respawn_player()
+	await frames(3)
+	check(mane.emitting, "y vuelve al reaparecer")
+
 	print("RESULTADO: %d/%d OK" % [checks - fails, checks])
 	quit()
