@@ -163,6 +163,35 @@ func _run() -> void:
 	seen = await watch_modes(25)
 	check(player.ATTACK_HEAVY in seen, "y el heavy aéreo")
 
+	print("== Heavy de suelo nuevo (tajo con el cuchillo)")
+	await reset()
+	var heavy_texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"ground_heavy", 0)
+	check(heavy_texture.atlas.resource_path.ends_with("viridy_ground_heavy.png") and heavy_texture.region.size.x == 1086.0, "usa la hoja nueva de 2 frames")
+	# El cuchillo conserva los colores de Rengar: mismos píxeles que la hoja original en la hoja.
+	var viridy_img: Image = heavy_texture.atlas.get_image()
+	var rengar_img: Image = (load("res://assets/sprites/player/rengar/reng_heavyNEW.png") as Texture2D).get_image()
+	var same := 0
+	var probes := [Vector2i(700, 40), Vector2i(620, 30), Vector2i(2040, 600), Vector2i(2030, 520)]
+	for point in probes:
+		var a: Color = viridy_img.get_pixelv(point)
+		var b: Color = rengar_img.get_pixelv(point)
+		if b.a > 0.5 and abs(a.r - b.r) < 0.02 and abs(a.g - b.g) < 0.02 and abs(a.b - b.b) < 0.02:
+			same += 1
+	check(same == probes.size(), "la hoja del cuchillo no cambia de color (%d/%d puntos iguales)" % [same, probes.size()])
+	var victim := make_chaser(GROUND + Vector2(60, 0))
+	await frames(2)
+	var victim_health: int = victim.current_health
+	Input.action_press("heavy_attack")
+	await frames(2)
+	Input.action_release("heavy_attack")
+	check(player.attack_mode == player.ATTACK_HEAVY_GROUND and player.animated_sprite.animation == &"ground_heavy", "sale el heavy de suelo")
+	var steel: Line2D = player.effect_strokes[0][1]
+	var gilt: Line2D = player.effect_strokes[1][1]
+	check(steel.visible and gilt.visible and steel.gradient.get_color(1).b > 0.8 and gilt.gradient.get_color(1).r > 0.9 and gilt.gradient.get_color(1).b < 0.3, "con la estela de acero y el filo dorado")
+	await frames(10)
+	check(victim.current_health < victim_health, "y el tajo conecta con el enemigo de delante")
+	victim.queue_free()
+
 	print("== El buffer caduca")
 	await reset()
 	player.combo_buffer = &"heavy"

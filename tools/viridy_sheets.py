@@ -33,17 +33,19 @@ SOURCES = {
     "viridy_uppercut.png": "reng_uppercutNEW.png", "viridy_wall_jump.png": "reng_jump_off_wall.png",
     "viridy_jump_squat.png": "reng_jumpingNEW1.png", "viridy_jump.png": "reng_jumpingNEW3.png",
     "viridy_heavy_aerial.png": "reng_heavy_aerialNEW1.png", "viridy_light_hits.png": "reng_light_hits-sheet.png",
-    "viridy_ground_heavy.png": "reng-heavy.png",
+    
 }
 # Poses sueltas que no salen de aquí sino de tools/viridy.py (semilla 7, --cambio 0.65), recortadas y limpiadas:
 #   viridy_roar / viridy_roar_hold / viridy_frontflip <- reng_roar / reng_roar_hold / reng_fontflip
 #   (el giro tras el dash attack usa viridy_frontflip girando, con el fuego verde dibujado en el juego)
 #   viridy_brake / viridy_brake_recover <- reng_frenando1 / reng_frenando2 (con --escala-salida 2)
 #   viridy_proud <- los 4 frames de reng_farmeando_aura (fondo magenta) normalizados con normalize_sheet.py
+#   viridy_ground_heavy <- reng_heavyNEW (2 frames). El cuchillo se quita antes de SD (máscara por color:
+#   hoja de acero + empuñadura dorada + su contorno) y se pega el original encima, para que no cambie de color.
 # viridy_dash.png no sale de aquí: es el frame nuevo reng_dashNEW.png pasado por tools/viridy.py con
 # --inclinar 20 --estirar 1.2 --escala-salida 2 --semilla 7 (pose de esquiva inclinada hacia delante).
 # Hojas viejas (sprites de antes de la renovación); van aparte con --viejas.
-SKIP = {"viridy_light_hits.png", "viridy_ground_heavy.png"}
+SKIP = {"viridy_light_hits.png"}
 BORDER = 2  # px que se dejan vacíos en el borde de cada región (que nada asome a la celda vecina)
 # Blanco que sobra del fondo de SD dentro del dibujo (encerrado entre piernas, suelo, armadura...).
 WHITE = 232

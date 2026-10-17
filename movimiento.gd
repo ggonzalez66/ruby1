@@ -130,7 +130,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_MANTLE: 0.74,
 	ANIMATION_WALLRIDE: 0.95,
 	ANIMATION_KNIFE_THROW: 1.25,
-	ANIMATION_GROUND_HEAVY: 1.3,
+	ANIMATION_GROUND_HEAVY: 0.65,
 	ANIMATION_SPRINT: 0.655,
 	ANIMATION_BACKFLIP: 0.38,
 	ANIMATION_FRONTFLIP: 0.3,
@@ -2911,7 +2911,7 @@ func _update_attack_effects() -> void:
 		ATTACK_HEAVY:
 			_effect_heavy_arc(heavy_attack_visual_progress, true)
 		ATTACK_HEAVY_GROUND:
-			_effect_heavy_arc(1.0 - (attack_timer / ground_heavy_duration), false)
+			_effect_ground_heavy_chop(1.0 - (attack_timer / ground_heavy_duration))
 
 func _effect_claw_slash() -> void:
 	# Tres zarpazos plateados paralelos siguiendo el arco de la hitbox; el remate es más grande.
@@ -2980,6 +2980,32 @@ func _effect_spin() -> void:
 		var stroke_head: float = head + index * TAU / 3.0
 		var width: float = 10.0 - index * 1.5 + flicker * 2.5
 		_set_effect_stroke(index, _effect_arc_points(Vector2(0.0, 2.0), radius, stroke_head - deg_to_rad(150.0), stroke_head), width, EFFECT_PALETTE_GREEN_FIRE, alpha * (0.8 + 0.2 * flicker))
+
+# Tajo del heavy de suelo: el cuchillo baja desde encima y detrás de la cabeza hasta el suelo delante.
+const GROUND_CHOP_CENTER := Vector2(6.0, -22.0)
+const GROUND_CHOP_START := -1.95
+const GROUND_CHOP_END := 1.0
+
+func _ground_chop_sweep(progress: float) -> float:
+	return 1.0 - pow(1.0 - clamp(progress, 0.0, 1.0), 2.2)
+
+func _effect_ground_heavy_chop(progress: float) -> void:
+	# Estela de acero (plateada, como la hoja) con un filo dorado por dentro (la empuñadura), y al
+	# llegar abajo un corte dorado a ras de suelo.
+	var sweep: float = _ground_chop_sweep(progress)
+	var head: float = lerp(GROUND_CHOP_START, GROUND_CHOP_END, max(sweep, 0.15))
+	var tail: float = lerp(GROUND_CHOP_START, head, clamp(progress * 1.4 - 0.3, 0.0, 0.85))
+	var alpha: float = _effect_fade(progress, 0.7)
+	_set_effect_stroke(0, _effect_arc_points(GROUND_CHOP_CENTER, Vector2(50.0, 56.0), tail - 0.15, head), 16.0, EFFECT_PALETTE_SILVER, alpha)
+	_set_effect_stroke(1, _effect_arc_points(GROUND_CHOP_CENTER, Vector2(40.0, 45.0), tail, head - 0.12), 6.0, EFFECT_PALETTE_GOLD, alpha)
+	var impact: float = clamp((sweep - 0.6) / 0.4, 0.0, 1.0)
+	if impact > 0.0:
+		var ground := PackedVector2Array()
+		for step in range(6):
+			ground.append(Vector2(GROUND_CHOP_CENTER.x + 18.0 + lerp(0.0, 74.0 * impact, step / 5.0), 17.0))
+		_set_effect_stroke(2, ground, 9.0 * impact + 3.0, EFFECT_PALETTE_GOLD, alpha)
+	else:
+		_hide_effect_strokes(2)
 
 func _effect_heavy_arc(progress: float, aerial: bool) -> void:
 	# Gran tajo dorado siguiendo la elipse de la hitbox pesada.
@@ -3118,14 +3144,16 @@ func _animate_heavy_dive() -> void:
 	slash_outline.default_color = Color(0.7, 0.97, 1.0, 0.9)
 
 func _animate_ground_heavy_attack() -> void:
+	# La hitbox va siempre delante del cuerpo (el heavy avanza muy rápido y no debe atravesar a nadie) y
+	# baja del pecho a los pies siguiendo el tajo.
 	var progress: float = 1.0 - (attack_timer / ground_heavy_duration)
-	var arc_angle: float = lerp(-1.42, 0.22, progress)
-	var arc_offset := Vector2(cos(arc_angle) * 22.0, sin(arc_angle) * 30.0 - 6.0)
-	var blade_rotation: float = arc_angle + 1.02
+	var sweep: float = _ground_chop_sweep(progress)
+	var arc_offset := Vector2(22.0, lerp(-40.0, -4.0, sweep))
+	var blade_rotation: float = 0.0
 	var stretch: float = lerp(1.2, 1.0, progress)
 
-	hitbox_shape.position = Vector2(8.0, -2.0) + arc_offset
-	hitbox_shape.scale = Vector2(1.28, 2.2)
+	hitbox_shape.position = arc_offset
+	hitbox_shape.scale = Vector2(2.0, 3.0)
 	slash_visual.position = Vector2(10.0, 0.0) + arc_offset
 	slash_area_visual.position = Vector2(12.0, 2.0) + arc_offset
 	slash_outline.position = Vector2(12.0, 2.0) + arc_offset
