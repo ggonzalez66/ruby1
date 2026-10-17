@@ -93,6 +93,24 @@ static func air_ring(parent: Node, point: Vector2) -> void:
 	tween.tween_property(ring, "modulate:a", 0.0, 0.25)
 	tween.chain().tween_callback(burst.queue_free)
 
+# Rugido de la pose orgullosa: dos ondas que se abren desde el pecho y polvo a los lados de los pies.
+static func roar_wave(parent: Node, point: Vector2, feet: Vector2, color: Color) -> void:
+	var burst := _spawn(parent, point)
+	burst.z_index = 4
+	var tween := burst.create_tween().set_parallel(true)
+	for index in range(2):
+		var ring := Line2D.new()
+		ring.points = _circle(18.0, 32, true)
+		ring.width = 3.0 - index
+		ring.default_color = Color(color, 0.85) if index == 0 else Color(color.lightened(0.5), 0.7)
+		burst.add_child(ring)
+		var delay: float = index * 0.1
+		tween.tween_property(ring, "scale", Vector2(5.5, 3.6), 0.45).set_delay(delay).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+		tween.tween_property(ring, "modulate:a", 0.0, 0.45).set_delay(delay)
+	tween.chain().tween_callback(burst.queue_free)
+	dust(parent, feet, Vector2.LEFT, 5, 1.5, 0.4)
+	dust(parent, feet, Vector2.RIGHT, 5, 1.5, 0.4)
+
 # Shine de un enemigo: un Cubo de Metatrón de su color que aparece de golpe y se desvanece girando.
 static func shine(parent: Node, point: Vector2, color: Color, radius: float = 36.0) -> void:
 	var burst := _spawn(parent, point)

@@ -38,7 +38,7 @@ func _run() -> void:
 
 	print("== Animaciones nuevas")
 	var sprite_frames: SpriteFrames = player.animated_sprite.sprite_frames
-	var expected := {"idle": [6, "viridy_idle"], "proud": [4, "viridy_proud"], "walk": [8, "viridy_walk"], "sprint": [3, "viridy_sprint"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_attack"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [1, "viridy_heavy_aerial"]}
+	var expected := {"idle": [6, "viridy_idle"], "proud": [4, "viridy_proud"], "walk": [8, "viridy_walk"], "sprint": [3, "viridy_sprint"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_attack"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [1, "viridy_heavy_aerial"], "dash": [1, "viridy_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
 	for anim in expected:
 		var texture := sprite_frames.get_frame_texture(anim, 0)
 		var path: String = texture.atlas.resource_path if texture is AtlasTexture else texture.resource_path
@@ -46,7 +46,7 @@ func _run() -> void:
 	var mantle: AtlasTexture = sprite_frames.get_frame_texture("mantle", 0)
 	check(mantle.region.position.x > 543.0 * 2.0 and mantle.region.end.x < 543.0 * 3.0, "mantle: solo el tercer frame")
 	# Los pies quedan en el origen: el borde de abajo del frame en y = 0.
-	for anim in ["idle", "proud", "walk", "sprint", "mantle", "charge", "jump", "jump_squat", "roar", "backflip", "uppercut", "wall_jump", "heavy_aerial"]:
+	for anim in ["idle", "proud", "walk", "sprint", "mantle", "charge", "jump", "jump_squat", "roar", "backflip", "uppercut", "wall_jump", "heavy_aerial", "dash", "roar_hold", "frontflip", "sprint_brake", "brake_recover", "proud_roar"]:
 		player.animated_sprite.play(StringName(anim))
 		player._align_character_animation(StringName(anim))
 		var height: float = sprite_frames.get_frame_texture(anim, 0).get_height() * player.animated_sprite.scale.y
@@ -109,8 +109,12 @@ func _run() -> void:
 	player.global_position = GROUND
 	await frames(30)
 	check(not player.proud_active, "recién quieto: de pie")
-	await frames(int(player.proud_delay * 60.0) + 10)
-	check(player.proud_active and player.animated_sprite.animation == &"proud", "tras %.0f s quieto: pose orgullosa" % player.proud_delay)
+	await frames(int(player.proud_delay * 60.0) + 4)
+	check(player.proud_active and player.animated_sprite.animation == &"proud_roar", "tras %.0f s quieto: primero ruge" % player.proud_delay)
+	var waves := level.get_children().filter(func(n): return n.get_child_count() > 0 and n.get_child(0) is Line2D and n.z_index == 4)
+	check(not waves.is_empty(), "con la onda del rugido")
+	await frames(int(player.PROUD_ROAR_TIME * 60.0) + 4)
+	check(player.animated_sprite.animation == &"proud", "y luego la pose orgullosa")
 	var before: float = F.points
 	await frames(60)
 	check(F.points > before + 3.0, "y el medidor de estilo sube (%.1f → %.1f)" % [before, F.points])
@@ -196,6 +200,74 @@ func _run() -> void:
 	check(trail.is_equal_approx(F.rank_info()["color"]), "las estelas siguen con el color del rango")
 	player.unstoppable_glow = false
 	player._update_riposte_visual()
+
+	print("== Rugido: grito y guardia")
+	release_all()
+	player._respawn_player()
+	player.global_position = GROUND
+	await frames(10)
+	Input.action_press("roar")
+	await frames(3)
+	check(player.animated_sprite.animation == &"roar", "al rugir: el grito")
+	await frames(int(player.ROAR_SHOUT_TIME * 60.0) + 4)
+	check(player.roar_active and player.animated_sprite.animation == &"roar_hold", "manteniendo el rugido: la guardia")
+	Input.action_release("roar")
+	await frames(30)
+
+	print("== Frontflip y aerial stall")
+	release_all()
+	player._respawn_player()
+	player.global_position = GROUND + Vector2(0, -400)
+	await frames(2)
+	player.velocity = Vector2.ZERO
+	player.air_jumps_remaining = 1
+	player._perform_frontflip()
+	await frames(2)
+	check(player.animated_sprite.animation == &"frontflip", "el frontflip usa la pose encogida")
+	check(abs(player.animated_sprite.rotation) > 0.01, "y gira")
+	var spin_frames: int = int(player.frontflip_rotation_duration * 60.0) + 3
+	check(player.frontflip_rotation_duration < player._get_flip_airtime(player.jump_velocity), "da la vuelta antes de acabar el vuelo")
+	await frames(spin_frames)
+	check(player.frontflip_active and player.animated_sprite.animation == &"aerial_stall", "tras la vuelta: aerial stall (%s)" % player.animated_sprite.animation)
+	check(abs(player.animated_sprite.rotation) < 0.01, "derecho")
+
+	print("== Flips encadenados más rápidos")
+	release_all()
+	player._respawn_player()
+	player.global_position = GROUND + Vector2(0, -600)
+	await frames(2)
+	player.flip_streak = 0
+	player._start_backflip()
+	var first_backflip: float = player.backflip_rotation_duration
+	check(abs(first_backflip - player._get_backflip_airtime() * player.BACKFLIP_SPIN_FRACTION) < 0.001, "el backflip gira algo más rápido que el vuelo (%.2f s de %.2f)" % [first_backflip, player._get_backflip_airtime()])
+	player._start_backflip()
+	check(player.backflip_rotation_duration < first_backflip * 0.7, "el 2º backflip seguido gira más rápido (%.2f s)" % player.backflip_rotation_duration)
+	player._perform_frontflip()
+	check(player.frontflip_rotation_duration < player._get_flip_airtime(player.jump_velocity) * player.FRONTFLIP_SPIN_FRACTION * 0.7, "y un frontflip detrás, también")
+	player.backflip_active = false
+	player.frontflip_active = false
+	player.velocity = Vector2.ZERO
+	player.global_position = GROUND
+	await frames(20)
+	check(player.flip_streak == 0, "al quedarse en el suelo se reinicia la racha")
+
+	print("== Frenado y vuelta al reposo")
+	release_all()
+	player._respawn_player()
+	player.global_position = GROUND
+	await frames(10)
+	player.velocity.x = player.sprint_speed
+	await frames(2)
+	check(player.animated_sprite.animation == &"sprint_brake", "frenando la carrera: pose de frenar")
+	var saw_recover := false
+	for i in range(40):
+		await frames(1)
+		if player.animated_sprite.animation == &"brake_recover":
+			saw_recover = true
+			break
+	check(saw_recover, "al acabar de frenar: el intermedio")
+	await frames(int(player.BRAKE_RECOVER_TIME * 60.0) + 4)
+	check(player.animated_sprite.animation == &"idle", "y luego quieto")
 
 	print("RESULTADO: %d/%d OK" % [checks - fails, checks])
 	quit()

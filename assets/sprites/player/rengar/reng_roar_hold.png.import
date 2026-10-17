@@ -2,16 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bqr0s77p42eb3"
-path="res://.godot/imported/viridy_sprint_brake.png-2bec058c869848550e6518d59f1e102d.ctex"
+uid="uid://dbk5gpkfou7q8"
+path="res://.godot/imported/reng_roar_hold.png-03efe28f0b46f5caf33844f27a8bd90c.ctex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://assets/sprites/player/viridy/viridy_sprint_brake.png"
-dest_files=["res://.godot/imported/viridy_sprint_brake.png-2bec058c869848550e6518d59f1e102d.ctex"]
+source_file="res://assets/sprites/player/rengar/reng_roar_hold.png"
+dest_files=["res://.godot/imported/reng_roar_hold.png-03efe28f0b46f5caf33844f27a8bd90c.ctex"]
 
 [params]
 

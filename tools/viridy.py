@@ -117,6 +117,19 @@ def pre_recolor(frame):
     return recolored
 
 
+def deform(frame, lean_degrees=0.0, stretch=1.0, scale=1):
+    """Agranda (vecino más cercano, para no emborronar el pixel art), estira en horizontal (y aplasta en
+    vertical para conservar el volumen) e inclina hacia delante (la parte de arriba hacia la derecha)."""
+    if scale != 1:
+        frame = frame.resize((frame.width * scale, frame.height * scale), Image.NEAREST)
+    if stretch != 1.0:
+        frame = frame.resize((round(frame.width * stretch), round(frame.height / stretch ** 0.5)), Image.LANCZOS)
+    if lean_degrees:
+        frame = frame.rotate(-lean_degrees, resample=Image.BICUBIC, expand=True)
+        frame = frame.crop(frame.getbbox())
+    return frame
+
+
 def visible_box(image):
     return image.getchannel("A").point(lambda a: 255 if a > OPAQUE else 0).getbbox()
 
@@ -249,6 +262,9 @@ def main():
     parser.add_argument("--fin-control", type=float, default=0.8)
     parser.add_argument("--fuerza-lora", type=float, default=0.8)
     parser.add_argument("--sin-recolorear", action="store_true", help="no pasar antes el frame a la paleta de Viridy")
+    parser.add_argument("--inclinar", type=float, default=0.0, help="grados de inclinación hacia delante (mirando a la derecha)")
+    parser.add_argument("--estirar", type=float, default=1.0, help="estirado horizontal (1.2 = 20 %% más largo y algo más bajo)")
+    parser.add_argument("--escala-salida", type=int, default=1, help="agranda el frame antes de transformarlo (más resolución)")
     parser.add_argument("--pasos", type=int, default=30)
     parser.add_argument("--cfg", type=float, default=6.0)
     args = parser.parse_args()
@@ -262,7 +278,7 @@ def main():
     started = time.time()
     for frame_path in args.frames:
         name = os.path.splitext(os.path.basename(frame_path))[0]
-        frame = Image.open(frame_path).convert("RGBA")
+        frame = deform(Image.open(frame_path).convert("RGBA"), args.inclinar, args.estirar, args.escala_salida)
         canvas, transform = to_canvas(frame if args.sin_recolorear else pre_recolor(frame))
         input_path = os.path.join(args.salida, f"{name}_entrada.png")
         canvas.save(input_path)

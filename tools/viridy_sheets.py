@@ -25,24 +25,34 @@ OUTPUT_DIR = os.path.join(ROOT, "assets", "sprites", "player", "viridy")
 SOURCE_DIR = os.path.join(ROOT, "assets", "sprites", "player", "rengar")
 # Hoja de Viridy -> hoja de Rengar de la que sale (mismo tamaño y mismas regiones).
 SOURCES = {
-    "viridy_idle.png": "rengar_standing.png", "viridy_proud.png": "reng_standingProud.png",
+    "viridy_idle.png": "rengar_standing.png",
     "viridy_walk.png": "reng_walkingNew.png", "viridy_sprint.png": "reng_sprintingNEW.png",
     "viridy_mantle.png": "reng_mantling.png", "viridy_dash_attack.png": "reng_dashattackNEW.png",
     "viridy_wall_cling.png": "reng_cling_wallNEW.png", "viridy_wallrun.png": "reng_wallrun.png",
-    "viridy_roar.png": "reng_aerialStallNEW.png", "viridy_backflip.png": "reng_backflipNEW.png",
+    "viridy_aerial_stall.png": "reng_aerialStallNEW.png", "viridy_backflip.png": "reng_backflipNEW.png",
     "viridy_uppercut.png": "reng_uppercutNEW.png", "viridy_wall_jump.png": "reng_jump_off_wall.png",
     "viridy_jump_squat.png": "reng_jumpingNEW1.png", "viridy_jump.png": "reng_jumpingNEW3.png",
     "viridy_heavy_aerial.png": "reng_heavy_aerialNEW1.png", "viridy_light_hits.png": "reng_light_hits-sheet.png",
     "viridy_ground_heavy.png": "reng-heavy.png", "viridy_spin.png": "reng_aerial_spinning-sheet.png",
-    "viridy_dash.png": "reng_dash_1.png", "viridy_sprint_brake.png": "reng_uppercut-sheet.png",
 }
+# Poses sueltas que no salen de aquí sino de tools/viridy.py (semilla 7, --cambio 0.65), recortadas y limpiadas:
+#   viridy_roar / viridy_roar_hold / viridy_frontflip <- reng_roar / reng_roar_hold / reng_fontflip
+#   viridy_brake / viridy_brake_recover <- reng_frenando1 / reng_frenando2 (con --escala-salida 2)
+#   viridy_proud <- los 4 frames de reng_farmeando_aura (fondo magenta) normalizados con normalize_sheet.py
+# viridy_dash.png no sale de aquí: es el frame nuevo reng_dashNEW.png pasado por tools/viridy.py con
+# --inclinar 20 --estirar 1.2 --escala-salida 2 --semilla 7 (pose de esquiva inclinada hacia delante).
 # Hojas viejas (sprites de antes de la renovación); van aparte con --viejas.
-SKIP = {"viridy_light_hits.png", "viridy_ground_heavy.png", "viridy_spin.png", "viridy_sprint_brake.png", "viridy_dash.png"}
+SKIP = {"viridy_light_hits.png", "viridy_ground_heavy.png", "viridy_spin.png"}
 BORDER = 2  # px que se dejan vacíos en el borde de cada región (que nada asome a la celda vecina)
 # Blanco que sobra del fondo de SD dentro del dibujo (encerrado entre piernas, suelo, armadura...).
 WHITE = 232
-TRAPPED_BACKGROUND = 120  # manchas blancas de al menos este tamaño (px) son fondo: se vuelven transparentes
-HIGHLIGHT = (205, 240, 170)  # las más pequeñas son brillos sueltos: se pintan de jade claro
+# Fondo atrapado: mancha grande de blanco puro y neutro (el fondo de SD). Los brillos del pelaje también son
+# casi blancos pero tienen algo de matiz: se dejan como están.
+TRAPPED_BACKGROUND = 120
+BACKGROUND_MIN_LEVEL = 249
+BACKGROUND_MAX_TINT = 3.0
+SPECK = 40  # motitas blancas sueltas de hasta este tamaño se pintan de jade claro
+HIGHLIGHT = (205, 240, 170)
 
 
 def clean_white(sheet):
@@ -71,15 +81,41 @@ def clean_white(sheet):
                             seen[ny * width + nx] = 1
                             blob.append((nx, ny))
                             stack.append((nx, ny))
-            if len(blob) >= TRAPPED_BACKGROUND:
+            colors = [pixels[x, y] for x, y in blob]
+            tint = sum(max(c[:3]) - min(c[:3]) for c in colors) / len(colors)
+            level = sum(min(c[:3]) for c in colors) / len(colors)
+            if len(blob) >= TRAPPED_BACKGROUND and tint <= BACKGROUND_MAX_TINT and level >= BACKGROUND_MIN_LEVEL:
                 for x, y in blob:
                     pixels[x, y] = (0, 0, 0, 0)
                 removed += len(blob)
-            else:
+            elif len(blob) <= SPECK:
                 for x, y in blob:
                     pixels[x, y] = HIGHLIGHT + (pixels[x, y][3],)
                 recolored += len(blob)
     return removed, recolored
+
+
+def defringe(image, passes=2, light=185):
+    """Quita el borde claro que deja el fondo blanco de SD: píxeles claros y poco saturados pegados a la
+    transparencia (repite unas pasadas para comerse el halo entero)."""
+    width, height = image.size
+    pixels = image.load()
+    removed = 0
+    for _ in range(passes):
+        doomed = []
+        for y in range(height):
+            for x in range(width):
+                r, g, b, a = pixels[x, y]
+                if a == 0 or min(r, g, b) < light or max(r, g, b) - min(r, g, b) > 60:
+                    continue
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if not (0 <= nx < width and 0 <= ny < height) or pixels[nx, ny][3] == 0:
+                        doomed.append((x, y))
+                        break
+        for x, y in doomed:
+            pixels[x, y] = (0, 0, 0, 0)
+        removed += len(doomed)
+    return removed
 
 
 def read_regions(path, old_only=False):
@@ -133,7 +169,7 @@ def main():
     for name, regions in sorted(sheets.items()):
         source = Image.open(os.path.join(SOURCE_DIR, SOURCES[name])).convert("RGBA")
         sheet = Image.new("RGBA", source.size, (0, 0, 0, 0))
-        stem = os.path.splitext(name)[0].replace(" ", "_")
+        stem = os.path.splitext(SOURCES[name])[0].replace(" ", "_")
         for (x, y, width, height), label in sorted(regions.items()):
             done += 1
             frame_path = os.path.join(args.trabajo, f"{stem}_{x}_{y}.png")
@@ -152,7 +188,9 @@ def main():
                 inner = (BORDER, BORDER, result.width - BORDER, result.height - BORDER)
                 cleared.paste(result.crop(inner), inner[:2])
                 cleared.save(frame_path)
-            sheet.alpha_composite(Image.open(frame_path).convert("RGBA"), (x, y))
+            frame_image = Image.open(frame_path).convert("RGBA")
+            defringe(frame_image)
+            sheet.alpha_composite(frame_image, (x, y))
             elapsed = time.time() - started
             print(f"[{done}/{total}] {name} {label} ({elapsed / 60:.1f} min)", flush=True)
         removed, recolored = clean_white(sheet)

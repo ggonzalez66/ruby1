@@ -10,7 +10,6 @@ signal died
 signal respawned
 
 const AERIAL_SPINNING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_spin.png")
-const UPPERCUT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_brake.png")
 const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
 const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_ground_heavy.png")
@@ -29,13 +28,19 @@ const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/vi
 const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_attack.png")
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_cling.png")
 const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wallrun.png")
-const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_roar.png")
+const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_aerial_stall.png")
 const BACKFLIP_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_backflip.png")
 const UPPERCUT_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
 const JUMP_OFF_WALL_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_jump.png")
 const JUMP_SQUAT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_jump_squat.png")
 const JUMP_AIR_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_jump.png")
 const HEAVY_AERIAL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_aerial.png")
+# Poses sueltas recortadas al cuerpo (pies en el borde de abajo).
+const ROAR_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_roar.png")
+const ROAR_HOLD_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_roar_hold.png")
+const BRAKE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_brake.png")
+const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_brake_recover.png")
+const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -64,7 +69,6 @@ const ANIMATION_UPPERCUT := &"uppercut"
 const ANIMATION_WALL_SLIDE := &"wall_slide"
 const ANIMATION_WALL_JUMP := &"wall_jump"
 const ANIMATION_CHARGE := &"charge"
-const ANIMATION_CHARGE_IDLE := &"charge_idle"
 const ANIMATION_HEAVY_AERIAL := &"heavy_aerial"
 const ANIMATION_FALL := &"fall"
 const ANIMATION_DASH := &"dash"
@@ -78,6 +82,14 @@ const ANIMATION_SPRINT_BRAKE := &"sprint_brake"
 const ANIMATION_LIGHT_HIT_2 := &"light_hit_2"
 const ANIMATION_LIGHT_FINISHER := &"light_finisher"
 const ANIMATION_ROAR := &"roar"
+# Rugido mantenido (tras los frames explosivos del parry).
+const ANIMATION_ROAR_HOLD := &"roar_hold"
+# Tras el giro del frontflip, hasta aterrizar.
+const ANIMATION_AERIAL_STALL := &"aerial_stall"
+# Intermedio al terminar de frenar, antes de quedarse quieto.
+const ANIMATION_BRAKE_RECOVER := &"brake_recover"
+# Rugido con onda al entrar en la pose orgullosa.
+const ANIMATION_PROUD_ROAR := &"proud_roar"
 const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
@@ -90,33 +102,48 @@ const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_IDLE: 0.854,
-	ANIMATION_PROUD: 1.13,
+	ANIMATION_PROUD: 0.987,
+	ANIMATION_PROUD_ROAR: 0.987,
 	ANIMATION_WALK: 1.05,
 	ANIMATION_JUMP: 0.65,
 	ANIMATION_JUMP_SQUAT: 0.556,
 	ANIMATION_SPIN: 1.05,
 	ANIMATION_UPPERCUT: 0.39,
-	ANIMATION_CHARGE_IDLE: 1.2,
 	ANIMATION_WALL_SLIDE: 0.38,
 	ANIMATION_WALL_JUMP: 0.687,
 	ANIMATION_LONG_JUMP: 0.687,
 	ANIMATION_CHARGE: 0.336,
 	ANIMATION_HEAVY_AERIAL: 0.39,
 	ANIMATION_FALL: 0.65,
-	ANIMATION_DASH: 1.2,
+	ANIMATION_DASH: 0.64,
 	ANIMATION_LIGHT_HIT: 1.25,
 	ANIMATION_LIGHT_HIT_2: 1.25,
 	ANIMATION_LIGHT_FINISHER: 1.25,
-	ANIMATION_ROAR: 0.42,
+	ANIMATION_ROAR: 0.384,
+	ANIMATION_ROAR_HOLD: 0.384,
+	ANIMATION_AERIAL_STALL: 0.42,
 	ANIMATION_MANTLE: 0.74,
 	ANIMATION_WALLRIDE: 0.95,
 	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 1.3,
 	ANIMATION_SPRINT: 0.655,
 	ANIMATION_BACKFLIP: 0.38,
-	ANIMATION_FRONTFLIP: 0.65,
-	ANIMATION_SPRINT_BRAKE: 1.2,
+	ANIMATION_FRONTFLIP: 0.3,
+	ANIMATION_SPRINT_BRAKE: 0.514,
+	ANIMATION_BRAKE_RECOVER: 0.514,
 }
+
+# Flips: el frontflip da la vuelta en el 70 % del vuelo (luego queda en aerial stall); el backflip, un
+# poco más rápido que el vuelo entero. Desde el 2º flip seguido, cada giro va más rápido.
+const FRONTFLIP_SPIN_FRACTION := 0.7
+const BACKFLIP_SPIN_FRACTION := 0.85
+const CHAINED_FLIP_SPIN := 0.65
+# Rugido: el grito se ve al menos este tiempo antes de pasar a la guardia.
+const ROAR_SHOUT_TIME := 0.3
+# Intermedio al terminar de frenar y rugido al entrar en la pose orgullosa.
+const BRAKE_RECOVER_TIME := 0.2
+const PROUD_ROAR_TIME := 0.7
+const PROUD_WAVE_COLOR := Color(0.62, 0.95, 0.6)
 
 const ATTACK_NONE := 0
 const ATTACK_SLASH := 1
@@ -375,6 +402,12 @@ var still_time := 0.0
 var jump_squat_timer := 0.0
 var uppercut_pose_timer := 0.0
 var proud_active := false
+var proud_roar_timer := 0.0
+var brake_recover_timer := 0.0
+# Viene frenando la carrera sin pulsar dirección: mantiene la pose hasta pararse y luego el intermedio.
+var brake_pending := false
+# Flips seguidos (sin volver a quedarse en el suelo): a partir del 2º giran más rápido.
+var flip_streak := 0
 var roar_hit_targets: Array = []
 var roar_aura: Node2D
 var roar_aura_spin := 0.0
@@ -689,6 +722,8 @@ func _physics_process(delta: float) -> void:
 		air_uppercut_available = true
 		if jump_buffer_timer > 0.0:
 			_consume_jump_buffer()
+		if not backflip_active and backflip_chain_timer <= 0.0 and long_jump_chain_timer <= 0.0:
+			flip_streak = 0
 
 	_update_movement_fx(delta, was_on_floor, air_jumps_before, fall_speed)
 	_update_proud(delta, move_input)
@@ -703,9 +738,16 @@ func _update_proud(delta: float, move_input: float) -> void:
 		and not roar_active and not mantle_active and dash_timer <= 0.0 and block_stun_timer <= 0.0 \
 		and hurt_lock_timer <= 0.0 and not Input.is_anything_pressed()
 	still_time = still_time + delta if still else 0.0
+	var was_proud: bool = proud_active
 	proud_active = still_time >= proud_delay
+	if proud_active and not was_proud:
+		_start_proud_roar()
 	if proud_active:
 		Ferocity.add_pride(delta)
+
+func _start_proud_roar() -> void:
+	proud_roar_timer = PROUD_ROAR_TIME
+	Fx.roar_wave(get_parent(), global_position + Vector2(facing * 6.0, -40.0), global_position, PROUD_WAVE_COLOR)
 
 func _update_movement_fx(delta: float, was_on_floor: bool, air_jumps_before: int, fall_speed: float) -> void:
 	var level := get_parent()
@@ -741,8 +783,9 @@ func _configure_character_animations() -> void:
 	frames.remove_animation(&"default")
 	# De pie: 4 frames respirando (ida y vuelta). Orgulloso: 8 frames en 2 filas, también respirando.
 	_add_grid_animation(frames, ANIMATION_IDLE, STANDING_SHEET, Vector2(543, 724), 616, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(2, 0), Vector2i(1, 0)], 5.0, true)
-	# Orgulloso: solo los 3 frames que menos se desplazan (5º, 1º y 2º de la hoja), respirando.
-	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(543, 362), 356, [Vector2i(0, 1), Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 0)], 4.0, true)
+	# Orgulloso (hoja normalizada de 768 px): el 1er frame es el rugido de entrada; los otros 3, respirando.
+	_add_grid_animation(frames, ANIMATION_PROUD_ROAR, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(0, 0)], 1.0, false)
+	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(2, 0)], 4.0, true)
 	_add_grid_animation(frames, ANIMATION_WALK, WALKING_SHEET, Vector2(543, 362), 358, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)], 12.0, true)
 	# Salto: el agachado al despegar (pose aparte, está dibujado a otra escala) y los 3 frames del aire.
 	_add_region_animation(frames, ANIMATION_JUMP_SQUAT, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
@@ -753,13 +796,15 @@ func _configure_character_animations() -> void:
 	_add_single_frame_animation(frames, ANIMATION_WALL_SLIDE, CLING_WALL_TEXTURE)
 	# Salto de pared y salto largo/bunnyhop: el 2º frame de despegar de la pared.
 	_add_region_animation(frames, ANIMATION_WALL_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
-	_add_sheet_animation(frames, ANIMATION_CHARGE_IDLE, UPPERCUT_SHEET, 3, 1.0, false, [0])
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_HITS_SHEET, 2, 12.5, false)
 	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_HITS_SHEET, 2, 12.5, false, [1, 0])
 	_add_sheet_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_HITS_SHEET, 2, 9.0, false)
 	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
-	# Rugido (shine): la pose del aerial stall.
-	_add_region_animation(frames, ANIMATION_ROAR, AERIAL_STALL_NEW, [AERIAL_STALL_REGION], 1.0, false)
+	# Rugido (shine): el grito durante los frames explosivos y la guardia mientras se mantiene.
+	_add_single_frame_animation(frames, ANIMATION_ROAR, ROAR_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_ROAR_HOLD, ROAR_HOLD_TEXTURE)
+	# Aerial stall: la pose tras el giro del frontflip.
+	_add_region_animation(frames, ANIMATION_AERIAL_STALL, AERIAL_STALL_NEW, [AERIAL_STALL_REGION], 1.0, false)
 	# Mantle: solo el tercer frame de la hoja de trepar, recortado 4 px por lado (centrado igual) para que
 	# no se cuele el borde del cuarto frame.
 	_add_region_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, [Rect2(1090, 0, 535, 600)], 1.0, false)
@@ -774,8 +819,11 @@ func _configure_character_animations() -> void:
 	_add_region_animation(frames, ANIMATION_FALL, JUMP_AIR_SHEET, [JUMP_AIR_REGIONS[2]], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
 	_add_region_animation(frames, ANIMATION_BACKFLIP, BACKFLIP_NEW, [BACKFLIP_REGION], 1.0, false)
-	_add_region_animation(frames, ANIMATION_FRONTFLIP, JUMP_AIR_SHEET, JUMP_AIR_REGIONS, 8.0, false)
-	_add_sheet_animation(frames, ANIMATION_SPRINT_BRAKE, UPPERCUT_SHEET, 3, 1.0, false, [0])
+	# Frontflip: la pose encogida, que gira entera (ver _update_character_orientation).
+	_add_single_frame_animation(frames, ANIMATION_FRONTFLIP, FRONTFLIP_TEXTURE)
+	# Frenando la carrera, y el intermedio al acabar de frenar.
+	_add_single_frame_animation(frames, ANIMATION_SPRINT_BRAKE, BRAKE_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_BRAKE_RECOVER, BRAKE_RECOVER_TEXTURE)
 	animated_sprite.sprite_frames = frames
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
 
@@ -836,8 +884,12 @@ func _add_region_animation(frames: SpriteFrames, animation_name: StringName, tex
 
 func _update_character_animation() -> void:
 	var next_animation: StringName
+	if not is_on_floor():
+		brake_pending = false
 	if roar_active:
-		next_animation = ANIMATION_ROAR
+		# El grito durante los frames explosivos (y un mínimo para que se vea); luego la guardia.
+		var shouting: bool = roar_explosive_timer > 0.0 or roar_elapsed < ROAR_SHOUT_TIME
+		next_animation = ANIMATION_ROAR if shouting else ANIMATION_ROAR_HOLD
 	elif mantle_active:
 		next_animation = ANIMATION_MANTLE
 	elif wallride_active:
@@ -861,7 +913,8 @@ func _update_character_animation() -> void:
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP
 	elif frontflip_active:
-		next_animation = ANIMATION_FRONTFLIP
+		# Tras la vuelta, el aerial stall hasta aterrizar.
+		next_animation = ANIMATION_FRONTFLIP if frontflip_elapsed < frontflip_rotation_duration else ANIMATION_AERIAL_STALL
 	elif wall_embedded:
 		next_animation = ANIMATION_WALL_SLIDE
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
@@ -881,12 +934,26 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_SPRINT_BRAKE
 	elif is_sprinting:
 		next_animation = ANIMATION_SPRINT
+	elif _is_braking():
+		brake_pending = true
+		next_animation = ANIMATION_SPRINT_BRAKE
 	elif abs(velocity.x) > 10.0:
-		next_animation = ANIMATION_WALK
-	elif proud_active:
-		next_animation = ANIMATION_PROUD
+		if brake_pending and Input.get_axis("move_left", "move_right") == 0.0:
+			next_animation = ANIMATION_SPRINT_BRAKE
+		else:
+			brake_pending = false
+			next_animation = ANIMATION_WALK
 	else:
-		next_animation = ANIMATION_IDLE
+		# Al acabar de frenar, un intermedio antes de quedarse quieto.
+		if brake_pending:
+			brake_pending = false
+			brake_recover_timer = BRAKE_RECOVER_TIME
+		if brake_recover_timer > 0.0:
+			next_animation = ANIMATION_BRAKE_RECOVER
+		elif proud_active:
+			next_animation = ANIMATION_PROUD_ROAR if proud_roar_timer > 0.0 else ANIMATION_PROUD
+		else:
+			next_animation = ANIMATION_IDLE
 
 	if animated_sprite.animation != next_animation:
 		animated_sprite.play(next_animation)
@@ -894,6 +961,10 @@ func _update_character_animation() -> void:
 	_update_character_orientation(next_animation)
 	mane_emitter.follow(animated_sprite, facing, not dead)
 	shadow.visible = is_on_floor()
+
+func _is_braking() -> bool:
+	# Frenando la carrera en el suelo: ya no corre pero aún va más rápido que andando.
+	return is_on_floor() and not is_sprinting and abs(velocity.x) > max_speed + 15.0
 
 func _update_character_orientation(animation_name: StringName) -> void:
 	match animation_name:
@@ -934,6 +1005,8 @@ func _update_timers(delta: float) -> void:
 	invulnerability_timer = max(invulnerability_timer - delta, 0.0)
 	knife_throw_pose_timer = max(knife_throw_pose_timer - delta, 0.0)
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
+	proud_roar_timer = max(proud_roar_timer - delta, 0.0)
+	brake_recover_timer = max(brake_recover_timer - delta, 0.0)
 	roar_stall_timer = max(roar_stall_timer - delta, 0.0)
 	roar_lock_timer = max(roar_lock_timer - delta, 0.0)
 	riposte_timer = max(riposte_timer - delta, 0.0)
@@ -1133,7 +1206,8 @@ func _start_backflip() -> void:
 	long_jump_active = false
 	backflip_active = true
 	backflip_elapsed = 0.0
-	backflip_rotation_duration = _get_backflip_airtime()
+	flip_streak += 1
+	backflip_rotation_duration = _get_backflip_airtime() * BACKFLIP_SPIN_FRACTION * _flip_chain_factor()
 	backflip_chain_timer = 0.0
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
@@ -1141,6 +1215,9 @@ func _start_backflip() -> void:
 	coyote_timer = 0.0
 	velocity.x = backflip_direction * backflip_horizontal_speed
 	velocity.y = backflip_vertical_speed
+
+func _flip_chain_factor() -> float:
+	return CHAINED_FLIP_SPIN if flip_streak >= 2 else 1.0
 
 func _get_backflip_airtime() -> float:
 	return _get_flip_airtime(backflip_vertical_speed)
@@ -1182,7 +1259,8 @@ func _perform_frontflip() -> void:
 	frontflip_active = true
 	Stats.add("frontflips")
 	frontflip_elapsed = 0.0
-	frontflip_rotation_duration = _get_flip_airtime(jump_velocity)
+	flip_streak += 1
+	frontflip_rotation_duration = _get_flip_airtime(jump_velocity) * FRONTFLIP_SPIN_FRACTION * _flip_chain_factor()
 	jump_buffer_timer = 0.0
 	velocity.y = jump_velocity
 
@@ -3360,6 +3438,10 @@ func _respawn_player() -> void:
 	running_attack_cooldown_timer = 0.0
 	still_time = 0.0
 	proud_active = false
+	proud_roar_timer = 0.0
+	brake_recover_timer = 0.0
+	brake_pending = false
+	flip_streak = 0
 	jump_squat_timer = 0.0
 	uppercut_pose_timer = 0.0
 	block_stun_timer = 0.0
