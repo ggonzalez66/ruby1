@@ -34,6 +34,9 @@ const FALL_MAX_SPEED := 900.0
 const FALL_DEATH_HEIGHT := 260.0
 const SHOOT_WARNING_COLOR := Color(1.0, 0.85, 0.95)
 const SHINE_COLOR := Color(1.0, 0.45, 0.8)
+# Los tiradores voladores disparan el doble de rápido y más seguido que los de suelo.
+const AERIAL_PROJECTILE_SPEED_SCALE := 2.0
+const AERIAL_SHOOT_INTERVAL_SCALE := 0.7
 
 @onready var body: Polygon2D = $Body
 @onready var health_fill: Polygon2D = $HealthBarPivot/HealthBarFill
@@ -67,6 +70,9 @@ func _ready() -> void:
 	spawn_anchor = position
 	stand.visible = not aerial
 	if shoot_interval > 0.0:
+		if aerial:
+			projectile_speed *= AERIAL_PROJECTILE_SPEED_SCALE
+			shoot_interval *= AERIAL_SHOOT_INTERVAL_SCALE
 		_add_cannon()
 	reset_dummy()
 

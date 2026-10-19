@@ -1,7 +1,8 @@
 extends Node2D
 
 # Director del Gauntlet por oleadas. Cada ronda:
-# 1. Oleada de enemigos normales (perseguidores y tiradores; más en cada ronda): hay que matarlos a todos.
+# 1. Oleada de enemigos normales: hay que matarlos a todos. Perseguidores y tiradores; desde la ronda 2
+#    también escuderos y halcones, y desde la 3 enemigos en las plataformas altas (más arriba cada ronda).
 # 2. Con todos muertos, se prepara el guardián (a veces salen los tres) y aparece.
 # 3. Al vencerlo aparecen dos portales: el de la derecha sigue a la siguiente ronda; el de la izquierda
 #    termina el Gauntlet y muestra la pantalla de fin con las medallas.
@@ -12,6 +13,19 @@ extends Node2D
 const CHASER_SCRIPT := preload("res://chaser_dummy.gd")
 const DUMMY_SCENE := preload("res://training_dummy.tscn")
 const PORTAL_SCRIPT := preload("res://portal.gd")
+const HAWK_SCRIPT := preload("res://hawk.gd")
+const SHIELD_SCRIPT := preload("res://shield_bearer.gd")
+# Plataformas altas de la arena donde aparecen enemigos en las oleadas mayores: [x, altura del suelo de
+# la plataforma respecto al suelo, piso (1 = la más baja)].
+const UPPER_SPOTS := [
+	[1930.0, -330.0, 2], [3120.0, -320.0, 2],
+	[2680.0, -480.0, 3], [3560.0, -480.0, 3],
+	[2380.0, -640.0, 4], [3120.0, -640.0, 4], [3860.0, -640.0, 4],
+	[2700.0, -800.0, 5], [3540.0, -800.0, 5],
+	[3100.0, -960.0, 6], [2370.0, -960.0, 6], [3870.0, -960.0, 6],
+	[2690.0, -1120.0, 7], [3550.0, -1120.0, 7],
+	[2980.0, -1280.0, 8],
+]
 
 enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE }
 
@@ -73,28 +87,89 @@ func _start_wave() -> void:
 	spawner.clear_bosses()
 	phase = Phase.WAVE
 	_show_banner("RONDA %d · OLEADA" % round_number, Color(1.0, 0.9, 0.55))
-	# Más enemigos cada ronda, repartidos por la arena.
-	var chasers: int = 2 + round_number
+	_spawn_ground_wave()
+	_spawn_hawks()
+	_spawn_upper_wave()
+
+func _spawn_ground_wave() -> void:
+	# En el suelo: perseguidores, tiradores (de suelo y voladores bajos) y, desde la ronda 2, escuderos;
+	# más cada ronda y repartidos por la arena.
+	var kinds: Array[String] = []
+	var chasers: int = 2 + min(round_number, 4)
 	var shooters: int = 1 + round_number / 2
-	var total: int = chasers + shooters
-	for index in range(total):
-		var x: float = lerp(arena_min_x, arena_max_x, (index + 0.5) / total)
-		if index % 2 == 1 and shooters > 0:
+	var shields: int = 0 if round_number < 2 else min(1 + (round_number - 2) / 2, 3)
+	while chasers + shooters + shields > 0:
+		if chasers > 0:
+			kinds.append("melee")
+			chasers -= 1
+		if shooters > 0:
+			kinds.append("shooter")
 			shooters -= 1
-			var aerial: bool = (index / 2) % 2 == 1
-			var dummy: Node2D = DUMMY_SCENE.instantiate()
-			dummy.shoot_interval = 2.4
-			dummy.shoot_direction = Vector2(-1, 0.25 if aerial else 0.0)
-			dummy.shine_chance = 0.2
-			dummy.max_health = 6
-			dummy.aerial = aerial
-			dummy.position = Vector2(x, ground_y - (220.0 if aerial else 0.0))
-			_add_enemy(dummy)
-		else:
-			var chaser: Area2D = Area2D.new()
-			chaser.set_script(CHASER_SCRIPT)
-			chaser.position = Vector2(x, ground_y)
-			_add_enemy(chaser)
+		if shields > 0:
+			kinds.append("shield")
+			shields -= 1
+	var aerial_toggle := false
+	for index in range(kinds.size()):
+		var x: float = lerp(arena_min_x, arena_max_x, (index + 0.5) / kinds.size())
+		match kinds[index]:
+			"melee":
+				_add_chaser(Vector2(x, ground_y))
+			"shield":
+				var shield: Area2D = SHIELD_SCRIPT.new()
+				shield.position = Vector2(x, ground_y)
+				_add_enemy(shield)
+			"shooter":
+				# Uno sí y uno no, volador.
+				_add_shooter(Vector2(x, ground_y - (220.0 if aerial_toggle else 0.0)), aerial_toggle, 0.25 if aerial_toggle else 0.0)
+				aerial_toggle = not aerial_toggle
+
+func _spawn_hawks() -> void:
+	# Desde la ronda 2, halcones patrullando alto sobre la arena.
+	if round_number < 2:
+		return
+	var count: int = min(1 + (round_number - 2) / 2, 4)
+	for index in range(count):
+		var hawk: Area2D = HAWK_SCRIPT.new()
+		hawk.position = Vector2(lerp(arena_min_x + 500.0, arena_max_x - 300.0, (index + 0.5) / count), ground_y - 720.0 - 140.0 * (index % 2))
+		hawk.patrol_direction = 1.0 if index % 2 == 0 else -1.0
+		_add_enemy(hawk)
+
+func _spawn_upper_wave() -> void:
+	# Oleadas mayores (desde la ronda 3): enemigos en las plataformas de arriba, cada ronda más alto y más
+	# numerosos, alternando cuerpo a cuerpo, tiradores y voladores, para obligar a subir con la movilidad.
+	if round_number < 3:
+		return
+	var count: int = min((round_number - 2) * 2, 12)
+	var max_tier: int = min(round_number + 1, 8)
+	var spots: Array = UPPER_SPOTS.filter(func(spot): return spot[2] <= max_tier)
+	# Primero las más altas.
+	spots.sort_custom(func(a, b): return a[2] > b[2])
+	for index in range(min(count, spots.size())):
+		var spot: Array = spots[index]
+		var feet := Vector2(spot[0], ground_y + spot[1])
+		match (index + round_number) % 3:
+			0:
+				_add_chaser(feet)
+			1:
+				_add_shooter(feet, false, 0.35)
+			2:
+				_add_shooter(feet + Vector2(0, -120.0), true, 0.35)
+
+func _add_chaser(feet: Vector2) -> void:
+	var chaser: Area2D = Area2D.new()
+	chaser.set_script(CHASER_SCRIPT)
+	chaser.position = feet
+	_add_enemy(chaser)
+
+func _add_shooter(at: Vector2, aerial: bool, aim_down: float) -> void:
+	var dummy: Node2D = DUMMY_SCENE.instantiate()
+	dummy.shoot_interval = 2.4
+	dummy.shoot_direction = Vector2(-1, aim_down)
+	dummy.shine_chance = 0.2
+	dummy.max_health = 6
+	dummy.aerial = aerial
+	dummy.position = at
+	_add_enemy(dummy)
 
 func _add_enemy(enemy: Node2D) -> void:
 	get_parent().add_child.call_deferred(enemy)

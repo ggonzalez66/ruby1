@@ -31,6 +31,8 @@ const FALL_DEATH_HEIGHT := 260.0
 enum State { IDLE, CHASE, TELEGRAPH, SWING, RECOVER, STAGGER, DEAD }
 
 var impact_offset := Vector2(0, -26)
+# Color del cuerpo (las variantes, como el escudero, ponen el suyo).
+var body_color := BODY_COLOR
 var state := State.IDLE
 var state_timer := 0.0
 var current_health := 0
@@ -189,7 +191,7 @@ func _physics_process(delta: float) -> void:
 				state = State.IDLE
 
 	var blink: bool = state == State.TELEGRAPH and int(state_timer * 20.0) % 2 == 0
-	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else (WARNING_COLOR if blink else BODY_COLOR)
+	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else (WARNING_COLOR if blink else body_color)
 
 func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
 	if state == State.DEAD:
@@ -211,7 +213,7 @@ func _update_launch(delta: float) -> void:
 	global_position = launch_from.lerp(launch_target, ease(t, 0.4))
 	visual.rotation = lerp(visual.rotation, -0.35 * facing, 8.0 * delta)
 	arm.rotation = lerp_angle(arm.rotation, 0.9, 6.0 * delta)
-	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else BODY_COLOR
+	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else body_color
 	if launch_elapsed >= launch_rise + launch_hang:
 		launched = false
 		fall_velocity = 0.0

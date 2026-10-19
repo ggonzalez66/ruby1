@@ -1,6 +1,6 @@
 extends CanvasLayer
 
-# Autoload "InputViewer": visor de inputs (se activa en Opciones). Abajo a la izquierda dibuja lo que se
+# Autoload "InputViewer": visor de inputs (se activa en Opciones). Abajo a la derecha dibuja lo que se
 # está pulsando según el dispositivo en uso (InputHints): un mando de Xbox (gatillos, bumpers, sticks,
 # cruceta y A/B/X/Y con sus colores) o el teclado y el ratón (las teclas asignadas a cada acción, con las
 # de movimiento en T, y un ratón si alguna acción va en sus botones).
@@ -49,7 +49,7 @@ func _layout() -> void:
 	var size: Vector2 = PAD_SIZE if _joypad() else KEYS_SIZE
 	var screen: Vector2 = get_viewport().get_visible_rect().size
 	panel.size = size
-	panel.position = Vector2(MARGIN, screen.y - size.y - MARGIN)
+	panel.position = Vector2(screen.x - size.x - MARGIN, screen.y - size.y - MARGIN)
 
 func _joypad() -> bool:
 	return InputHints.device == InputHints.Device.JOYPAD

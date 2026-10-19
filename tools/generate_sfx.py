@@ -433,10 +433,13 @@ def enemy_alert():
 
 
 def boss_alert():
-    d = 0.3
-    stab = mix(*[mul(osc(d, f, "saw"), env(d, 0.002, 0.22, 3.0)) for f in (220, 233, 330)])
-    hit = mul(lowpass(noise(d, 41), 1500), env(d, 0.001, 0.04))
-    return finish(drive(mix(lowpass(stab, 2200), hit), 2.0), 0.8)
+    # Destello agudo antes de un ataque avisado: dos notas brillantes que suben (Mi y Si muy agudos, una
+    # quinta: consonante) con un brillo de metal encima. Corto y limpio, se oye por encima de la pelea.
+    d = 0.32
+    first = mul(osc(d, 2637), env(d, 0.002, 0.12, 3.0))
+    second = delay(mul(osc(d - 0.06, 3951), env(d - 0.06, 0.002, 0.2, 3.0)), 0.06)
+    shimmer = delay(gain(partials(d - 0.06, [5274, 7902], [0.12, 0.08], 41), 0.5), 0.06)
+    return finish(mix(gain(first, 0.7), second, shimmer), 0.7)
 
 
 def enemy_hurt():
@@ -529,9 +532,12 @@ def dagger_throw():
 
 
 def bow_draw():
+    # Cuerda que se tensa: un silbido fino que sube y se aclara, sin el crujido grave de antes.
     d = 0.35
-    creak = mul(tremolo(bandpass(noise(d, 57), 300, 1600), 38, 0.7), [min(1.0, i / n_samples(d) * 1.3) for i in range(n_samples(d))])
-    return finish(creak, 0.55)
+    rise = [min(1.0, i / n_samples(d) * 1.3) for i in range(n_samples(d))]
+    string = mul(osc(d, sweep(1700, 2500, d, 0.8), "triangle", 0.01, 30), rise)
+    air = mul(bandpass(noise(d, 57), 3000, 8000), rise)
+    return finish(mix(gain(string, 0.45), gain(air, 0.3)), 0.45)
 
 
 def arrow_shot():
@@ -565,6 +571,31 @@ def sun_hit():
     gong = partials(d, [196, 293, 415, 587], [0.5, 0.4, 0.3, 0.2], 63)
     hit = mul(lowpass(noise(d, 64), 1200), env(d, 0.001, 0.03))
     return finish(mix(gong, hit), 0.75)
+
+
+def hawk_screech():
+    # El halcón te ha visto: chillido agudo "kiii-iir" que baja un poco al final, con vibrato rápido.
+    d = 0.42
+    cry = mul(osc(d, sweep(3300, 2500, d, 1.6), "sine", 0.025, 38), env(d, 0.012, 0.36, 2.2))
+    edge = gain(mul(osc(d, sweep(6600, 5000, d, 1.6), "triangle"), env(d, 0.01, 0.2, 3.0)), 0.18)
+    breath = mul(bandpass(noise(d, 65), 3500, 9000), env(d, 0.005, 0.1))
+    return finish(mix(cry, edge, gain(breath, 0.2)), 0.7)
+
+
+def hawk_dive():
+    # Picada: viento que silba bajando de tono.
+    d = 0.5
+    wind = mul(bandpass(noise(d, 66), 600, sweep(6000, 1800, d)), env(d, 0.06, 0.4, 2.0))
+    whistle = gain(mul(osc(d, sweep(2200, 1100, d)), env(d, 0.05, 0.4, 2.5)), 0.25)
+    return finish(mix(wind, whistle), 0.75)
+
+
+def guard_break():
+    # Se le rompe la guardia al escudero: golpe metálico grave y el escudo que tiembla.
+    d = 0.4
+    clank = partials(d, [310, 470, 820, 1290], [0.3, 0.22, 0.14, 0.08], 67)
+    thud = mul(lowpass(noise(d, 68), 900), env(d, 0.001, 0.05))
+    return finish(drive(mix(tremolo(clank, 16, 0.4), thud), 1.6), 0.85)
 
 
 def ui_move():

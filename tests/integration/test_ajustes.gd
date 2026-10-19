@@ -90,7 +90,7 @@ func _run() -> void:
 	await frames(3)
 	check(viewer.panel.size == viewer.KEYS_SIZE, "con teclado, las teclas")
 	var screen: Vector2 = viewer.get_viewport().get_visible_rect().size
-	check(viewer.panel.position.x < 30.0 and viewer.panel.position.y + viewer.panel.size.y > screen.y - 30.0, "abajo a la izquierda")
+	check(viewer.panel.position.x + viewer.panel.size.x > screen.x - 30.0 and viewer.panel.position.x > screen.x * 0.5 and viewer.panel.position.y + viewer.panel.size.y > screen.y - 30.0, "abajo a la derecha")
 	viewer.set_enabled(false)
 	check(not viewer.visible, "y se oculta al desactivarlo")
 

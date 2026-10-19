@@ -20,12 +20,12 @@ const MIX := {
 	"enemy_die": [-3.0, 0.08], "enemy_swing": [-7.0, 0.06], "knife_throw": [-5.0, 0.06],
 	"knife_hit": [-5.0, 0.08], "knife_catch": [-8.0, 0.05], "rank_up": [-9.0, 0.0], "growl": [-3.0, 0.03],
 	"ui_move": [-14.0, 0.0], "ui_select": [-10.0, 0.0], "shine_hold": [-10.0, 0.0],
-	"enemy_alert": [-9.0, 0.0], "boss_alert": [-6.0, 0.0], "enemy_hurt": [-8.0, 0.1], "boss_hurt": [-5.0, 0.08],
+	"enemy_alert": [-9.0, 0.0], "boss_alert": [-8.0, 0.0], "enemy_hurt": [-8.0, 0.1], "boss_hurt": [-5.0, 0.08],
 	"enemy_charge": [-10.0, 0.0], "enemy_shoot": [-7.0, 0.08], "projectile_pop": [-9.0, 0.1], "zap": [-6.0, 0.08],
 	"boss_swing": [-4.0, 0.06], "shockwave": [-2.0, 0.04], "boss_charge": [-4.0, 0.0], "boss_spin": [-4.0, 0.03],
-	"boss_dash": [-5.0, 0.06], "rapier": [-5.0, 0.1], "dagger_throw": [-6.0, 0.04], "bow_draw": [-8.0, 0.04],
+	"boss_dash": [-5.0, 0.06], "rapier": [-5.0, 0.1], "dagger_throw": [-6.0, 0.04], "bow_draw": [-11.0, 0.04],
 	"arrow_shot": [-4.0, 0.06], "rain_mark": [-11.0, 0.05], "arrow_rain": [-6.0, 0.03], "teleport": [-6.0, 0.03],
-	"sun_hit": [-6.0, 0.06],
+	"sun_hit": [-6.0, 0.06], "hawk_screech": [-7.0, 0.04], "hawk_dive": [-8.0, 0.05], "guard_break": [-3.0, 0.04],
 }
 # Sonidos en bucle (se arrancan con start_loop y se paran con stop_loop).
 const LOOPS := ["shine_hold"]

@@ -20,6 +20,7 @@ const PATTERNS := {
 	"enemy_die": [0.3, 0.45, 0.14],
 	"zap": [0.4, 0.0, 0.1],
 	"knife_hit": [0.25, 0.0, 0.05],
+	"guard_break": [0.5, 0.6, 0.16],
 }
 
 var enabled := true
