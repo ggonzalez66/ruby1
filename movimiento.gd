@@ -491,8 +491,9 @@ var attack_buffered := false
 var combo_buffer: StringName = &""
 var combo_buffer_timer := 0.0
 var uppercut_chain_timer := 0.0
-# Tras el uppercut (y su pose de subida) queda en aerial stall hasta aterrizar o hacer otra cosa.
-var uppercut_stall := false
+# Tras el uppercut (y su pose de subida) o al acabar el giro en el aire queda en aerial stall hasta
+# aterrizar o hacer otra cosa.
+var aerial_stall_pose := false
 var running_attack_cooldown_timer := 0.0
 var air_uppercut_available := true
 var heavy_air_speed := 0.0
@@ -936,10 +937,10 @@ func _update_character_animation() -> void:
 	if not is_on_floor():
 		brake_pending = false
 	# El aerial stall del uppercut se corta al aterrizar o al pasar a cualquier otra cosa.
-	if uppercut_stall and (is_on_floor() or roar_active or mantle_active or wallride_active or wall_cling_timer > 0.0 \
+	if aerial_stall_pose and (is_on_floor() or roar_active or mantle_active or wallride_active or wall_cling_timer > 0.0 \
 			or wall_embedded or dash_timer > 0.0 or frontflip_active or backflip_active or long_jump_active \
 			or (attack_mode != ATTACK_NONE and attack_mode != ATTACK_UPPERCUT)):
-		uppercut_stall = false
+		aerial_stall_pose = false
 	if roar_active:
 		# El grito durante los frames explosivos (y un mínimo para que se vea); luego la guardia.
 		var shouting: bool = roar_explosive_timer > 0.0 or roar_elapsed < ROAR_SHOUT_TIME
@@ -982,7 +983,7 @@ func _update_character_animation() -> void:
 	elif uppercut_pose_timer > 0.0 and not is_on_floor() and velocity.y < 0.0:
 		# Tras el golpe del uppercut se mantiene la pose mientras sube.
 		next_animation = ANIMATION_UPPERCUT
-	elif uppercut_stall and attack_mode == ATTACK_NONE and not is_on_floor():
+	elif aerial_stall_pose and attack_mode == ATTACK_NONE and not is_on_floor():
 		next_animation = ANIMATION_AERIAL_STALL
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
@@ -1223,7 +1224,7 @@ func _consume_jump_buffer() -> void:
 
 	jump_buffer_timer = 0.0
 	air_jumps_remaining -= 1
-	uppercut_stall = false
+	aerial_stall_pose = false
 	if velocity.y < jump_velocity:
 		# Ya sube más rápido que un salto (p. ej. tras un uppercut): el doble salto suma un
 		# empujón en vez de frenar la subida.
@@ -2431,7 +2432,8 @@ func _apply_uppercut_movement(delta: float) -> void:
 func _request_combat_action(kind: StringName) -> void:
 	if not _try_combat_action(kind):
 		combo_buffer = kind
-		combo_buffer_timer = COMBO_BUFFER_TIME
+		# Durante el uppercut se espera además lo que le falte para llegar al aerial stall.
+		combo_buffer_timer = COMBO_BUFFER_TIME + (uppercut_pose_timer if _in_uppercut_chain() else 0.0)
 
 func _try_combat_action(kind: StringName) -> bool:
 	# Devuelve si la acción salió (o se descartó con aviso); si no, se queda en el buffer.
@@ -2476,8 +2478,10 @@ func _in_uppercut_chain() -> bool:
 	return not is_on_floor() and uppercut_chain_timer > 0.0 and (attack_mode == ATTACK_UPPERCUT or not _is_attack_active())
 
 func _uppercut_can_be_cancelled() -> bool:
-	# Se deja terminar el barrido del uppercut, salvo que ya haya golpeado a alguien.
-	return attack_mode != ATTACK_UPPERCUT or not attack_targets_hit.is_empty()
+	# Lo siguiente solo sale cuando el uppercut ha terminado (barrido y pose de subida) y Viridy ya está en
+	# el aerial stall; antes queda en el buffer.
+	return attack_mode != ATTACK_UPPERCUT and uppercut_pose_timer <= 0.0 and aerial_stall_pose \
+		and animated_sprite.animation == ANIMATION_AERIAL_STALL
 
 func _on_attack_input() -> void:
 	# Sin carga: corriendo sale el ataque en carrera (estocada que avanza); si no, el combo ligero.
@@ -2702,7 +2706,7 @@ func _start_uppercut_attack(from_air: bool) -> void:
 	coyote_timer = 0.0
 	uppercut_pose_timer = 0.35
 	uppercut_chain_timer = light_uppercut_duration + UPPERCUT_CHAIN_WINDOW
-	uppercut_stall = true
+	aerial_stall_pose = true
 	jump_squat_timer = 0.0
 	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
 	velocity.y = light_uppercut_velocity
@@ -2775,6 +2779,9 @@ func _end_attack() -> void:
 		light_combo_queued = false
 	elif ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
 		velocity.x = facing * charged_ground_end_speed
+	elif ending_mode == ATTACK_SPIN and not is_on_floor():
+		# Al acabar el giro en el aire: aerial stall hasta aterrizar.
+		aerial_stall_pose = true
 	elif ending_mode == ATTACK_HEAVY_GROUND:
 		velocity.x = facing * ground_heavy_end_speed
 
@@ -3665,7 +3672,7 @@ func _respawn_player() -> void:
 	proud_cycle_timer = 0.0
 	brake_recover_timer = 0.0
 	brake_pending = false
-	uppercut_stall = false
+	aerial_stall_pose = false
 	roar_air_stall_available = true
 	flip_streak = 0
 	jump_squat_timer = 0.0

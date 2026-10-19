@@ -178,7 +178,7 @@ func _run() -> void:
 	seen = await watch_modes(20)
 	check(player.ATTACK_UPPERCUT in seen, "del giro sale el uppercut")
 	await tap("heavy_attack")
-	seen = await watch_modes(25)
+	seen = await watch_modes(35)
 	check(player.ATTACK_HEAVY in seen, "y del uppercut, el heavy aéreo")
 
 	print("== Combo: uppercut -> dash attack -> giro -> heavy aéreo")
@@ -187,8 +187,13 @@ func _run() -> void:
 	await frames(2)
 	check(player.attack_mode == player.ATTACK_UPPERCUT, "uppercut")
 	await tap("attack")
-	seen = await watch_modes(20)
-	check(player.ATTACK_LIGHT_CHARGED_AIR in seen, "del uppercut sale el dash attack aéreo")
+	var air_dash_attack := false
+	for i in range(40):
+		await frames(1)
+		if player.attack_mode == player.ATTACK_LIGHT_CHARGED_AIR:
+			air_dash_attack = true
+			break
+	check(air_dash_attack, "del uppercut sale el dash attack aéreo")
 	await tap("jump")
 	check(player.attack_mode == player.ATTACK_SPIN, "saltando: el giro")
 	await tap("heavy_attack")
@@ -364,6 +369,39 @@ func _run() -> void:
 	player.velocity = Vector2.ZERO
 	await frames(4)
 	check(player.roar_air_stall_available, "y tocar el suelo también")
+
+	print("== El uppercut no se cancela hasta el aerial stall")
+	await reset()
+	await tap_up_heavy()
+	await frames(2)
+	check(player.attack_mode == player.ATTACK_UPPERCUT, "uppercut")
+	await tap("heavy_attack")
+	var heavy_started_in_stall := false
+	var heavy_too_early := false
+	for i in range(40):
+		var anim_before: StringName = player.animated_sprite.animation
+		var pose_left: float = player.uppercut_pose_timer
+		await frames(1)
+		if player.attack_mode == player.ATTACK_HEAVY:
+			heavy_started_in_stall = anim_before == &"aerial_stall"
+			heavy_too_early = pose_left > 0.02
+			break
+	check(heavy_started_in_stall and not heavy_too_early, "el heavy pulsado pronto sale justo al entrar en el aerial stall, no antes")
+
+	print("== Tras el screw attack: aerial stall")
+	await reset()
+	await start_sprinting()
+	await tap("attack")
+	await frames(2)
+	await tap("jump")
+	check(player.attack_mode == player.ATTACK_SPIN, "giro")
+	for i in range(40):
+		await frames(1)
+		if player.attack_mode == player.ATTACK_NONE:
+			break
+	await frames(2)
+	check(not player.is_on_floor() and player.animated_sprite.animation == &"aerial_stall", "al acabar el giro en el aire: aerial stall (%s)" % player.animated_sprite.animation)
+	release_all()
 
 	print("== El buffer caduca")
 	await reset()
