@@ -95,6 +95,35 @@ func _run() -> void:
 	check(not chaser.launched and abs(chaser.global_position.y - GROUND.y) < 6.0 and chaser.state != chaser.State.DEAD, "luego cae al suelo sin reventar")
 	chaser.queue_free()
 
+	print("== Muñecos de entrenamiento: rombo, y se quedan donde los deja el uppercut")
+	var dummy_scene: PackedScene = load("res://training_dummy.tscn")
+	var probe: Node2D = dummy_scene.instantiate()
+	var body_points: PackedVector2Array = probe.get_node("Body").polygon
+	check(body_points.size() == 4 and body_points[0].x == 0.0 and body_points[2].x == 0.0 and body_points[1].y == body_points[3].y, "el cuerpo es un rombo")
+	probe.free()
+	for flying in [true, false]:
+		await reset()
+		var dummy: Node2D = dummy_scene.instantiate()
+		dummy.aerial = flying
+		dummy.hover_amplitude = 0.0
+		dummy.position = GROUND + Vector2(34, -30 if flying else 0)
+		level.add_child(dummy)
+		await frames(3)
+		var home: Vector2 = dummy.global_position
+		await tap_up_heavy()
+		await frames(int(player.UPPERCUT_LAUNCH_RISE * 60.0) + 4)
+		var launched_to: Vector2 = dummy.global_position
+		check(home.y - launched_to.y > 100.0, "%s: el uppercut lo levanta" % ("volador" if flying else "de suelo"))
+		await frames(int(player.UPPERCUT_LAUNCH_HANG * 60.0) + 60)
+		if flying:
+			check(dummy.global_position.distance_to(launched_to) < 12.0, "volador: se queda flotando donde lo dejó (a %.0f px de ahí, %.0f de su sitio)" % [dummy.global_position.distance_to(launched_to), dummy.global_position.distance_to(home)])
+		else:
+			check(abs(dummy.global_position.y - home.y) < 4.0 and abs(dummy.global_position.x - launched_to.x) < 4.0, "de suelo: cae en vertical desde donde quedó (x %.0f, antes %.0f)" % [dummy.global_position.x, home.x])
+		dummy.reset_dummy()
+		await frames(2)
+		check(dummy.global_position.distance_to(home) < 2.0, "al reiniciar vuelve a su sitio")
+		dummy.queue_free()
+
 	print("== Rebote del heavy aéreo: devuelve el uppercut")
 	await reset(GROUND + Vector2(0, -300))
 	player.air_uppercut_available = false
@@ -257,8 +286,21 @@ func _run() -> void:
 	var landing_texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"heavy_landing", 0)
 	check(landed_anim == &"heavy_landing" and landing_texture.region.position.x == 1086.0, "al tocar el suelo: el 2º frame del heavy de suelo (%s)" % landed_anim)
 	check(player.attack_mode == player.ATTACK_NONE and abs(slide_speed - player.heavy_ground_impact_slide_speed) < 60.0, "la mecánica no cambia: ataque terminado y deslizamiento de siempre (%.0f)" % slide_speed)
+	await frames(1)
+	var scrape: Node2D = player.knife_scrape
+	var tip: Vector2 = player.global_position + Vector2(player.facing * player.HEAVY_LANDING_KNIFE_TIP.x, player.HEAVY_LANDING_KNIFE_TIP.y)
+	check(scrape.active and scrape.visible and scrape.glow.visible and scrape.glow.global_position.distance_to(tip) < 1.0, "un brillo dorado tapa la punta del cuchillo")
+	check(scrape.sparks.emitting, "saltan chispas")
+	var start_point: Vector2 = scrape.trail.get_point_position(0)
+	await frames(6)
+	var length: float = scrape.trail.get_point_position(scrape.trail.get_point_count() - 1).distance_to(start_point)
+	check(length > scrape.DRAG_LENGTH and abs(scrape.trail.get_point_position(0).y - start_point.y) < 0.5 and (start_point.x - tip.x) * player.facing < 0.0, "y deja un surco dorado por el suelo detrás de la punta (%.0f px)" % length)
 	await frames(int(player.heavy_ground_impact_wave_duration * 60.0) + 4)
 	check(player.animated_sprite.animation != &"heavy_landing", "y al acabar la onda vuelve a lo normal")
+	check(not scrape.active and not scrape.sparks.emitting, "y el raspado se apaga")
+	check(Color(scrape.trail.default_color, 1.0).is_equal_approx(Color(F.style_color(), 1.0)), "del color del rango de estilo")
+	await create_timer(scrape.FADE_TIME + 0.08, true, false, true).timeout
+	check(not scrape.visible and scrape.FADE_TIME <= 0.25, "y el surco se desvanece rápido (%.2f s)" % scrape.FADE_TIME)
 
 	print("== Cámara lenta (RB)")
 	await reset()
@@ -286,6 +328,42 @@ func _run() -> void:
 	check(is_equal_approx(Engine.time_scale, TC.SLOW_SCALE), "reaparecer no la quita")
 	pause_menu._unhandled_input(rb)
 	check(not TC.slow_motion and is_equal_approx(Engine.time_scale, 1.0) and not pause_menu.slow_label.visible, "otro RB vuelve a velocidad normal y quita el aviso")
+
+	print("== El shine solo hace flotar una vez en el aire")
+	await reset(GROUND + Vector2(0, -400))
+	await tap("roar")
+	await frames(2)
+	check(player.roar_active and player.roar_stall_timer > 0.0, "el primer rugido en el aire hace flotar")
+	await frames(int(player.roar_lock_duration * 60.0) + 10)
+	check(not player.roar_active, "(termina el rugido)")
+	player.global_position = GROUND + Vector2(0, -400)
+	player.velocity = Vector2.ZERO
+	await tap("roar")
+	await frames(10)
+	check(player.roar_active and player.roar_stall_timer <= 0.0 and player.velocity.y > 50.0, "el segundo, sin tocar nada, ya no: cae (vy %.0f)" % player.velocity.y)
+	await frames(int(player.roar_lock_duration * 60.0) + 10)
+	# Rebote en un enemigo con el heavy aéreo: lo recupera.
+	player.global_position = GROUND + Vector2(0, -400)
+	player.attack_mode = player.ATTACK_HEAVY
+	player._bounce_out_of_heavy_attack(true)
+	check(player.roar_air_stall_available, "rebotar en un enemigo lo recupera")
+	# Tocar una pared también.
+	await reset(GROUND + Vector2(0, -400))
+	player.roar_air_stall_available = false
+	var stall_wall: StaticBody2D = load("res://platform.gd").new()
+	stall_wall.size = Vector2(60, 600)
+	stall_wall.position = player.global_position + Vector2(40, 0)
+	level.add_child(stall_wall)
+	player.velocity = Vector2(300, 0)
+	await frames(4)
+	check(player.roar_air_stall_available, "tocar una pared lo recupera")
+	stall_wall.queue_free()
+	# Y el suelo.
+	player.roar_air_stall_available = false
+	player.global_position = GROUND
+	player.velocity = Vector2.ZERO
+	await frames(4)
+	check(player.roar_air_stall_available, "y tocar el suelo también")
 
 	print("== El buffer caduca")
 	await reset()

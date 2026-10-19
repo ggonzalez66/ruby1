@@ -42,13 +42,16 @@ const SHINE_COLOR := Color(1.0, 0.45, 0.8)
 @onready var collision_shape: CollisionShape2D = $CollisionShape2D
 
 var anchor_position := Vector2.ZERO
+# Donde empieza (al reaparecer Viridy vuelve aquí aunque un uppercut lo haya movido).
+var spawn_anchor := Vector2.ZERO
 var flash_timer := 0.0
 var wobble := 0.0
 var current_health := 0
 var health_bar_full_width := 32.0
 var path_time := 0.0
 var pull_offset := Vector2.ZERO
-# Lanzado por un uppercut: sube a un punto delante de Viridy, flota y vuelve a su sitio.
+# Lanzado por un uppercut: sube a un punto delante de Viridy y flota; luego se queda ahí (volador) o cae
+# en vertical (de suelo).
 var juggle_offset := Vector2.ZERO
 var juggle_tween: Tween
 var fall_offset := 0.0
@@ -61,6 +64,7 @@ var impact_offset := Vector2(0, -28)
 func _ready() -> void:
 	add_to_group(&"training_dummies")
 	anchor_position = position
+	spawn_anchor = position
 	stand.visible = not aerial
 	if shoot_interval > 0.0:
 		_add_cannon()
@@ -70,6 +74,7 @@ func reset_dummy() -> void:
 	if juggle_tween:
 		juggle_tween.kill()
 	juggle_offset = Vector2.ZERO
+	anchor_position = spawn_anchor
 	current_health = max_health
 	flash_timer = 0.0
 	wobble = 0.0
@@ -127,7 +132,20 @@ func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
 	juggle_tween = create_tween()
 	juggle_tween.tween_property(self, "juggle_offset", target, rise_time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
 	juggle_tween.tween_interval(hang_time)
-	juggle_tween.tween_property(self, "juggle_offset", Vector2.ZERO, 0.35).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	juggle_tween.tween_callback(_settle_after_launch)
+	if not aerial:
+		# El de suelo cae en vertical desde donde quedó.
+		juggle_tween.tween_property(self, "juggle_offset:y", 0.0, 0.35).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+
+func _settle_after_launch() -> void:
+	# Se queda donde lo dejó el uppercut: el volador flota ahí (y sigue su vaivén desde ese punto); el de
+	# suelo conserva la x y luego cae.
+	if aerial:
+		anchor_position += juggle_offset
+		juggle_offset = Vector2.ZERO
+	else:
+		anchor_position.x += juggle_offset.x
+		juggle_offset.x = 0.0
 
 func try_shine(_thing: Node) -> bool:
 	# Solo los tiradores, y no siempre: lo que les llega vuelve hacia Rengar.

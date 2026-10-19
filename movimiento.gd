@@ -17,6 +17,7 @@ const METATRON_SCRIPT := preload("res://metatron_cube.gd")
 const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
 const ELECTRIC_FX_SCRIPT := preload("res://electric_fx.gd")
 const MANE_EMITTER_SCRIPT := preload("res://mane_emitter.gd")
+const KNIFE_SCRAPE_SCRIPT := preload("res://knife_scrape_fx.gd")
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 # Sprites nuevos (hojas en cuadrícula: celdas de ancho fijo con el borde de abajo recortado a los pies).
 const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_idle.png")
@@ -96,6 +97,8 @@ const ANIMATION_PROUD_ROAR := &"proud_roar"
 const ANIMATION_PROUD_LOOP := &"proud_loop"
 # Aterrizaje del heavy aéreo: el 2º frame del heavy de suelo (el cuchillo clavándose), solo visual.
 const ANIMATION_HEAVY_LANDING := &"heavy_landing"
+# Punta del cuchillo en esa pose, respecto a los pies (mirando a la derecha): está a ras de suelo.
+const HEAVY_LANDING_KNIFE_TIP := Vector2(51.0, -2.0)
 const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
@@ -417,6 +420,9 @@ var roar_saved_direction := 0
 var roar_saved_long_jump := false
 var roar_explosive_timer := 0.0
 var roar_stall_timer := 0.0
+# El rugido solo hace flotar en el aire una vez: se recupera al tocar el suelo o una pared, o al rebotar
+# en un enemigo con el heavy aéreo (sin esto se podía encadenar rugidos para volar sin fin).
+var roar_air_stall_available := true
 var roar_lock_timer := 0.0
 var roar_aura_on := false
 var step_fx_timer := 0.0
@@ -447,6 +453,7 @@ var bounce_chain := 0
 var dead := false
 var mane_emitter: CPUParticles2D
 var screw_embers: CPUParticles2D
+var knife_scrape: Node2D
 var death_spin := 0.0
 var death_rest_angle := 0.0
 var riposte_attack := false
@@ -537,6 +544,8 @@ func _ready() -> void:
 	add_child(mane_emitter)
 	move_child(mane_emitter, animated_sprite.get_index())
 	_create_screw_embers()
+	knife_scrape = KNIFE_SCRAPE_SCRIPT.new()
+	add_child(knife_scrape)
 	air_jumps_remaining = max_air_jumps
 	slash_base_color = slash_visual.color
 	slash_area_base_color = slash_area_visual.color
@@ -1020,6 +1029,15 @@ func _update_character_animation() -> void:
 	if screw_embers.emitting:
 		_set_screw_embers_color(style_color)
 	screw_embers.position = animated_sprite.position
+	# Aterrizaje del heavy aéreo: el cuchillo raja el suelo mientras se desliza.
+	var knife_tip: Vector2 = global_position + Vector2(facing * HEAVY_LANDING_KNIFE_TIP.x, HEAVY_LANDING_KNIFE_TIP.y)
+	if next_animation == ANIMATION_HEAVY_LANDING and not dead:
+		if knife_scrape.active:
+			knife_scrape.follow(knife_tip)
+		else:
+			knife_scrape.begin(knife_tip, facing, style_color)
+	elif knife_scrape.active:
+		knife_scrape.end()
 	shadow.visible = is_on_floor()
 
 func _create_screw_embers() -> void:
@@ -1913,7 +1931,10 @@ func _start_roar() -> void:
 	roar_explosive_timer = roar_explosive_duration
 	roar_lock_timer = roar_lock_duration
 	roar_aura_on = true
-	roar_stall_timer = 0.0 if is_on_floor() or stunned else roar_stall_duration
+	var air_stall: bool = not is_on_floor() and not stunned and roar_air_stall_available
+	roar_stall_timer = roar_stall_duration if air_stall else 0.0
+	if air_stall:
+		roar_air_stall_available = false
 	shine_idle_time = 0.0
 	roar_hit_targets.clear()
 	Fx.impact(get_parent(), get_roar_center(), Fx.ROAR, 2.0)
@@ -3368,9 +3389,11 @@ func _locks_facing() -> bool:
 func _update_wall_state() -> void:
 	if is_on_floor():
 		wall_contact_direction = 0
+		roar_air_stall_available = true
 		return
 
 	if is_on_wall():
+		roar_air_stall_available = true
 		wall_contact_direction = int(sign(get_wall_normal().x))
 		wall_visual_direction = wall_contact_direction
 	else:
@@ -3504,6 +3527,7 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 		# Rebotar en un enemigo devuelve un salto aéreo (sin acumular más del máximo) y el uppercut del aire.
 		air_jumps_remaining = min(air_jumps_remaining + 1, max_air_jumps)
 		air_uppercut_available = true
+		roar_air_stall_available = true
 
 	_cancel_attack_for_chain()
 	long_jump_active = false
@@ -3642,6 +3666,7 @@ func _respawn_player() -> void:
 	brake_recover_timer = 0.0
 	brake_pending = false
 	uppercut_stall = false
+	roar_air_stall_available = true
 	flip_streak = 0
 	jump_squat_timer = 0.0
 	uppercut_pose_timer = 0.0
