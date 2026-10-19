@@ -60,7 +60,8 @@ var glint_time := -1.0
 
 func _ready() -> void:
 	get_tree().paused = false
-	Engine.time_scale = 1.0
+	# En el menú principal siempre a velocidad normal.
+	TimeControl.set_slow_motion(false)
 	# La jungla de fondo necesita una cámara para el parallax: avanza despacio hacia la derecha.
 	var jungle: ParallaxBackground = JUNGLE_SCRIPT.new()
 	jungle.altitude_offset = 0.35

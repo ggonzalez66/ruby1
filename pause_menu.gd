@@ -32,7 +32,7 @@ const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
 	["throw_knife", "Lanzar cuchillo"], ["roar", "Rugido"], ["pause", "Pausa"], ["respawn", "Reiniciar"],
-	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"],
+	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).
 const STICK_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
@@ -57,6 +57,8 @@ var tutorials_button: Button
 # (con H se ven las hitboxes). Otra P lo reanuda.
 var frame_paused := false
 var frame_label: Label
+# Cámara lenta (RB por defecto): todo el juego a TimeControl.SLOW_SCALE hasta volver a pulsarlo.
+var slow_label: Label
 
 var remap_device := Device.KEYBOARD
 var waiting_action := ""
@@ -106,6 +108,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_toggle_frame_pause()
 		return
+	if event.is_action_pressed("slow_motion") and not root_control.visible:
+		get_viewport().set_input_as_handled()
+		TimeControl.toggle()
+		return
 	if frame_paused and event.is_action_pressed("toggle_hitbox_visuals"):
 		# Con el juego congelado Rengar no procesa entradas: las hitboxes se cambian desde aquí.
 		get_viewport().set_input_as_handled()
@@ -139,6 +145,9 @@ func open_options() -> void:
 	root_control.visible = true
 	_show_options_page()
 
+func _on_slow_motion_changed(slow: bool) -> void:
+	slow_label.visible = slow and not menu_mode
+
 func _toggle_frame_pause() -> void:
 	frame_paused = not frame_paused
 	get_tree().paused = frame_paused
@@ -157,7 +166,7 @@ func _resume() -> void:
 
 func _go_to_main_menu() -> void:
 	get_tree().paused = false
-	Engine.time_scale = 1.0
+	TimeControl.set_slow_motion(false)
 	get_tree().change_scene_to_file(MAIN_MENU)
 
 func _show_main_page() -> void:
@@ -198,6 +207,17 @@ func _build() -> void:
 	frame_label.position = Vector2(-190, -40)
 	frame_label.visible = false
 	add_child(frame_label)
+	slow_label = Label.new()
+	slow_label.text = "CÁMARA LENTA  ×%s" % str(TimeControl.SLOW_SCALE)
+	slow_label.add_theme_font_size_override("font_size", 16)
+	slow_label.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+	slow_label.add_theme_color_override("font_outline_color", Color(0.02, 0.04, 0.08))
+	slow_label.add_theme_constant_override("outline_size", 6)
+	slow_label.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	slow_label.position = Vector2(-80, 64)
+	slow_label.visible = TimeControl.slow_motion and not menu_mode
+	add_child(slow_label)
+	TimeControl.changed.connect(_on_slow_motion_changed)
 	root_control = Control.new()
 	root_control.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root_control)

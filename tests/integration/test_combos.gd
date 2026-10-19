@@ -240,6 +240,53 @@ func _run() -> void:
 	await frames(2)
 	check(player.is_on_floor() and player.animated_sprite.animation != &"aerial_stall", "y al aterrizar lo deja")
 
+	print("== Aterrizaje del heavy aéreo: el cuchillo se clava (solo visual)")
+	await reset(GROUND + Vector2(0, -160))
+	Input.action_press("heavy_attack")
+	await frames(2)
+	Input.action_release("heavy_attack")
+	check(player.attack_mode == player.ATTACK_HEAVY, "heavy aéreo")
+	var landed_anim: StringName = &""
+	var slide_speed := 0.0
+	for i in range(90):
+		await frames(1)
+		if player.is_on_floor() and player.heavy_ground_impact_wave_timer > 0.0:
+			landed_anim = player.animated_sprite.animation
+			slide_speed = abs(player.velocity.x)
+			break
+	var landing_texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"heavy_landing", 0)
+	check(landed_anim == &"heavy_landing" and landing_texture.region.position.x == 1086.0, "al tocar el suelo: el 2º frame del heavy de suelo (%s)" % landed_anim)
+	check(player.attack_mode == player.ATTACK_NONE and abs(slide_speed - player.heavy_ground_impact_slide_speed) < 60.0, "la mecánica no cambia: ataque terminado y deslizamiento de siempre (%.0f)" % slide_speed)
+	await frames(int(player.heavy_ground_impact_wave_duration * 60.0) + 4)
+	check(player.animated_sprite.animation != &"heavy_landing", "y al acabar la onda vuelve a lo normal")
+
+	print("== Cámara lenta (RB)")
+	await reset()
+	var TC: Node = root.get_node("TimeControl")
+	var rb_bound := false
+	for event in InputMap.action_get_events("slow_motion"):
+		rb_bound = rb_bound or (event is InputEventJoypadButton and event.button_index == JOY_BUTTON_RIGHT_SHOULDER)
+	check(rb_bound, "la acción slow_motion va en RB")
+	var pause_menu: Node = null
+	for node in level.find_children("*", "CanvasLayer", true, false):
+		if node.get_script() == load("res://pause_menu.gd"):
+			pause_menu = node
+	var rb := InputEventJoypadButton.new()
+	rb.button_index = JOY_BUTTON_RIGHT_SHOULDER
+	rb.pressed = true
+	pause_menu._unhandled_input(rb)
+	check(TC.slow_motion and is_equal_approx(Engine.time_scale, TC.SLOW_SCALE), "RB activa la cámara lenta (×%.2f)" % Engine.time_scale)
+	check(pause_menu.slow_label.visible, "con su aviso en pantalla")
+	player._apply_hitstop(0.05)
+	check(Engine.time_scale < TC.SLOW_SCALE * 0.1, "un golpe sigue congelando un instante")
+	await create_timer(0.15, true, false, true).timeout
+	check(is_equal_approx(Engine.time_scale, TC.SLOW_SCALE), "y al terminar vuelve a cámara lenta, no a velocidad normal")
+	player._respawn_player()
+	await frames(2)
+	check(is_equal_approx(Engine.time_scale, TC.SLOW_SCALE), "reaparecer no la quita")
+	pause_menu._unhandled_input(rb)
+	check(not TC.slow_motion and is_equal_approx(Engine.time_scale, 1.0) and not pause_menu.slow_label.visible, "otro RB vuelve a velocidad normal y quita el aviso")
+
 	print("== El buffer caduca")
 	await reset()
 	player.combo_buffer = &"heavy"

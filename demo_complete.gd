@@ -83,7 +83,7 @@ func restart_scene() -> void:
 	# Empezar de nuevo desde cero (estadísticas y estilo incluidos).
 	root_control.visible = false
 	get_tree().paused = false
-	Engine.time_scale = 1.0
+	Engine.time_scale = TimeControl.base_scale()
 	Stats.reset()
 	Ferocity.reset()
 	get_tree().reload_current_scene()
@@ -266,12 +266,12 @@ func _restart() -> void:
 
 func _next_stage() -> void:
 	get_tree().paused = false
-	Engine.time_scale = 1.0
+	Engine.time_scale = TimeControl.base_scale()
 	get_tree().change_scene_to_file(next_scene)
 
 func _main_menu() -> void:
 	get_tree().paused = false
-	Engine.time_scale = 1.0
+	TimeControl.set_slow_motion(false)
 	get_tree().change_scene_to_file(MAIN_MENU)
 
 func _label(text: String, font_size: int, color: Color) -> Label:

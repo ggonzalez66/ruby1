@@ -94,6 +94,8 @@ const ANIMATION_BRAKE_RECOVER := &"brake_recover"
 # Rugido con onda al entrar en la pose orgullosa; luego un ciclo de la pose y, en bucle, sus 2 últimos frames.
 const ANIMATION_PROUD_ROAR := &"proud_roar"
 const ANIMATION_PROUD_LOOP := &"proud_loop"
+# Aterrizaje del heavy aéreo: el 2º frame del heavy de suelo (el cuchillo clavándose), solo visual.
+const ANIMATION_HEAVY_LANDING := &"heavy_landing"
 const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
@@ -131,6 +133,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_WALLRIDE: 0.95,
 	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 0.65,
+	ANIMATION_HEAVY_LANDING: 0.65,
 	ANIMATION_SPRINT: 0.655,
 	ANIMATION_BACKFLIP: 0.38,
 	ANIMATION_FRONTFLIP: 0.3,
@@ -847,6 +850,7 @@ func _configure_character_animations() -> void:
 	# Wallride: Rengar corriendo pared arriba (dibujado de pie, mirando a la pared).
 	_add_region_animation(frames, ANIMATION_WALLRIDE, WALLRUN_SHEET, WALLRUN_REGIONS, 14.0, true)
 	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
+	_add_sheet_animation(frames, ANIMATION_HEAVY_LANDING, GROUND_HEAVY_SHEET, 2, 1.0, false, [1])
 	_add_grid_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(810, 724), 642, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)], 12.0, true)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
@@ -973,6 +977,9 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_AERIAL_STALL
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
+	elif heavy_ground_impact_wave_timer > 0.0:
+		# Mientras sale la onda del heavy aéreo al aterrizar: el cuchillo clavado en el suelo.
+		next_animation = ANIMATION_HEAVY_LANDING
 	elif is_sprinting and sprint_turn_timer > 0.0:
 		next_animation = ANIMATION_SPRINT_BRAKE
 	elif is_sprinting:
@@ -1603,13 +1610,14 @@ func _apply_hitstop(duration: float) -> void:
 		return
 	hitstop_end_msec = end_msec
 	hitstop_token += 1
-	Engine.time_scale = 0.05
-	# El temporizador ignora la escala de tiempo; solo el último hitstop restaura la velocidad.
+	Engine.time_scale = 0.05 * TimeControl.base_scale()
+	# El temporizador ignora la escala de tiempo; solo el último hitstop restaura la velocidad (la base:
+	# con la cámara lenta activada, vuelve a cámara lenta).
 	get_tree().create_timer(duration, true, false, true).timeout.connect(_end_hitstop.bind(hitstop_token))
 
 func _end_hitstop(token: int) -> void:
 	if token == hitstop_token:
-		Engine.time_scale = 1.0
+		Engine.time_scale = TimeControl.base_scale()
 		hitstop_end_msec = 0
 
 func _on_attack_blocked(area: Node2D) -> void:
@@ -2170,7 +2178,7 @@ func _attach_afterimage_container() -> void:
 	level.move_child(afterimage_container, get_index())
 
 func _exit_tree() -> void:
-	Engine.time_scale = 1.0
+	Engine.time_scale = TimeControl.base_scale()
 	if is_instance_valid(afterimage_container):
 		afterimage_container.queue_free()
 
@@ -3619,7 +3627,7 @@ func _respawn_player() -> void:
 	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
 		projectile.queue_free()
 	hitstop_end_msec = 0
-	Engine.time_scale = 1.0
+	Engine.time_scale = TimeControl.base_scale()
 	current_health = max_health
 	light_combo_step = 0
 	light_combo_window_timer = 0.0
