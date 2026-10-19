@@ -106,6 +106,7 @@ func _physics_process(delta: float) -> void:
 
 func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -> void:
 	Stats.add("sun_hits_dealt")
+	Sfx.play("sun_hit")
 	flash_timer = 0.1
 	wobble = 1.0
 	shown_health = max(shown_health - 0.12 * max(damage, 0), 0.05)

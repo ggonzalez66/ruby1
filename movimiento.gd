@@ -802,13 +802,16 @@ func _update_movement_fx(delta: float, was_on_floor: bool, air_jumps_before: int
 	# Despegue desde el suelo.
 	if was_on_floor and not is_on_floor() and velocity.y < -150.0:
 		Fx.dust(level, feet, Vector2.UP, 7, 1.4, 1.4)
+		Sfx.play("jump")
 	# Salto aéreo (doble salto, frontflip, doble backflip...): anillo de aire.
 	if not was_on_floor and air_jumps_remaining < air_jumps_before:
 		Fx.air_ring(level, feet)
+		Sfx.play("air_jump")
 	# Aterrizaje desde cierta altura.
 	if not was_on_floor and is_on_floor() and fall_speed > 380.0:
 		Fx.dust(level, feet, Vector2.LEFT, 4, 1.4, 0.5)
 		Fx.dust(level, feet, Vector2.RIGHT, 4, 1.4, 0.5)
+		Sfx.play("land", clamp((fall_speed - 380.0) / 150.0, 0.0, 4.0))
 	# Pasos y derrape al frenar.
 	step_fx_timer = max(step_fx_timer - delta, 0.0)
 	if not is_on_floor() or abs(velocity.x) <= 60.0 or step_fx_timer > 0.0:
@@ -820,10 +823,12 @@ func _update_movement_fx(delta: float, was_on_floor: bool, air_jumps_before: int
 	elif not _is_attack_active():
 		Fx.dust(level, feet - Vector2(moving_dir * 6.0, 0.0), Vector2(-moving_dir, -0.5), 3, 1.0, 0.5)
 		step_fx_timer = 0.12 if is_sprinting else 0.26
+		Sfx.play("step", 0.0, 1.15 if is_sprinting else 1.0)
 
 func _spawn_walljump_fx(away_direction: int) -> void:
 	var point := global_position + Vector2(-away_direction * 10.0, -12.0)
 	Fx.dust(get_parent(), point, Vector2(away_direction, -0.3), 8, 1.3, 0.8)
+	Sfx.play("wall_jump")
 
 func _configure_character_animations() -> void:
 	var frames := SpriteFrames.new()
@@ -1021,6 +1026,7 @@ func _update_character_animation() -> void:
 			next_animation = ANIMATION_IDLE
 
 	if animated_sprite.animation != next_animation:
+		_play_animation_sfx(next_animation)
 		animated_sprite.play(next_animation)
 	_align_character_animation(next_animation)
 	_update_character_orientation(next_animation)
@@ -1072,6 +1078,22 @@ func _set_screw_embers_color(color: Color) -> void:
 	ramp.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
 	ramp.colors = PackedColorArray([palette[2], palette[1], Color(palette[0], 0.0)])
 	screw_embers.color_ramp = ramp
+
+func _play_animation_sfx(next_animation: StringName) -> void:
+	# Sonidos que empiezan con una animación (en vez de repartirlos por cada mecánica).
+	match next_animation:
+		ANIMATION_SPRINT_BRAKE:
+			Sfx.play("skid")
+		ANIMATION_WALLRIDE:
+			Sfx.play("wallride")
+		ANIMATION_MANTLE, ANIMATION_WALL_SLIDE:
+			Sfx.play("grab")
+		ANIMATION_DASH:
+			Sfx.play("dash")
+		ANIMATION_HEAVY_LANDING:
+			Sfx.play("heavy_land")
+		ANIMATION_PROUD_ROAR:
+			Sfx.play("growl")
 
 func _is_braking() -> bool:
 	# Frenando la carrera en el suelo: ya no corre pero aún va más rápido que andando.
@@ -1459,6 +1481,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		if attacker and attacker.has_method("on_deflected"):
 			attacker.on_deflected(self)
 			Stats.add("parries")
+			Sfx.play("parry")
 			_apply_hitstop(hitstop_deflect)
 			# Riposte: durante un instante el siguiente ataque fuerte hace el doble de daño.
 			riposte_timer = riposte_duration
@@ -1478,6 +1501,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 
 	current_health = max(current_health - amount, 0)
 	Stats.add("damage_taken", amount)
+	if current_health > 0:
+		Sfx.play("hurt")
 	if attacker and attacker.is_in_group(&"sun"):
 		Stats.add("sun_hits_taken")
 	health_changed.emit(current_health, max_health)
@@ -1544,6 +1569,7 @@ func begin_merge() -> void:
 func _start_death(source_position: Vector2, amount: int) -> void:
 	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
 	dead = true
+	Sfx.play("death")
 	mane_emitter.emitting = false
 	Ferocity.reset()
 	_cancel_all_states()
@@ -1772,6 +1798,7 @@ func _on_knife_input(move_input: float) -> void:
 	knife.launch(self, global_position + Vector2(side * 12.0, -22.0), throw_velocity)
 	thrown_knife = knife
 	Stats.add("knife_throws")
+	Sfx.play("knife_throw")
 	has_knife = false
 	knife_throw_pose_timer = 0.15
 	knife_changed.emit(false)
@@ -1801,9 +1828,11 @@ func _get_knife_throw_velocity(move_input: float, empowered: bool = false) -> Ve
 
 func on_knife_hit(point: Vector2) -> void:
 	Fx.impact(get_parent(), point, Fx.GOLD, 1.1)
+	Sfx.play("knife_hit")
 	_apply_hitstop(hitstop_light + 0.01)
 
 func on_knife_caught(knife: Node = null) -> void:
+	Sfx.play("knife_catch")
 	has_knife = true
 	thrown_knife = null
 	knife_changed.emit(true)
@@ -1928,6 +1957,8 @@ func _start_roar() -> void:
 	if not stunned:
 		velocity *= roar_momentum_keep
 	roar_active = true
+	Sfx.play("shine")
+	Sfx.start_loop("shine_hold")
 	Stats.add("roars")
 	roar_explosive_timer = roar_explosive_duration
 	roar_lock_timer = roar_lock_duration
@@ -1942,6 +1973,7 @@ func _start_roar() -> void:
 	_roar_explosive_hits()
 
 func _end_roar() -> void:
+	Sfx.stop_loop("shine_hold")
 	roar_active = false
 	roar_aura_on = false
 	roar_explosive_timer = 0.0
@@ -2013,6 +2045,7 @@ func _roar_explosive_hits() -> void:
 		_apply_hitstop(hitstop_light)
 
 func _electrocute(target: Node2D) -> void:
+	Sfx.play("zap")
 	var zap: Node2D = ELECTRIC_FX_SCRIPT.new()
 	zap.target = target
 	var offset = target.get("impact_offset")
@@ -2035,6 +2068,7 @@ func on_projectile_reflected(perfect: bool = false) -> void:
 	_apply_hitstop(0.07 if perfect else 0.04)
 	# Devolver un proyectil abre el riposte, igual que un parry (no saca del empuje de un bloqueo).
 	riposte_timer = riposte_duration
+	Sfx.play("parry" if perfect else "block")
 	if perfect:
 		Fx.text(get_parent(), global_position + Vector2(0, -62), "¡PERFECTO!", Color(1.0, 0.95, 0.6))
 		_camera_kick(0.25, 0.02)
@@ -2061,6 +2095,7 @@ func _block_hit(source_position: Vector2) -> void:
 	velocity = Vector2(push * block_knockback.x, 0.0 if is_on_floor() else block_knockback.y)
 	block_stun_timer = block_stun_time
 	Stats.add("blocks")
+	Sfx.play("block")
 	Fx.impact(get_parent(), get_roar_center() + Vector2(-push * 20.0, 0), Fx.ROAR, 1.3)
 	Fx.text(get_parent(), global_position + Vector2(0, -62), "¡BLOQUEO!", Color(1.0, 0.85, 0.45))
 	_apply_hitstop(hitstop_light + 0.03)
@@ -2083,6 +2118,7 @@ func _change_shine_durability(amount: float) -> void:
 func _break_shine() -> void:
 	# Se rompe: el Metatrón estalla y no hay shine hasta recargar el mínimo.
 	shine_broken = true
+	Sfx.play("shine_break")
 	Fx.shatter(get_parent(), get_roar_center(), Color(1.0, 0.2, 0.15), roar_radius)
 	Fx.text(get_parent(), global_position + Vector2(0, -70), "¡SHINE ROTO!", Color(1.0, 0.3, 0.25))
 	_end_roar()
@@ -2201,6 +2237,7 @@ func _attach_afterimage_container() -> void:
 
 func _exit_tree() -> void:
 	Engine.time_scale = TimeControl.base_scale()
+	Sfx.stop_loop("shine_hold")
 	if is_instance_valid(afterimage_container):
 		afterimage_container.queue_free()
 
@@ -2539,6 +2576,7 @@ func _start_attack() -> void:
 
 	attack_mode = ATTACK_SLASH
 	attack_targets_hit.clear()
+	Sfx.play("swing_light", 0.0, [1.0, 1.0, 1.12, 0.88][light_combo_step])
 	if light_combo_step == 3:
 		attack_timer = light_finisher_duration
 		attack_cooldown_timer = light_finisher_cooldown
@@ -2582,6 +2620,7 @@ func _get_claw_scale() -> float:
 func _start_ground_charged_attack() -> void:
 	_face_attack_input()
 	attack_mode = ATTACK_GROUND_CHARGED
+	Sfx.play("dash_attack")
 	_consume_riposte()
 	attack_timer = charged_ground_duration
 	attack_cooldown_timer = charged_attack_cooldown
@@ -2620,6 +2659,7 @@ func _start_heavy_attack(allow_uppercut: bool = true) -> void:
 		_face_attack_input()
 
 	attack_mode = ATTACK_HEAVY
+	Sfx.play("swing_heavy", 0.0, 0.92)
 	_consume_riposte()
 	attack_timer = 0.0
 	attack_cooldown_timer = charged_attack_cooldown
@@ -2669,6 +2709,7 @@ func _start_ground_heavy_attack() -> void:
 	# Hacia donde se aprieta (p. ej. el riposte justo tras un parry de espaldas).
 	_face_attack_input()
 	attack_mode = ATTACK_HEAVY_GROUND
+	Sfx.play("swing_heavy")
 	_consume_riposte()
 	attack_timer = ground_heavy_duration
 	attack_cooldown_timer = attack_cooldown
@@ -2683,6 +2724,7 @@ func _start_ground_heavy_attack() -> void:
 func _start_light_charged_air_attack() -> void:
 	_face_attack_input()
 	attack_mode = ATTACK_LIGHT_CHARGED_AIR
+	Sfx.play("dash_attack")
 	_consume_riposte()
 	attack_timer = charged_ground_duration
 	attack_cooldown_timer = charged_attack_cooldown
@@ -2696,6 +2738,7 @@ func _start_light_charged_air_attack() -> void:
 func _start_uppercut_attack(from_air: bool) -> void:
 	_face_attack_input()
 	attack_mode = ATTACK_UPPERCUT
+	Sfx.play("uppercut")
 	attack_timer = light_uppercut_duration
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
@@ -2719,6 +2762,7 @@ func _start_spin_attack() -> void:
 		return
 
 	attack_mode = ATTACK_SPIN
+	Sfx.play("spin")
 	attack_timer = spin_attack_duration
 	attack_targets_hit.clear()
 	velocity.x = max(abs(velocity.x), charged_ground_lunge_speed) * facing
@@ -2734,6 +2778,7 @@ func _start_wall_spin_attack() -> void:
 		return
 
 	attack_mode = ATTACK_SPIN
+	Sfx.play("spin")
 	attack_timer = spin_attack_duration
 	attack_cooldown_timer = charged_attack_cooldown
 	attack_targets_hit.clear()
@@ -3291,11 +3336,14 @@ func _hit_area(area: Area2D) -> void:
 	attack_targets_hit.append(area)
 
 	if attack_mode == ATTACK_SLASH and area.has_method("try_block") and area.try_block(global_position):
+		Sfx.play("block")
 		_on_attack_blocked(area)
 		return
 
 	if area.has_method("take_hit"):
 		area.take_hit(global_position, facing, int(round(_get_attack_damage() * Ferocity.damage_multiplier())))
+		var heavy_hit: bool = attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN, ATTACK_UPPERCUT]
+		Sfx.play("hit_heavy" if heavy_hit else "hit_light")
 		# Más estilo, más impacto: los perseguidores salen despedidos más lejos.
 		if area.get("knock_velocity") != null:
 			area.knock_velocity *= Ferocity.impact_multiplier()
@@ -3543,6 +3591,7 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	if hit_enemy:
 		# Cadena de rebotes: se cuenta hasta tocar el suelo.
 		bounce_chain += 1
+		Sfx.play("bounce", 0.0, 1.0 + 0.06 * min(bounce_chain - 1, 5))
 	if hit_enemy and not is_sprinting and Input.is_action_pressed("dash"):
 		_start_sprint(facing)
 		Stats.add("running_bounces")

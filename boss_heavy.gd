@@ -243,6 +243,7 @@ func _start_telegraph(attack: Dictionary) -> void:
 	warning_label.visible = true
 
 func _start_swing() -> void:
+	Sfx.play("boss_swing")
 	last_swing_angle = float(current_attack.from)
 	crescent_done = false
 	state = State.SWING
@@ -264,6 +265,7 @@ func _end_swing() -> void:
 		_enter_recover(recover_time + 0.3)
 
 func _spawn_crescent() -> void:
+	Sfx.play("shockwave")
 	# Golpe al suelo: el arco nace donde la hoja toca el suelo, un poco antes de la punta, y sale hacia
 	# donde mira el guardián.
 	var tip_local: Vector2 = SWORD_REST + Vector2.RIGHT.rotated(CRESCENT_ANGLE) * BLADE_LENGTH * 0.85
@@ -292,6 +294,7 @@ func _super_ready(player: Node2D) -> bool:
 	return super_charge >= 1.0 and player != null and _distance_to(player) <= super_range
 
 func _start_super_windup() -> void:
+	Sfx.play("boss_charge")
 	super_charge = 0.0
 	state = State.SUPER_WINDUP
 	state_timer = super_windup_time
@@ -301,6 +304,7 @@ func _start_super_windup() -> void:
 	Fx.text(get_parent(), global_position + Vector2(0, -250), "¡SÚPER GIRO!", SUPER_COLOR.lightened(0.4))
 
 func _start_super_spin() -> void:
+	Sfx.play("boss_spin")
 	state = State.SUPER_SPIN
 	state_timer = super_spin_time
 	warning_label.visible = false
@@ -372,6 +376,7 @@ func _start_lunge(player: Node2D) -> void:
 	if player:
 		travel = clamp(_distance_to(player) - 150.0, 160.0, lunge_max_travel)
 	state = State.LUNGE
+	Sfx.play("boss_dash")
 	state_timer = travel / lunge_speed
 	swing_hit_done = false
 	warning_label.visible = false

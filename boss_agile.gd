@@ -217,6 +217,15 @@ func _boss_process(delta: float, player: Node2D) -> void:
 
 func _start(new_state: State, duration: float, warn: bool = true) -> void:
 	state = new_state
+	match new_state:
+		State.THRUST:
+			Sfx.play("rapier")
+		State.DAGGER:
+			Sfx.play("rapier", 0.0, 0.8)
+		State.DASH:
+			Sfx.play("boss_dash", 0.0, 1.2)
+		State.BACKSTEP:
+			Sfx.play("dash", 0.0, 0.85)
 	state_timer = duration
 	warning_label.visible = warn and new_state in [State.THRUST_WINDUP, State.DAGGER_WINDUP, State.DASH_WINDUP, State.THROW_WINDUP]
 
@@ -247,6 +256,7 @@ func _throw_dagger(player: Node2D) -> void:
 	get_parent().add_child(spinning)
 	spinning.launch(self, global_position + Vector2(facing * 30.0, 0), facing, distance, global_position.y)
 	thrown_dagger = spinning
+	Sfx.play("dagger_throw")
 	dagger.visible = false
 	dagger.color = BLADE_COLOR
 	throw_cooldown = 7.0

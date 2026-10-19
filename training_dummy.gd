@@ -153,6 +153,7 @@ func try_shine(_thing: Node) -> bool:
 		return false
 	Fx.shine(get_parent(), global_position + impact_offset, SHINE_COLOR, 30.0)
 	Shine.enemy_feedback(get_tree(), global_position + impact_offset)
+	Sfx.play("shine", 0.0, 0.8)
 	flash_timer = 0.0
 	wobble = 0.0
 	# Recarga un poco el disparo para que no dispare justo encima del shine.
@@ -218,7 +219,10 @@ func _update_shooting(delta: float) -> void:
 	if player == null or player.global_position.distance_to(global_position) > shoot_range:
 		shoot_timer = max(shoot_timer, shoot_warning_time + 0.2)
 		return
+	var was_waiting: bool = shoot_timer > shoot_warning_time
 	shoot_timer -= delta
+	if was_waiting and shoot_timer <= shoot_warning_time:
+		Sfx.play("enemy_charge")
 	# Aviso: el cuerpo parpadea en claro justo antes de disparar.
 	if shoot_timer <= shoot_warning_time and flash_timer <= 0.0:
 		var blink: bool = int(shoot_timer * 20.0) % 2 == 0
@@ -233,6 +237,7 @@ func _update_shooting(delta: float) -> void:
 	projectile.damage = projectile_damage
 	projectile.shooter = self
 	get_parent().add_child(projectile)
+	Sfx.play("enemy_shoot")
 	projectile.global_position = global_position + impact_offset + direction * 20.0
 
 func _add_cannon() -> void:
@@ -247,6 +252,7 @@ func _add_cannon() -> void:
 
 func _die() -> void:
 	Stats.add("dummies_killed")
+	Sfx.play("enemy_die")
 	# Se oculta en vez de liberarse para poder regenerarlo con reset_dummy().
 	visible = false
 	set_deferred("monitorable", false)

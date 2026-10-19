@@ -11,6 +11,7 @@ const MAIN_MENU := "res://main_menu.tscn"
 # pasando "Lanzar cuchillo" del mando a su nuevo botón por defecto (LT).
 const INPUT_VERSION := 3
 const MUSIC_BUS := &"Music"
+const SFX_BUS := &"SFX"
 
 const OVERLAY_COLOR := Color(0.01, 0.04, 0.03, 0.62)
 const PANEL_COLOR := Color(0.05, 0.11, 0.09, 0.95)
@@ -52,6 +53,8 @@ var remap_rows: VBoxContainer
 var resume_button: Button
 var music_slider: HSlider
 var music_value_label: Label
+var sfx_slider: HSlider
+var sfx_value_label: Label
 var tutorials_button: Button
 # Pausa de frame (P): congela el juego justo donde está, sin menú, para inspeccionar ese frame
 # (con H se ven las hitboxes). Otra P lo reanuda.
@@ -269,6 +272,24 @@ func _build() -> void:
 	music_value_label.custom_minimum_size = Vector2(48, 0)
 	music_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	row.add_child(music_value_label)
+	var sfx_row := HBoxContainer.new()
+	sfx_row.add_theme_constant_override("separation", 10)
+	options_page.add_child(sfx_row)
+	var sfx_label := _label("Volumen efectos", 16, TEXT_COLOR)
+	sfx_label.custom_minimum_size = Vector2(130, 0)
+	sfx_row.add_child(sfx_label)
+	sfx_slider = HSlider.new()
+	sfx_slider.min_value = 0
+	sfx_slider.max_value = 100
+	sfx_slider.step = 1
+	sfx_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	sfx_slider.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	sfx_slider.value_changed.connect(_on_sfx_volume_changed)
+	sfx_row.add_child(sfx_slider)
+	sfx_value_label = _label("100%", 16, TEXT_COLOR)
+	sfx_value_label.custom_minimum_size = Vector2(48, 0)
+	sfx_value_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	sfx_row.add_child(sfx_value_label)
 	options_page.add_child(_label("Juego", 18, Color(0.7, 0.9, 0.62)))
 	tutorials_button = _button("", _toggle_tutorials)
 	options_page.add_child(tutorials_button)
@@ -466,6 +487,12 @@ func _on_music_volume_changed(value: float) -> void:
 	music_value_label.text = "%d%%" % int(value)
 	_save_settings()
 
+func _on_sfx_volume_changed(value: float) -> void:
+	_apply_bus_volume(SFX_BUS, value / 100.0)
+	sfx_value_label.text = "%d%%" % int(value)
+	Sfx.play("ui_move")
+	_save_settings()
+
 func _toggle_tutorials() -> void:
 	TUTORIAL_SIGN.enabled = not TUTORIAL_SIGN.enabled
 	_refresh_tutorials_button()
@@ -475,7 +502,10 @@ func _refresh_tutorials_button() -> void:
 	tutorials_button.text = "Tutoriales: %s" % ("Sí" if TUTORIAL_SIGN.enabled else "No")
 
 func _apply_music_volume(linear: float) -> void:
-	var bus := AudioServer.get_bus_index(MUSIC_BUS)
+	_apply_bus_volume(MUSIC_BUS, linear)
+
+func _apply_bus_volume(bus_name: StringName, linear: float) -> void:
+	var bus := AudioServer.get_bus_index(bus_name)
 	if bus < 0:
 		return
 	AudioServer.set_bus_mute(bus, linear <= 0.0)
@@ -486,8 +516,10 @@ func _apply_music_volume(linear: float) -> void:
 func _load_settings() -> void:
 	var config := ConfigFile.new()
 	var volume: float = 1.0
+	var sfx_volume: float = 1.0
 	if config.load(SETTINGS_PATH) == OK:
 		volume = clamp(float(config.get_value("audio", "music_volume", 1.0)), 0.0, 1.0)
+		sfx_volume = clamp(float(config.get_value("audio", "sfx_volume", 1.0)), 0.0, 1.0)
 		TUTORIAL_SIGN.enabled = bool(config.get_value("game", "tutorials", true))
 		var saved_version := int(config.get_value("input", "version", 1))
 		if saved_version == INPUT_VERSION:
@@ -498,12 +530,16 @@ func _load_settings() -> void:
 	music_slider.set_value_no_signal(volume * 100.0)
 	music_value_label.text = "%d%%" % int(volume * 100.0)
 	_apply_music_volume(volume)
+	sfx_slider.set_value_no_signal(sfx_volume * 100.0)
+	sfx_value_label.text = "%d%%" % int(sfx_volume * 100.0)
+	_apply_bus_volume(SFX_BUS, sfx_volume)
 	_refresh_tutorials_button()
 
 func _save_settings() -> void:
 	var config := ConfigFile.new()
 	config.load(SETTINGS_PATH)
 	config.set_value("audio", "music_volume", music_slider.value / 100.0)
+	config.set_value("audio", "sfx_volume", sfx_slider.value / 100.0)
 	config.set_value("game", "tutorials", TUTORIAL_SIGN.enabled)
 	config.set_value("input", "version", INPUT_VERSION)
 	for entry in REMAP_ACTIONS:
@@ -587,6 +623,8 @@ func _button(text: String, on_pressed: Callable) -> Button:
 	button.add_theme_stylebox_override("hover", _box(BUTTON_HOVER, PANEL_BORDER, 8))
 	button.add_theme_stylebox_override("focus", _box(BUTTON_HOVER, PANEL_BORDER, 8))
 	button.add_theme_stylebox_override("pressed", _box(PANEL_BORDER.darkened(0.4), PANEL_BORDER, 8))
+	button.focus_entered.connect(func() -> void: Sfx.play("ui_move"))
+	button.pressed.connect(func() -> void: Sfx.play("ui_select"))
 	if on_pressed.is_valid():
 		button.pressed.connect(on_pressed)
 	return button

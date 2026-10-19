@@ -281,6 +281,8 @@ func _button(text: String, on_pressed: Callable) -> Button:
 	button.add_theme_stylebox_override("hover", _box(BUTTON_HOVER, PANEL_BORDER, 8))
 	button.add_theme_stylebox_override("focus", _box(BUTTON_HOVER, PANEL_BORDER, 8))
 	button.add_theme_stylebox_override("pressed", _box(PANEL_BORDER.darkened(0.4), PANEL_BORDER, 8))
+	button.focus_entered.connect(func() -> void: Sfx.play("ui_move"))
+	button.pressed.connect(func() -> void: Sfx.play("ui_select"))
 	button.pressed.connect(on_pressed)
 	return button
 

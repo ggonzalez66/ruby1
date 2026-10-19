@@ -158,6 +158,7 @@ func _boss_process(delta: float, player: Node2D) -> void:
 				position.x = max_x - 120.0 if player and player.global_position.x < center + get_parent().global_position.x else min_x + 120.0
 				Fx.puff(get_parent(), global_position + Vector2(0, -120), Color(0.6, 1.0, 0.75, 0.8))
 				state = State.TELEPORT_IN
+				Sfx.play("teleport", 0.0, 1.2)
 				state_timer = 0.3
 		State.TELEPORT_IN:
 			visual.modulate.a = clamp(1.0 - state_timer / 0.3, 0.0, 1.0)
@@ -171,6 +172,7 @@ func _choose_attack(player: Node2D) -> void:
 	attack_index += 1
 	quick_shot = false
 	warning_label.visible = true
+	Sfx.play("bow_draw")
 	state = next
 	match next:
 		State.AIM:
@@ -186,6 +188,7 @@ func _quick_shot(player: Node2D) -> void:
 	close_timer = 0.0
 	quick_shot = true
 	warning_label.visible = true
+	Sfx.play("bow_draw", 0.0, 1.25)
 	state = State.AIM
 	state_timer = 0.35
 
@@ -205,6 +208,7 @@ func _aim_at(player: Node2D, delta: float) -> void:
 	bow_pivot.rotation = lerp_angle(bow_pivot.rotation, aim_angle, 10.0 * delta)
 
 func _shoot(spreads: Array, speed: float) -> void:
+	Sfx.play("arrow_shot")
 	var base_direction := Vector2.RIGHT.rotated(bow_pivot.global_rotation)
 	if visual.scale.x < 0.0:
 		base_direction = Vector2.RIGHT.rotated(PI - bow_pivot.rotation)
@@ -213,6 +217,7 @@ func _shoot(spreads: Array, speed: float) -> void:
 		_spawn_arrow(bow_pivot.global_position + direction * 50.0, direction * speed, arrow_damage)
 
 func _place_rain_markers(player: Node2D) -> void:
+	Sfx.play("rain_mark")
 	_clear_markers()
 	if player == null:
 		return
@@ -223,6 +228,7 @@ func _place_rain_markers(player: Node2D) -> void:
 		rain_markers.append(marker)
 
 func _drop_rain() -> void:
+	Sfx.play("arrow_rain")
 	for marker in rain_markers:
 		var top: Vector2 = marker.global_position + Vector2(0, -620)
 		_spawn_arrow(top, Vector2(0, 950), rain_damage)
@@ -253,10 +259,12 @@ func _reposition(player: Node2D) -> void:
 		flip_from = position
 		flip_to = position + Vector2(away * 380.0, 0)
 		state = State.BACKFLIP
+		Sfx.play("dash", 0.0, 0.8)
 		state_timer = 0.6
 	else:
 		Fx.puff(get_parent(), global_position + Vector2(0, -120), Color(0.6, 1.0, 0.75, 0.8))
 		state = State.TELEPORT_OUT
+		Sfx.play("teleport")
 		state_timer = 0.3
 
 func _move(amount: float) -> void:

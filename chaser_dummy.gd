@@ -163,6 +163,7 @@ func _physics_process(delta: float) -> void:
 			if state_timer <= 0.0:
 				state = State.SWING
 				state_timer = swing_time
+				Sfx.play("enemy_swing")
 				swing_hit_done = false
 				warning_label.visible = false
 				# Avance del zarpazo: lo que falte para tener a Rengar a tiro (con tope).
@@ -226,6 +227,7 @@ func _face(player: Node2D) -> void:
 	visual.scale.x = facing
 
 func _start_telegraph() -> void:
+	Sfx.play("enemy_alert")
 	state = State.TELEGRAPH
 	state_timer = telegraph_time
 	warning_label.visible = true
@@ -284,6 +286,8 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 	current_health = max(current_health - max(damage, 0), 0)
 	flash_timer = 0.1
 	knock_velocity = direction * 200.0
+	if current_health > 0:
+		Sfx.play("enemy_hurt")
 	_update_health_bar()
 	# Golpearlo mientras avisa interrumpe su ataque.
 	if state == State.TELEGRAPH:
@@ -327,6 +331,7 @@ func _die() -> void:
 		return
 	state = State.DEAD
 	Stats.add("dummies_killed")
+	Sfx.play("enemy_die")
 	visible = false
 	warning_label.visible = false
 	set_deferred("monitorable", false)

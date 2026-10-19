@@ -161,6 +161,7 @@ func _apply_shine_look(player_side: bool) -> void:
 	level_ring.add_point(level_ring.points[0])
 
 func _destroy() -> void:
+	Sfx.play("projectile_pop")
 	Fx.puff(get_parent(), global_position, Shine.color(max(shine_level, 1), reflected) if shine_level > 0 else ENEMY_COLOR)
 	queue_free()
 

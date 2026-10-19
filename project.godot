@@ -22,6 +22,7 @@ Stats="*res://game_stats.gd"
 InputHints="*res://input_hints.gd"
 Ferocity="*res://ferocity.gd"
 TimeControl="*res://time_control.gd"
+Sfx="*res://sfx.gd"
 
 [display]
 

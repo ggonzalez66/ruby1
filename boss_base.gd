@@ -29,6 +29,7 @@ var flash_timer := 0.0
 var spawn_position := Vector2.ZERO
 var combat_started := false
 var defeated := false
+var was_warning := false
 
 var visual: Node2D
 var warning_label: Label
@@ -90,6 +91,11 @@ func _physics_process(delta: float) -> void:
 		flash_polys[index].color = HIT_FLASH if flash_timer > 0.0 else flash_colors[index]
 	if defeated:
 		return
+	# El "!" de cualquier ataque avisado suena una vez al aparecer.
+	var warning: bool = is_warning()
+	if warning and not was_warning:
+		Sfx.play("boss_alert")
+	was_warning = warning
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D
 	if not combat_started and (_player_engaged(player) or _ally_in_combat()):
 		combat_started = true
@@ -143,6 +149,8 @@ func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -
 		return
 	current_health = max(current_health - max(damage, 0), 0)
 	flash_timer = 0.08
+	if current_health > 0:
+		Sfx.play("boss_hurt")
 	_update_health_bar()
 	_on_hit(damage)
 	if current_health == 0:
@@ -160,6 +168,7 @@ func on_shine_hit(direction: int, strength: float) -> void:
 func try_shine(_thing: Node) -> bool:
 	if defeated or shine_chance <= 0.0 or randf() >= shine_chance:
 		return false
+	Sfx.play("shine", 0.0, 0.75)
 	Fx.shine(get_parent(), global_position + impact_offset, _shine_color(), 48.0)
 	Shine.enemy_feedback(get_tree(), global_position + impact_offset)
 	_on_shine()
@@ -174,6 +183,7 @@ func try_block(_source_position: Vector2) -> bool:
 
 func _defeat() -> void:
 	defeated = true
+	Sfx.play("enemy_die", 4.0, 0.7)
 	Ferocity.add("boss_kill", 200.0, "GUARDIÁN CAÍDO", Ferocity.BONUS_COLOR)
 	warning_label.visible = false
 	set_deferred("monitorable", false)

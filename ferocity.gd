@@ -207,6 +207,8 @@ func _set_points(value: float) -> void:
 			Stats.add("ferocity_peak", rank - Stats.get_count("ferocity_peak"))
 		if rank == RANKS.size() - 1 and Stats.get_count("ferocity_sss") == 0:
 			Stats.add("ferocity_sss")
+		if rank > previous:
+			Sfx.play("rank_up", 0.0, 1.0 + 0.04 * rank)
 		rank_changed.emit(rank, previous)
 	var now_unstoppable: bool = rank >= UNSTOPPABLE_RANK
 	if now_unstoppable != unstoppable:

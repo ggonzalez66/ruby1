@@ -298,5 +298,7 @@ func _button(text: String, on_pressed: Callable) -> Button:
 		box.set_border_width_all(2)
 		box.set_corner_radius_all(6)
 		button.add_theme_stylebox_override(state, box)
+	button.focus_entered.connect(func() -> void: Sfx.play("ui_move"))
+	button.pressed.connect(func() -> void: Sfx.play("ui_select"))
 	button.pressed.connect(on_pressed)
 	return button
