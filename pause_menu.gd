@@ -56,6 +56,8 @@ var music_value_label: Label
 var sfx_slider: HSlider
 var sfx_value_label: Label
 var tutorials_button: Button
+var vibration_button: Button
+var input_viewer_button: Button
 # Pausa de frame (P): congela el juego justo donde está, sin menú, para inspeccionar ese frame
 # (con H se ven las hitboxes). Otra P lo reanuda.
 var frame_paused := false
@@ -293,6 +295,10 @@ func _build() -> void:
 	options_page.add_child(_label("Juego", 18, Color(0.7, 0.9, 0.62)))
 	tutorials_button = _button("", _toggle_tutorials)
 	options_page.add_child(tutorials_button)
+	vibration_button = _button("", _toggle_vibration)
+	options_page.add_child(vibration_button)
+	input_viewer_button = _button("", _toggle_input_viewer)
+	options_page.add_child(input_viewer_button)
 	_refresh_tutorials_button()
 	options_page.add_child(_label("Controles", 18, Color(0.7, 0.9, 0.62)))
 	options_page.add_child(_button("Mapear teclado", _show_remap_page.bind(Device.KEYBOARD)))
@@ -500,6 +506,20 @@ func _toggle_tutorials() -> void:
 
 func _refresh_tutorials_button() -> void:
 	tutorials_button.text = "Tutoriales: %s" % ("Sí" if TUTORIAL_SIGN.enabled else "No")
+	vibration_button.text = "Vibración del mando: %s" % ("Sí" if Rumble.enabled else "No")
+	input_viewer_button.text = "Visor de inputs: %s" % ("Sí" if InputViewer.enabled else "No")
+
+func _toggle_vibration() -> void:
+	Rumble.enabled = not Rumble.enabled
+	if Rumble.enabled:
+		Rumble.pulse(0.4, 0.4, 0.15, "prueba")
+	_refresh_tutorials_button()
+	_save_settings()
+
+func _toggle_input_viewer() -> void:
+	InputViewer.set_enabled(not InputViewer.enabled)
+	_refresh_tutorials_button()
+	_save_settings()
 
 func _apply_music_volume(linear: float) -> void:
 	_apply_bus_volume(MUSIC_BUS, linear)
@@ -521,6 +541,8 @@ func _load_settings() -> void:
 		volume = clamp(float(config.get_value("audio", "music_volume", 1.0)), 0.0, 1.0)
 		sfx_volume = clamp(float(config.get_value("audio", "sfx_volume", 1.0)), 0.0, 1.0)
 		TUTORIAL_SIGN.enabled = bool(config.get_value("game", "tutorials", true))
+		Rumble.enabled = bool(config.get_value("game", "vibration", true))
+		InputViewer.set_enabled(bool(config.get_value("game", "input_viewer", false)))
 		var saved_version := int(config.get_value("input", "version", 1))
 		if saved_version == INPUT_VERSION:
 			_load_bindings(config)
@@ -541,6 +563,8 @@ func _save_settings() -> void:
 	config.set_value("audio", "music_volume", music_slider.value / 100.0)
 	config.set_value("audio", "sfx_volume", sfx_slider.value / 100.0)
 	config.set_value("game", "tutorials", TUTORIAL_SIGN.enabled)
+	config.set_value("game", "vibration", Rumble.enabled)
+	config.set_value("game", "input_viewer", InputViewer.enabled)
 	config.set_value("input", "version", INPUT_VERSION)
 	for entry in REMAP_ACTIONS:
 		var action: String = entry[0]

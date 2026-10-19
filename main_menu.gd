@@ -10,7 +10,6 @@ const GAUNTLET_SCENE := "res://gauntlet.tscn"
 const SKY_SCENE := "res://sky_stairs.tscn"
 const JUNGLE_SCRIPT := preload("res://jungle_background.gd")
 const PAUSE_MENU_SCRIPT := preload("res://pause_menu.gd")
-const MUSIC_SCRIPT := preload("res://music_player.gd")
 const PLATFORM_SCRIPT := preload("res://platform.gd")
 const SPRINT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint.png")
 # Las 3 celdas de 724 px, recortadas abajo a la altura de los pies.
@@ -71,13 +70,8 @@ func _ready() -> void:
 	add_child(camera)
 	camera.make_current()
 	_build_runner()
-	var music := AudioStreamPlayer.new()
-	music.set_script(MUSIC_SCRIPT)
-	# En el menú principal suena siempre Mute City.
-	music.fixed_track = "mute_city.mp3"
-	music.bus = &"Music"
-	music.volume_db = -6.0
-	add_child(music)
+	# En el menú suena INFUSE (el autoload Music la deja sonar al empezar la partida).
+	Music.play_menu_music()
 	_build()
 	options_menu = PAUSE_MENU_SCRIPT.new()
 	options_menu.menu_mode = true

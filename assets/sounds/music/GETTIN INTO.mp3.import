@@ -1,0 +1,19 @@
+[remap]
+
+importer="mp3"
+type="AudioStreamMP3"
+uid="uid://dfj88w4kfg2bt"
+path="res://.godot/imported/GETTIN INTO.mp3-593745ff528bedd9924364ecac45ccfb.mp3str"
+
+[deps]
+
+source_file="res://assets/sounds/music/GETTIN INTO.mp3"
+dest_files=["res://.godot/imported/GETTIN INTO.mp3-593745ff528bedd9924364ecac45ccfb.mp3str"]
+
+[params]
+
+loop=false
+loop_offset=0
+bpm=0
+beat_count=0
+bar_beats=4

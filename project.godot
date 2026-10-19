@@ -23,6 +23,9 @@ InputHints="*res://input_hints.gd"
 Ferocity="*res://ferocity.gd"
 TimeControl="*res://time_control.gd"
 Sfx="*res://sfx.gd"
+Music="*res://music.gd"
+Rumble="*res://rumble.gd"
+InputViewer="*res://input_viewer.gd"
 
 [display]
 

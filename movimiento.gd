@@ -97,6 +97,8 @@ const ANIMATION_PROUD_ROAR := &"proud_roar"
 const ANIMATION_PROUD_LOOP := &"proud_loop"
 # Aterrizaje del heavy aéreo: el 2º frame del heavy de suelo (el cuchillo clavándose), solo visual.
 const ANIMATION_HEAVY_LANDING := &"heavy_landing"
+# Cuánto dura esa pose (menos que la onda de impacto, que sigue igual).
+const HEAVY_LANDING_POSE_TIME := 0.1
 # Punta del cuchillo en esa pose, respecto a los pies (mirando a la derecha): está a ras de suelo.
 const HEAVY_LANDING_KNIFE_TIP := Vector2(51.0, -2.0)
 const ANIMATION_MANTLE := &"mantle"
@@ -501,6 +503,7 @@ var heavy_diagonal_speed := 0.0
 var heavy_trajectory := HEAVY_ARC
 var heavy_attack_visual_progress := 0.0
 var heavy_ground_impact_wave_timer := 0.0
+var heavy_landing_pose_timer := 0.0
 var attack_targets_hit: Array[Area2D] = []
 # H alterna entre los efectos de ataque (por defecto) y las hitboxes de depuración.
 var show_hitbox_debug := false
@@ -992,8 +995,8 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_AERIAL_STALL
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
-	elif heavy_ground_impact_wave_timer > 0.0:
-		# Mientras sale la onda del heavy aéreo al aterrizar: el cuchillo clavado en el suelo.
+	elif heavy_landing_pose_timer > 0.0:
+		# Al aterrizar el heavy aéreo, un instante con el cuchillo clavado en el suelo.
 		next_animation = ANIMATION_HEAVY_LANDING
 	elif is_sprinting and sprint_turn_timer > 0.0:
 		next_animation = ANIMATION_SPRINT_BRAKE
@@ -1161,6 +1164,7 @@ func _update_timers(delta: float) -> void:
 			light_combo_step = 0
 	hurt_lock_timer = max(hurt_lock_timer - delta, 0.0)
 	heavy_ground_impact_wave_timer = max(heavy_ground_impact_wave_timer - delta, 0.0)
+	heavy_landing_pose_timer = max(heavy_landing_pose_timer - delta, 0.0)
 	backflip_chain_timer = max(backflip_chain_timer - delta, 0.0)
 	long_jump_chain_timer = max(long_jump_chain_timer - delta, 0.0)
 	if backflip_active:
@@ -3614,6 +3618,7 @@ func _land_heavy_attack_on_floor() -> void:
 	velocity.x = facing * heavy_ground_impact_slide_speed
 	velocity.y = 0.0
 	heavy_ground_impact_wave_timer = heavy_ground_impact_wave_duration
+	heavy_landing_pose_timer = HEAVY_LANDING_POSE_TIME
 	_set_impact_wave_active(true)
 	_update_impact_wave_visual()
 

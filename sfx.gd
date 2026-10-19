@@ -55,6 +55,7 @@ func play(sound: String, volume_offset_db: float = 0.0, pitch: float = 1.0) -> v
 	if now - int(last_played.get(sound, -100000)) < SAME_SOUND_GAP_MS:
 		return
 	last_played[sound] = now
+	Rumble.on_sound(sound)
 	var mix: Array = MIX.get(sound, [0.0, 0.05])
 	var player := _free_voice()
 	player.stream = stream
