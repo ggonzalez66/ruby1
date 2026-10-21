@@ -189,6 +189,8 @@ func _defeat() -> void:
 	set_deferred("monitorable", false)
 	_on_defeat()
 	boss_defeated.emit()
+	if not get_tree().get_first_node_in_group(&"gauntlet_director") and get_tree().get_nodes_in_group(&"boss").all(func(b): return b.is_defeated()):
+		RunSession.finish_stage()
 	var tween := create_tween().set_parallel(true)
 	tween.tween_property(visual, "rotation", 1.4 * -facing, 0.6)
 	tween.tween_property(visual, "modulate:a", 0.25, 0.8)

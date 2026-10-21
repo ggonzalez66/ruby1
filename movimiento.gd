@@ -276,6 +276,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var sprint_brake_deceleration := 2600.0
 @export var long_jump_squat_duration := 0.0
 @export var long_jump_horizontal_speed := 680.0
+# Cada aterrizaje encadenado suma velocidad hasta romper la cadena.
+@export var bunnyhop_speed_gain := 60.0
 @export var long_jump_vertical_speed := -500.0
 @export var long_jump_chain_window := 0.12
 @export var max_health := 100
@@ -394,6 +396,9 @@ var sprint_turn_direction := 0
 var long_jump_squat_timer := 0.0
 var long_jump_active := false
 var long_jump_chain_timer := 0.0
+var bunnyhop_bonus := 0.0
+var bunnyhop_chain := 0
+var backflip_run_direction := 0
 var backflip_active := false
 var backflip_direction := 0
 var backflip_elapsed := 0.0
@@ -582,6 +587,7 @@ func _ready() -> void:
 	_update_character_animation()
 	shine_durability = shine_max_durability
 	_emit_shine_changed.call_deferred()
+	RunSession.attach_player.call_deferred(self)
 
 func _physics_process(delta: float) -> void:
 	if dead:
@@ -774,6 +780,10 @@ func _physics_process(delta: float) -> void:
 		if not backflip_active and backflip_chain_timer <= 0.0 and long_jump_chain_timer <= 0.0:
 			flip_streak = 0
 
+	if is_on_floor() and not long_jump_active and long_jump_chain_timer <= 0.0:
+		bunnyhop_bonus = 0.0
+		bunnyhop_chain = 0
+	Ferocity.update_airtime(delta, is_on_floor(), is_on_wall() or wallride_active or wall_cling_timer > 0.0 or mantle_active or wall_embedded)
 	_update_movement_fx(delta, was_on_floor, air_jumps_before, fall_speed)
 	_update_proud(delta, move_input)
 	_update_afterimages(delta)
@@ -998,6 +1008,8 @@ func _update_character_animation() -> void:
 	elif heavy_landing_pose_timer > 0.0:
 		# Al aterrizar el heavy aéreo, un instante con el cuchillo clavado en el suelo.
 		next_animation = ANIMATION_HEAVY_LANDING
+	elif backflip_run_direction != 0:
+		next_animation = ANIMATION_SPRINT_BRAKE
 	elif is_sprinting and sprint_turn_timer > 0.0:
 		next_animation = ANIMATION_SPRINT_BRAKE
 	elif is_sprinting:
@@ -1262,6 +1274,9 @@ func _consume_jump_buffer() -> void:
 	animated_sprite.play(ANIMATION_JUMP)
 
 func _apply_horizontal_movement(move_input: float, delta: float) -> void:
+	if backflip_run_direction != 0:
+		velocity.x = move_toward(velocity.x, 0.0, sprint_brake_deceleration * delta)
+		return
 	if wall_jump_lock_timer > 0.0 and not is_on_floor():
 		return
 	if hurt_lock_timer > 0.0:
@@ -1300,6 +1315,8 @@ func _try_start_sprint_jump(move_input: float) -> bool:
 	return true
 
 func _start_long_jump_squat() -> void:
+	bunnyhop_bonus = 0.0
+	bunnyhop_chain = 0
 	long_jump_squat_timer = long_jump_squat_duration
 	long_jump_active = false
 	backflip_active = false
@@ -1318,7 +1335,7 @@ func _launch_long_jump() -> void:
 	backflip_active = false
 	jump_buffer_timer = 0.0
 	coyote_timer = 0.0
-	velocity.x = sprint_direction * long_jump_horizontal_speed
+	velocity.x = sprint_direction * (long_jump_horizontal_speed + bunnyhop_bonus)
 	velocity.y = long_jump_vertical_speed
 	facing = sprint_direction
 	_update_facing_visual()
@@ -1339,11 +1356,16 @@ func _try_start_long_jump_chain(move_input: float) -> bool:
 	long_jump_squat_timer = 0.0
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
+	bunnyhop_chain += 1
+	bunnyhop_bonus += bunnyhop_speed_gain
 	_launch_long_jump()
 	Stats.add("bunnyhops")
 	return true
 
 func _start_backflip() -> void:
+	backflip_run_direction = 0
+	bunnyhop_bonus = 0.0
+	bunnyhop_chain = 0
 	Stats.add("backflips")
 	# El backflip viaja en contra del facing; el personaje sigue mirando hacia delante.
 	backflip_direction = -facing
@@ -2276,6 +2298,8 @@ func _land_backflip(move_input: float) -> void:
 	backflip_direction = 0
 	_stop_sprint()
 	backflip_chain_timer = backflip_chain_window
+	if Input.is_action_pressed("dash") and int(sign(move_input)) == -facing:
+		backflip_run_direction = -facing
 	if jump_buffer_timer > 0.0 and _try_start_backflip_chain(move_input):
 		return
 	_try_backflip_instant_run(move_input)
@@ -2319,6 +2343,19 @@ func _try_start_backflip_air_jump(move_input: float) -> bool:
 	return true
 
 func _try_backflip_instant_run(move_input: float) -> void:
+	if backflip_run_direction != 0:
+		if not Input.is_action_pressed("dash") or int(sign(move_input)) != backflip_run_direction or not is_on_floor() or _is_attack_active():
+			backflip_run_direction = 0
+		elif backflip_chain_timer <= 0.0:
+			var direction := backflip_run_direction
+			backflip_run_direction = 0
+			brake_pending = false
+			brake_recover_timer = 0.0
+			_start_sprint(direction)
+			velocity.x = direction * sprint_speed
+			return
+		else:
+			return
 	if backflip_chain_timer <= 0.0 or not is_on_floor() or _is_attack_active() or dash_timer > 0.0:
 		return
 	if int(sign(move_input)) != facing:
@@ -2340,7 +2377,7 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 		return
 
 	if long_jump_active:
-		velocity.x = sprint_direction * long_jump_horizontal_speed
+		velocity.x = sprint_direction * (long_jump_horizontal_speed + bunnyhop_bonus)
 		_apply_gravity(delta)
 		return
 
@@ -2372,7 +2409,7 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 		velocity.y = 0.0
 		return
 
-	velocity.x = sprint_direction * sprint_speed
+	velocity.x = sprint_direction * (long_jump_horizontal_speed + bunnyhop_bonus) if long_jump_chain_timer > 0.0 and bunnyhop_bonus > 0.0 else sprint_direction * sprint_speed
 	velocity.y = 0.0
 
 func _consume_sprint_air_jump() -> void:
@@ -2399,6 +2436,7 @@ func _start_sprint(direction: int) -> void:
 	_update_facing_visual()
 
 func _stop_sprint() -> void:
+	backflip_run_direction = 0
 	is_sprinting = false
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
@@ -3443,7 +3481,7 @@ func _update_dash_visual() -> void:
 	dash_visual.color = Color(dash_visual_base_color.r, dash_visual_base_color.g, dash_visual_base_color.b, alpha)
 
 func _locks_facing() -> bool:
-	return dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or wall_cling_timer > 0.0 or wallride_active or wall_embedded or roar_active or mantle_active or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
+	return backflip_run_direction != 0 or dash_timer > 0.0 or _uses_sprint_movement() or backflip_chain_timer > 0.0 or wall_cling_timer > 0.0 or wallride_active or wall_embedded or roar_active or mantle_active or attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_HEAVY_GROUND or attack_mode == ATTACK_UPPERCUT
 
 func _update_wall_state() -> void:
 	if is_on_floor():
@@ -3666,6 +3704,9 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	bunnyhop_bonus = 0.0
+	bunnyhop_chain = 0
+	backflip_run_direction = 0
 	dead = false
 	Ferocity.reset()
 	animated_sprite.rotation = 0.0

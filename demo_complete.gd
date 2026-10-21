@@ -93,6 +93,11 @@ func go_to_main_menu() -> void:
 
 func show_results() -> void:
 	message_label.text = message_text if message_text != "" else Stats.congratulation_message()
+	if not RunSession.result.is_empty() and RunSession.level == get_parent():
+		var result: Dictionary = RunSession.result
+		message_label.text += "\nTiempo de etapa: " + Stats.format_time(result["time"])
+		if result["best"]:
+			message_label.text += " · ¡NUEVO RÉCORD! Fantasma guardado" if result["saved"] else " · Récord sin guardar (error de escritura)"
 	_fill_medals()
 	_fill_stats()
 	root_control.visible = true
@@ -228,6 +233,8 @@ func _build() -> void:
 	stats_grid.add_theme_constant_override("v_separation", 3)
 	stats_scroll.add_child(stats_grid)
 
+	if get_parent().scene_file_path in RunSession.STAGES:
+		column.add_child(_button("Top 10 de cada etapa", RunSession.show_records))
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)
 	column.add_child(buttons)
@@ -262,6 +269,8 @@ func _restart() -> void:
 	root_control.visible = false
 	get_tree().paused = false
 	Stats.reset()
+	Ferocity.reset()
+	Stats.set_meta(&"defeated_bosses", [])
 	get_tree().reload_current_scene()
 
 func _next_stage() -> void:

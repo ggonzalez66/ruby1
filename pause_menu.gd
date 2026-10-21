@@ -106,6 +106,8 @@ func _refresh_row_texts() -> void:
 			button.text = _binding_text(action)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if RunSession.countdown_active or (is_instance_valid(RunSession.records_panel) and RunSession.records_panel.visible):
+		return
 	if menu_mode:
 		_menu_mode_input(event)
 		return

@@ -151,6 +151,7 @@ func _on_body_entered(body: Node) -> void:
 
 func _merge(player: Node2D) -> void:
 	merging = true
+	RunSession.finish_stage()
 	Stats.add("sun_reached" if goal_style == "sun" else "ruby_reached")
 	player.begin_merge()
 	var sprite: Node2D = player.animated_sprite

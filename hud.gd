@@ -61,7 +61,10 @@ func _ready() -> void:
 	_connect_player.call_deferred()
 
 func _process(delta: float) -> void:
-	elapsed_time += delta
+	if RunSession.level == get_parent():
+		elapsed_time = RunSession.elapsed
+	else:
+		elapsed_time += delta
 	_update_timer_text()
 	_update_boss_indicator()
 	_update_boss_banner()
@@ -396,6 +399,13 @@ func _build_timer() -> void:
 	timer_millis_label.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(timer_millis_label)
 	_update_timer_text()
+	if get_parent().scene_file_path in RunSession.STAGES:
+		var best: Dictionary = RunSession.load_record(get_parent().scene_file_path)
+		var best_label := Label.new()
+		best_label.text = "MEJOR: " + (Stats.format_time(float(best["best"])) + " · FANTASMA" if best.has("best") else "SIN RÉCORD")
+		best_label.add_theme_font_size_override("font_size", 13)
+		best_label.add_theme_color_override("font_color", Color(0.6, 0.9, 1.0))
+		row.add_child(best_label)
 	# Centra el panel sobre el ancla una vez conocido su tamaño.
 	panel.resized.connect(func(): panel.position.x = -panel.size.x * 0.5)
 

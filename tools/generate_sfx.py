@@ -610,6 +610,22 @@ def ui_select():
     return finish(lowpass(mix(a, b), 3500), 0.55)
 
 
+def ready():
+    d = 0.22
+    return finish(mul(osc(d, 520, "triangle"), env(d, 0.004, 0.18)), 0.65)
+
+
+def countdown_tick():
+    d = 0.1
+    return finish(mul(osc(d, 720, "square"), env(d, 0.003, 0.08)), 0.55)
+
+
+def go():
+    d = 0.36
+    chord = mix(osc(d, 880, "triangle"), gain(osc(d, 1320, "triangle"), 0.5))
+    return finish(mul(chord, env(d, 0.005, 0.28)), 0.75)
+
+
 SOUNDS = {name: fn for name, fn in globals().items() if callable(fn) and fn.__module__ == __name__
           and name not in {"n_samples", "lerp", "env", "osc", "noise", "crackle", "lowpass", "highpass", "bandpass",
                            "mul", "gain", "mix", "delay", "drive", "tremolo", "partials", "sweep", "finish", "write", "main",

@@ -199,6 +199,7 @@ func _next_round() -> void:
 	_start_wave()
 
 func _finish() -> void:
+	RunSession.finish_stage()
 	phase = Phase.DONE
 	_clear_portals()
 	var screen := get_tree().get_first_node_in_group(&"demo_complete")
@@ -207,6 +208,7 @@ func _finish() -> void:
 		screen.show_results()
 
 func _on_player_died() -> void:
+	RunSession.finish_stage()
 	# Sin checkpoint: tras un momento, pantalla de fin con lo sobrevivido.
 	if phase == Phase.DONE:
 		return

@@ -26,6 +26,7 @@ Sfx="*res://sfx.gd"
 Music="*res://music.gd"
 Rumble="*res://rumble.gd"
 InputViewer="*res://input_viewer.gd"
+RunSession="*res://run_session.gd"
 
 [display]
 

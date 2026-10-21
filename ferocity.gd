@@ -71,6 +71,11 @@ const GOOD_COLOR := Color(1.0, 0.95, 0.85)
 const BONUS_COLOR := Color(1.0, 0.82, 0.35)
 const PENALTY_COLOR := Color(1.0, 0.3, 0.25)
 
+const AIRTIME_GAIN := 10.0
+var airtime := 0.0
+var airtime_active := false
+var airtime_paused := false
+
 var points := 0.0
 var rank := 0
 var grace := 0.0
@@ -130,7 +135,25 @@ func player_hit() -> bool:
 		penalized.emit(before, points)
 	return false
 
+func update_airtime(delta: float, grounded: bool, wall_contact: bool) -> void:
+	if grounded:
+		airtime_active = false
+		airtime_paused = false
+		return
+	if not airtime_active:
+		airtime = 0.0
+	airtime_active = true
+	airtime_paused = wall_contact
+	if wall_contact:
+		return
+	airtime += delta
+	grace = DRAIN_GRACE
+	_add_capped(AIRTIME_GAIN * delta, _rank_top(max(rank, ACROBATIC_RANK_LIMIT)))
+
 func reset() -> void:
+	airtime = 0.0
+	airtime_active = false
+	airtime_paused = false
 	freshness.clear()
 	grace = 0.0
 	_set_points(0.0)

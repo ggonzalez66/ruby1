@@ -24,6 +24,7 @@ const POP_TIME := 0.28
 const LOSS_TIME := 0.7
 const SHAKE_TIME := 0.6
 
+var airtime_label: Label
 var rank_row: Control
 var letter: Label
 var rest: Label
@@ -95,8 +96,13 @@ func _ready() -> void:
 	unstoppable_label.position = Vector2(0, 92)
 	unstoppable_label.size = Vector2(PANEL_WIDTH, 20)
 	add_child(unstoppable_label)
+	airtime_label = _label("", 16, Color(0.6, 0.9, 1.0))
+	airtime_label.position = Vector2(0, 115)
+	airtime_label.size = Vector2(PANEL_WIDTH, 22)
+	airtime_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	add_child(airtime_label)
 	log_box = VBoxContainer.new()
-	log_box.position = Vector2(0, 116)
+	log_box.position = Vector2(0, 142)
 	log_box.size = Vector2(PANEL_WIDTH, 200)
 	log_box.add_theme_constant_override("separation", 0)
 	add_child(log_box)
@@ -111,6 +117,9 @@ func _ready() -> void:
 	Ferocity.promotion_blocked.connect(func(): cap_flash = 0.4)
 
 func _process(delta: float) -> void:
+	var status := " · PAUSA" if Ferocity.airtime_paused else ("" if Ferocity.airtime_active else " · FIN")
+	airtime_label.text = "AIRE %.2f s%s" % [Ferocity.airtime, status]
+	airtime_label.visible = Ferocity.airtime > 0.0
 	var real_delta: float = delta / max(Engine.time_scale, 0.01)
 	if Ferocity.rank != shown_rank:
 		_layout_rank(Ferocity.rank)
@@ -128,7 +137,7 @@ func _process(delta: float) -> void:
 	unstoppable_label.visible = Ferocity.is_unstoppable()
 	unstoppable_label.add_theme_color_override("font_color", Color.WHITE if int(Time.get_ticks_msec() / 120) % 2 == 0 else color)
 	# Visible solo con algo de estilo (o mientras quedan logs o astillas).
-	var wanted: float = 1.0 if Ferocity.points > 1.0 or not logs.is_empty() or not shards.is_empty() else 0.0
+	var wanted: float = 1.0 if Ferocity.points > 1.0 or Ferocity.airtime > 0.0 or not logs.is_empty() or not shards.is_empty() else 0.0
 	shown_alpha = move_toward(shown_alpha, wanted, real_delta * 3.0)
 	modulate.a = shown_alpha
 	_update_logs(real_delta)

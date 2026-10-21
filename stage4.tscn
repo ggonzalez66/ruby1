@@ -23,21 +23,21 @@ script = ExtResource("4_jungle")
 altitude_offset = 1
 
 [node name="BoundaryLeft" type="StaticBody2D" parent="."]
-position = Vector2(-30, -700)
+position = Vector2(-30, -900)
 collision_layer = 2
 script = ExtResource("13_platform")
-size = Vector2(60, 2120)
+size = Vector2(60, 2520)
 style = 3
 
 [node name="BoundaryRight" type="StaticBody2D" parent="."]
-position = Vector2(7630, -700)
+position = Vector2(7630, -900)
 collision_layer = 2
 script = ExtResource("13_platform")
-size = Vector2(60, 2120)
+size = Vector2(60, 2520)
 style = 3
 
 [node name="BoundaryTop" type="StaticBody2D" parent="."]
-position = Vector2(3800, -1730)
+position = Vector2(3800, -2130)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(7720, 60)
@@ -276,8 +276,113 @@ max_health = 9999
 position = Vector2(7080, 0)
 script = ExtResource("9_checkpoint")
 
+[node name="SignRubyChimney" type="Node2D" parent="."]
+position = Vector2(7120, 0)
+script = ExtResource("14_sign")
+text = "Sube por la chimenea con {jump}.
+Las espinas alternan de pared: elige dónde apoyar cada walljump."
+title = "La cámara del Ruby"
+panel_width = 350
+
+[node name="RubyChimneyLeft" type="StaticBody2D" parent="."]
+position = Vector2(7260, -640)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1120)
+style = 3
+
+[node name="RubyChimneyRight" type="StaticBody2D" parent="."]
+position = Vector2(7500, -600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1200)
+style = 3
+
+[node name="RubyRoomFloorLeft" type="StaticBody2D" parent="."]
+position = Vector2(3645, -1170)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(7290, 60)
+style = 1
+
+[node name="RubyRoomFloorRight" type="StaticBody2D" parent="."]
+position = Vector2(7535, -1170)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(130, 60)
+style = 1
+
+[node name="RubySpikesLeft0" type="Area2D" parent="."]
+position = Vector2(7290, -300)
+rotation = 1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(52, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="RubySpikesLeft1" type="Area2D" parent="."]
+position = Vector2(7290, -700)
+rotation = 1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(52, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="RubySpikesLeft2" type="Area2D" parent="."]
+position = Vector2(7290, -1100)
+rotation = 1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(52, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="RubySpikesRight0" type="Area2D" parent="."]
+position = Vector2(7470, -400)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(52, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="RubySpikesRight1" type="Area2D" parent="."]
+position = Vector2(7470, -800)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(52, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="CheckpointRubyRoom" type="Area2D" parent="."]
+position = Vector2(7140, -1200)
+script = ExtResource("9_checkpoint")
+
+[node name="TitleRubyRoom" type="Label" parent="."]
+offset_left = 3000
+offset_top = -1810
+offset_right = 3900
+offset_bottom = -1750
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "LA CÁMARA DEL RUBY"
+
+[node name="RubyPedestalStep" type="StaticBody2D" parent="."]
+position = Vector2(3800, -1240)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(620, 80)
+style = 2
+
+[node name="RubyPedestal" type="StaticBody2D" parent="."]
+position = Vector2(3800, -1330)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(280, 100)
+style = 2
+
 [node name="Ruby1" type="Area2D" parent="."]
-position = Vector2(7380, 0)
+position = Vector2(3800, -1380)
 script = ExtResource("15_ruby")
 
 [node name="Playerr" parent="." instance=ExtResource("1_player")]

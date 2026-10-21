@@ -2,6 +2,11 @@
 # Corre todas las pruebas de integración headless (y las de las herramientas en Python) y resume el resultado de cada una.
 # Uso (desde cualquier carpeta): tests/run_tests.sh
 set -u
+# La cuenta atrás se valida por separado; las suites históricas controlan los frames.
+export RUBY1_SKIP_COUNTDOWN=1
+export XDG_DATA_HOME
+XDG_DATA_HOME=$(mktemp -d)
+trap 'rm -rf "$XDG_DATA_HOME"' EXIT
 cd "$(dirname "$0")/.."
 status=0
 for test in tests/integration/test_*.gd; do

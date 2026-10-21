@@ -11,6 +11,7 @@ const VOICES := 16
 const SAME_SOUND_GAP_MS := 35
 # Volumen (dB) y variación de tono de cada sonido; lo que no está aquí va a 0 dB y ±5 %.
 const MIX := {
+	"ready": [-5.0, 0.0], "countdown_tick": [-7.0, 0.0], "go": [-3.0, 0.0],
 	"step": [-11.0, 0.14], "land": [-7.0, 0.08], "jump": [-9.0, 0.06], "air_jump": [-6.0, 0.06],
 	"skid": [-8.0, 0.08], "wallride": [-8.0, 0.06], "wall_jump": [-5.0, 0.06], "grab": [-7.0, 0.08],
 	"dash": [-6.0, 0.06], "swing_light": [-5.0, 0.1], "swing_heavy": [-3.0, 0.05], "dash_attack": [-4.0, 0.06],

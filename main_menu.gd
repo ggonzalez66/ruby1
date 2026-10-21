@@ -58,6 +58,7 @@ var glint_wait := 1.2
 var glint_time := -1.0
 
 func _ready() -> void:
+	RunSession._clear_run()
 	get_tree().paused = false
 	# En el menú principal siempre a velocidad normal.
 	TimeControl.set_slow_motion(false)
@@ -250,6 +251,7 @@ func _build() -> void:
 	buttons.add_child(first_button)
 	buttons.add_child(_button("Entrar al Gauntlet", _start.bind(GAUNTLET_SCENE)))
 	buttons.add_child(_button("Escalera al Cielo", _start.bind(SKY_SCENE)))
+	buttons.add_child(_button("Mejores tiempos", RunSession.show_records))
 	buttons.add_child(_button("Opciones", _open_options))
 	buttons.add_child(_button("Salir", _quit))
 
