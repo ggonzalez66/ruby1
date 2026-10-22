@@ -117,7 +117,7 @@ func _run() -> void:
 	check(knife != null and knife.empowered, "el cuchillo sale potenciado")
 	await frames(40)
 	await tap("throw_knife")
-	check(player.current_health == 50 + player.knife_riposte_heal, "cura al sacarlo (%d)" % player.current_health)
+	check(player.current_health == 50, "sacar el cuchillo de riposte no cura: la energía procede del Ruby (%d)" % player.current_health)
 	await frames(60)
 	target.queue_free()
 
@@ -125,8 +125,10 @@ func _run() -> void:
 	await reset(Vector2(1000, -2))
 	var shooter := make_dummy(Vector2(1280, 0), {"shoot_interval": 99.0, "shine_chance": 1.0, "max_health": 99})
 	await frames(2)
-	shot = shoot(Vector2(1090, -18), shooter)
+	# Shine latente: una devolución perfecta ahora deja open e inmóvil al tirador.
 	Input.action_press("roar")
+	await frames(14)
+	shot = shoot(Vector2(1090, -18), shooter)
 	await frames(10)
 	release_all()
 	await tap("jump")
@@ -240,6 +242,8 @@ func _run() -> void:
 	var first: String = spawner.bosses[0].boss_name
 	for boss in spawner.bosses:
 		boss.take_hit(Vector2.ZERO, 1, 9999)
+		boss.ruby_core.claim(get_first_node_in_group(&"player"))
+		boss.ruby_core.complete(get_first_node_in_group(&"player"))
 	await frames(130)
 	var demo: Node = get_first_node_in_group(&"demo_complete")
 	check(demo.title_text == "ETAPA 1 COMPLETADA", "torre ganada")

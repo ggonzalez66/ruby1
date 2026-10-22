@@ -1,5 +1,23 @@
 extends CharacterBody2D
 
+@export var execution_duration := 0.38
+@export var execution_heal := 12
+@export var critical_heal := 8
+@export var boss_execution_heal := 25
+
+var execution_core: Node2D
+var execution_started := false
+var execution_previous_z := 0
+var execution_elapsed := 0.0
+var execution_aerial := false
+var execution_direction := 1
+var execution_keep_sprint := false
+var execution_speed := 0.0
+var execution_bonus := 0.0
+var execution_trajectory := 0
+var execution_jump_buffered := false
+var execution_action := &""
+
 signal health_changed(current: int, maximum: int)
 signal knife_changed(in_hand: bool)
 # Se intentó un ataque que necesita el cuchillo sin tenerlo (para el aviso del HUD).
@@ -298,10 +316,7 @@ const DAMAGE_WALL_EXPLOSION := 2
 # Riposte: tras un parry o devolver un proyectil, el siguiente heavy o cuchillo lanzado sale potenciado
 # (doble daño y cura). Lo que se use primero consume la bonificación.
 @export var riposte_duration := 1.5
-# Curaciones en combate: conectar el heavy del riposte (una vez, aunque golpee a varios) y sacar el
-# cuchillo del riposte tras haber golpeado (cura menos).
-@export var riposte_heal := 20
-@export var knife_riposte_heal := 10
+# El riposte conserva su daño extra; la absorción de Ruby sustituye sus curaciones.
 @export var roar_stall_duration := 1.0
 @export var roar_lock_duration := 0.25
 @export var roar_radius := 46.0
@@ -464,7 +479,6 @@ var knife_scrape: Node2D
 var death_spin := 0.0
 var death_rest_angle := 0.0
 var riposte_attack := false
-var riposte_healed := false
 var hitstop_token := 0
 var invulnerability_timer := 0.0
 var hurt_lock_timer := 0.0
@@ -590,6 +604,9 @@ func _ready() -> void:
 	RunSession.attach_player.call_deferred(self)
 
 func _physics_process(delta: float) -> void:
+	if execution_core != null:
+		_update_execution(delta)
+		return
 	if dead:
 		_update_death(delta)
 		return
@@ -731,6 +748,8 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	_update_wall_state()
 	_refresh_attack_hits()
+	if execution_core != null:
+		return
 
 	if attack_mode == ATTACK_HEAVY and is_on_floor():
 		_land_heavy_attack_on_floor()
@@ -1500,6 +1519,8 @@ func _try_start_running_wall_jump() -> bool:
 	return true
 
 func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -> void:
+	if execution_core != null:
+		return
 	if dead:
 		return
 	if _is_roar_invincible():
@@ -1564,6 +1585,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	velocity = Vector2(push_direction * hurt_knockback.x, hurt_knockback.y)
 
 func return_to_checkpoint(amount: int) -> void:
+	if execution_core != null:
+		return
 	# Espinas del plataformeo final: daño y de vuelta al último checkpoint (sin reiniciar el nivel).
 	if dead:
 		return
@@ -1702,7 +1725,6 @@ func _on_attack_blocked(area: Node2D) -> void:
 
 func _consume_riposte() -> void:
 	riposte_attack = riposte_timer > 0.0
-	riposte_healed = false
 	riposte_timer = 0.0
 
 func heal(amount: int) -> int:
@@ -1744,9 +1766,6 @@ func _spawn_hit_feedback(area: Node2D) -> void:
 		Fx.text(get_parent(), point + Vector2(0, -36), "¡RIPOSTE!", Color(1.0, 0.55, 0.25))
 		_apply_hitstop(hitstop_deflect * Ferocity.impact_multiplier())
 		_camera_kick(0.55, 0.06)
-		if not riposte_healed:
-			riposte_healed = true
-			heal(riposte_heal)
 		return
 	Fx.impact(get_parent(), point, Fx.GOLD if heavy else Fx.SILVER, 1.35 if heavy or finisher else 1.0)
 	var impact: float = Ferocity.impact_multiplier()
@@ -1877,9 +1896,8 @@ func _show_knife_missing() -> void:
 	knife_missing.emit()
 
 func on_riposte_knife_pulled() -> void:
-	# Cuchillo del riposte que ya golpeó: cura al sacarlo (al llamarlo de vuelta).
+	# Cuchillo del riposte: conserva el feedback; la curación viene ahora de ejecutar un Ruby.
 	Fx.impact(get_parent(), global_position + Vector2(0, -16), Fx.ROAR, 1.2)
-	heal(knife_riposte_heal)
 
 func on_knife_shined(knife: Node) -> void:
 	# Shine knife: el cuchillo que volvía sale disparado otra vez contra el enemigo.
@@ -2262,6 +2280,7 @@ func _attach_afterimage_container() -> void:
 	level.move_child(afterimage_container, get_index())
 
 func _exit_tree() -> void:
+	_cancel_execution()
 	Engine.time_scale = TimeControl.base_scale()
 	Sfx.stop_loop("shine_hold")
 	if is_instance_valid(afterimage_container):
@@ -3369,13 +3388,18 @@ func _refresh_attack_hits() -> void:
 		_hit_area(area)
 
 func _hit_area(area: Area2D) -> void:
-	if not _is_attack_active():
+	if execution_core != null or not _is_attack_active():
 		return
 
 	if area in attack_targets_hit:
 		return
 
 	attack_targets_hit.append(area)
+	if attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND]:
+		var core: Node2D = area.get_node_or_null("RubyCore")
+		if core != null and core.claim(self):
+			_queue_execution(core)
+			return
 
 	if attack_mode == ATTACK_SLASH and area.has_method("try_block") and area.try_block(global_position):
 		Sfx.play("block")
@@ -3405,9 +3429,13 @@ func _hit_area(area: Area2D) -> void:
 
 	if attack_mode == ATTACK_HEAVY:
 		# Diferido: puede venir de la señal de colisión, donde no se puede desactivar la hitbox.
-		_bounce_out_of_heavy_attack.call_deferred(true)
+		_bounce_after_hit.call_deferred()
 	elif attack_mode == ATTACK_SLASH and not is_on_floor():
 		_apply_light_hit_air_boost()
+
+func _bounce_after_hit() -> void:
+	if execution_core == null:
+		_bounce_out_of_heavy_attack(true)
 
 func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
@@ -3704,6 +3732,7 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	_cancel_execution()
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0
 	backflip_run_direction = 0
@@ -3809,3 +3838,121 @@ func _respawn_player() -> void:
 	_reset_attack_pose()
 	_update_facing_visual()
 	respawned.emit()
+
+
+# ---------- Ejecución del Ruby: bloqueo local breve, sin pausar el resto del combate.
+
+func _queue_execution(core: Node2D) -> void:
+	execution_core = core
+	execution_previous_z = z_index
+	execution_started = false
+	execution_elapsed = 0.0
+	execution_aerial = attack_mode == ATTACK_HEAVY
+	execution_direction = facing
+	execution_keep_sprint = is_sprinting or long_jump_active or Input.is_action_pressed("dash")
+	execution_speed = absf(velocity.x)
+	execution_bonus = bunnyhop_bonus
+	execution_trajectory = heavy_trajectory
+	execution_jump_buffered = false
+	execution_action = &""
+	# La colisión puede estar emitiendo area_entered: modificar hitboxes se hace después.
+	_begin_execution.call_deferred()
+
+func _begin_execution() -> void:
+	if not is_instance_valid(execution_core) or not execution_core.claimed_by(self) or dead:
+		_cancel_execution()
+		return
+	_cancel_all_states()
+	_cancel_attack_for_chain()
+	z_index = 12
+	combo_buffer = &""
+	velocity = Vector2.ZERO
+	if execution_aerial:
+		# La física detiene el acercamiento si hay suelo o una pared, evitando atravesarlos.
+		var target: Vector2 = execution_core.global_position + Vector2(0, 30)
+		move_and_collide(target - global_position)
+	animated_sprite.play(ANIMATION_FRONTFLIP if execution_aerial else ANIMATION_ROAR)
+	_align_character_animation(animated_sprite.animation)
+	animated_sprite.flip_h = execution_direction < 0
+	Sfx.play("shine", -3.0, 1.25)
+	execution_started = true
+
+func _update_execution(delta: float) -> void:
+	if not is_instance_valid(execution_core) or not execution_core.claimed_by(self):
+		_cancel_execution()
+		return
+	if not execution_started:
+		return
+	execution_elapsed += delta
+	if Input.is_action_just_pressed("jump"):
+		execution_jump_buffered = true
+	if Input.is_action_just_pressed("attack"):
+		execution_action = &"attack"
+	if Input.is_action_just_pressed("heavy_attack"):
+		execution_action = &"uppercut" if Input.is_action_pressed("move_up") else &"heavy"
+	velocity = Vector2.ZERO
+	var progress := clampf(execution_elapsed / maxf(execution_duration, 0.01), 0.0, 1.0)
+	if execution_aerial:
+		animated_sprite.rotation = execution_direction * TAU * smoothstep(0.0, 1.0, progress)
+	# El contador mide el tiempo que realmente pasa en el aire, también durante el flip.
+	Ferocity.update_airtime(delta, not execution_aerial, false)
+	if progress >= 1.0:
+		_finish_execution()
+
+func _finish_execution() -> void:
+	var core := execution_core
+	var boss: bool = core.boss
+	var final: bool = not boss or core.final_open
+	core.complete(self)
+	z_index = execution_previous_z
+	execution_core = null
+	execution_started = false
+	attack_cooldown_timer = 0.0
+	ground_heavy_cooldown_timer = 0.0
+	animated_sprite.rotation = 0.0
+	heal((boss_execution_heal if boss else execution_heal) if final else critical_heal)
+	Ferocity.add("ruby_execution" if final else "ruby_critical", 50.0 if final else 35.0, "RUBY ABSORBIDO" if final else "NÚCLEO DAÑADO", Color(1.0, 0.25, 0.3))
+	_camera_kick(0.3, 0.025)
+	facing = execution_direction
+	bunnyhop_bonus = execution_bonus
+	var keep_running := execution_keep_sprint or Input.is_action_pressed("dash")
+	if execution_aerial:
+		attack_mode = ATTACK_HEAVY
+		heavy_trajectory = execution_trajectory
+		_bounce_out_of_heavy_attack(true)
+		if keep_running:
+			_start_sprint(execution_direction)
+			long_jump_active = true
+			bunnyhop_bonus = maxf(execution_bonus, execution_speed - long_jump_horizontal_speed)
+			velocity.x = execution_direction * (long_jump_horizontal_speed + bunnyhop_bonus)
+	else:
+		if keep_running:
+			_start_sprint(execution_direction)
+			bunnyhop_bonus = maxf(execution_bonus, execution_speed - long_jump_horizontal_speed)
+			long_jump_chain_timer = long_jump_chain_window
+			velocity.x = execution_direction * maxf(execution_speed, sprint_speed)
+		else:
+			velocity.x = execution_direction * minf(execution_speed, max_speed)
+	# El input dado durante el breve instante puede enlazar al salir de la ejecución.
+	if execution_jump_buffered:
+		jump_buffer_timer = jump_buffer_time
+	if execution_action != &"":
+		combo_buffer = execution_action
+		combo_buffer_timer = COMBO_BUFFER_TIME
+	execution_action = &""
+	execution_jump_buffered = false
+	_update_facing_visual()
+	_update_character_animation()
+
+func _cancel_execution() -> void:
+	if execution_started:
+		z_index = execution_previous_z
+	if is_instance_valid(execution_core):
+		execution_core.release_claim(self)
+	execution_core = null
+	execution_started = false
+	execution_elapsed = 0.0
+	execution_action = &""
+	execution_jump_buffered = false
+	if is_instance_valid(animated_sprite):
+		animated_sprite.rotation = 0.0

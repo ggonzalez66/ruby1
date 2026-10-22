@@ -216,6 +216,8 @@ func _boss_process(delta: float, player: Node2D) -> void:
 				_start(State.IDLE, 0.3)
 
 func _start(new_state: State, duration: float, warn: bool = true) -> void:
+	if new_state in [State.THRUST_WINDUP, State.DAGGER_WINDUP, State.DASH_WINDUP, State.THROW_WINDUP]:
+		parry_serial += 1
 	state = new_state
 	match new_state:
 		State.THRUST:
@@ -278,7 +280,7 @@ func on_dagger_caught(_spinning: Node) -> void:
 
 func try_parry_dagger(spinning: Node2D) -> bool:
 	# Su parry: el estoque golpea la daga y la manda de vuelta contra Rengar.
-	if state == State.STAGGER or randf() >= dagger_parry_chance:
+	if ruby_core.holds_actor() or state == State.STAGGER or randf() >= dagger_parry_chance:
 		return false
 	rapier_pivot.rotation = -1.4
 	flash_timer = 0.0
@@ -342,15 +344,16 @@ func on_deflected(_by: Node) -> void:
 	hit_done = true
 	Fx.deflect(get_parent(), rapier_pivot.to_global(Vector2(RAPIER_LENGTH * 0.5, 0)))
 	flash_timer = 0.12
-	if randf() < resist_chance:
-		Fx.text(get_parent(), global_position + Vector2(0, -210), "¡RESISTE!", Color(1.0, 0.55, 0.4))
-		return
-	_start(State.STAGGER, stagger_time, false)
+	ruby_core.register_parry(parry_serial)
+
+func _on_posture_broken() -> void:
+	_recover_dagger()
+	_start(State.STAGGER, 2.5, false)
 	rapier.color = BLADE_COLOR
 	dagger.color = BLADE_COLOR
 	rapier_pivot.rotation = -2.6
 	visual.rotation = -0.15 * facing
-	Fx.text(get_parent(), global_position + Vector2(0, -190), "¡ATURDIDO!", Color(1.0, 0.85, 0.5))
+	trail.clear_points()
 
 func _can_block() -> bool:
 	return state in [State.IDLE, State.WALK, State.RECOVER]

@@ -13,6 +13,7 @@ var velocity := Vector2.ZERO
 var damage := 10
 var reflected_damage := 2
 var shooter: Node2D
+var parry_token := -1
 var reflected := false
 var life := 6.0
 # "orb" (bola de energía de los dummies) o "arrow" (flecha del guardián arquero).
@@ -110,6 +111,11 @@ func _reflect(player: Node) -> void:
 	var perfect: bool = player.has_method("is_perfect_shine") and player.is_perfect_shine()
 	if perfect:
 		shine_level += 1
+		if is_instance_valid(shooter):
+			if shooter.has_method("on_projectile_parried"):
+				shooter.on_projectile_parried(parry_token)
+			elif shooter.has_method("on_deflected"):
+				shooter.on_deflected(player)
 	Stats.add("projectiles_reflected")
 	# Vuelve hacia quien lo disparó; si golpea otra cosa por el camino, también vale.
 	var goal: Vector2 = global_position - velocity

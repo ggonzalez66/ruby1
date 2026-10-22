@@ -174,7 +174,6 @@ func _run() -> void:
 	await reset(Vector2(7100, -5502))
 	heavy = spawner.bosses[0]
 	heavy.position.x = 6900
-	heavy.resist_chance = 0.0
 	player.global_position.x = heavy.global_position.x + 190.0 * heavy.facing * -1.0 if false else 6900.0 + 185.0
 	await frames(2)
 	heavy._face(player)
@@ -228,11 +227,12 @@ func _run() -> void:
 	check(heavy.state == heavy.State.SUPER_RECOVER and heavy.state_timer > 2.0, "al terminar queda agotado (%.1f s)" % heavy.state_timer)
 	check(not heavy.try_block(player.global_position), "mientras está agotado no bloquea")
 	await frames(10)
-	# Parry del súper giro: resiste mucho; si aturde, el doble.
-	heavy.state = heavy.State.SUPER_SPIN
-	heavy.super_resist_chance = 0.0
-	heavy.on_deflected(player)
-	check(heavy.state == heavy.State.STAGGER and is_equal_approx(heavy.state_timer, heavy.stagger_time * 2.0), "aturdido por parry: el doble de tiempo (%.1f s)" % heavy.state_timer)
+	# La postura reemplaza la resistencia aleatoria, también durante el súper giro.
+	for i in range(3):
+		heavy.state = heavy.State.SUPER_SPIN
+		heavy.parry_serial += 1
+		heavy.on_deflected(player)
+	check(heavy.state == heavy.State.STAGGER and heavy.ruby_core.is_open(), "tres parries rompen la postura del súper giro")
 	await frames(30)
 
 	print("== Pausa de frame")
@@ -286,6 +286,8 @@ func _run() -> void:
 		check(director.phase == director.Phase.BOSS and not spawner.bosses.is_empty(), "aparece el guardián (%d)" % spawner.bosses.size())
 		for boss in spawner.bosses:
 			boss.take_hit(Vector2.ZERO, 1, 9999)
+			boss.ruby_core.claim(get_first_node_in_group(&"player"))
+			boss.ruby_core.complete(get_first_node_in_group(&"player"))
 		await frames(130)
 		check(director.phase == director.Phase.PORTALS and director.portals.size() == 2, "al ganar, dos portales")
 		var demo: Node = get_first_node_in_group(&"demo_complete")

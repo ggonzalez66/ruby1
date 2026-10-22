@@ -167,6 +167,7 @@ func _boss_process(delta: float, player: Node2D) -> void:
 				_quick_shot(player)
 
 func _choose_attack(player: Node2D) -> void:
+	parry_serial += 1
 	var pattern := [State.AIM, State.VOLLEY_AIM, State.AIM, State.RAIN_AIM]
 	var next: State = pattern[attack_index % pattern.size()]
 	attack_index += 1
@@ -184,6 +185,7 @@ func _choose_attack(player: Node2D) -> void:
 			_place_rain_markers(player)
 
 func _quick_shot(player: Node2D) -> void:
+	parry_serial += 1
 	_face(player)
 	close_timer = 0.0
 	quick_shot = true
@@ -240,6 +242,7 @@ func _spawn_arrow(origin: Vector2, arrow_velocity: Vector2, damage: int) -> void
 	arrow.velocity = arrow_velocity
 	arrow.damage = damage
 	arrow.reflected_damage = reflected_arrow_damage
+	arrow.parry_token = parry_serial
 	arrow.shooter = self
 	get_parent().add_child(arrow)
 	arrow.global_position = origin
@@ -286,6 +289,14 @@ func _on_shine() -> void:
 	# El arco destella con el color del ojo.
 	bow_line.default_color = EYE_COLOR
 	Fx.text(get_parent(), global_position + Vector2(0, -260), "¡SHINE!", EYE_COLOR)
+
+func _on_posture_broken() -> void:
+	_clear_markers()
+	_set_draw(0.0)
+	state = State.STAGGER
+	state_timer = 2.5
+	warning_label.hide()
+	visual.modulate.a = 1.0
 
 func _on_defeat() -> void:
 	_clear_markers()

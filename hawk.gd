@@ -1,5 +1,8 @@
 extends Area2D
 
+const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
+var ruby_core: Node2D
+
 # Halcón: vuela libre patrullando de un lado a otro. Si ve a Viridy debajo, chilla (aviso agudo, "!"),
 # se queda planeando unos segundos y se lanza en picada en línea recta hacia donde estaba; luego vuelve a
 # subir a su altura. Golpearlo mientras avisa o en plena picada lo aturde; el rugido desvía la picada.
@@ -69,6 +72,9 @@ func _ready() -> void:
 	spawn_position = position
 	_build()
 	reset_dummy()
+	ruby_core = RUBY_CORE_SCRIPT.new()
+	ruby_core.name = "RubyCore"
+	add_child(ruby_core)
 
 func _build() -> void:
 	collision_shape = CollisionShape2D.new()
@@ -112,6 +118,8 @@ func _build() -> void:
 	bar.add_child(health_fill)
 
 func reset_dummy() -> void:
+	if is_instance_valid(ruby_core):
+		ruby_core.reset_core()
 	position = spawn_position
 	home = spawn_position
 	current_health = max_health
@@ -130,6 +138,8 @@ func reset_dummy() -> void:
 	_update_health_bar()
 
 func _physics_process(delta: float) -> void:
+	if ruby_core.holds_actor():
+		return
 	if state == State.DEAD:
 		return
 	flight_time += delta
@@ -239,6 +249,8 @@ func _check_dive_hit(player: Node2D, from: Vector2, to: Vector2) -> void:
 		player.take_damage(dive_damage, global_position, self)
 
 func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	if state == State.DEAD:
 		return
 	launched = true
@@ -262,6 +274,8 @@ func _update_launch(delta: float) -> void:
 		state_timer = 0.3
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	if state == State.DEAD:
 		return
 	current_health = max(current_health - max(damage, 0), 0)
@@ -279,6 +293,8 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 		warning_label.visible = false
 
 func on_shine_hit(direction: int, strength: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	if state == State.DEAD:
 		return
 	knock_velocity = direction * strength
@@ -288,13 +304,16 @@ func on_deflected(_by: Node) -> void:
 	# El rugido desvía la picada: sale rebotado hacia arriba, aturdido.
 	if state != State.DIVE:
 		return
+	ruby_core.register_parry()
 	dive_hit_done = true
 	state = State.STAGGER
-	state_timer = 1.0
+	state_timer = 2.0
 	global_position -= dive_direction * 30.0
 	Fx.deflect(get_parent(), global_position)
 
 func pull_towards(point: Vector2, strength: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	knock_velocity = sign(point.x - global_position.x) * strength * 5.0
 
 func _die() -> void:

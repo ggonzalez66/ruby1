@@ -6,9 +6,9 @@ extends "res://boss_base.gd"
 #   del aura y se devuelve; si no, hay que saltarlo con doble salto.
 # - Estocada en carrera si Rengar está lejos.
 # - Súper giro: se carga con el tiempo; cargado, avisa (!) y marca con espadas fantasma por dónde va
-#   a golpear, y gira dando varios golpes a ambos lados. Resiste mucho el parry (si se le aturde, el
-#   doble de tiempo) y al terminar queda un buen rato vulnerable, sin atacar.
-# - El rugido en sus frames explosivos desvía el golpe; a veces resiste y sigue el combo.
+#   a golpear y gira dando varios golpes a ambos lados. Un giro cuenta una vez para la postura;
+#   al terminar queda un buen rato vulnerable, sin atacar.
+# - El parry daña la postura: tres ataques distintos abren una ventana crítica.
 
 @export var walk_speed := 70.0
 @export var attack_range := 260.0
@@ -29,7 +29,6 @@ extends "res://boss_base.gd"
 @export var super_revolutions := 4.0
 @export var super_damage := 18
 @export var super_recover_time := 2.4
-@export var super_resist_chance := 0.85
 
 const SHOCKWAVE_SCRIPT := preload("res://shockwave.gd")
 const BODY_COLOR := Color(0.45, 0.2, 0.17)
@@ -243,6 +242,7 @@ func _start_telegraph(attack: Dictionary) -> void:
 	warning_label.visible = true
 
 func _start_swing() -> void:
+	parry_serial += 1
 	Sfx.play("boss_swing")
 	last_swing_angle = float(current_attack.from)
 	crescent_done = false
@@ -272,6 +272,8 @@ func _spawn_crescent() -> void:
 	var origin := Vector2(visual.to_global(tip_local).x, global_position.y)
 	Fx.impact(get_parent(), origin + Vector2(0, -10), [Color(0.05, 0.15, 0.4), SUPER_COLOR, Color(0.9, 0.97, 1.0)], 2.0)
 	var wave := SHOCKWAVE_SCRIPT.new()
+	wave.shooter = self
+	wave.parry_token = parry_serial
 	wave.direction = facing
 	wave.speed = crescent_speed
 	wave.damage = crescent_damage
@@ -304,6 +306,7 @@ func _start_super_windup() -> void:
 	Fx.text(get_parent(), global_position + Vector2(0, -250), "¡SÚPER GIRO!", SUPER_COLOR.lightened(0.4))
 
 func _start_super_spin() -> void:
+	parry_serial += 1
 	Sfx.play("boss_spin")
 	state = State.SUPER_SPIN
 	state_timer = super_spin_time
@@ -371,6 +374,7 @@ func _start_lunge_windup(player: Node2D) -> void:
 	warning_label.visible = true
 
 func _start_lunge(player: Node2D) -> void:
+	parry_serial += 1
 	# Se lanza hasta quedar a distancia de estocada de Rengar (con un máximo).
 	var travel: float = lunge_max_travel
 	if player:
@@ -451,21 +455,17 @@ func on_deflected(_by: Node) -> void:
 	swing_hit_done = true
 	Fx.deflect(get_parent(), sword_pivot.to_global(Vector2(BLADE_LENGTH * 0.7, 0)))
 	flash_timer = 0.12
-	var super_spin: bool = state == State.SUPER_SPIN
-	if randf() < (super_resist_chance if super_spin else resist_chance):
-		# Resiste el desvío: este golpe ya no daña, pero el combo continúa.
-		Fx.text(get_parent(), global_position + Vector2(0, -250), "¡RESISTE!", Color(1.0, 0.55, 0.4))
-		return
-	if super_spin:
-		_end_super_spin()
+	ruby_core.register_parry(parry_serial)
+
+func _on_posture_broken() -> void:
+	_end_super_spin()
 	state = State.STAGGER
-	# Aturdir el súper giro deja el doble de tiempo aturdido.
-	state_timer = stagger_time * (2.0 if super_spin else 1.0)
-	warning_label.visible = false
+	state_timer = 2.5
+	warning_label.hide()
 	blade.color = BLADE_COLOR
 	sword_pivot.rotation = -2.9
 	visual.rotation = -0.12 * facing
-	Fx.text(get_parent(), global_position + Vector2(0, -210), "¡ATURDIDO!", Color(1.0, 0.85, 0.5))
+	trail.clear_points()
 
 func _can_block() -> bool:
 	return state == State.IDLE or state == State.WALK or state == State.RECOVER

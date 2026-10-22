@@ -30,6 +30,7 @@ var deceleration := 0.0
 var ground_y := 0.0
 var damage := 14
 var reflected_damage := 8
+var parry_token := -1
 var shine_level := 0
 # Golpea a Rengar una vez por pasada (ida, vuelta o tras un parry).
 var hit_this_pass := false
@@ -82,6 +83,7 @@ func _ready() -> void:
 
 func launch(owner_boss: Node2D, start: Vector2, throw_direction: float, distance: float, floor_y: float) -> void:
 	boss = owner_boss
+	parry_token = boss.parry_serial
 	ground_y = floor_y
 	global_position = Vector2(start.x, floor_y - LANE_HEIGHT)
 	_go_out(throw_direction, distance, OUT_SPEED)
@@ -167,6 +169,8 @@ func _player_shine(player: Node) -> void:
 	var perfect: bool = player.has_method("is_perfect_shine") and player.is_perfect_shine()
 	if perfect:
 		shine_level += 1
+		if is_instance_valid(boss):
+			boss.on_projectile_parried(parry_token)
 	reflect_speed = REFLECT_SPEED * (player.perfect_reflect_speed if perfect else 1.0)
 	hit_this_pass = false
 	Stats.add("projectiles_reflected")
