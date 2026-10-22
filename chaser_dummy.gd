@@ -1,5 +1,8 @@
 extends Area2D
 
+const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
+var ruby_core: Node2D
+
 # Dummy perseguidor cuerpo a cuerpo: persigue a Rengar por el suelo (sin tirarse por bordes),
 # avisa su zarpazo (parpadeo rojo y "!") y ataca. Se puede parrear con el rugido.
 # Le afecta la gravedad: si cae de muy alto, explota.
@@ -69,6 +72,9 @@ func _ready() -> void:
 	spawn_position = position
 	_build()
 	reset_dummy()
+	ruby_core = RUBY_CORE_SCRIPT.new()
+	ruby_core.name = "RubyCore"
+	add_child(ruby_core)
 
 func _build() -> void:
 	collision_shape = CollisionShape2D.new()
@@ -111,6 +117,8 @@ func _build() -> void:
 	bar.add_child(health_fill)
 
 func reset_dummy() -> void:
+	if is_instance_valid(ruby_core):
+		ruby_core.reset_core()
 	launched = false
 	juggle_fall = false
 	position = spawn_position
@@ -130,6 +138,8 @@ func reset_dummy() -> void:
 	_update_health_bar()
 
 func _physics_process(delta: float) -> void:
+	if ruby_core.holds_actor():
+		return
 	if state == State.DEAD:
 		return
 	flash_timer = max(flash_timer - delta, 0.0)
@@ -194,6 +204,8 @@ func _physics_process(delta: float) -> void:
 	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else (WARNING_COLOR if blink else body_color)
 
 func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	if state == State.DEAD:
 		return
 	launched = true
@@ -283,6 +295,8 @@ func _move_horizontally(amount: float, stop_at_ledges: bool) -> void:
 	global_position.x += amount
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	if state == State.DEAD:
 		return
 	current_health = max(current_health - max(damage, 0), 0)
@@ -300,6 +314,8 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 		_die()
 
 func on_shine_hit(direction: int, strength: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	# El golpe del shine no interrumpe su ataque: solo lo empuja (el triple que un golpe normal).
 	if state == State.DEAD:
 		return
@@ -309,13 +325,16 @@ func on_shine_hit(direction: int, strength: float) -> void:
 func on_deflected(_by: Node) -> void:
 	if state != State.SWING:
 		return
+	ruby_core.register_parry()
 	swing_hit_done = true
 	state = State.STAGGER
-	state_timer = stagger_time
+	state_timer = 2.0
 	visual.rotation = -0.2 * facing
 	Fx.deflect(get_parent(), global_position + Vector2(facing * 24.0, -30))
 
 func pull_towards(point: Vector2, strength: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	# El recall del cuchillo lo arrastra hacia Rengar (puede sacarlo de una plataforma).
 	knock_velocity = sign(point.x - global_position.x) * strength * 5.0
 

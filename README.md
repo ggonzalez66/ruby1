@@ -16,6 +16,18 @@ Los bunnyhops encadenados suman **60 px/s por salto**, ajustable con `bunnyhop_s
 
 El medidor de Ferocity muestra el tiempo aéreo y suma **10 puntos de estilo por segundo** mientras aumenta. El contacto con paredes, enganches y agarres lo pausa; aterrizar cierra la cuenta y el siguiente despegue inicia otra. La ganancia mantiene el límite de rango de las acrobacias: S; por encima sigue llenando el rango actual.
 
+## Ejecuciones Ruby
+
+Todos los enemigos mecánicos llevan un rombo Ruby rojo dentro del cuerpo. El borde y el halo destellan cuando está **open**. Solo el heavy de suelo y el heavy aéreo ejecutan, y el enemigo debe estar open antes del impacto: el golpe que lo deja con poca vida no ejecuta automáticamente. Los golpes ordinarios pueden seguir matando a los enemigos normales.
+
+- **Normales:** un parry los inmoviliza y abre durante 2 segundos; al 30 % de vida o menos permanecen open, pero siguen atacando. Los voladores también pueden ejecutarse y dan un último rebote. El sol no lleva este sistema.
+- **Guardianes:** la postura empieza en 100 y cada parry de un ataque distinto le quita un tercio, sin RNG. Las devoluciones perfectas cuentan para el tirador original; una ráfaga o un giro no se contabilizan varias veces. Romper postura abre una ventana de 2,5 segundos. Aprovecharla o perderla reinicia la postura.
+- **Crítico:** contra un guardián open, el heavy daña el 22 % de su vida máxima y agrieta el Ruby sin romperlo. Si llega a cero, queda inmóvil y open hasta recibir otro heavy. La derrota, los portales y el cronómetro esperan a esa ejecución final.
+- **Captura:** dura 0,38 segundos; Viridy es invulnerable, pero el mundo sigue activo. En suelo mantiene el segundo frame del heavy con el cuchillo clavado. En aire hace un flip junto al núcleo y luego rebota, recuperando el salto aéreo y conservando la carrera y el impulso acumulado. Se puede anticipar el siguiente ataque o salto durante la captura.
+- **Energía:** una ejecución normal cura 12, un crítico cura 8 y el remate de un guardián cura 25. Sustituye la curación del riposte; los ataques normales conservan los beneficios de rango SS. Romper un Ruby causa una explosión de radio 125 que daña 1 y empuja a los enemigos cercanos, respetando las paredes.
+
+Los tiempos y curaciones se ajustan con las propiedades `execution_*`, `critical_heal` y `boss_execution_heal` en `movimiento.gd`; las reglas del núcleo están en `ruby_core.gd`. Los dibujos y animaciones reutilizan los recursos actuales.
+
 ## Mejores tiempos y fantasma
 
 **Mejores tiempos**, en el menú principal, muestra diez marcas por etapa. También está disponible desde los resultados de la torre. Cada etapa guarda su propio ranking en `user://records_v1/`.

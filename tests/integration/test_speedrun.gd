@@ -171,6 +171,8 @@ func _run() -> void:
 	session.elapsed = 0.5
 	for boss in level.get_node("BossSpawner").bosses:
 		boss.take_hit(Vector2.ZERO, 1, 9999)
+		boss.ruby_core.claim(get_first_node_in_group(&"player"))
+		boss.ruby_core.complete(get_first_node_in_group(&"player"))
 	check(session.finished and session.result["time"] == 0.5, "vencer al último guardián detiene y guarda el tiempo antes de los resultados")
 	session._clear_run()
 	level.queue_free()

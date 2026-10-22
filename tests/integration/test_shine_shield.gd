@@ -244,7 +244,7 @@ func _run() -> void:
 	await tap("attack")
 	check(player.attack_mode == player.ATTACK_GROUND_CHARGED and player.riposte_attack, "el dash attack consume el riposte")
 	await frames(15)
-	check(player.current_health == 50 + player.riposte_heal, "y cura al conectar (%d)" % player.current_health)
+	check(player.current_health == 50, "el riposte conserva daño, pero su curación pasa a las ejecuciones (%d)" % player.current_health)
 	check(99 - victim.current_health >= player.DAMAGE_GROUND_CHARGED * 2, "con doble daño (%d)" % (99 - victim.current_health))
 	release_all()
 	victim.queue_free()

@@ -24,9 +24,9 @@ extends Node2D
 @export var auto_spawn := true
 
 const BOSSES := [
-	{"script": preload("res://boss_heavy.gd"), "name": "GUARDIÁN PESADO", "subtitle": "El coloso del espadón", "health": 105, "resist": 0.35, "block": 0.2},
-	{"script": preload("res://boss_agile.gd"), "name": "GUARDIÁN ÁGIL", "subtitle": "Estoque y daga", "health": 80, "resist": 0.2, "block": 0.35},
-	{"script": preload("res://boss_archer.gd"), "name": "GUARDIÁN ARQUERO", "subtitle": "El gigante del arco", "health": 90, "resist": 0.25, "block": 0.0},
+	{"script": preload("res://boss_heavy.gd"), "name": "GUARDIÁN PESADO", "subtitle": "El coloso del espadón", "health": 105, "block": 0.2},
+	{"script": preload("res://boss_agile.gd"), "name": "GUARDIÁN ÁGIL", "subtitle": "Estoque y daga", "health": 80, "block": 0.35},
+	{"script": preload("res://boss_archer.gd"), "name": "GUARDIÁN ARQUERO", "subtitle": "El gigante del arco", "health": 90, "block": 0.0},
 ]
 
 const TRIO := 3
@@ -127,7 +127,6 @@ func _add_boss(which: int, at: Vector2, health_factor: float) -> void:
 	boss.boss_name = data["name"]
 	boss.boss_subtitle = data["subtitle"]
 	boss.max_health = int(round(data["health"] * health_factor))
-	boss.resist_chance = data["resist"]
 	boss.block_chance = data["block"]
 	boss.min_x = arena_min_x
 	boss.max_x = arena_max_x

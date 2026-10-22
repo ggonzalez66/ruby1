@@ -13,6 +13,8 @@ const REFLECTED_DAMAGE := 6
 @export var height := 130.0
 @export var width := 52.0
 
+var shooter: Node2D
+var parry_token := -1
 var direction := 1
 var speed := 430.0
 var distance_left := 720.0
@@ -101,6 +103,8 @@ func _reflect(player: Node) -> void:
 	reflected = true
 	Stats.add("projectiles_reflected")
 	var perfect: bool = player.has_method("is_perfect_shine") and player.is_perfect_shine()
+	if perfect and is_instance_valid(shooter):
+		shooter.on_projectile_parried(parry_token)
 	direction = -direction
 	speed *= 1.4 * (player.perfect_reflect_speed if perfect else 1.0)
 	distance_left = 900.0

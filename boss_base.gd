@@ -1,5 +1,8 @@
 extends Area2D
 
+const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
+var ruby_core: Node2D
+
 # Base común de los guardianes: hurtbox, barra de vida con nombre, aviso "!", inicio de combate,
 # daño, bloqueo, derrota (con la pantalla de demo completada) y reinicio.
 # Cada guardián implementa _build_body(), _boss_process(), is_warning() y lo que necesite.
@@ -10,8 +13,6 @@ extends Area2D
 @export var min_x := 0.0
 @export var max_x := 10000.0
 @export var engage_distance := 750.0
-@export var stagger_time := 1.4
-@export var resist_chance := 0.3
 @export var block_chance := 0.0
 # Probabilidad de shinear de vuelta proyectiles devueltos y el cuchillo (0 = nunca).
 @export var shine_chance := 0.0
@@ -23,6 +24,7 @@ const HIT_FLASH := Color(1.0, 0.5, 0.45)
 
 var body_size := Vector2(70, 150)
 var impact_offset := Vector2(0, -80)
+var parry_serial := 0
 var current_health := 0
 var facing := -1
 var flash_timer := 0.0
@@ -58,6 +60,9 @@ func _ready() -> void:
 	_build_body()
 	_build_ui()
 	_update_health_bar()
+	ruby_core = RUBY_CORE_SCRIPT.new()
+	ruby_core.name = "RubyCore"
+	add_child(ruby_core)
 
 func _build_ui() -> void:
 	warning_label = Label.new()
@@ -86,6 +91,8 @@ func _build_ui() -> void:
 	bar.add_child(name_label)
 
 func _physics_process(delta: float) -> void:
+	if ruby_core.holds_actor():
+		return
 	flash_timer = max(flash_timer - delta, 0.0)
 	for index in range(flash_polys.size()):
 		flash_polys[index].color = HIT_FLASH if flash_timer > 0.0 else flash_colors[index]
@@ -137,7 +144,13 @@ func _shine_color() -> Color:
 	return Color(1.0, 0.45, 0.8)
 
 func on_deflected(_by: Node) -> void:
-	pass
+	ruby_core.register_parry(parry_serial)
+
+func on_projectile_parried(token: int) -> void:
+	ruby_core.register_parry(token)
+
+func _on_posture_broken() -> void:
+	warning_label.hide()
 
 # ---------- Común
 
@@ -145,7 +158,9 @@ func is_defeated() -> bool:
 	return defeated
 
 func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -> void:
-	if defeated:
+	if ruby_core != null and ruby_core.locked:
+		return
+	if defeated or ruby_core.final_open:
 		return
 	current_health = max(current_health - max(damage, 0), 0)
 	flash_timer = 0.08
@@ -154,9 +169,11 @@ func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -
 	_update_health_bar()
 	_on_hit(damage)
 	if current_health == 0:
-		_defeat()
+		ruby_core.enter_final_open()
 
 func on_shine_hit(direction: int, strength: float) -> void:
+	if ruby_core != null and ruby_core.holds_actor():
+		return
 	# El golpe del shine no interrumpe al guardián: solo lo empuja un poco hacia atrás.
 	if defeated:
 		return
@@ -166,7 +183,7 @@ func on_shine_hit(direction: int, strength: float) -> void:
 	tween.tween_property(self, "position:x", target_x, 0.15).set_ease(Tween.EASE_OUT)
 
 func try_shine(_thing: Node) -> bool:
-	if defeated or shine_chance <= 0.0 or randf() >= shine_chance:
+	if defeated or ruby_core.holds_actor() or shine_chance <= 0.0 or randf() >= shine_chance:
 		return false
 	Sfx.play("shine", 0.0, 0.75)
 	Fx.shine(get_parent(), global_position + impact_offset, _shine_color(), 48.0)
@@ -176,7 +193,7 @@ func try_shine(_thing: Node) -> bool:
 
 func try_block(_source_position: Vector2) -> bool:
 	# Bloquea algunos golpes ligeros sin cargar cuando no está atacando.
-	if defeated or block_chance <= 0.0 or not _can_block() or randf() >= block_chance:
+	if defeated or ruby_core.holds_actor() or block_chance <= 0.0 or not _can_block() or randf() >= block_chance:
 		return false
 	_on_block()
 	return true
@@ -215,6 +232,9 @@ func _show_demo_complete() -> void:
 		screen.show_results()
 
 func reset_dummy() -> void:
+	if is_instance_valid(ruby_core):
+		ruby_core.reset_core()
+	parry_serial += 1
 	position = spawn_position
 	current_health = max_health
 	defeated = false

@@ -1,5 +1,8 @@
 extends Area2D
 
+const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
+var ruby_core: Node2D
+
 @export var max_health := 6
 @export var base_color := Color(0.941176, 0.678431, 0.258824, 1.0)
 @export var hit_color := Color(1.0, 0.341176, 0.341176, 1.0)
@@ -75,8 +78,13 @@ func _ready() -> void:
 			shoot_interval *= AERIAL_SHOOT_INTERVAL_SCALE
 		_add_cannon()
 	reset_dummy()
+	ruby_core = RUBY_CORE_SCRIPT.new()
+	ruby_core.name = "RubyCore"
+	add_child(ruby_core)
 
 func reset_dummy() -> void:
+	if is_instance_valid(ruby_core):
+		ruby_core.reset_core()
 	if juggle_tween:
 		juggle_tween.kill()
 	juggle_offset = Vector2.ZERO
@@ -101,6 +109,8 @@ func reset_dummy() -> void:
 	_update_health_bar()
 
 func _physics_process(delta: float) -> void:
+	if ruby_core.holds_actor():
+		return
 	if current_health <= 0:
 		return
 
@@ -118,6 +128,8 @@ func _physics_process(delta: float) -> void:
 		_update_shooting(delta)
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	if current_health <= 0:
 		return
 
@@ -130,6 +142,8 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 		_die()
 
 func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	if current_health <= 0:
 		return
 	if juggle_tween:
@@ -153,9 +167,12 @@ func _settle_after_launch() -> void:
 		anchor_position.x += juggle_offset.x
 		juggle_offset.x = 0.0
 
+func on_deflected(_by: Node) -> void:
+	ruby_core.register_parry()
+
 func try_shine(_thing: Node) -> bool:
 	# Solo los tiradores, y no siempre: lo que les llega vuelve hacia Rengar.
-	if shoot_interval <= 0.0 or current_health <= 0 or randf() >= shine_chance:
+	if ruby_core.holds_actor() or shoot_interval <= 0.0 or current_health <= 0 or randf() >= shine_chance:
 		return false
 	Fx.shine(get_parent(), global_position + impact_offset, SHINE_COLOR, 30.0)
 	Shine.enemy_feedback(get_tree(), global_position + impact_offset)
@@ -198,6 +215,8 @@ func _explode() -> void:
 	_die()
 
 func on_shine_hit(direction: int, _strength: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	# El golpe del shine no lo daña: lo empuja (el triple de lo que se mueve al recibir un golpe).
 	if current_health <= 0:
 		return
@@ -209,6 +228,8 @@ func on_shine_hit(direction: int, _strength: float) -> void:
 	pull_tween.tween_property(self, "pull_offset", pull_offset + Vector2(direction * push_distance * 3.0, 0.0), 0.15).set_ease(Tween.EASE_OUT)
 
 func pull_towards(point: Vector2, strength: float) -> void:
+	if ruby_core != null and ruby_core.locked:
+		return
 	# El recall del cuchillo arrastra al dummy hacia Rengar; los de suelo solo en horizontal.
 	var center := global_position + impact_offset
 	var direction := (point - center).normalized()
