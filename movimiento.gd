@@ -3871,7 +3871,8 @@ func _begin_execution() -> void:
 		# La física detiene el acercamiento si hay suelo o una pared, evitando atravesarlos.
 		var target: Vector2 = execution_core.global_position + Vector2(0, 30)
 		move_and_collide(target - global_position)
-	animated_sprite.play(ANIMATION_FRONTFLIP if execution_aerial else ANIMATION_ROAR)
+	# En suelo mantiene el segundo frame del heavy, con el cuchillo clavado.
+	animated_sprite.play(ANIMATION_FRONTFLIP if execution_aerial else ANIMATION_HEAVY_LANDING)
 	_align_character_animation(animated_sprite.animation)
 	animated_sprite.flip_h = execution_direction < 0
 	Sfx.play("shine", -3.0, 1.25)
