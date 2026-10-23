@@ -14,7 +14,7 @@ Use case: stylized-concept game sprite animation. Reference 1 is the ORIGINAL sp
 
 El velocímetro ocupa una línea pequeña bajo la vida, con una barra de 2 píxeles, menos opacidad al detenerse y un signo + discreto si hay bonus de estilo. Usa la escala de presentación de 32 unidades de mundo por metro: carrera base = 63 km/h y screw de 1240 unidades/s = 140 km/h. La conversión solo afecta el texto.
 
-El uppercut inicia el flip normal 0,18 s antes del ápice. El giro dura 0,24 s, conserva la gravedad y termina entrando en caída al aerial stall. La salida de ejecución aérea mantiene su propia transición.
+El uppercut inicia el flip normal 0,18 s antes del ápice. El giro dura 0,24 s, conserva la gravedad y termina entrando en caída al aerial stall. El combo conserva la recuperación original de 0,35 s: el heavy aéreo puede interrumpir el flip y la subida visual. La animación no reinicia ni prolonga la ventana de combo. La salida de ejecución aérea mantiene su transición visual, pero desde la explosión del Ruby se puede interrumpir con ataques, salto, dash, rugido o cuchillo. La captura de 0,38 s conserva su duración y admite anticipar ataque o salto; al salir no se arrastran los cooldowns de combate y dash anteriores. El salto consume el recurso disponible con su límite habitual.
 
 ## Opciones del campo de fuerza
 

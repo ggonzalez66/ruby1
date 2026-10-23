@@ -23,7 +23,7 @@ var execution_trajectory := 0
 var execution_jump_buffered := false
 var execution_action := &""
 var execution_ground_exit_timer := 0.0
-enum ExecutionAirExit { NONE, LAUNCH, APEX_FLIP, UPPERCUT_RISE, UPPERCUT_FLIP }
+enum ExecutionAirExit { NONE, LAUNCH, APEX_FLIP, UPPERCUT_RISE, UPPERCUT_FLIP, BOUNCE_FLIP }
 var execution_air_exit := ExecutionAirExit.NONE
 
 signal health_changed(current: int, maximum: int)
@@ -628,6 +628,7 @@ func _physics_process(delta: float) -> void:
 	_update_wall_state()
 	_update_timers(delta)
 	var move_input: float = Input.get_axis("move_left", "move_right")
+	_interrupt_execution_air_exit()
 
 	if was_on_floor:
 		coyote_timer = coyote_time
@@ -1248,10 +1249,6 @@ func _update_timers(delta: float) -> void:
 	knife_throw_pose_timer = max(knife_throw_pose_timer - delta, 0.0)
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	proud_roar_timer = max(proud_roar_timer - delta, 0.0)
-	if execution_air_exit in [ExecutionAirExit.UPPERCUT_RISE, ExecutionAirExit.UPPERCUT_FLIP] or attack_mode == ATTACK_UPPERCUT:
-		uppercut_chain_timer = maxf(uppercut_chain_timer, UPPERCUT_CHAIN_WINDOW + delta)
-		if combo_buffer != &"":
-			combo_buffer_timer = maxf(combo_buffer_timer, COMBO_BUFFER_TIME + delta)
 	uppercut_chain_timer = max(uppercut_chain_timer - delta, 0.0)
 	combo_buffer_timer = max(combo_buffer_timer - delta, 0.0)
 	if combo_buffer_timer <= 0.0:
@@ -2614,7 +2611,7 @@ func _apply_uppercut_movement(delta: float) -> void:
 func _request_combat_action(kind: StringName) -> void:
 	if not _try_combat_action(kind):
 		combo_buffer = kind
-		# Durante el uppercut se espera además lo que le falte para llegar al aerial stall.
+		# Durante el uppercut el buffer cubre lo que falta para la ventana de combo, sin depender del flip.
 		combo_buffer_timer = COMBO_BUFFER_TIME + (uppercut_pose_timer if _in_uppercut_chain() else 0.0)
 
 func _try_combat_action(kind: StringName) -> bool:
@@ -2660,10 +2657,8 @@ func _in_uppercut_chain() -> bool:
 	return not is_on_floor() and uppercut_chain_timer > 0.0 and (attack_mode == ATTACK_UPPERCUT or not _is_attack_active())
 
 func _uppercut_can_be_cancelled() -> bool:
-	# Lo siguiente solo sale cuando el uppercut ha terminado (barrido y pose de subida) y Viridy ya está en
-	# el aerial stall; antes queda en el buffer.
-	return attack_mode != ATTACK_UPPERCUT and uppercut_pose_timer <= 0.0 and aerial_stall_pose \
-		and animated_sprite.animation == ANIMATION_AERIAL_STALL
+	# Recuperación original: 0,35 s desde el inicio. El flip es visual y se puede interrumpir.
+	return attack_mode != ATTACK_UPPERCUT and uppercut_pose_timer <= 0.0
 
 func _on_attack_input() -> void:
 	# Sin carga: corriendo sale el ataque en carrera (estocada que avanza); si no, el combo ligero.
@@ -2973,7 +2968,6 @@ func _end_attack() -> void:
 		frontflip_active = true
 		frontflip_elapsed = 0.0
 		execution_air_exit = ExecutionAirExit.UPPERCUT_RISE
-		uppercut_pose_timer = 0.0
 	elif ending_mode == ATTACK_SPIN and not is_on_floor():
 		# Conserva el lanzamiento y abre el bunnyhop al aterrizar, manteniendo correr.
 		aerial_stall_pose = true
@@ -3984,9 +3978,15 @@ func _finish_execution() -> void:
 	bunnyhop_bonus = execution_bonus
 	var keep_running := execution_keep_sprint or Input.is_action_pressed("dash")
 	if execution_aerial:
+		# La captura ya pagó su tiempo: no se arrastran recuperaciones al rebote libre.
+		running_attack_cooldown_timer = 0.0
+		dash_cooldown_timer = 0.0
+		uppercut_pose_timer = 0.0
+		coyote_timer = 0.0
 		attack_mode = ATTACK_HEAVY
 		heavy_trajectory = execution_trajectory
 		_bounce_out_of_heavy_attack(true)
+		execution_air_exit = ExecutionAirExit.BOUNCE_FLIP
 		if keep_running:
 			_start_sprint(execution_direction)
 			long_jump_active = true
@@ -4014,6 +4014,20 @@ func _finish_execution() -> void:
 	_update_facing_visual()
 	_update_character_animation()
 
+func _interrupt_execution_air_exit() -> void:
+	if execution_air_exit not in [ExecutionAirExit.BOUNCE_FLIP, ExecutionAirExit.LAUNCH, ExecutionAirExit.APEX_FLIP]:
+		return
+	var action_requested := jump_buffer_timer > 0.0 or combo_buffer != &""
+	for action in [&"jump", &"attack", &"heavy_attack", &"dash", &"roar", &"throw_knife"]:
+		action_requested = action_requested or Input.is_action_just_pressed(action)
+	if action_requested:
+		# Solo cancela la presentación. El salto o ataque conserva sus reglas y recursos normales.
+		frontflip_active = false
+		execution_air_exit = ExecutionAirExit.NONE
+		if jump_buffer_timer > 0.0 and not Input.is_action_just_pressed("jump"):
+			# El salto guardado durante la captura también sale desde el lanzamiento en carrera.
+			_try_start_frontflip(Input.get_axis("move_left", "move_right"))
+
 func _update_execution_air_exit() -> void:
 	if not frontflip_active or _is_attack_active() or roar_active or dash_timer > 0.0:
 		execution_air_exit = ExecutionAirExit.NONE
@@ -4027,7 +4041,6 @@ func _update_execution_air_exit() -> void:
 		if frontflip_elapsed >= frontflip_rotation_duration and velocity.y >= 0.0:
 			frontflip_active = false
 			aerial_stall_pose = true
-			uppercut_chain_timer = UPPERCUT_CHAIN_WINDOW
 			execution_air_exit = ExecutionAirExit.NONE
 		return
 	if execution_air_exit == ExecutionAirExit.LAUNCH and velocity.y >= 0.0:

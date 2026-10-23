@@ -38,6 +38,8 @@ func clean() -> void:
 	Input.action_release("heavy_attack")
 	Input.action_release("dash")
 	Input.action_release("move_down")
+	for action in ["move_up", "jump", "attack", "roar", "throw_knife"]:
+		Input.action_release(action)
 	for enemy in get_nodes_in_group(&"ruby_enemies"):
 		enemy.queue_free()
 	await frames(3)
@@ -57,6 +59,31 @@ func wait_execution() -> void:
 		if player.execution_core == null:
 			return
 	check(false, "la ejecución debe terminar")
+
+# Arranque real de una captura y espera hasta el rebote; no se fuerza el estado de salida.
+func prepare_air_exit(running: bool, at_apex: bool = false, buffered_jump: bool = false) -> void:
+	await clean()
+	var victim := make_enemy("chaser_dummy", Vector2(100, -500), 20)
+	victim.current_health = 2
+	player.position = Vector2(60, -600)
+	await frames(2)
+	if running:
+		player._start_sprint(1)
+	player.running_attack_cooldown_timer = 0.9
+	player.dash_cooldown_timer = 0.4
+	hit(victim, player.ATTACK_HEAVY)
+	await frames(3)
+	if buffered_jump:
+		Input.action_press("jump")
+		await frames(1)
+		Input.action_release("jump")
+		check(player.execution_core != null, "el salto anticipado no cancela la captura del Ruby")
+	await wait_execution()
+	if at_apex:
+		for tick in range(100):
+			if player.execution_air_exit == player.ExecutionAirExit.APEX_FLIP:
+				break
+			await frames(1)
 
 func _run() -> void:
 	style = root.get_node("Ferocity")
@@ -243,6 +270,36 @@ func _run() -> void:
 		check(exit_stall and player.velocity.y > 0, "después del flip normal cae en aerial stall")
 		player._start_heavy_attack(false)
 		check(player.attack_mode == player.ATTACK_HEAVY and player.execution_air_exit == player.ExecutionAirExit.NONE, "desde la salida aérea se puede encadenar otro ataque sin arrastrar el estado")
+	await clean()
+
+	print("== Salida de ejecución aérea: acciones antes de terminar el flip")
+	for phase in ["sin carrera", "lanzamiento", "flip en ápice"]:
+		for action in ["heavy_attack", "attack", "uppercut", "jump", "dash", "roar", "throw_knife"]:
+			await prepare_air_exit(phase != "sin carrera", phase == "flip en ápice")
+			var jumps_before: int = player.air_jumps_remaining
+			var mid_flip: bool = player.frontflip_active and player.frontflip_elapsed < player.frontflip_rotation_duration
+			# Durante la salida alargada el reloj del flip aún no se ha reiniciado en el ápice.
+			var ready_before_end: bool = mid_flip or player.execution_air_exit == player.ExecutionAirExit.LAUNCH
+			if action == "uppercut":
+				Input.action_press("move_up")
+			Input.action_press("heavy_attack" if action == "uppercut" else action)
+			await frames(2)
+			Input.action_release("heavy_attack" if action == "uppercut" else action)
+			Input.action_release("move_up")
+			var started := false
+			match action:
+				"heavy_attack": started = player.attack_mode == player.ATTACK_HEAVY
+				"attack": started = player.attack_mode in [player.ATTACK_SLASH, player.ATTACK_LIGHT_CHARGED_AIR]
+				"uppercut": started = player.attack_mode == player.ATTACK_UPPERCUT
+				"jump": started = player.air_jumps_remaining == jumps_before - 1 and player.velocity.y < 0.0
+				"dash": started = player.dash_timer > 0.0
+				"roar": started = player.roar_active
+				"throw_knife": started = not player.has_knife
+			check(ready_before_end and started and player.execution_air_exit == player.ExecutionAirExit.NONE, "%s: %s interrumpe la salida estética inmediatamente" % [phase, action])
+	await prepare_air_exit(true, false, true)
+	var buffered_jumps_before: int = player.air_jumps_remaining
+	await frames(2)
+	check(player.air_jumps_remaining == buffered_jumps_before - 1 and player.execution_air_exit == player.ExecutionAirExit.NONE, "el salto guardado durante la captura sale sin esperar el flip del rebote")
 	await clean()
 
 	print("== Postura determinista, crítico y remate de los tres jefes")

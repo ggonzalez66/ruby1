@@ -362,23 +362,37 @@ func _run() -> void:
 	await frames(4)
 	check(player.roar_air_stall_available, "y tocar el suelo también")
 
-	print("== El uppercut no se cancela hasta el aerial stall")
+	print("== Uppercut -> heavy: recuperación original, independiente del flip")
 	await reset()
 	await tap_up_heavy()
-	await frames(2)
-	check(player.attack_mode == player.ATTACK_UPPERCUT, "uppercut")
+	var elapsed_uppercut := 1.0 / 60.0
 	await tap("heavy_attack")
-	var heavy_started_in_stall := false
-	var heavy_too_early := false
-	for i in range(70):
-		var anim_before: StringName = player.animated_sprite.animation
-		var pose_left: float = player.uppercut_pose_timer
+	elapsed_uppercut += 1.0 / 60.0
+	check(player.attack_mode == player.ATTACK_UPPERCUT, "el input anticipado no corta los frames activos del uppercut")
+	var heavy_before_flip := false
+	for i in range(35):
+		var previous_anim: StringName = player.animated_sprite.animation
 		await frames(1)
+		elapsed_uppercut += 1.0 / 60.0
 		if player.attack_mode == player.ATTACK_HEAVY:
-			heavy_started_in_stall = anim_before == &"aerial_stall"
-			heavy_too_early = pose_left > 0.02
+			heavy_before_flip = previous_anim == &"uppercut"
 			break
-	check(heavy_started_in_stall and not heavy_too_early, "el heavy pulsado pronto sale justo al entrar en el aerial stall, no antes")
+	check(player.attack_mode == player.ATTACK_HEAVY and elapsed_uppercut >= 0.33 and elapsed_uppercut <= 0.40 and heavy_before_flip, "el heavy en buffer sale a los 0,35 s, durante la subida visual (%.3f s)" % elapsed_uppercut)
+
+	await reset()
+	await tap_up_heavy()
+	for i in range(50):
+		await frames(1)
+		if player.execution_air_exit == player.ExecutionAirExit.UPPERCUT_FLIP:
+			break
+	check(player.execution_air_exit == player.ExecutionAirExit.UPPERCUT_FLIP and player.frontflip_elapsed < player.frontflip_rotation_duration, "el uppercut sin cancelar entra en el flip estético")
+	await tap("heavy_attack")
+	check(player.attack_mode == player.ATTACK_HEAVY and not player.frontflip_active and player.execution_air_exit == player.ExecutionAirExit.NONE, "el heavy interrumpe el flip al pulsarlo, sin esperar a terminarlo")
+
+	await reset()
+	await tap_up_heavy()
+	await frames(50)
+	check(player.uppercut_chain_timer <= 0.0, "el flip no reinicia ni prolonga la ventana de combo original")
 
 	print("== Tras el screw attack: aerial stall")
 	await reset()
