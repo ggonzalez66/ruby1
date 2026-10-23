@@ -165,7 +165,10 @@ func _physics_process(delta: float) -> void:
 		posture_bar.size.x = 180.0 * posture / POSTURE_MAX
 		posture_bar.color = RED if final_open else Color(1.0, 0.67, 0.15)
 		posture_label.text = "EJECUCIÓN" if final_open else ("OPEN" if open_time > 0.0 else "POSTURA")
-	queue_redraw()
+	# El pulso solo reconstruye geometría cerca de la pantalla. Los timers siguen activos
+	# fuera de cámara: una apertura o una captura no depende de dónde esté mirando Viridy.
+	if is_visible_in_tree() and get_viewport_rect().grow(64.0).has_point(get_global_transform_with_canvas().origin):
+		queue_redraw()
 
 func _draw() -> void:
 	if broken:

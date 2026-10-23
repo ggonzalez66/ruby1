@@ -918,9 +918,9 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, beast_cell, 446.0, [Vector2i(0, 1), Vector2i(1, 1)], 12.0, true)
 	_add_grid_animation(frames, ANIMATION_UPPERCUT, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
 	_add_grid_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
-	# Primera zancada: brazo lejano delante. Segunda: brazo de la hombrera delante.
-	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(523, 0, 518, 512), Rect2(1041, 0, 495, 512)], 16.0, true)
-	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_ALTERNATE_SHEET, Vector2(750, 709), [Rect2(0, 0, 724, 610), Rect2(724, 0, 724, 611), Rect2(1448, 0, 724, 620)], 16.0, true, true)
+	# Dos poses marcadas por zancada; se sostiene más cada apoyo y se conserva el braceo alternado.
+	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(1041, 0, 495, 512)], 12.0, true)
+	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_ALTERNATE_SHEET, Vector2(750, 709), [Rect2(0, 0, 724, 610), Rect2(1448, 0, 724, 620)], 12.0, true, true)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
 	_add_grid_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
@@ -3989,9 +3989,8 @@ func _finish_execution() -> void:
 		execution_air_exit = ExecutionAirExit.BOUNCE_FLIP
 		if keep_running:
 			_start_sprint(execution_direction)
-			long_jump_active = true
-			bunnyhop_bonus = maxf(execution_bonus, execution_speed - long_jump_horizontal_speed)
-			velocity.x = execution_direction * (long_jump_horizontal_speed + bunnyhop_bonus)
+			# Misma velocidad que un rebote en carrera: el impulso del heavy no se convierte en bonus.
+			velocity.x = execution_direction * sprint_speed
 			execution_air_exit = ExecutionAirExit.LAUNCH
 	else:
 		if keep_running:

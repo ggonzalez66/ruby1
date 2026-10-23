@@ -2168,6 +2168,7 @@ script = ExtResource("15_goal")
 goal_style = "sun"
 
 [node name="BoundaryLeft" type="StaticBody2D" parent="."]
+visible = false
 position = Vector2(-30, -6450)
 collision_layer = 2
 script = ExtResource("13_platform")
@@ -2175,6 +2176,7 @@ size = Vector2(60, 13600)
 style = 3
 
 [node name="BoundaryRight" type="StaticBody2D" parent="."]
+visible = false
 position = Vector2(93650, -6450)
 collision_layer = 2
 script = ExtResource("13_platform")
@@ -2182,6 +2184,7 @@ size = Vector2(60, 13600)
 style = 3
 
 [node name="BoundaryTop" type="StaticBody2D" parent="."]
+visible = false
 position = Vector2(46810, -13400)
 collision_layer = 2
 script = ExtResource("13_platform")

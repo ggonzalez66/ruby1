@@ -255,7 +255,7 @@ func _run() -> void:
 		check(absf(player.animated_sprite.rotation - spin_angle) > 0.2 and player.animated_sprite.global_position.distance_to(victim.ruby_core.global_position) < 0.5, "al girar no orbita ni desplaza su centro")
 		await wait_execution()
 		check(not victim.visible and player.velocity.y < 0 and player.air_jumps_remaining == player.max_air_jumps, "el volador muere y entrega el último rebote y salto aéreo")
-		check(player.is_sprinting and player.velocity.x >= 860 and player.bunnyhop_bonus >= 180, "conserva carrera y velocidad acumulada")
+		check(player.is_sprinting and is_equal_approx(player.velocity.x, player.sprint_speed) and player.bunnyhop_bonus == 180, "sale a velocidad de rebote en carrera sin convertir el heavy en aceleración extra")
 		check(player.execution_air_exit == player.ExecutionAirExit.LAUNCH and player.frontflip_active and player.attack_mode == player.ATTACK_NONE and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "en carrera sale con bestia alargada sin hitbox gratuita")
 		var exit_stall := false
 		var saw_apex_flip := false
@@ -268,6 +268,7 @@ func _run() -> void:
 				break
 		check(saw_apex_flip, "en el peak se detiene verticalmente para hacer un flip normal")
 		check(exit_stall and player.velocity.y > 0, "después del flip normal cae en aerial stall")
+		check(is_equal_approx(player.velocity.x, player.sprint_speed), "la salida conserva la velocidad de rebote durante todo el vuelo")
 		player._start_heavy_attack(false)
 		check(player.attack_mode == player.ATTACK_HEAVY and player.execution_air_exit == player.ExecutionAirExit.NONE, "desde la salida aérea se puede encadenar otro ataque sin arrastrar el estado")
 	await clean()

@@ -1,6 +1,6 @@
 # Carrera con braceo alternado
 
-Ciclo de seis frames a 16 fps: los tres primeros usan `assets/sprites/player/viridy/viridy_sprint_closed.png`, con el brazo lejano al frente. Los tres siguientes usan `assets/sprites/player/viridy/viridy_sprint_alternate.png`, con el brazo de la hombrera visible avanzando delante del pecho y el brazo lejano detrás. En las seis poses, la boca y ambos puños están cerrados. La agresividad proviene de la inclinación y el impulso de la carrera.
+Ciclo actual de cuatro frames a 12 fps, quitando las poses intermedias para sostener los apoyos y marcar más la pisada: los dos primeros usan `assets/sprites/player/viridy/viridy_sprint_closed.png`, con el brazo lejano al frente. Los dos siguientes usan `assets/sprites/player/viridy/viridy_sprint_alternate.png`, con el brazo de la hombrera visible avanzando delante del pecho y el brazo lejano detrás. En las cuatro poses, la boca y ambos puños están cerrados. La agresividad proviene de la inclinación y el impulso de la carrera.
 
 Las hojas conservan sus resoluciones originales (1536 × 1024 y 2172 × 724). AtlasTexture recorta y alinea cada pose por los pies. El controlador normaliza el ancho visual de los lienzos al cambiar de frame, de modo que las dos mitades mantengan escala y apoyo sin modificar la física. Las hojas anteriores se conservan.
 

@@ -66,7 +66,9 @@ def generate():
     node('Sun', 'Area2D', f'position = Vector2({edge + 450:g}, {previous_top})\nscript = ExtResource("15_goal")\ngoal_style = "sun"')
     total = edge + 800
     for name, x, y, width, height in [('BoundaryLeft', -30, -6450, 60, 13600), ('BoundaryRight', total + 30, -6450, 60, 13600), ('BoundaryTop', total / 2, -13400, total + 120, 60)]:
-        node(name, 'StaticBody2D', f'position = Vector2({x:g}, {y:g})\ncollision_layer = 2\nscript = ExtResource("13_platform")\nsize = Vector2({width:g}, {height:g})\nstyle = 3')
+        # Límites físicos fuera de la ruta. Dibujar ladrillos y musgo en el techo de casi
+        # 95 000 px cuesta miles de comandos aunque solo se vea un extremo del escenario.
+        node(name, 'StaticBody2D', f'visible = false\nposition = Vector2({x:g}, {y:g})\ncollision_layer = 2\nscript = ExtResource("13_platform")\nsize = Vector2({width:g}, {height:g})\nstyle = 3')
     # Red de seguridad bajo el arranque y el límite inferior global.
     node('ThornsAll', 'Area2D', f'position = Vector2({total / 2:g}, 440)\nscript = ExtResource("8_hazard")\nsize = Vector2({total:g}, 22)\ndamage = 20\nsend_to_checkpoint = true')
     blocks.append(tail)
