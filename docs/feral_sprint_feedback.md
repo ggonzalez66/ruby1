@@ -1,5 +1,7 @@
 # Carrera feroz y ajustes de lectura
 
+Revisión posterior: el ciclo actual alterna ambos brazos, con boca y puños cerrados. Véase [braceo alternado](sprint_arm_alternation.md). La hoja y el prompt siguientes documentan la versión anterior.
+
 Hoja nueva: `assets/sprites/player/viridy/viridy_sprint_feral.png`, seis poses a 16 fps. Generada con la herramienta integrada `image_gen`, con las hojas originales como referencias; las versiones anteriores se conservan. Recorte y alineación mediante AtlasTexture, sin editar píxeles con Python.
 
 ## Prompt exacto

@@ -51,7 +51,8 @@ const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_idle.png")
 const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_proud.png")
 const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_walk_v2.png")
-const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_feral.png")
+const SPRINTING_ALTERNATE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_alternate.png")
+const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_closed.png")
 const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_mantle.png")
 const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_attack.png")
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_cling.png")
@@ -916,7 +917,9 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, beast_cell, 446.0, [Vector2i(0, 1), Vector2i(1, 1)], 12.0, true)
 	_add_grid_animation(frames, ANIMATION_UPPERCUT, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
 	_add_grid_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
-	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(523, 0, 518, 512), Rect2(1041, 0, 495, 512), Rect2(0, 512, 518, 444), Rect2(518, 512, 520, 444), Rect2(1038, 512, 498, 444)], 16.0, true)
+	# Primera zancada: brazo lejano delante. Segunda: brazo de la hombrera delante.
+	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(523, 0, 518, 512), Rect2(1041, 0, 495, 512)], 16.0, true)
+	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_ALTERNATE_SHEET, Vector2(750, 709), [Rect2(0, 0, 724, 610), Rect2(724, 0, 724, 611), Rect2(1448, 0, 724, 620)], 16.0, true, true)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
 	_add_grid_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
@@ -930,6 +933,7 @@ func _configure_character_animations() -> void:
 	_add_single_frame_animation(frames, ANIMATION_SPRINT_BRAKE, BRAKE_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_BRAKE_RECOVER, BRAKE_RECOVER_TEXTURE)
 	animated_sprite.sprite_frames = frames
+	animated_sprite.frame_changed.connect(_on_character_frame_changed)
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
 
 func _add_single_frame_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D) -> void:
@@ -987,9 +991,10 @@ func _add_region_animation(frames: SpriteFrames, animation_name: StringName, tex
 		atlas_frame.filter_clip = true
 		frames.add_frame(animation_name, atlas_frame)
 
-func _add_padded_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D, canvas: Vector2, regions: Array, fps: float, loops: bool) -> void:
+func _add_padded_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D, canvas: Vector2, regions: Array, fps: float, loops: bool, append: bool = false) -> void:
 	# Atlas con márgenes: celdas exportadas irregulares comparten escala y apoyo sin modificar el PNG.
-	frames.add_animation(animation_name)
+	if not append:
+		frames.add_animation(animation_name)
 	frames.set_animation_speed(animation_name, fps)
 	frames.set_animation_loop(animation_name, loops)
 	for region in regions:
@@ -1201,9 +1206,15 @@ func _update_character_orientation(animation_name: StringName) -> void:
 		return
 	animated_sprite.flip_h = facing < 0
 
+func _on_character_frame_changed() -> void:
+	# Las dos hojas de carrera tienen resoluciones diferentes: se normaliza al cambiar la pose.
+	if animated_sprite.animation == ANIMATION_SPRINT:
+		_align_character_animation(ANIMATION_SPRINT)
+
 func _align_character_animation(animation_name: StringName) -> void:
 	# La base del frame (sus pies) va en el origen de Rengar: se usa el alto del frame actual.
-	var texture := animated_sprite.sprite_frames.get_frame_texture(animation_name, 0)
+	var frame: int = animated_sprite.frame if animation_name == ANIMATION_SPRINT and animated_sprite.animation == animation_name else 0
+	var texture := animated_sprite.sprite_frames.get_frame_texture(animation_name, frame)
 	var texture_height: float = texture.get_height() if texture else 0.0
 	var visual_scale: float = CHARACTER_VISUAL_SCALE * ANIMATION_VISUAL_SCALES.get(animation_name, 1.0)
 	animated_sprite.scale = Vector2.ONE * visual_scale
@@ -1212,7 +1223,7 @@ func _align_character_animation(animation_name: StringName) -> void:
 		animated_sprite.scale = Vector2.ONE * LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
 		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
 	elif animation_name in [ANIMATION_WALK, ANIMATION_SPRINT]:
-		animated_sprite.scale = Vector2.ONE * (0.175 if animation_name == ANIMATION_WALK else 0.18)
+		animated_sprite.scale = Vector2.ONE * (0.175 if animation_name == ANIMATION_WALK else CHARACTER_VISUAL_SCALE * 550.0 / texture.get_width())
 		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
 	elif animation_name == ANIMATION_SPIN:
 		animated_sprite.scale = Vector2.ONE * LIQUID_SPIN_CANVAS_SIZE / texture.get_width()

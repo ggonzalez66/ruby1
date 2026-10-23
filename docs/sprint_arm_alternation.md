@@ -1,0 +1,21 @@
+# Carrera con braceo alternado
+
+Ciclo de seis frames a 16 fps: los tres primeros usan `assets/sprites/player/viridy/viridy_sprint_closed.png`, con el brazo lejano al frente. Los tres siguientes usan `assets/sprites/player/viridy/viridy_sprint_alternate.png`, con el brazo de la hombrera visible avanzando delante del pecho y el brazo lejano detrás. En las seis poses, la boca y ambos puños están cerrados. La agresividad proviene de la inclinación y el impulso de la carrera.
+
+Las hojas conservan sus resoluciones originales (1536 × 1024 y 2172 × 724). AtlasTexture recorta y alinea cada pose por los pies. El controlador normaliza el ancho visual de los lienzos al cambiar de frame, de modo que las dos mitades mantengan escala y apoyo sin modificar la física. Las hojas anteriores se conservan.
+
+Generación y edición: herramienta integrada `image_gen`. No se editaron píxeles con Python. La referencia de la segunda mitad fue una tripleta complementaria generada primero para fijar claramente el brazo de la hombrera al frente; después se cerraron boca y manos siguiendo la corrección del usuario.
+
+## Prompts finales
+
+### primary
+
+```text
+Precise sprite edit for Viridy, the green lion warrior. Preserve the reference's aggressive LOW LEANING RUN POSE, green mane, tail, armor, body proportions, pixel-art shading and RIGHT-facing orientation. Change expression and hands ONLY: MOUTH FULLY CLOSED in every pose, jaw firmly shut, lips together, NO visible teeth, NO open mouth, NO snarling gape. Both HANDS FIRMLY CLOSED INTO FISTS in every pose, fingers curled INSIDE the fists, NO extended fingers, NO extended claws, NO grabbing hands. His aggression comes only from running posture and intense focused eyes. Do not transform him into liquid beast. Keep the two arm swings anatomically distinct, and do not mirror the whole lion. True transparent background alpha0, NO background colors, NO glow, no floor, no dust, no text, no labels, no grid. All sprites fit inside their own cells with clear transparent gutters. Output the SAME six-pose 3 columns by 2 rows layout as this reference, on 1536x1024. Preserve exact limb positions of each reference pose. Particularly in the FIRST ROW the camera-near GOLD-PAULDRON ARM points BACKWARD TO LEFT with a closed fist BEHIND the torso; the OTHER FAR ARM is FORWARD TO RIGHT with a closed fist ahead of chest. Keep those arm placements. The head must remain LOW with the CLOSED lion muzzle pointing forward. No open paws. Same character scale and feet baselines as reference. Do NOT create new gestures.
+```
+
+### alternate
+
+```text
+Precise sprite edit for Viridy, the green lion warrior. Preserve the reference's aggressive LOW LEANING RUN POSE, green mane, tail, armor, body proportions, pixel-art shading and RIGHT-facing orientation. Change expression and hands ONLY: MOUTH FULLY CLOSED in every pose, jaw firmly shut, lips together, NO visible teeth, NO open mouth, NO snarling gape. Both HANDS FIRMLY CLOSED INTO FISTS in every pose, fingers curled INSIDE the fists, NO extended fingers, NO extended claws, NO grabbing hands. His aggression comes only from running posture and intense focused eyes. Do not transform him into liquid beast. Keep the two arm swings anatomically distinct, and do not mirror the whole lion. True transparent background alpha0, NO background colors, NO glow, no floor, no dust, no text, no labels, no grid. All sprites fit inside their own cells with clear transparent gutters. Output the SAME THREE-pose SINGLE HORIZONTAL ROW as this reference, exactly the same layout and canvas proportions. Preserve the opposite arm swing: in ALL THREE poses the GOLD SHOULDER PAULDRON is attached to the CAMERA-NEAR ARM that swings strongly FORWARD TO RIGHT, upper arm in FRONT of the chest and FOREARM with a CLOSED FIST in front of the muzzle; that foreground arm occludes the chest armor. The OTHER FAR ARM points BACK TO LEFT with its small dark CLOSED FIST behind the hips. Do NOT move the gold-pauldron arm back. Change the visible OPEN CLAW HANDS into tightly clenched running FISTS and CLOSE the MOUTH completely. Keep all limb positions and head/body alignment unchanged. This is only expression and hand correction.
+```
