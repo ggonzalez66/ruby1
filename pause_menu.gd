@@ -106,6 +106,8 @@ func _refresh_row_texts() -> void:
 			button.text = _binding_text(action)
 
 func _unhandled_input(event: InputEvent) -> void:
+	if get_tree().has_group(&"gauntlet_finish_confirmation"):
+		return
 	if RunSession.countdown_active or (is_instance_valid(RunSession.records_panel) and RunSession.records_panel.visible):
 		return
 	if menu_mode:

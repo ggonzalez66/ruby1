@@ -299,7 +299,11 @@ func _run() -> void:
 			await frames(5)
 			check(director.round_number == 2 and director.phase == director.Phase.WAVE and director.enemies.size() > first_wave, "SEGUIR: ronda 2 con más enemigos (%d)" % director.enemies.size())
 		else:
-			director.portals.filter(func(p): return p.label_text == "TERMINAR")[0].entered.emit()
+			var finish_portal: Node = director.portals.filter(func(p): return p.label_text == "TERMINAR")[0]
+			finish_portal._on_body_entered(get_first_node_in_group(&"player"))
+			await frames(2)
+			check(paused and finish_portal.confirmation != null and not demo.root_control.visible, "TERMINAR pide confirmar antes de acabar la run")
+			finish_portal._confirm_finish()
 			await frames(5)
 			check(demo.root_control.visible and demo.continue_button.text == "Menú principal" and demo.message_label.text.contains("2"), "TERMINAR: pantalla de fin con medallas (%s)" % demo.message_label.text)
 	paused = false

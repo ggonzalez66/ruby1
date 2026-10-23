@@ -131,6 +131,10 @@ func _add_boss(which: int, at: Vector2, health_factor: float) -> void:
 	boss.min_x = arena_min_x
 	boss.max_x = arena_max_x
 	boss.position = Vector2(clamp(at.x, arena_min_x + 100.0, arena_max_x - 100.0), at.y)
+	if not auto_spawn:
+		var director := get_tree().get_first_node_in_group(&"gauntlet_director")
+		if director:
+			boss.set_meta(&"spawn_grace", director.spawn_grace_time)
 	add_child(boss)
 	bosses.append(boss)
 	boss.boss_defeated.connect(_on_boss_defeated)

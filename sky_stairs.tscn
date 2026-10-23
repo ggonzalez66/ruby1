@@ -22,52 +22,6 @@
 script = ExtResource("4_jungle")
 altitude_offset = 0.45
 
-[node name="BoundaryLeft" type="StaticBody2D" parent="."]
-position = Vector2(-30, -4350)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(60, 9420)
-style = 3
-
-[node name="BoundaryRight" type="StaticBody2D" parent="."]
-position = Vector2(28880, -4350)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(60, 9420)
-style = 3
-
-[node name="BoundaryTop" type="StaticBody2D" parent="."]
-position = Vector2(14425, -9030)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(28970, 60)
-style = 1
-
-[node name="TitleSky" type="Label" parent="."]
-offset_left = 140
-offset_top = -460
-offset_right = 1040
-offset_bottom = -400
-theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
-theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 34
-text = "ESCALERA AL CIELO"
-
-[node name="ThornFloor" type="StaticBody2D" parent="."]
-position = Vector2(14425, 205)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(28850, 190)
-style = 0
-
-[node name="ThornsAll" type="Area2D" parent="."]
-position = Vector2(14425, 110)
-script = ExtResource("8_hazard")
-size = Vector2(28850, 18)
-damage = 20
-send_to_checkpoint = true
-
 [node name="StartIsland" type="StaticBody2D" parent="."]
 position = Vector2(225, 150)
 collision_layer = 2
@@ -79,634 +33,2167 @@ style = 0
 position = Vector2(150, 0)
 script = ExtResource("9_checkpoint")
 
+[node name="TitleSky" type="Label" parent="."]
+offset_left = 140
+offset_top = -460
+offset_right = 1040
+offset_bottom = -400
+theme_override_font_sizes/font_size = 34
+text = "ESCALERA AL CIELO"
+
 [node name="SignSky" type="Node2D" parent="."]
 position = Vector2(320, 0)
 script = ExtResource("14_sign")
-text = "Sin combate: solo subir. Las espinas te devuelven al último checkpoint.
-Rebota con {heavy_attack} en los voladores; mantén {dash} para ir hacia delante, y con {move_down} en picado rebotas más alto."
-title = "Escalera al Cielo"
-panel_width = 380
+text = "Los fosos crecen en cada tramo. Encadena rebotes con {heavy_attack} en los voladores.
+Mantén {dash} para avanzar; {move_down} en picado da más altura. Las espinas te devuelven al checkpoint.
+Compite contra tu mejor fantasma: el tiempo sigue al caer."
+title = "Hasta el sol"
+panel_width = 400
 
 [node name="Seg1Land" type="StaticBody2D" parent="."]
-position = Vector2(1700, -200)
+position = Vector2(4200.0, -200)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(300, 1000)
 style = 0
 
 [node name="CheckpointSeg1Land" type="Area2D" parent="."]
-position = Vector2(1700, -700)
+position = Vector2(4200.0, -700)
 script = ExtResource("9_checkpoint")
+
+[node name="Pit1" type="Area2D" parent="."]
+position = Vector2(2250, 380)
+script = ExtResource("8_hazard")
+size = Vector2(3600, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall1" type="Area2D" parent="."]
+position = Vector2(4050, -127.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="Seg1F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(750, -138.333)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1050, -196.667)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1350, -255)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1650, -313.333)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(1950, -371.667)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2250, -430)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2550, -488.333)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(2850, -546.667)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3150, -605)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3450, -663.333)
+aerial = true
+max_health = 9999
+
+[node name="Seg1F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(3750, -721.667)
+aerial = true
+max_health = 9999
 
 [node name="Seg2Land" type="StaticBody2D" parent="."]
-position = Vector2(3425, -200)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(250, 1000)
-style = 0
-
-[node name="CheckpointSeg2Land" type="Area2D" parent="."]
-position = Vector2(3425, -700)
-script = ExtResource("9_checkpoint")
-
-[node name="Seg3Land" type="StaticBody2D" parent="."]
-position = Vector2(4800, -550)
+position = Vector2(8250.0, -550)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(300, 1700)
 style = 0
 
-[node name="CheckpointSeg3Land" type="Area2D" parent="."]
-position = Vector2(4800, -1400)
+[node name="CheckpointSeg2Land" type="Area2D" parent="."]
+position = Vector2(8250.0, -1400)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg4Land" type="StaticBody2D" parent="."]
-position = Vector2(6625, -550)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(250, 1700)
-style = 0
+[node name="Pit2" type="Area2D" parent="."]
+position = Vector2(6225, -320)
+script = ExtResource("8_hazard")
+size = Vector2(3750, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="CheckpointSeg4Land" type="Area2D" parent="."]
-position = Vector2(6625, -1400)
-script = ExtResource("9_checkpoint")
+[node name="PitWall2" type="Area2D" parent="."]
+position = Vector2(8100, -827.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="Seg5Land" type="StaticBody2D" parent="."]
-position = Vector2(8000, -900)
+[node name="Seg2F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4638.46, -833.846)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(4926.92, -887.692)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5215.38, -941.538)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5503.85, -995.385)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(5792.31, -1049.23)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6080.77, -1103.08)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6369.23, -1156.92)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6657.69, -1210.77)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(6946.15, -1264.62)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(7234.62, -1318.46)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(7523.08, -1372.31)
+aerial = true
+max_health = 9999
+
+[node name="Seg2F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(7811.54, -1426.15)
+aerial = true
+max_health = 9999
+
+[node name="Seg3Land" type="StaticBody2D" parent="."]
+position = Vector2(12450.0, -900)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(300, 2400)
 style = 0
 
-[node name="CheckpointSeg5Land" type="Area2D" parent="."]
-position = Vector2(8000, -2100)
+[node name="CheckpointSeg3Land" type="Area2D" parent="."]
+position = Vector2(12450.0, -2100)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg6Land" type="StaticBody2D" parent="."]
-position = Vector2(9400, -1250)
+[node name="Pit3" type="Area2D" parent="."]
+position = Vector2(10350, -1020)
+script = ExtResource("8_hazard")
+size = Vector2(3900, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall3" type="Area2D" parent="."]
+position = Vector2(12300, -1527.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="Seg3F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(8700, -1533.85)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(9000, -1587.69)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(9300, -1641.54)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(9600, -1695.38)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(9900, -1749.23)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(10200, -1803.08)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(10500, -1856.92)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(10800, -1910.77)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(11100, -1964.62)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(11400, -2018.46)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(11700, -2072.31)
+aerial = true
+max_health = 9999
+
+[node name="Seg3F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(12000, -2126.15)
+aerial = true
+max_health = 9999
+
+[node name="Seg4Land" type="StaticBody2D" parent="."]
+position = Vector2(16800.0, -1250)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(300, 3100)
 style = 0
 
-[node name="CheckpointSeg6Land" type="Area2D" parent="."]
-position = Vector2(9400, -2800)
+[node name="CheckpointSeg4Land" type="Area2D" parent="."]
+position = Vector2(16800.0, -2800)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg7Land" type="StaticBody2D" parent="."]
-position = Vector2(11125, -1250)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(250, 3100)
-style = 0
+[node name="Pit4" type="Area2D" parent="."]
+position = Vector2(14625, -1720)
+script = ExtResource("8_hazard")
+size = Vector2(4050, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="CheckpointSeg7Land" type="Area2D" parent="."]
-position = Vector2(11125, -2800)
-script = ExtResource("9_checkpoint")
+[node name="PitWall4" type="Area2D" parent="."]
+position = Vector2(16650, -2227.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="Seg8Land" type="StaticBody2D" parent="."]
-position = Vector2(12500, -1600)
+[node name="Seg4F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(12889.3, -2230)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(13178.6, -2280)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(13467.9, -2330)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 53)
+move_period = 4.48
+
+[node name="Seg4F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(13757.1, -2380)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(14046.4, -2430)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(14335.7, -2480)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 53)
+move_period = 4.48
+
+[node name="Seg4F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(14625, -2530)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(14914.3, -2580)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(15203.6, -2630)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 53)
+move_period = 4.48
+
+[node name="Seg4F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(15492.9, -2680)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(15782.1, -2730)
+aerial = true
+max_health = 9999
+
+[node name="Seg4F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(16071.4, -2780)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 53)
+move_period = 4.48
+
+[node name="Seg4F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(16360.7, -2830)
+aerial = true
+max_health = 9999
+
+[node name="Seg5Land" type="StaticBody2D" parent="."]
+position = Vector2(21300.0, -1600)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(300, 3800)
 style = 0
 
-[node name="CheckpointSeg8Land" type="Area2D" parent="."]
-position = Vector2(12500, -3500)
+[node name="CheckpointSeg5Land" type="Area2D" parent="."]
+position = Vector2(21300.0, -3500)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg9Land" type="StaticBody2D" parent="."]
-position = Vector2(14325, -1600)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(250, 3800)
-style = 0
+[node name="Pit5" type="Area2D" parent="."]
+position = Vector2(19050, -2420)
+script = ExtResource("8_hazard")
+size = Vector2(4200, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="CheckpointSeg9Land" type="Area2D" parent="."]
-position = Vector2(14325, -3500)
-script = ExtResource("9_checkpoint")
+[node name="PitWall5" type="Area2D" parent="."]
+position = Vector2(21150, -2927.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="Seg10Land" type="StaticBody2D" parent="."]
-position = Vector2(15700, -1950)
+[node name="Seg5F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(17250, -2930)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(17550, -2980)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(17850, -3030)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 55)
+move_period = 4.4
+
+[node name="Seg5F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(18150, -3080)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(18450, -3130)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(18750, -3180)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 55)
+move_period = 4.4
+
+[node name="Seg5F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(19050, -3230)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(19350, -3280)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(19650, -3330)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 55)
+move_period = 4.4
+
+[node name="Seg5F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(19950, -3380)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(20250, -3430)
+aerial = true
+max_health = 9999
+
+[node name="Seg5F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(20550, -3480)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 55)
+move_period = 4.4
+
+[node name="Seg5F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(20850, -3530)
+aerial = true
+max_health = 9999
+
+[node name="Seg6Land" type="StaticBody2D" parent="."]
+position = Vector2(25950.0, -1950)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(300, 4500)
 style = 0
 
-[node name="CheckpointSeg10Land" type="Area2D" parent="."]
-position = Vector2(15700, -4200)
+[node name="CheckpointSeg6Land" type="Area2D" parent="."]
+position = Vector2(25950.0, -4200)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg11Land" type="StaticBody2D" parent="."]
-position = Vector2(17100, -2300)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(300, 5200)
-style = 0
+[node name="Pit6" type="Area2D" parent="."]
+position = Vector2(23625, -3120)
+script = ExtResource("8_hazard")
+size = Vector2(4350, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="CheckpointSeg11Land" type="Area2D" parent="."]
-position = Vector2(17100, -4900)
-script = ExtResource("9_checkpoint")
+[node name="PitWall6" type="Area2D" parent="."]
+position = Vector2(25800, -3627.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="Seg12Land" type="StaticBody2D" parent="."]
-position = Vector2(18825, -2300)
+[node name="Seg6F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(21740, -3626.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(22030, -3673.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(22320, -3720)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 57)
+move_period = 4.32
+
+[node name="Seg6F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(22610, -3766.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(22900, -3813.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(23190, -3860)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 57)
+move_period = 4.32
+
+[node name="Seg6F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(23480, -3906.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(23770, -3953.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(24060, -4000)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 57)
+move_period = 4.32
+
+[node name="Seg6F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(24350, -4046.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(24640, -4093.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(24930, -4140)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 57)
+move_period = 4.32
+
+[node name="Seg6F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(25220, -4186.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg6F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(25510, -4233.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg7Land" type="StaticBody2D" parent="."]
+position = Vector2(30725.0, -2300)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(250, 5200)
 style = 0
 
-[node name="CheckpointSeg12Land" type="Area2D" parent="."]
-position = Vector2(18825, -4900)
+[node name="CheckpointSeg7Land" type="Area2D" parent="."]
+position = Vector2(30725.0, -4900)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg13Land" type="StaticBody2D" parent="."]
-position = Vector2(20200, -2650)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(300, 5900)
-style = 0
+[node name="Pit7" type="Area2D" parent="."]
+position = Vector2(28350, -3820)
+script = ExtResource("8_hazard")
+size = Vector2(4500, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="CheckpointSeg13Land" type="Area2D" parent="."]
-position = Vector2(20200, -5600)
-script = ExtResource("9_checkpoint")
+[node name="PitWall7" type="Area2D" parent="."]
+position = Vector2(30600, -4327.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="Seg14Land" type="StaticBody2D" parent="."]
-position = Vector2(22025, -2650)
+[node name="Seg7F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(26400, -4326.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(26700, -4373.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(27000, -4420)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 59)
+move_period = 4.24
+
+[node name="Seg7F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(27300, -4466.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(27600, -4513.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(27900, -4560)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 59)
+move_period = 4.24
+
+[node name="Seg7F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(28200, -4606.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(28500, -4653.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(28800, -4700)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 59)
+move_period = 4.24
+
+[node name="Seg7F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(29100, -4746.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(29400, -4793.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(29700, -4840)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 59)
+move_period = 4.24
+
+[node name="Seg7F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(30000, -4886.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg7F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(30300, -4933.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg8Land" type="StaticBody2D" parent="."]
+position = Vector2(35625.0, -2650)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(250, 5900)
 style = 0
 
-[node name="CheckpointSeg14Land" type="Area2D" parent="."]
-position = Vector2(22025, -5600)
+[node name="CheckpointSeg8Land" type="Area2D" parent="."]
+position = Vector2(35625.0, -5600)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg15Land" type="StaticBody2D" parent="."]
-position = Vector2(23400, -3000)
+[node name="Pit8" type="Area2D" parent="."]
+position = Vector2(33175, -4520)
+script = ExtResource("8_hazard")
+size = Vector2(4650, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall8" type="Area2D" parent="."]
+position = Vector2(35500, -5027.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="Seg8F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(31160, -5026.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(31470, -5073.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(31780, -5120)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 61)
+move_period = 4.16
+
+[node name="Seg8F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(32090, -5166.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(32400, -5213.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(32710, -5260)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 61)
+move_period = 4.16
+
+[node name="Seg8F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(33020, -5306.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(33330, -5353.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(33640, -5400)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 61)
+move_period = 4.16
+
+[node name="Seg8F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(33950, -5446.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(34260, -5493.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(34570, -5540)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 61)
+move_period = 4.16
+
+[node name="Seg8F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(34880, -5586.67)
+aerial = true
+max_health = 9999
+
+[node name="Seg8F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(35190, -5633.33)
+aerial = true
+max_health = 9999
+
+[node name="Seg9Land" type="StaticBody2D" parent="."]
+position = Vector2(40675.0, -3000)
 collision_layer = 2
 script = ExtResource("13_platform")
-size = Vector2(300, 6600)
+size = Vector2(250, 6600)
 style = 0
 
-[node name="CheckpointSeg15Land" type="Area2D" parent="."]
-position = Vector2(23400, -6300)
+[node name="CheckpointSeg9Land" type="Area2D" parent="."]
+position = Vector2(40675.0, -6300)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg16Land" type="StaticBody2D" parent="."]
-position = Vector2(24800, -3350)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(300, 7300)
-style = 0
+[node name="Pit9" type="Area2D" parent="."]
+position = Vector2(38150, -5220)
+script = ExtResource("8_hazard")
+size = Vector2(4800, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="CheckpointSeg16Land" type="Area2D" parent="."]
-position = Vector2(24800, -7000)
-script = ExtResource("9_checkpoint")
+[node name="PitWall9" type="Area2D" parent="."]
+position = Vector2(40550, -5727.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="Seg17Land" type="StaticBody2D" parent="."]
-position = Vector2(26525, -3350)
+[node name="Seg9F1" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(36050, -5723.75)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.37
+
+[node name="Seg9F2" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(36350, -5767.5)
+aerial = true
+max_health = 9999
+
+[node name="Seg9F3" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(36650, -5811.25)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 63)
+move_period = 4.08
+
+[node name="Seg9F4" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(36950, -5855)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.37
+
+[node name="Seg9F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(37250, -5898.75)
+aerial = true
+max_health = 9999
+
+[node name="Seg9F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(37550, -5942.5)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 63)
+move_period = 4.08
+
+[node name="Seg9F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(37850, -5986.25)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.37
+
+[node name="Seg9F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(38150, -6030)
+aerial = true
+max_health = 9999
+
+[node name="Seg9F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(38450, -6073.75)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 63)
+move_period = 4.08
+
+[node name="Seg9F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(38750, -6117.5)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.37
+
+[node name="Seg9F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(39050, -6161.25)
+aerial = true
+max_health = 9999
+
+[node name="Seg9F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(39350, -6205)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 63)
+move_period = 4.08
+
+[node name="Seg9F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(39650, -6248.75)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.37
+
+[node name="Seg9F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(39950, -6292.5)
+aerial = true
+max_health = 9999
+
+[node name="Seg9F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(40250, -6336.25)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 63)
+move_period = 4.08
+
+[node name="Seg10Land" type="StaticBody2D" parent="."]
+position = Vector2(45875.0, -3350)
 collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(250, 7300)
 style = 0
 
-[node name="CheckpointSeg17Land" type="Area2D" parent="."]
-position = Vector2(26525, -7000)
+[node name="CheckpointSeg10Land" type="Area2D" parent="."]
+position = Vector2(45875.0, -7000)
 script = ExtResource("9_checkpoint")
 
-[node name="Seg18Land" type="StaticBody2D" parent="."]
-position = Vector2(27900, -3700)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(300, 8000)
-style = 0
+[node name="Pit10" type="Area2D" parent="."]
+position = Vector2(43275, -5920)
+script = ExtResource("8_hazard")
+size = Vector2(4950, 22)
+damage = 20
+send_to_checkpoint = true
 
-[node name="CheckpointSeg18Land" type="Area2D" parent="."]
-position = Vector2(27900, -7700)
-script = ExtResource("9_checkpoint")
-
-[node name="FinalIsland" type="StaticBody2D" parent="."]
-position = Vector2(28450, -3700)
-collision_layer = 2
-script = ExtResource("13_platform")
-size = Vector2(800, 8000)
-style = 0
-
-[node name="CheckpointFinalIsland" type="Area2D" parent="."]
-position = Vector2(28390, -7700)
-script = ExtResource("9_checkpoint")
-
-[node name="Seg1F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(650, -170)
-aerial = true
-max_health = 9999
-
-[node name="Seg1F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(900, -330)
-aerial = true
-max_health = 9999
-
-[node name="Seg1F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(1150, -480)
-aerial = true
-max_health = 9999
-
-[node name="Seg1F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(1400, -640)
-aerial = true
-max_health = 9999
-
-[node name="Seg2F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(2020, -850)
-aerial = true
-max_health = 9999
-
-[node name="Seg2F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(2300, -890)
-aerial = true
-max_health = 9999
-
-[node name="Seg2F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(2600, -850)
-aerial = true
-max_health = 9999
-
-[node name="Seg2F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(2900, -900)
-aerial = true
-max_health = 9999
-
-[node name="Seg2F5" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(3180, -860)
-aerial = true
-max_health = 9999
-
-[node name="Seg3F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(3750, -870)
-aerial = true
-max_health = 9999
-
-[node name="Seg3F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(4000, -1030)
-aerial = true
-max_health = 9999
-
-[node name="Seg3F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(4250, -1180)
-aerial = true
-max_health = 9999
-
-[node name="Seg3F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(4500, -1340)
-aerial = true
-max_health = 9999
-
-[node name="Seg4F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(5200, -1570)
-aerial = true
-max_health = 9999
-move_offset = Vector2(0, -90)
-move_period = 2.4
-
-[node name="Seg4F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(5550, -1600)
-aerial = true
-max_health = 9999
-move_offset = Vector2(140, 0)
-move_period = 3
-
-[node name="Seg4F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(5900, -1560)
-aerial = true
-max_health = 9999
-orbit_radius = 60
-move_period = 3
-
-[node name="Seg4F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(6250, -1620)
-aerial = true
-max_health = 9999
-move_offset = Vector2(0, 110)
-move_period = 2.2
-move_phase = 0.5
-
-[node name="Seg5F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(6950, -1570)
-aerial = true
-max_health = 9999
-
-[node name="Seg5F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(7200, -1730)
-aerial = true
-max_health = 9999
-
-[node name="Seg5F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(7450, -1880)
-aerial = true
-max_health = 9999
-
-[node name="Seg5F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(7700, -2040)
-aerial = true
-max_health = 9999
-
-[node name="Seg6F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(8350, -2270)
-aerial = true
-max_health = 9999
-
-[node name="Seg6F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(8600, -2430)
-aerial = true
-max_health = 9999
-
-[node name="Seg6F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(8850, -2580)
-aerial = true
-max_health = 9999
-
-[node name="Seg6F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(9100, -2740)
-aerial = true
-max_health = 9999
-
-[node name="Seg7F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(9720, -2950)
-aerial = true
-max_health = 9999
-
-[node name="Seg7F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(10000, -2990)
-aerial = true
-max_health = 9999
-
-[node name="Seg7F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(10300, -2950)
-aerial = true
-max_health = 9999
-
-[node name="Seg7F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(10600, -3000)
-aerial = true
-max_health = 9999
-
-[node name="Seg7F5" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(10880, -2960)
-aerial = true
-max_health = 9999
-
-[node name="Seg8F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(11450, -2970)
-aerial = true
-max_health = 9999
-
-[node name="Seg8F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(11700, -3130)
-aerial = true
-max_health = 9999
-
-[node name="Seg8F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(11950, -3280)
-aerial = true
-max_health = 9999
-
-[node name="Seg8F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(12200, -3440)
-aerial = true
-max_health = 9999
-
-[node name="Seg9F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(12900, -3670)
-aerial = true
-max_health = 9999
-move_offset = Vector2(0, -90)
-move_period = 2.4
-
-[node name="Seg9F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(13250, -3700)
-aerial = true
-max_health = 9999
-move_offset = Vector2(140, 0)
-move_period = 3
-
-[node name="Seg9F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(13600, -3660)
-aerial = true
-max_health = 9999
-orbit_radius = 60
-move_period = 3
-
-[node name="Seg9F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(13950, -3720)
-aerial = true
-max_health = 9999
-move_offset = Vector2(0, 110)
-move_period = 2.2
-move_phase = 0.5
+[node name="PitWall10" type="Area2D" parent="."]
+position = Vector2(45750, -6427.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg10F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(14650, -3670)
+position = Vector2(41109.4, -6423.75)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.3
 
 [node name="Seg10F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(14900, -3830)
+position = Vector2(41418.8, -6467.5)
 aerial = true
 max_health = 9999
 
 [node name="Seg10F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(15150, -3980)
+position = Vector2(41728.1, -6511.25)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 65)
+move_period = 4
 
 [node name="Seg10F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(15400, -4140)
+position = Vector2(42037.5, -6555)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.3
+
+[node name="Seg10F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(42346.9, -6598.75)
+aerial = true
+max_health = 9999
+
+[node name="Seg10F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(42656.2, -6642.5)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 65)
+move_period = 4
+
+[node name="Seg10F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(42965.6, -6686.25)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.3
+
+[node name="Seg10F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(43275, -6730)
+aerial = true
+max_health = 9999
+
+[node name="Seg10F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(43584.4, -6773.75)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 65)
+move_period = 4
+
+[node name="Seg10F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(43893.8, -6817.5)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.3
+
+[node name="Seg10F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(44203.1, -6861.25)
+aerial = true
+max_health = 9999
+
+[node name="Seg10F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(44512.5, -6905)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 65)
+move_period = 4
+
+[node name="Seg10F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(44821.9, -6948.75)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.3
+
+[node name="Seg10F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(45131.2, -6992.5)
+aerial = true
+max_health = 9999
+
+[node name="Seg10F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(45440.6, -7036.25)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 65)
+move_period = 4
+
+[node name="Seg11Land" type="StaticBody2D" parent="."]
+position = Vector2(51225.0, -3700)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(250, 8000)
+style = 0
+
+[node name="CheckpointSeg11Land" type="Area2D" parent="."]
+position = Vector2(51225.0, -7700)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit11" type="Area2D" parent="."]
+position = Vector2(48550, -6620)
+script = ExtResource("8_hazard")
+size = Vector2(5100, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall11" type="Area2D" parent="."]
+position = Vector2(51100, -7127.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg11F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(16050, -4370)
+position = Vector2(46300, -7121.18)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.23
 
 [node name="Seg11F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(16300, -4530)
+position = Vector2(46600, -7162.35)
 aerial = true
 max_health = 9999
 
 [node name="Seg11F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(16550, -4680)
+position = Vector2(46900, -7203.53)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 67)
+move_period = 3.92
 
 [node name="Seg11F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(16800, -4840)
+position = Vector2(47200, -7244.71)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.23
+
+[node name="Seg11F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(47500, -7285.88)
+aerial = true
+max_health = 9999
+
+[node name="Seg11F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(47800, -7327.06)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 67)
+move_period = 3.92
+
+[node name="Seg11F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(48100, -7368.24)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.23
+
+[node name="Seg11F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(48400, -7409.41)
+aerial = true
+max_health = 9999
+
+[node name="Seg11F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(48700, -7450.59)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 67)
+move_period = 3.92
+
+[node name="Seg11F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(49000, -7491.76)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.23
+
+[node name="Seg11F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(49300, -7532.94)
+aerial = true
+max_health = 9999
+
+[node name="Seg11F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(49600, -7574.12)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 67)
+move_period = 3.92
+
+[node name="Seg11F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(49900, -7615.29)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.23
+
+[node name="Seg11F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(50200, -7656.47)
+aerial = true
+max_health = 9999
+
+[node name="Seg11F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(50500, -7697.65)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 67)
+move_period = 3.92
+
+[node name="Seg11F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(50800, -7738.82)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.23
+
+[node name="Seg12Land" type="StaticBody2D" parent="."]
+position = Vector2(56725.0, -4050)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(250, 8700)
+style = 0
+
+[node name="CheckpointSeg12Land" type="Area2D" parent="."]
+position = Vector2(56725.0, -8400)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit12" type="Area2D" parent="."]
+position = Vector2(53975, -7320)
+script = ExtResource("8_hazard")
+size = Vector2(5250, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall12" type="Area2D" parent="."]
+position = Vector2(56600, -7827.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg12F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(17420, -5050)
+position = Vector2(51658.8, -7821.18)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.16
 
 [node name="Seg12F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(17700, -5090)
+position = Vector2(51967.6, -7862.35)
 aerial = true
 max_health = 9999
 
 [node name="Seg12F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(18000, -5050)
+position = Vector2(52276.5, -7903.53)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 69)
+move_period = 3.84
 
 [node name="Seg12F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(18300, -5100)
+position = Vector2(52585.3, -7944.71)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.16
 
 [node name="Seg12F5" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(18580, -5060)
+position = Vector2(52894.1, -7985.88)
 aerial = true
 max_health = 9999
+
+[node name="Seg12F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(53202.9, -8027.06)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 69)
+move_period = 3.84
+
+[node name="Seg12F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(53511.8, -8068.24)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.16
+
+[node name="Seg12F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(53820.6, -8109.41)
+aerial = true
+max_health = 9999
+
+[node name="Seg12F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(54129.4, -8150.59)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 69)
+move_period = 3.84
+
+[node name="Seg12F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(54438.2, -8191.76)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.16
+
+[node name="Seg12F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(54747.1, -8232.94)
+aerial = true
+max_health = 9999
+
+[node name="Seg12F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(55055.9, -8274.12)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 69)
+move_period = 3.84
+
+[node name="Seg12F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(55364.7, -8315.29)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.16
+
+[node name="Seg12F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(55673.5, -8356.47)
+aerial = true
+max_health = 9999
+
+[node name="Seg12F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(55982.4, -8397.65)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 69)
+move_period = 3.84
+
+[node name="Seg12F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(56291.2, -8438.82)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.16
+
+[node name="Seg13Land" type="StaticBody2D" parent="."]
+position = Vector2(62360.0, -4400)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 9400)
+style = 0
+
+[node name="CheckpointSeg13Land" type="Area2D" parent="."]
+position = Vector2(62360.0, -9100)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit13" type="Area2D" parent="."]
+position = Vector2(59550, -8020)
+script = ExtResource("8_hazard")
+size = Vector2(5400, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall13" type="Area2D" parent="."]
+position = Vector2(62250, -8527.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg13F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(19150, -5070)
+position = Vector2(57150, -8518.89)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.09
 
 [node name="Seg13F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(19400, -5230)
+position = Vector2(57450, -8557.78)
 aerial = true
 max_health = 9999
 
 [node name="Seg13F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(19650, -5380)
+position = Vector2(57750, -8596.67)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 71)
+move_period = 3.76
 
 [node name="Seg13F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(19900, -5540)
+position = Vector2(58050, -8635.56)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.09
+
+[node name="Seg13F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(58350, -8674.44)
+aerial = true
+max_health = 9999
+
+[node name="Seg13F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(58650, -8713.33)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 71)
+move_period = 3.76
+
+[node name="Seg13F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(58950, -8752.22)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.09
+
+[node name="Seg13F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(59250, -8791.11)
+aerial = true
+max_health = 9999
+
+[node name="Seg13F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(59550, -8830)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 71)
+move_period = 3.76
+
+[node name="Seg13F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(59850, -8868.89)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.09
+
+[node name="Seg13F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(60150, -8907.78)
+aerial = true
+max_health = 9999
+
+[node name="Seg13F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(60450, -8946.67)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 71)
+move_period = 3.76
+
+[node name="Seg13F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(60750, -8985.56)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.09
+
+[node name="Seg13F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(61050, -9024.44)
+aerial = true
+max_health = 9999
+
+[node name="Seg13F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(61350, -9063.33)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 71)
+move_period = 3.76
+
+[node name="Seg13F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(61650, -9102.22)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.09
+
+[node name="Seg13F17" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(61950, -9141.11)
+aerial = true
+max_health = 9999
+
+[node name="Seg14Land" type="StaticBody2D" parent="."]
+position = Vector2(68130.0, -4750)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 10100)
+style = 0
+
+[node name="CheckpointSeg14Land" type="Area2D" parent="."]
+position = Vector2(68130.0, -9800)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit14" type="Area2D" parent="."]
+position = Vector2(65245, -8720)
+script = ExtResource("8_hazard")
+size = Vector2(5550, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall14" type="Area2D" parent="."]
+position = Vector2(68020, -9227.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg14F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(20600, -5770)
+position = Vector2(62778.3, -9218.89)
 aerial = true
 max_health = 9999
-move_offset = Vector2(0, -90)
-move_period = 2.4
+move_offset = Vector2(60, 0)
+move_period = 4.02
 
 [node name="Seg14F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(20950, -5800)
+position = Vector2(63086.7, -9257.78)
 aerial = true
 max_health = 9999
-move_offset = Vector2(140, 0)
-move_period = 3
 
 [node name="Seg14F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(21300, -5760)
+position = Vector2(63395, -9296.67)
 aerial = true
 max_health = 9999
-orbit_radius = 60
-move_period = 3
+move_offset = Vector2(0, 73)
+move_period = 3.68
 
 [node name="Seg14F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(21650, -5820)
+position = Vector2(63703.3, -9335.56)
 aerial = true
 max_health = 9999
-move_offset = Vector2(0, 110)
-move_period = 2.2
-move_phase = 0.5
+move_offset = Vector2(60, 0)
+move_period = 4.02
+
+[node name="Seg14F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(64011.7, -9374.44)
+aerial = true
+max_health = 9999
+
+[node name="Seg14F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(64320, -9413.33)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 73)
+move_period = 3.68
+
+[node name="Seg14F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(64628.3, -9452.22)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.02
+
+[node name="Seg14F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(64936.7, -9491.11)
+aerial = true
+max_health = 9999
+
+[node name="Seg14F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(65245, -9530)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 73)
+move_period = 3.68
+
+[node name="Seg14F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(65553.3, -9568.89)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.02
+
+[node name="Seg14F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(65861.7, -9607.78)
+aerial = true
+max_health = 9999
+
+[node name="Seg14F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(66170, -9646.67)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 73)
+move_period = 3.68
+
+[node name="Seg14F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(66478.3, -9685.56)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.02
+
+[node name="Seg14F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(66786.7, -9724.44)
+aerial = true
+max_health = 9999
+
+[node name="Seg14F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(67095, -9763.33)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 73)
+move_period = 3.68
+
+[node name="Seg14F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(67403.3, -9802.22)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 4.02
+
+[node name="Seg14F17" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(67711.7, -9841.11)
+aerial = true
+max_health = 9999
+
+[node name="Seg15Land" type="StaticBody2D" parent="."]
+position = Vector2(74050.0, -5100)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 10800)
+style = 0
+
+[node name="CheckpointSeg15Land" type="Area2D" parent="."]
+position = Vector2(74050.0, -10500)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit15" type="Area2D" parent="."]
+position = Vector2(71090, -9420)
+script = ExtResource("8_hazard")
+size = Vector2(5700, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall15" type="Area2D" parent="."]
+position = Vector2(73940, -9927.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg15F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(22350, -5770)
+position = Vector2(68540, -9916.84)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.95
 
 [node name="Seg15F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(22600, -5930)
+position = Vector2(68840, -9953.68)
 aerial = true
 max_health = 9999
 
 [node name="Seg15F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(22850, -6080)
+position = Vector2(69140, -9990.53)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 75)
+move_period = 3.6
 
 [node name="Seg15F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(23100, -6240)
+position = Vector2(69440, -10027.4)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.95
+
+[node name="Seg15F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(69740, -10064.2)
+aerial = true
+max_health = 9999
+
+[node name="Seg15F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(70040, -10101.1)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 75)
+move_period = 3.6
+
+[node name="Seg15F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(70340, -10137.9)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.95
+
+[node name="Seg15F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(70640, -10174.7)
+aerial = true
+max_health = 9999
+
+[node name="Seg15F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(70940, -10211.6)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 75)
+move_period = 3.6
+
+[node name="Seg15F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(71240, -10248.4)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.95
+
+[node name="Seg15F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(71540, -10285.3)
+aerial = true
+max_health = 9999
+
+[node name="Seg15F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(71840, -10322.1)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 75)
+move_period = 3.6
+
+[node name="Seg15F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(72140, -10358.9)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.95
+
+[node name="Seg15F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(72440, -10395.8)
+aerial = true
+max_health = 9999
+
+[node name="Seg15F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(72740, -10432.6)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 75)
+move_period = 3.6
+
+[node name="Seg15F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(73040, -10469.5)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.95
+
+[node name="Seg15F17" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(73340, -10506.3)
+aerial = true
+max_health = 9999
+
+[node name="Seg15F18" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(73640, -10543.2)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 75)
+move_period = 3.6
+
+[node name="Seg16Land" type="StaticBody2D" parent="."]
+position = Vector2(80120.0, -5450)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 11500)
+style = 0
+
+[node name="CheckpointSeg16Land" type="Area2D" parent="."]
+position = Vector2(80120.0, -11200)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit16" type="Area2D" parent="."]
+position = Vector2(77085, -10120)
+script = ExtResource("8_hazard")
+size = Vector2(5850, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall16" type="Area2D" parent="."]
+position = Vector2(80010, -10627.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg16F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(23750, -6470)
+position = Vector2(74467.9, -10616.8)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.88
 
 [node name="Seg16F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(24000, -6630)
+position = Vector2(74775.8, -10653.7)
 aerial = true
 max_health = 9999
 
 [node name="Seg16F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(24250, -6780)
+position = Vector2(75083.7, -10690.5)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 77)
+move_period = 3.52
 
 [node name="Seg16F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(24500, -6940)
+position = Vector2(75391.6, -10727.4)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.88
+
+[node name="Seg16F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(75699.5, -10764.2)
+aerial = true
+max_health = 9999
+
+[node name="Seg16F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(76007.4, -10801.1)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 77)
+move_period = 3.52
+
+[node name="Seg16F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(76315.3, -10837.9)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.88
+
+[node name="Seg16F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(76623.2, -10874.7)
+aerial = true
+max_health = 9999
+
+[node name="Seg16F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(76931.1, -10911.6)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 77)
+move_period = 3.52
+
+[node name="Seg16F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(77238.9, -10948.4)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.88
+
+[node name="Seg16F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(77546.8, -10985.3)
+aerial = true
+max_health = 9999
+
+[node name="Seg16F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(77854.7, -11022.1)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 77)
+move_period = 3.52
+
+[node name="Seg16F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(78162.6, -11058.9)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.88
+
+[node name="Seg16F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(78470.5, -11095.8)
+aerial = true
+max_health = 9999
+
+[node name="Seg16F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(78778.4, -11132.6)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 77)
+move_period = 3.52
+
+[node name="Seg16F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(79086.3, -11169.5)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.88
+
+[node name="Seg16F17" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(79394.2, -11206.3)
+aerial = true
+max_health = 9999
+
+[node name="Seg16F18" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(79702.1, -11243.2)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 77)
+move_period = 3.52
+
+[node name="Seg17Land" type="StaticBody2D" parent="."]
+position = Vector2(86340.0, -5800)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 12200)
+style = 0
+
+[node name="CheckpointSeg17Land" type="Area2D" parent="."]
+position = Vector2(86340.0, -11900)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit17" type="Area2D" parent="."]
+position = Vector2(83230, -10820)
+script = ExtResource("8_hazard")
+size = Vector2(6000, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall17" type="Area2D" parent="."]
+position = Vector2(86230, -11327.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg17F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(25120, -7150)
+position = Vector2(80530, -11315)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.81
 
 [node name="Seg17F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(25400, -7190)
+position = Vector2(80830, -11350)
 aerial = true
 max_health = 9999
 
 [node name="Seg17F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(25700, -7150)
+position = Vector2(81130, -11385)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 79)
+move_period = 3.44
 
 [node name="Seg17F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(26000, -7200)
+position = Vector2(81430, -11420)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.81
 
 [node name="Seg17F5" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(26280, -7160)
+position = Vector2(81730, -11455)
 aerial = true
 max_health = 9999
+
+[node name="Seg17F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(82030, -11490)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 79)
+move_period = 3.44
+
+[node name="Seg17F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(82330, -11525)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.81
+
+[node name="Seg17F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(82630, -11560)
+aerial = true
+max_health = 9999
+
+[node name="Seg17F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(82930, -11595)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 79)
+move_period = 3.44
+
+[node name="Seg17F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(83230, -11630)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.81
+
+[node name="Seg17F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(83530, -11665)
+aerial = true
+max_health = 9999
+
+[node name="Seg17F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(83830, -11700)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 79)
+move_period = 3.44
+
+[node name="Seg17F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(84130, -11735)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.81
+
+[node name="Seg17F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(84430, -11770)
+aerial = true
+max_health = 9999
+
+[node name="Seg17F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(84730, -11805)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 79)
+move_period = 3.44
+
+[node name="Seg17F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(85030, -11840)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.81
+
+[node name="Seg17F17" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(85330, -11875)
+aerial = true
+max_health = 9999
+
+[node name="Seg17F18" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(85630, -11910)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 79)
+move_period = 3.44
+
+[node name="Seg17F19" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(85930, -11945)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.81
+
+[node name="Seg18Land" type="StaticBody2D" parent="."]
+position = Vector2(92710.0, -6150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 12900)
+style = 0
+
+[node name="CheckpointSeg18Land" type="Area2D" parent="."]
+position = Vector2(92710.0, -12600)
+script = ExtResource("9_checkpoint")
+
+[node name="Pit18" type="Area2D" parent="."]
+position = Vector2(89525, -11520)
+script = ExtResource("8_hazard")
+size = Vector2(6150, 22)
+damage = 20
+send_to_checkpoint = true
+
+[node name="PitWall18" type="Area2D" parent="."]
+position = Vector2(92600, -12027.5)
+rotation = -1.57079632679
+script = ExtResource("8_hazard")
+size = Vector2(1015, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Seg18F1" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(26850, -7170)
+position = Vector2(86757.5, -12015)
 aerial = true
 max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.74
 
 [node name="Seg18F2" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(27100, -7330)
+position = Vector2(87065, -12050)
 aerial = true
 max_health = 9999
 
 [node name="Seg18F3" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(27350, -7480)
+position = Vector2(87372.5, -12085)
 aerial = true
 max_health = 9999
+move_offset = Vector2(0, 81)
+move_period = 3.36
 
 [node name="Seg18F4" parent="." instance=ExtResource("2_dummy")]
-position = Vector2(27600, -7640)
+position = Vector2(87680, -12120)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.74
+
+[node name="Seg18F5" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(87987.5, -12155)
 aerial = true
 max_health = 9999
 
+[node name="Seg18F6" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(88295, -12190)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 81)
+move_period = 3.36
+
+[node name="Seg18F7" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(88602.5, -12225)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.74
+
+[node name="Seg18F8" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(88910, -12260)
+aerial = true
+max_health = 9999
+
+[node name="Seg18F9" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(89217.5, -12295)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 81)
+move_period = 3.36
+
+[node name="Seg18F10" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(89525, -12330)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.74
+
+[node name="Seg18F11" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(89832.5, -12365)
+aerial = true
+max_health = 9999
+
+[node name="Seg18F12" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(90140, -12400)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 81)
+move_period = 3.36
+
+[node name="Seg18F13" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(90447.5, -12435)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.74
+
+[node name="Seg18F14" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(90755, -12470)
+aerial = true
+max_health = 9999
+
+[node name="Seg18F15" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(91062.5, -12505)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 81)
+move_period = 3.36
+
+[node name="Seg18F16" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(91370, -12540)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.74
+
+[node name="Seg18F17" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(91677.5, -12575)
+aerial = true
+max_health = 9999
+
+[node name="Seg18F18" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(91985, -12610)
+aerial = true
+max_health = 9999
+move_offset = Vector2(0, 81)
+move_period = 3.36
+
+[node name="Seg18F19" parent="." instance=ExtResource("2_dummy")]
+position = Vector2(92292.5, -12645)
+aerial = true
+max_health = 9999
+move_offset = Vector2(60, 0)
+move_period = 3.74
+
+[node name="Summit" type="StaticBody2D" parent="."]
+position = Vector2(93220.0, -6150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(800, 12900)
+style = 0
+
+[node name="CheckpointSummit" type="Area2D" parent="."]
+position = Vector2(93160.0, -12600)
+script = ExtResource("9_checkpoint")
+
 [node name="Sun" type="Area2D" parent="."]
-position = Vector2(28500, -7700)
+position = Vector2(93270, -12600)
 script = ExtResource("15_goal")
 goal_style = "sun"
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-30, -6450)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 13600)
+style = 3
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(93650, -6450)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 13600)
+style = 3
+
+[node name="BoundaryTop" type="StaticBody2D" parent="."]
+position = Vector2(46810, -13400)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(93740, 60)
+style = 3
+
+[node name="ThornsAll" type="Area2D" parent="."]
+position = Vector2(46810, 440)
+script = ExtResource("8_hazard")
+size = Vector2(93620, 22)
+damage = 20
+send_to_checkpoint = true
 
 [node name="Playerr" parent="." instance=ExtResource("1_player")]
 position = Vector2(220, -2)

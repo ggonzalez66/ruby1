@@ -51,6 +51,23 @@ static func impact(parent: Node, point: Vector2, palette: Array[Color], size: fl
 		tween.tween_property(spark, "modulate:a", 0.0, duration)
 	tween.chain().tween_callback(burst.queue_free)
 
+# Ondas del rugido durante la apertura del parry; son visuales, sin hitbox adicional.
+static func parry_wave(parent: Node, point: Vector2, radius: float, duration: float) -> void:
+	var burst := _spawn(parent, point)
+	burst.name = "RoarShockwaves"
+	burst.z_index = 5
+	var tween := burst.create_tween().set_parallel(true)
+	for index in range(3):
+		var ring := Line2D.new()
+		ring.points = _circle(radius, 48, true)
+		ring.width = 3.5 - index * 0.7
+		ring.default_color = ROAR[2 if index == 0 else 1]
+		ring.scale = Vector2.ONE * (0.18 + index * 0.16)
+		burst.add_child(ring)
+		tween.tween_property(ring, "scale", Vector2.ONE * (1.3 + index * 0.16), maxf(duration, 0.08)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(ring, "modulate:a", 0.0, maxf(duration, 0.08))
+	tween.chain().tween_callback(burst.queue_free)
+
 # Destello grande del deflect: anillo doble y rayos.
 static func deflect(parent: Node, point: Vector2) -> void:
 	impact(parent, point, ROAR, 2.0)
@@ -151,6 +168,42 @@ static func shatter(parent: Node, point: Vector2, color: Color, radius: float = 
 		tween.tween_property(shard, "modulate:a", 0.0, 0.5).set_delay(0.15)
 	tween.chain().tween_callback(burst.queue_free)
 	impact(parent, point, [color.darkened(0.6), color, Color(1.0, 0.9, 0.85)], 1.8)
+
+# Crítico al núcleo: destello, onda partida y chorros de energía; el cristal sigue entero.
+static func ruby_critical(parent: Node, point: Vector2, color: Color) -> void:
+	var burst := _spawn(parent, point)
+	burst.z_index = 14
+	var tween := burst.create_tween().set_parallel(true)
+	var flash := Polygon2D.new()
+	flash.polygon = PackedVector2Array([Vector2(0, -26), Vector2(17, 0), Vector2(0, 26), Vector2(-17, 0)])
+	flash.color = Color(1.0, 0.9, 0.86)
+	burst.add_child(flash)
+	tween.tween_property(flash, "scale", Vector2.ONE * 1.5, 0.10).set_ease(Tween.EASE_OUT)
+	tween.tween_property(flash, "modulate:a", 0.0, 0.14)
+	for index in range(4):
+		var arc := Line2D.new()
+		var points := PackedVector2Array()
+		for segment in range(9):
+			var angle := index * PI * 0.5 + segment * PI / 24.0
+			points.append(Vector2.from_angle(angle) * 16.0)
+		arc.points = points
+		arc.width = 3.0
+		arc.default_color = color.lightened(0.35)
+		burst.add_child(arc)
+		tween.tween_property(arc, "scale", Vector2.ONE * 3.8, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(arc, "modulate:a", 0.0, 0.28)
+	for index in range(8):
+		var direction := Vector2.from_angle(TAU * index / 8.0 + randf_range(-0.12, 0.12))
+		var jet := Polygon2D.new()
+		jet.polygon = PackedVector2Array([Vector2(-10, 0), Vector2(5, -2.5), Vector2(12, 0), Vector2(5, 2.5)])
+		jet.rotation = direction.angle()
+		jet.position = direction * 10.0
+		jet.color = color if index % 2 == 0 else color.lightened(0.6)
+		burst.add_child(jet)
+		tween.tween_property(jet, "position", direction * randf_range(40.0, 68.0), 0.26).set_ease(Tween.EASE_OUT)
+		tween.tween_property(jet, "scale", Vector2(0.4, 0.2), 0.26)
+		tween.tween_property(jet, "modulate:a", 0.0, 0.26).set_delay(0.05)
+	tween.chain().tween_callback(burst.queue_free)
 
 # Nubecilla para cosas que desaparecen (proyectiles contra la pared).
 static func puff(parent: Node, point: Vector2, color: Color) -> void:

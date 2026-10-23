@@ -20,7 +20,7 @@ const MIX := {
 	"block": [-3.0, 0.06], "shine_break": [-1.0, 0.0], "hurt": [-2.0, 0.05], "death": [0.0, 0.0],
 	"enemy_die": [-3.0, 0.08], "enemy_swing": [-7.0, 0.06], "knife_throw": [-5.0, 0.06],
 	"knife_hit": [-5.0, 0.08], "knife_catch": [-8.0, 0.05], "rank_up": [-9.0, 0.0], "growl": [-3.0, 0.03],
-	"ui_move": [-14.0, 0.0], "ui_select": [-10.0, 0.0], "shine_hold": [-10.0, 0.0],
+	"ui_move": [-14.0, 0.0], "ui_select": [-10.0, 0.0], "shine_hold": [-10.0, 0.0], "roar_parry": [-5.0, 0.12],
 	"enemy_alert": [-9.0, 0.0], "boss_alert": [-8.0, 0.0], "enemy_hurt": [-8.0, 0.1], "boss_hurt": [-5.0, 0.08],
 	"enemy_charge": [-10.0, 0.0], "enemy_shoot": [-7.0, 0.08], "projectile_pop": [-9.0, 0.1], "zap": [-6.0, 0.08],
 	"boss_swing": [-4.0, 0.06], "shockwave": [-2.0, 0.04], "boss_charge": [-4.0, 0.0], "boss_spin": [-4.0, 0.03],

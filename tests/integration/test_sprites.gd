@@ -38,7 +38,7 @@ func _run() -> void:
 
 	print("== Animaciones nuevas")
 	var sprite_frames: SpriteFrames = player.animated_sprite.sprite_frames
-	var expected := {"idle": [6, "viridy_idle"], "proud": [3, "viridy_proud"], "proud_loop": [2, "viridy_proud"], "walk": [8, "viridy_walk"], "sprint": [3, "viridy_sprint"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_attack"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [1, "viridy_heavy_aerial"], "dash": [1, "viridy_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
+	var expected := {"idle": [6, "viridy_idle"], "proud": [3, "viridy_proud"], "proud_loop": [2, "viridy_proud"], "walk": [8, "viridy_walk_v2"], "sprint": [6, "viridy_sprint_v2"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_attack"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [2, "viridy_liquid_beast_v2"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [2, "viridy_liquid_beast"], "ground_heavy": [2, "viridy_liquid_beast"], "heavy_landing": [2, "viridy_liquid_landing"], "ruby_chew": [2, "viridy_liquid_beast"], "liquid_launch": [2, "viridy_liquid_beast_v2"], "dash": [2, "viridy_liquid_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "spin": [4, "viridy_liquid_ouroboros"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
 	for anim in expected:
 		var texture := sprite_frames.get_frame_texture(anim, 0)
 		var path: String = texture.atlas.resource_path if texture is AtlasTexture else texture.resource_path
@@ -56,6 +56,26 @@ func _run() -> void:
 	for i in range(sprite_frames.get_frame_count("proud")):
 		proud_cells[sprite_frames.get_frame_texture("proud", i).region] = true
 	check(proud_cells.size() <= 3, "orgulloso: como mucho 3 frames distintos (%d)" % proud_cells.size())
+	print("== Mordida líquida orientada hacia la caída")
+	var ouroboros_image: Image = player.LIQUID_SPIN_SHEET.get_image()
+	if ouroboros_image.is_compressed():
+		ouroboros_image.decompress()
+	for frame in range(sprite_frames.get_frame_count(&"spin")):
+		var loop_texture: AtlasTexture = sprite_frames.get_frame_texture(&"spin", frame)
+		check(ouroboros_image.get_pixelv(Vector2i(loop_texture.region.get_center())).a < 0.08, "ouroboros #%d: centro transparente y cuerpo alrededor" % frame)
+	for facing in [-1, 1]:
+		player.facing = facing
+		player.velocity = Vector2(facing * 400, 900)
+		player._update_character_orientation(&"heavy_aerial")
+		var bite_direction := Vector2(facing, 0).rotated(player.animated_sprite.rotation)
+		check(bite_direction.y > 0.8 and signf(bite_direction.x) == facing and player.animated_sprite.flip_h == (facing < 0), "la mordida diagonal apunta abajo y hacia %d" % facing)
+		player.velocity = Vector2(0, 2000)
+		player._update_character_orientation(&"heavy_aerial")
+		bite_direction = Vector2(facing, 0).rotated(player.animated_sprite.rotation)
+		check(bite_direction.dot(Vector2.DOWN) > 0.99, "el picado apunta al suelo mirando hacia %d" % facing)
+		player._update_character_orientation(&"uppercut")
+		bite_direction = Vector2(facing, 0).rotated(player.animated_sprite.rotation)
+		check(bite_direction.y < -0.9 and signf(bite_direction.x) == facing, "la mordida del uppercut apunta arriba mirando hacia %d" % facing)
 
 	# Ningún frame se mete en la celda del vecino: los bordes laterales de cada región (salvo el borde de la
 	# hoja) tienen que estar vacíos; si no, se ve un pedazo del frame de al lado (pasó con el sprint).

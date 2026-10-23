@@ -37,6 +37,7 @@ enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE }
 @export var left_portal_x := 600.0
 @export var right_portal_x := 4150.0
 @export var death_screen_delay := 2.5
+@export var spawn_grace_time := 2.0
 
 var round_number := 1
 var phase := Phase.WAVE
@@ -49,6 +50,7 @@ var banner_tween: Tween
 var counter_label: Label
 # Rondas completadas (oleada + guardián vencidos).
 var rounds_cleared := 0
+var spawn_grace_left := 0.0
 
 func _ready() -> void:
 	add_to_group(&"gauntlet_director")
@@ -67,6 +69,7 @@ func _process(_delta: float) -> void:
 	_update_counter()
 
 func _physics_process(delta: float) -> void:
+	spawn_grace_left = maxf(spawn_grace_left - delta, 0.0)
 	match phase:
 		Phase.WAVE:
 			if not enemies.is_empty() and _alive_enemies() == 0:
@@ -77,6 +80,7 @@ func _physics_process(delta: float) -> void:
 			phase_timer -= delta
 			if phase_timer <= 0.0:
 				phase = Phase.BOSS
+				spawn_grace_left = spawn_grace_time
 				spawner.spawn_round()
 
 # ---------- Rondas
@@ -86,6 +90,10 @@ func _start_wave() -> void:
 	_clear_portals()
 	spawner.clear_bosses()
 	phase = Phase.WAVE
+	spawn_grace_left = spawn_grace_time
+	# Ningún proyectil de la ronda anterior puede golpear durante la preparación.
+	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
+		projectile.queue_free()
 	_show_banner("RONDA %d · OLEADA" % round_number, Color(1.0, 0.9, 0.55))
 	_spawn_ground_wave()
 	_spawn_hawks()
@@ -172,6 +180,7 @@ func _add_shooter(at: Vector2, aerial: bool, aim_down: float) -> void:
 	_add_enemy(dummy)
 
 func _add_enemy(enemy: Node2D) -> void:
+	enemy.set_meta(&"spawn_grace", spawn_grace_time)
 	get_parent().add_child.call_deferred(enemy)
 	enemies.append(enemy)
 
@@ -230,6 +239,7 @@ func _spawn_portal(x: float, text: String, color: Color, action: Callable) -> vo
 	portal.set_script(PORTAL_SCRIPT)
 	portal.label_text = text
 	portal.color = color
+	portal.confirm_finish = text == "TERMINAR"
 	portal.position = Vector2(x, ground_y)
 	portal.entered.connect(action)
 	get_parent().add_child.call_deferred(portal)
@@ -268,6 +278,8 @@ func _update_counter() -> void:
 			text += "  ·  ¡SUPERADA!"
 		Phase.DONE:
 			text += "  ·  FIN"
+	if phase in [Phase.WAVE, Phase.BOSS] and spawn_grace_left > 0.0:
+		text += "  ·  PREPARACIÓN: %.1f s" % spawn_grace_left
 	counter_label.text = text
 
 func _build_banner() -> void:

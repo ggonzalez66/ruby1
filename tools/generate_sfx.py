@@ -321,15 +321,22 @@ def shine():
 
 
 def shine_hold():
-    # Escudo de energía mantenido: hum eléctrico grave que pulsa, zumbido y brillo dorado de fondo. Es un
-    # bucle sin costura (frecuencias enteras en 1 s y fundido final).
-    d = 1.06
-    hum = lowpass(mix(osc(d, 110, "saw"), gain(osc(d, 165, "square"), 0.4)), 1400)
-    hum = tremolo(hum, 20, 0.45)
-    buzz = mul(ring(bandpass(noise(d, 40), 2200, 5500), 60), [0.45 + 0.2 * math.sin(2 * math.pi * 10 * i / RATE) for i in range(n_samples(d))])
-    shimmer = gain(mix(osc(d, 1760), osc(d, 1762), gain(osc(d, 2640), 0.6)), 0.12)
-    loop = make_loop(mix(gain(hum, 0.55), gain(buzz, 0.5), shimmer), 0.06)
-    return finish(loop, 0.6, fade_out=False)
+    # Afinación artística elegida: 852 Hz; subarmónicos graves de 426 y 213 Hz.
+    # Frecuencias y modulación enteras: el bucle de 1 segundo es periódico, sin fundido ni clic.
+    d = 1.0
+    hum = mix(gain(osc(d, 852), 0.55), gain(osc(d, 426), 0.3),
+              gain(osc(d, 213), 0.25), gain(osc(d, 1704), 0.08), gain(osc(d, 2556), 0.04))
+    return finish(tremolo(hum, 2, 0.12), 0.6, fade_out=False)
+
+
+def roar_parry():
+    # Capa vocal original sintetizada: grave áspero con formantes de rugido y ataque corto.
+    d = 0.46
+    throat = osc(d, sweep(135, 72, d), "saw")
+    body = lowpass(throat, 1100)
+    rasp = bandpass(mix(throat, gain(noise(d, 852), 0.45)), 580, 2200)
+    voice = mix(gain(body, 0.7), gain(rasp, 1.4), gain(osc(d, sweep(78, 46, d)), 0.6))
+    return finish(mul(drive(tremolo(voice, 33, 0.4), 2.5), env(d, 0.012, 0.4)), 0.85)
 
 
 def parry():

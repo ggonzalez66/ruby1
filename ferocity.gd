@@ -113,6 +113,18 @@ func add_running(delta: float) -> void:
 	if points < cap:
 		_set_points(min(points + RUNNING_GAIN * delta, cap))
 
+# Bonus continuo: empieza al superar la carrera y crece hasta +24 puntos/s.
+# Comparte el techo acrobático S; no sustituye el combate para alcanzar SS/SSS.
+func speed_bonus_rate(speed: float, sprint: float) -> float:
+	return 24.0 * clampf((absf(speed) / maxf(sprint, 1.0) - 1.0) / 1.5, 0.0, 1.0)
+
+func add_speed(delta: float, speed: float, sprint: float) -> void:
+	var bonus := speed_bonus_rate(speed, sprint)
+	if bonus <= 0.0:
+		return
+	grace = DRAIN_GRACE
+	_add_capped(bonus * delta, _rank_top(maxi(rank, ACROBATIC_RANK_LIMIT)))
+
 func add_pride(delta: float) -> void:
 	var cap := _rank_top(rank)
 	if points < cap:

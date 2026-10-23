@@ -11,6 +11,7 @@ extends SceneTree
 const ARC := 0
 const DIAG := 1
 const DIVE := 2
+var quick := OS.get_environment("RUBY1_REACH_QUICK") == "1"
 const PHASES := [0.0, 0.25, 0.5, 0.75]
 
 var level: Node
@@ -142,6 +143,8 @@ func search(from_dummy: Node2D, bounce: int, island: Rect2, jump_before: float, 
 				if outcome >= 0:
 					if not outcome in results:
 						results.append(outcome)
+					if quick:
+						return results
 					found = true
 					break
 			if found:
@@ -175,6 +178,7 @@ func _run() -> void:
 		for f in flyer_nodes:
 			moving = moving or f.move_offset != Vector2.ZERO or f.orbit_radius > 0.0
 		var passable := 0
+		print("Iniciando tramo %d" % n)
 		for phase in (PHASES if moving else [0.0]):
 			current_phase = phase
 			var reachable := []
@@ -183,7 +187,7 @@ func _run() -> void:
 				for kind in await search(null, ARC, island, jump_before, flyer_nodes[0], Rect2()):
 					if not kind in reachable:
 						reachable.append(kind)
-				if reachable.size() == 2:
+				if reachable.size() == 2 or (quick and not reachable.is_empty()):
 					break
 			detail.append("isla→F1 %s" % [reachable])
 			for index in range(flyer_nodes.size()):
@@ -201,9 +205,11 @@ func _run() -> void:
 			if not reachable.is_empty():
 				passable += 1
 			print("  Tramo %d fase %.2f: %s | %s" % [n, phase, "OK" if not reachable.is_empty() else "BLOQUEADO", ", ".join(detail)])
+			if quick and passable > 0:
+				break
 		print("%s Tramo %d (%d fases pasables)" % ["OK  " if passable > 0 else "FAIL", n, passable])
 		all_ok = all_ok and passable > 0
 		previous = landing_node
 		n += 1
 	print("RESULTADO: %s" % ("OK" if all_ok else "FAIL"))
-	quit()
+	quit(0 if all_ok else 1)

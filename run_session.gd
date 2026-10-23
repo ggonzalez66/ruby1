@@ -4,6 +4,8 @@ extends CanvasLayer
 # El replay nunca participa en la física. Reloj y replay usan segundos reales de juego activo.
 const STAGES := ["res://main.tscn", "res://stage2.tscn", "res://stage3.tscn", "res://stage4.tscn"]
 const MODES := ["res://main.tscn", "res://stage2.tscn", "res://stage3.tscn", "res://stage4.tscn", "res://gauntlet.tscn", "res://sky_stairs.tscn"]
+const SKY_STAGE := "res://sky_stairs.tscn"
+const TIMED_STAGES := ["res://main.tscn", "res://stage2.tscn", "res://stage3.tscn", "res://stage4.tscn", SKY_STAGE]
 const RECORD_DIR := "user://records_v1"
 const SAMPLE_INTERVAL := 1.0 / 30.0
 const COUNTDOWN_SECONDS := 3.0
@@ -119,7 +121,7 @@ func _physics_process(delta: float) -> void:
 	if not running or countdown_active or get_tree().paused or not is_instance_valid(player):
 		return
 	elapsed += delta / max(Engine.time_scale, 0.0001)
-	if stage_path in STAGES:
+	if stage_path in TIMED_STAGES:
 		sample_wait -= delta / max(Engine.time_scale, 0.0001)
 		if sample_wait <= 0.0:
 			sample_wait += SAMPLE_INTERVAL
@@ -152,7 +154,7 @@ func finish_stage() -> Dictionary:
 	_record_frame()
 	running = false
 	finished = true
-	if stage_path not in STAGES:
+	if stage_path not in TIMED_STAGES:
 		return result
 	var previous_best := float(record.get("best", INF))
 	var is_best := elapsed < previous_best
@@ -170,7 +172,7 @@ func finish_stage() -> Dictionary:
 	return result
 
 func _record_frame() -> void:
-	if not is_instance_valid(player) or stage_path not in STAGES:
+	if not is_instance_valid(player) or stage_path not in TIMED_STAGES:
 		return
 	var sprite: AnimatedSprite2D = player.animated_sprite
 	var frame := [elapsed, player.position.x, player.position.y, String(sprite.animation), sprite.frame,
@@ -207,7 +209,7 @@ func _record_path(scene: String) -> String:
 	return storage_directory.path_join(scene.get_file().get_basename() + ".json")
 
 func load_record(scene: String) -> Dictionary:
-	if scene not in STAGES:
+	if scene not in TIMED_STAGES:
 		return {}
 	var path := _record_path(scene)
 	if not FileAccess.file_exists(path):
@@ -293,7 +295,7 @@ func show_records() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 18)
 	records_panel.add_child(column)
-	column.add_child(_label("TOP 10 · TORRE", 32, Color(1.0, 0.78, 0.35)))
+	column.add_child(_label("TOP 10 · TORRE Y ESCALERA AL CIELO", 32, Color(1.0, 0.78, 0.35)))
 	column.add_child(_label("El fantasma de tu mejor tiempo aparece al jugar cada etapa.", 16, Color(0.6, 0.9, 1.0)))
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -302,12 +304,12 @@ func show_records() -> void:
 	columns.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	columns.add_theme_constant_override("separation", 20)
 	scroll.add_child(columns)
-	for index in range(STAGES.size()):
+	for index in range(TIMED_STAGES.size()):
 		var board := VBoxContainer.new()
 		board.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		columns.add_child(board)
-		board.add_child(_label("ETAPA %d" % (index + 1), 22, Color(1.0, 0.78, 0.35)))
-		var times: Array = load_record(STAGES[index]).get("times", [])
+		board.add_child(_label("ESCALERA AL CIELO" if TIMED_STAGES[index] == SKY_STAGE else "ETAPA %d" % (index + 1), 22, Color(1.0, 0.78, 0.35)))
+		var times: Array = load_record(TIMED_STAGES[index]).get("times", [])
 		for place in range(10):
 			var time_text := Stats.format_time(float(times[place])) if place < times.size() else "—"
 			board.add_child(_label("%2d.  %s" % [place + 1, time_text], 20, Color.WHITE))

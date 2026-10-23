@@ -22,12 +22,14 @@ var locked := false
 var claimant: WeakRef
 var cracks := 0
 var clock := 0.0
+var spawn_grace_left := 0.0
 var parried_attacks := {}
 var posture_bar: ColorRect
 var posture_label: Label
 
 func _ready() -> void:
 	enemy = get_parent()
+	spawn_grace_left = maxf(float(enemy.get_meta(&"spawn_grace", 0.0)), 0.0)
 	boss = enemy.is_in_group(&"boss")
 	enemy.add_to_group(&"ruby_enemies")
 	position = enemy.impact_offset
@@ -37,6 +39,7 @@ func _ready() -> void:
 
 func reset_core() -> void:
 	open_time = 0.0
+	spawn_grace_left = 0.0
 	posture = POSTURE_MAX
 	final_open = false
 	broken = false
@@ -58,7 +61,7 @@ func is_open() -> bool:
 	return open_time > 0.0 or (enemy.current_health > 0 and enemy.current_health <= enemy.max_health * LOW_HEALTH_RATIO)
 
 func holds_actor() -> bool:
-	return locked or final_open or open_time > 0.0
+	return locked or final_open or open_time > 0.0 or spawn_grace_left > 0.0
 
 func register_parry(token: int = -1) -> bool:
 	if not alive() or locked or final_open or open_time > 0.0:
@@ -126,7 +129,8 @@ func complete(by: Node) -> bool:
 		if not final_open:
 			enemy._on_reset()
 		Stats.add("ruby_criticals")
-		Fx.puff(enemy.get_parent(), center, RED)
+		Sfx.play("guard_break", -2.0, 1.65)
+		Fx.ruby_critical(enemy.get_parent(), center, RED)
 		_essence(by, center)
 		return false
 	broken = true
@@ -143,6 +147,7 @@ func complete(by: Node) -> bool:
 	return true
 
 func _physics_process(delta: float) -> void:
+	spawn_grace_left = maxf(spawn_grace_left - delta, 0.0)
 	clock += delta
 	if locked and (claimant == null or not is_instance_valid(claimant.get_ref())):
 		locked = false

@@ -233,7 +233,7 @@ func _build() -> void:
 	stats_grid.add_theme_constant_override("v_separation", 3)
 	stats_scroll.add_child(stats_grid)
 
-	if get_parent().scene_file_path in RunSession.STAGES:
+	if get_parent().scene_file_path in RunSession.TIMED_STAGES:
 		column.add_child(_button("Top 10 de cada etapa", RunSession.show_records))
 	var buttons := HBoxContainer.new()
 	buttons.add_theme_constant_override("separation", 12)

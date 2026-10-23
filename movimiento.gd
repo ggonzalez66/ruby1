@@ -4,6 +4,9 @@ extends CharacterBody2D
 @export var execution_heal := 12
 @export var critical_heal := 8
 @export var boss_execution_heal := 25
+@export var execution_ground_exit_duration := 0.16
+@export var execution_ground_exit_speed := 520.0
+@export var execution_apex_flip_duration := 0.22
 
 var execution_core: Node2D
 var execution_started := false
@@ -17,6 +20,9 @@ var execution_bonus := 0.0
 var execution_trajectory := 0
 var execution_jump_buffered := false
 var execution_action := &""
+var execution_ground_exit_timer := 0.0
+enum ExecutionAirExit { NONE, LAUNCH, APEX_FLIP, UPPERCUT_RISE, UPPERCUT_FLIP }
+var execution_air_exit := ExecutionAirExit.NONE
 
 signal health_changed(current: int, maximum: int)
 signal knife_changed(in_hand: bool)
@@ -27,9 +33,11 @@ signal shine_changed(durability: float, maximum: float, broken: bool)
 signal died
 signal respawned
 
-const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash.png")
+const LIQUID_LANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_landing.png")
+const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_dash.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
-const GROUND_HEAVY_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_ground_heavy.png")
+const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_beast_v2.png")
+const LIQUID_SPIN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_ouroboros.png")
 const KNIFE_SCRIPT := preload("res://knife.gd")
 const METATRON_SCRIPT := preload("res://metatron_cube.gd")
 const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
@@ -40,19 +48,17 @@ const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 # Sprites nuevos (hojas en cuadrícula: celdas de ancho fijo con el borde de abajo recortado a los pies).
 const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_idle.png")
 const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_proud.png")
-const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_walk.png")
-const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint.png")
+const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_walk_v2.png")
+const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_v2.png")
 const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_mantle.png")
 const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_attack.png")
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_cling.png")
 const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wallrun.png")
 const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_aerial_stall.png")
 const BACKFLIP_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_backflip.png")
-const UPPERCUT_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
 const JUMP_OFF_WALL_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_jump.png")
 const JUMP_SQUAT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_jump_squat.png")
 const JUMP_AIR_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_jump.png")
-const HEAVY_AERIAL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_aerial.png")
 # Poses sueltas recortadas al cuerpo (pies en el borde de abajo).
 const ROAR_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_roar.png")
 const ROAR_HOLD_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_roar_hold.png")
@@ -63,10 +69,8 @@ const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
 const BACKFLIP_REGION := Rect2(122, 62, 1069, 1077)
-const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
 const JUMP_OFF_WALL_REGION := Rect2(1160, 64, 846, 542)
 const JUMP_SQUAT_REGION := Rect2(898, 271, 851, 545)
-const HEAVY_AERIAL_REGION := Rect2(138, 230, 983, 1223)
 const JUMP_AIR_REGIONS := [Rect2(122, 115, 560, 545), Rect2(822, 80, 560, 545), Rect2(1536, 48, 560, 545)]
 # Wallrun: frames 2 a 6 de la hoja (el 1º es la postura agachada de arranque). Cada uno recortado
 # alrededor de su cuerpo con la misma altura y los pies abajo, porque en la hoja van subiendo.
@@ -113,12 +117,17 @@ const ANIMATION_BRAKE_RECOVER := &"brake_recover"
 # Rugido con onda al entrar en la pose orgullosa; luego un ciclo de la pose y, en bucle, sus 2 últimos frames.
 const ANIMATION_PROUD_ROAR := &"proud_roar"
 const ANIMATION_PROUD_LOOP := &"proud_loop"
-# Aterrizaje del heavy aéreo: el 2º frame del heavy de suelo (el cuchillo clavándose), solo visual.
+# Aterrizaje del heavy aéreo: la bestia cierra las fauces, solo visual.
 const ANIMATION_HEAVY_LANDING := &"heavy_landing"
+const ANIMATION_RUBY_CHEW := &"ruby_chew"
+const ANIMATION_LIQUID_LAUNCH := &"liquid_launch"
+const LIQUID_BEAST_CANVAS_SIZE := 125.0
+const LIQUID_SPIN_CANVAS_SIZE := 100.0
+const LIQUID_BEAST_MOUTH := Vector2(0.36, 0.22)
 # Cuánto dura esa pose (menos que la onda de impacto, que sigue igual).
 const HEAVY_LANDING_POSE_TIME := 0.1
-# Punta del cuchillo en esa pose, respecto a los pies (mirando a la derecha): está a ras de suelo.
-const HEAVY_LANDING_KNIFE_TIP := Vector2(51.0, -2.0)
+# Las fauces rozan el suelo al terminar el heavy, conservando el surco del deslizamiento.
+const HEAVY_LANDING_CONTACT := Vector2(42.0, -2.0)
 const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
@@ -275,6 +284,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var light_finisher_scale := 1.55
 @export var light_hit_scale := 1.3
 @export var spin_attack_duration := 0.34
+@export var spin_launch_speed := 1240.0
+@export var spin_launch_boost := 220.0
 @export var spin_heavy_cancel_window := 0.12
 @export var light_uppercut_duration := 0.24
 @export var light_uppercut_velocity := -980.0
@@ -739,6 +750,7 @@ func _physics_process(delta: float) -> void:
 		_consume_jump_buffer()
 		_apply_horizontal_movement(move_input, delta)
 
+	_update_execution_air_exit()
 	_update_attack_animation()
 	_destroy_projectiles_with_attack()
 	_update_riposte_visual()
@@ -871,13 +883,13 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_PROUD_ROAR, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(0, 0)], 1.0, false)
 	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, false)
 	_add_grid_animation(frames, ANIMATION_PROUD_LOOP, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, true)
-	_add_grid_animation(frames, ANIMATION_WALK, WALKING_SHEET, Vector2(543, 362), 358, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0), Vector2i(0, 1), Vector2i(1, 1), Vector2i(2, 1), Vector2i(3, 1)], 12.0, true)
+	_add_padded_animation(frames, ANIMATION_WALK, WALKING_SHEET, Vector2(480, 440), [Rect2(18, 17, 426, 408), Rect2(465, 17, 397, 408), Rect2(925, 16, 376, 409), Rect2(1356, 16, 391, 409), Rect2(21, 458, 450, 402), Rect2(471, 458, 385, 402), Rect2(913, 458, 375, 410), Rect2(1354, 458, 401, 405)], 12.0, true)
 	# Salto: el agachado al despegar (pose aparte, está dibujado a otra escala) y los 3 frames del aire.
 	_add_region_animation(frames, ANIMATION_JUMP_SQUAT, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
 	_add_region_animation(frames, ANIMATION_JUMP, JUMP_AIR_SHEET, JUMP_AIR_REGIONS, 10.0, false)
-	# Giro (tras el dash attack): la pose encogida del frontflip girando como un screw attack.
-	_add_single_frame_animation(frames, ANIMATION_SPIN, FRONTFLIP_TEXTURE)
-	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_NEW, [UPPERCUT_REGION], 1.0, false)
+	# Giro compacto de materia líquida, compartido por el screw y la captura aérea del Ruby.
+	var spin_cell := LIQUID_SPIN_SHEET.get_size() * 0.5
+	_add_grid_animation(frames, ANIMATION_SPIN, LIQUID_SPIN_SHEET, spin_cell, spin_cell.y, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)], 16.0, true)
 	# Enganchado a la pared (mira hacia una pared a la derecha; ver _update_character_orientation).
 	_add_single_frame_animation(frames, ANIMATION_WALL_SLIDE, CLING_WALL_TEXTURE)
 	# Salto de pared y salto largo/bunnyhop: el 2º frame de despegar de la pared.
@@ -896,15 +908,19 @@ func _configure_character_animations() -> void:
 	_add_region_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, [Rect2(1090, 0, 535, 600)], 1.0, false)
 	# Wallride: Rengar corriendo pared arriba (dibujado de pie, mirando a la pared).
 	_add_region_animation(frames, ANIMATION_WALLRIDE, WALLRUN_SHEET, WALLRUN_REGIONS, 14.0, true)
-	_add_sheet_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_HEAVY_SHEET, 2, 14.0, false)
-	_add_sheet_animation(frames, ANIMATION_HEAVY_LANDING, GROUND_HEAVY_SHEET, 2, 1.0, false, [1])
-	_add_grid_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(810, 724), 642, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(2, 0)], 12.0, true)
+	var beast_cell := LIQUID_BEAST_SHEET.get_size() * 0.5
+	_add_grid_animation(frames, ANIMATION_GROUND_HEAVY, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
+	_add_padded_animation(frames, ANIMATION_HEAVY_LANDING, LIQUID_LANDING_SHEET, Vector2(1000, 450), [Rect2(77, 454, 838, 255), Rect2(946, 343, 766, 364)], 20.0, false)
+	_add_grid_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, beast_cell, 446.0, [Vector2i(0, 1), Vector2i(1, 1)], 12.0, true)
+	_add_grid_animation(frames, ANIMATION_UPPERCUT, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
+	_add_grid_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
+	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(512, 460), [Rect2(0, 0, 512, 449), Rect2(512, 0, 512, 456), Rect2(1024, 0, 512, 456), Rect2(0, 512, 512, 433), Rect2(512, 512, 512, 439), Rect2(1024, 512, 512, 439)], 14.0, true)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
-	_add_region_animation(frames, ANIMATION_HEAVY_AERIAL, HEAVY_AERIAL_NEW, [HEAVY_AERIAL_REGION], 1.0, false)
+	_add_grid_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
 	# Caída: el último frame del aire.
 	_add_region_animation(frames, ANIMATION_FALL, JUMP_AIR_SHEET, [JUMP_AIR_REGIONS[2]], 1.0, false)
-	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
+	_add_padded_animation(frames, ANIMATION_DASH, DASH_TEXTURE, Vector2(1000, 500), [Rect2(33, 306, 714, 336), Rect2(785, 306, 956, 330)], 18.0, true)
 	_add_region_animation(frames, ANIMATION_BACKFLIP, BACKFLIP_NEW, [BACKFLIP_REGION], 1.0, false)
 	# Frontflip: la pose encogida, que gira entera (ver _update_character_orientation).
 	_add_single_frame_animation(frames, ANIMATION_FRONTFLIP, FRONTFLIP_TEXTURE)
@@ -969,6 +985,19 @@ func _add_region_animation(frames: SpriteFrames, animation_name: StringName, tex
 		atlas_frame.filter_clip = true
 		frames.add_frame(animation_name, atlas_frame)
 
+func _add_padded_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D, canvas: Vector2, regions: Array, fps: float, loops: bool) -> void:
+	# Atlas con márgenes: celdas exportadas irregulares comparten escala y apoyo sin modificar el PNG.
+	frames.add_animation(animation_name)
+	frames.set_animation_speed(animation_name, fps)
+	frames.set_animation_loop(animation_name, loops)
+	for region in regions:
+		var frame := AtlasTexture.new()
+		frame.atlas = texture
+		frame.region = region
+		frame.margin = Rect2(Vector2((canvas.x - region.size.x) * 0.5, canvas.y - region.size.y), canvas - region.size)
+		frame.filter_clip = true
+		frames.add_frame(animation_name, frame)
+
 func _update_character_animation() -> void:
 	var next_animation: StringName
 	if not is_on_floor():
@@ -1002,11 +1031,20 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_KNIFE_THROW
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
+	elif execution_ground_exit_timer > 0.0 and is_on_floor():
+		next_animation = ANIMATION_RUBY_CHEW
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP if backflip_elapsed < backflip_rotation_duration else ANIMATION_AERIAL_STALL
 	elif frontflip_active:
 		# Tras la vuelta, el aerial stall hasta aterrizar.
-		next_animation = ANIMATION_FRONTFLIP if frontflip_elapsed < frontflip_rotation_duration else ANIMATION_AERIAL_STALL
+		if execution_air_exit == ExecutionAirExit.UPPERCUT_RISE:
+			next_animation = ANIMATION_UPPERCUT
+		elif execution_air_exit == ExecutionAirExit.LAUNCH:
+			next_animation = ANIMATION_LIQUID_LAUNCH
+		elif frontflip_elapsed < frontflip_rotation_duration:
+			next_animation = ANIMATION_FRONTFLIP
+		else:
+			next_animation = ANIMATION_AERIAL_STALL
 	elif wall_embedded:
 		next_animation = ANIMATION_WALL_SLIDE
 	elif wall_jump_animation_timer > 0.0 and not is_on_floor():
@@ -1025,7 +1063,7 @@ func _update_character_animation() -> void:
 	elif not is_on_floor():
 		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
 	elif heavy_landing_pose_timer > 0.0:
-		# Al aterrizar el heavy aéreo, un instante con el cuchillo clavado en el suelo.
+		# Al aterrizar el heavy aéreo, la bestia cierra la mordida un instante.
 		next_animation = ANIMATION_HEAVY_LANDING
 	elif backflip_run_direction != 0:
 		next_animation = ANIMATION_SPRINT_BRAKE
@@ -1070,13 +1108,13 @@ func _update_character_animation() -> void:
 	if screw_embers.emitting:
 		_set_screw_embers_color(style_color)
 	screw_embers.position = animated_sprite.position
-	# Aterrizaje del heavy aéreo: el cuchillo raja el suelo mientras se desliza.
-	var knife_tip: Vector2 = global_position + Vector2(facing * HEAVY_LANDING_KNIFE_TIP.x, HEAVY_LANDING_KNIFE_TIP.y)
+	# La mordida arrastra energía por el suelo durante el deslizamiento.
+	var contact: Vector2 = global_position + Vector2(facing * HEAVY_LANDING_CONTACT.x, HEAVY_LANDING_CONTACT.y)
 	if next_animation == ANIMATION_HEAVY_LANDING and not dead:
 		if knife_scrape.active:
-			knife_scrape.follow(knife_tip)
+			knife_scrape.follow(contact)
 		else:
-			knife_scrape.begin(knife_tip, facing, style_color)
+			knife_scrape.begin(contact, facing, style_color)
 	elif knife_scrape.active:
 		knife_scrape.end()
 	shadow.visible = is_on_floor()
@@ -1135,6 +1173,13 @@ func _is_braking() -> bool:
 
 func _update_character_orientation(animation_name: StringName) -> void:
 	match animation_name:
+		ANIMATION_UPPERCUT:
+			animated_sprite.rotation = -facing * deg_to_rad(75.0)
+		ANIMATION_LIQUID_LAUNCH:
+			animated_sprite.rotation = facing * atan2(velocity.y, maxf(absf(velocity.x), 1.0))
+		ANIMATION_HEAVY_AERIAL:
+			var angle := atan2(maxf(velocity.y, 60.0), maxf(absf(velocity.x), 1.0))
+			animated_sprite.rotation = facing * clampf(angle, 0.15, PI * 0.5)
 		ANIMATION_BACKFLIP:
 			animated_sprite.rotation = _get_flip_rotation(backflip_elapsed, backflip_rotation_duration, -facing)
 		ANIMATION_FRONTFLIP:
@@ -1161,8 +1206,22 @@ func _align_character_animation(animation_name: StringName) -> void:
 	var visual_scale: float = CHARACTER_VISUAL_SCALE * ANIMATION_VISUAL_SCALES.get(animation_name, 1.0)
 	animated_sprite.scale = Vector2.ONE * visual_scale
 	animated_sprite.position = Vector2(0.0, -texture_height * visual_scale * 0.5)
+	if animation_name in [ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_HEAVY_LANDING, ANIMATION_DASH, ANIMATION_RUBY_CHEW, ANIMATION_UPPERCUT, ANIMATION_LIQUID_LAUNCH]:
+		animated_sprite.scale = Vector2.ONE * LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
+		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
+	elif animation_name in [ANIMATION_WALK, ANIMATION_SPRINT]:
+		animated_sprite.scale = Vector2.ONE * (0.175 if animation_name == ANIMATION_WALK else 0.18)
+		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
+	elif animation_name == ANIMATION_SPIN:
+		animated_sprite.scale = Vector2.ONE * LIQUID_SPIN_CANVAS_SIZE / texture.get_width()
+		animated_sprite.position = Vector2(0.0, -33.0)
 
 func _update_timers(delta: float) -> void:
+	execution_ground_exit_timer = maxf(execution_ground_exit_timer - delta, 0.0)
+	if not frontflip_active:
+		execution_air_exit = ExecutionAirExit.NONE
+	if not is_on_floor():
+		execution_ground_exit_timer = 0.0
 	coyote_timer = max(coyote_timer - delta, 0.0)
 	jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
 	attack_cooldown_timer = max(attack_cooldown_timer - delta, 0.0)
@@ -1176,6 +1235,10 @@ func _update_timers(delta: float) -> void:
 	knife_throw_pose_timer = max(knife_throw_pose_timer - delta, 0.0)
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	proud_roar_timer = max(proud_roar_timer - delta, 0.0)
+	if execution_air_exit in [ExecutionAirExit.UPPERCUT_RISE, ExecutionAirExit.UPPERCUT_FLIP] or attack_mode == ATTACK_UPPERCUT:
+		uppercut_chain_timer = maxf(uppercut_chain_timer, UPPERCUT_CHAIN_WINDOW + delta)
+		if combo_buffer != &"":
+			combo_buffer_timer = maxf(combo_buffer_timer, COMBO_BUFFER_TIME + delta)
 	uppercut_chain_timer = max(uppercut_chain_timer - delta, 0.0)
 	combo_buffer_timer = max(combo_buffer_timer - delta, 0.0)
 	if combo_buffer_timer <= 0.0:
@@ -1441,6 +1504,7 @@ func _try_start_frontflip(move_input: float) -> bool:
 
 func _perform_frontflip() -> void:
 	# Salto aéreo en carrera: el mismo frontflip tanto en el salto largo como tras un rebote.
+	execution_air_exit = ExecutionAirExit.NONE
 	air_jumps_remaining -= 1
 	jump_origin_y = global_position.y
 	frontflip_active = true
@@ -1566,6 +1630,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡IMPARABLE!", Ferocity.rank_info()["color"])
 		return
 	hurt_lock_timer = hurt_control_lock_time
+	execution_ground_exit_timer = 0.0
+	execution_air_exit = ExecutionAirExit.NONE
 	# Interrumpe cualquier estado de movimiento o ataque y empuja lejos del origen del daño.
 	_stop_sprint()
 	long_jump_active = false
@@ -1663,6 +1729,8 @@ func _update_death(delta: float) -> void:
 		animated_sprite.rotation += death_spin * delta
 
 func _cancel_all_states() -> void:
+	execution_ground_exit_timer = 0.0
+	execution_air_exit = ExecutionAirExit.NONE
 	_end_roar()
 	_stop_sprint()
 	long_jump_active = false
@@ -2002,6 +2070,7 @@ func _start_roar() -> void:
 		velocity *= roar_momentum_keep
 	roar_active = true
 	Sfx.play("shine")
+	Sfx.play("roar_parry")
 	Sfx.start_loop("shine_hold")
 	Stats.add("roars")
 	roar_explosive_timer = roar_explosive_duration
@@ -2014,6 +2083,7 @@ func _start_roar() -> void:
 	shine_idle_time = 0.0
 	roar_hit_targets.clear()
 	Fx.impact(get_parent(), get_roar_center(), Fx.ROAR, 2.0)
+	Fx.parry_wave(get_parent(), get_roar_center(), roar_radius, roar_explosive_duration)
 	_roar_explosive_hits()
 
 func _end_roar() -> void:
@@ -2292,6 +2362,7 @@ func _update_afterimages(delta: float) -> void:
 	var fast_enough: bool = abs(velocity.x) >= sprint_speed - 1.0 or backflip_active or wallride_active
 	if fast_enough and not dead:
 		Ferocity.add_running(delta)
+		Ferocity.add_speed(delta, absf(velocity.x), sprint_speed)
 	# El heavy aéreo también deja sombras, aunque baje en picado sin velocidad horizontal.
 	fast_enough = fast_enough or (attack_mode == ATTACK_HEAVY and velocity.length() >= sprint_speed)
 	unstoppable_glow = fast_enough and Ferocity.is_unstoppable() and not dead
@@ -2826,7 +2897,7 @@ func _start_spin_attack() -> void:
 	Sfx.play("spin")
 	attack_timer = spin_attack_duration
 	attack_targets_hit.clear()
-	velocity.x = max(abs(velocity.x), charged_ground_lunge_speed) * facing
+	velocity.x = maxf(absf(velocity.x) + spin_launch_boost, spin_launch_speed) * facing
 	velocity.y = charged_ground_jump_cancel_velocity
 	_set_attack_active(true)
 	animated_sprite.play(ANIMATION_SPIN)
@@ -2846,7 +2917,7 @@ func _start_wall_spin_attack() -> void:
 	air_jumps_remaining = max_air_jumps
 	air_uppercut_available = true
 	facing = wall_contact_direction
-	velocity.x = charged_ground_lunge_speed * facing
+	velocity.x = maxf(absf(velocity.x) + spin_launch_boost, spin_launch_speed) * facing
 	velocity.y = charged_ground_jump_cancel_velocity
 	wall_jump_lock_timer = wall_jump_control_lock_time
 	_set_attack_active(true)
@@ -2885,9 +2956,20 @@ func _end_attack() -> void:
 		light_combo_queued = false
 	elif ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
 		velocity.x = facing * charged_ground_end_speed
+	elif ending_mode == ATTACK_UPPERCUT and not is_on_floor():
+		frontflip_active = true
+		frontflip_elapsed = 0.0
+		execution_air_exit = ExecutionAirExit.UPPERCUT_RISE
+		uppercut_pose_timer = 0.0
 	elif ending_mode == ATTACK_SPIN and not is_on_floor():
-		# Al acabar el giro en el aire: aerial stall hasta aterrizar.
+		# Conserva el lanzamiento y abre el bunnyhop al aterrizar, manteniendo correr.
 		aerial_stall_pose = true
+		if Input.is_action_pressed("dash"):
+			long_jump_active = true
+			frontflip_active = true
+			frontflip_elapsed = frontflip_rotation_duration
+			sprint_direction = facing
+			bunnyhop_bonus = maxf(absf(velocity.x) - long_jump_horizontal_speed, 0.0)
 	elif ending_mode == ATTACK_HEAVY_GROUND:
 		velocity.x = facing * ground_heavy_end_speed
 
@@ -2949,6 +3031,8 @@ func _set_attack_active(active: bool) -> void:
 	hitbox.monitoring = active
 	hitbox_shape.disabled = not active
 	if active:
+		execution_ground_exit_timer = 0.0
+		execution_air_exit = ExecutionAirExit.NONE
 		frontflip_active = false
 		wall_embedded = false
 		wallride_active = false
@@ -3068,14 +3152,10 @@ func _update_attack_effects() -> void:
 			_effect_claw_slash()
 		ATTACK_GROUND_CHARGED, ATTACK_LIGHT_CHARGED_AIR:
 			_effect_charged_lunge()
-		ATTACK_UPPERCUT:
-			_effect_uppercut()
 		ATTACK_SPIN:
 			_effect_spin()
-		ATTACK_HEAVY:
-			_effect_heavy_arc(heavy_attack_visual_progress, true)
-		ATTACK_HEAVY_GROUND:
-			_effect_ground_heavy_chop(1.0 - (attack_timer / ground_heavy_duration))
+		ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_UPPERCUT:
+			_effect_liquid_bite()
 
 func _effect_claw_slash() -> void:
 	# Tres zarpazos plateados paralelos siguiendo el arco de la hitbox; el remate es más grande.
@@ -3114,37 +3194,21 @@ func _effect_charged_lunge() -> void:
 		var width: float = 6.0 if index == 1 else 4.5
 		_set_effect_stroke(index, points, width, EFFECT_PALETTE_SILVER, alpha)
 
-func _effect_uppercut() -> void:
-	# El sprite del uppercut es solo la pose: el golpe se dibuja con dos medias lunas doradas que suben
-	# por delante siguiendo la hitbox, y una estela vertical del puño.
-	var progress: float = 1.0 - (attack_timer / light_uppercut_duration)
-	var sweep: float = 1.0 - pow(1.0 - progress, 2.0)
-	var start_angle: float = deg_to_rad(70.0)
-	var head: float = lerp(start_angle, deg_to_rad(-115.0), max(sweep, 0.2))
-	var rise: float = lerp(6.0, -40.0, progress)
-	for index in range(2):
-		var radius: float = 36.0 + index * 14.0
-		var width: float = 9.0 if index == 0 else 6.0
-		_set_effect_stroke(index, _effect_arc_points(Vector2(8.0, -14.0 + rise * 0.4), Vector2(radius * 0.85, radius), start_angle, head - index * 0.14), width, EFFECT_PALETTE_GOLD, 1.0)
-	var streak := PackedVector2Array()
-	for step in range(6):
-		streak.append(Vector2(12.0, lerp(24.0, rise - 34.0, step / 5.0)))
-	_set_effect_stroke(2, streak, 7.0, EFFECT_PALETTE_GOLD, 0.9)
-
 func _effect_spin() -> void:
-	# Screw attack: tres medias lunas de fuego (del color del rango de estilo) que envuelven el cuerpo,
-	# giran más rápido que el sprite y titilan como llamas.
+	# Tres brazos de espiral: el radio crece a medida que el viento envuelve el ouroboros.
 	var fire: Array[Color] = _style_fire_palette(Ferocity.style_color())
 	var progress: float = 1.0 - (attack_timer / spin_attack_duration)
 	var elapsed: float = spin_attack_duration - attack_timer
 	var head: float = elapsed * TAU * SCREW_SPIN_TURNS_PER_SECOND * 1.35
 	var alpha: float = _effect_fade(progress, 0.8)
 	for index in range(3):
-		var flicker: float = 0.5 + 0.5 * sin(elapsed * 55.0 + index * 2.1)
-		var radius := Vector2(34.0 + index * 5.0 + flicker * 3.0, 30.0 + index * 4.0 + flicker * 2.0)
-		var stroke_head: float = head + index * TAU / 3.0
-		var width: float = 10.0 - index * 1.5 + flicker * 2.5
-		_set_effect_stroke(index, _effect_arc_points(Vector2(0.0, 2.0), radius, stroke_head - deg_to_rad(150.0), stroke_head), width, fire, alpha * (0.8 + 0.2 * flicker))
+		var points := PackedVector2Array()
+		for step in range(33):
+			var t := step / 32.0
+			var angle := head + index * TAU / 3.0 + t * TAU * 1.1
+			var radius := 9.0 + t * 45.0
+			points.append(Vector2(cos(angle) * radius, sin(angle) * radius * 0.82 + 2.0))
+		_set_effect_stroke(index, points, 7.0 - index, fire, alpha)
 
 # Tajo del heavy de suelo: el cuchillo baja desde encima y detrás de la cabeza hasta el suelo delante.
 const GROUND_CHOP_CENTER := Vector2(6.0, -22.0)
@@ -3154,50 +3218,22 @@ const GROUND_CHOP_END := 1.0
 func _ground_chop_sweep(progress: float) -> float:
 	return 1.0 - pow(1.0 - clamp(progress, 0.0, 1.0), 2.2)
 
-func _effect_ground_heavy_chop(progress: float) -> void:
-	# Estela de acero (plateada, como la hoja) con un filo dorado por dentro (la empuñadura), y al
-	# llegar abajo un corte dorado a ras de suelo.
-	var sweep: float = _ground_chop_sweep(progress)
-	var head: float = lerp(GROUND_CHOP_START, GROUND_CHOP_END, max(sweep, 0.15))
-	var tail: float = lerp(GROUND_CHOP_START, head, clamp(progress * 1.4 - 0.3, 0.0, 0.85))
-	var alpha: float = _effect_fade(progress, 0.7)
-	_set_effect_stroke(0, _effect_arc_points(GROUND_CHOP_CENTER, Vector2(50.0, 56.0), tail - 0.15, head), 16.0, EFFECT_PALETTE_SILVER, alpha)
-	_set_effect_stroke(1, _effect_arc_points(GROUND_CHOP_CENTER, Vector2(40.0, 45.0), tail, head - 0.12), 6.0, EFFECT_PALETTE_GOLD, alpha)
-	var impact: float = clamp((sweep - 0.6) / 0.4, 0.0, 1.0)
-	if impact > 0.0:
-		var ground := PackedVector2Array()
-		for step in range(6):
-			ground.append(Vector2(GROUND_CHOP_CENTER.x + 18.0 + lerp(0.0, 74.0 * impact, step / 5.0), 17.0))
-		_set_effect_stroke(2, ground, 9.0 * impact + 3.0, EFFECT_PALETTE_GOLD, alpha)
-	else:
-		_hide_effect_strokes(2)
-
-func _effect_heavy_arc(progress: float, aerial: bool) -> void:
-	# Gran tajo dorado siguiendo la elipse de la hitbox pesada.
-	var start_angle := -1.42
-	# Barrido rápido al principio para que el tajo se vea entero aunque el ataque dure poco.
-	var sweep: float = 1.0 - pow(1.0 - clamp(progress, 0.0, 1.0), 2.5)
-	var head: float = lerp(start_angle, 0.35, max(sweep, 0.2))
-	var alpha: float = 1.0
-	if aerial and progress >= 1.0:
-		alpha = 0.85 + 0.15 * sin(Time.get_ticks_msec() / 55.0)
-	elif not aerial:
-		alpha = _effect_fade(progress, 0.7)
-	var center := Vector2(10.0, -6.0)
-	_set_effect_stroke(0, _effect_arc_points(center, Vector2(48.0, 56.0), start_angle - 0.2, head), 14.0, EFFECT_PALETTE_GOLD, alpha)
-	_set_effect_stroke(1, _effect_arc_points(center, Vector2(34.0, 42.0), start_angle, head - 0.1), 8.0, EFFECT_PALETTE_GOLD, alpha)
-
-	if aerial and velocity.y > 0.0:
-		# Estela de la caída en picado, apuntando en contra de la velocidad.
-		var local_velocity := Vector2(velocity.x * facing, velocity.y)
-		var trail_direction: Vector2 = -local_velocity.normalized()
-		var streak_length: float = min(local_velocity.length() * 0.045, 64.0)
+func _effect_liquid_bite() -> void:
+	# Estelas líquidas detrás de la melena; las fauces del sprite dibujan el ataque.
+	var direction := Vector2.RIGHT
+	if attack_mode == ATTACK_UPPERCUT:
+		direction = Vector2(light_uppercut_forward_speed, light_uppercut_velocity).normalized()
+	elif attack_mode == ATTACK_HEAVY:
+		direction = Vector2(absf(velocity.x), maxf(velocity.y, 60.0)).normalized()
+	var side := direction.orthogonal()
+	var palette: Array[Color] = [Color(0.015, 0.12, 0.08), Color(0.20, 0.65, 0.35), Color(0.78, 0.95, 0.45)]
+	for index in range(3):
 		var points := PackedVector2Array()
 		for step in range(7):
-			points.append(Vector2(-4.0, 4.0) + trail_direction * streak_length * (1.0 - step / 6.0))
-		_set_effect_stroke(2, points, 8.0, EFFECT_PALETTE_GOLD, 0.8)
-	else:
-		_hide_effect_strokes(2)
+			var t := step / 6.0
+			var ripple := sin(t * PI * 2.0 + Time.get_ticks_msec() * 0.025 + index) * 2.0
+			points.append(Vector2(0, -12) - direction * (62.0 - t * 38.0) + side * ((index - 1) * 9.0 + ripple))
+		_set_effect_stroke(index, points, 4.0, palette, 0.65)
 
 func _animate_normal_slash() -> void:
 	var progress: float = 1.0 - (attack_timer / _get_light_attack_duration())
@@ -3395,7 +3431,7 @@ func _hit_area(area: Area2D) -> void:
 		return
 
 	attack_targets_hit.append(area)
-	if attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND]:
+	if attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_UPPERCUT]:
 		var core: Node2D = area.get_node_or_null("RubyCore")
 		if core != null and core.claim(self):
 			_queue_execution(core)
@@ -3443,6 +3479,8 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
 		return
+	execution_ground_exit_timer = 0.0
+	execution_air_exit = ExecutionAirExit.NONE
 	block_stun_timer = 0.0
 
 	_stop_sprint()
@@ -3647,6 +3685,7 @@ func _circle_points(radius: float, segments: int) -> PackedVector2Array:
 func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	if attack_mode != ATTACK_HEAVY:
 		return
+	execution_air_exit = ExecutionAirExit.NONE
 
 	if hit_enemy:
 		# Rebotar en un enemigo devuelve un salto aéreo (sin acumular más del máximo) y el uppercut del aire.
@@ -3847,12 +3886,13 @@ func _queue_execution(core: Node2D) -> void:
 	execution_previous_z = z_index
 	execution_started = false
 	execution_elapsed = 0.0
-	execution_aerial = attack_mode == ATTACK_HEAVY
+	# El uppercut captura ascendiendo y usa la salida aérea, aunque haya partido desde el suelo.
+	execution_aerial = attack_mode != ATTACK_HEAVY_GROUND
 	execution_direction = facing
 	execution_keep_sprint = is_sprinting or long_jump_active or Input.is_action_pressed("dash")
 	execution_speed = absf(velocity.x)
 	execution_bonus = bunnyhop_bonus
-	execution_trajectory = heavy_trajectory
+	execution_trajectory = HEAVY_ARC if attack_mode == ATTACK_UPPERCUT else heavy_trajectory
 	execution_jump_buffered = false
 	execution_action = &""
 	# La colisión puede estar emitiendo area_entered: modificar hitboxes se hace después.
@@ -3871,10 +3911,12 @@ func _begin_execution() -> void:
 		# La física detiene el acercamiento si hay suelo o una pared, evitando atravesarlos.
 		var target: Vector2 = execution_core.global_position + Vector2(0, 30)
 		move_and_collide(target - global_position)
-	# En suelo mantiene el segundo frame del heavy, con el cuchillo clavado.
-	animated_sprite.play(ANIMATION_FRONTFLIP if execution_aerial else ANIMATION_HEAVY_LANDING)
+	# En aire se enrolla sobre sí misma; en suelo mantiene las fauces cerradas sobre el Ruby.
+	animated_sprite.play(ANIMATION_SPIN if execution_aerial else ANIMATION_RUBY_CHEW)
 	_align_character_animation(animated_sprite.animation)
 	animated_sprite.flip_h = execution_direction < 0
+	animated_sprite.rotation = 0.0
+	_align_execution_beast()
 	Sfx.play("shine", -3.0, 1.25)
 	execution_started = true
 
@@ -3895,10 +3937,21 @@ func _update_execution(delta: float) -> void:
 	var progress := clampf(execution_elapsed / maxf(execution_duration, 0.01), 0.0, 1.0)
 	if execution_aerial:
 		animated_sprite.rotation = execution_direction * TAU * smoothstep(0.0, 1.0, progress)
+	_align_execution_beast()
+	mane_emitter.follow(animated_sprite, execution_direction, not dead, Ferocity.style_color())
 	# El contador mide el tiempo que realmente pasa en el aire, también durante el flip.
 	Ferocity.update_airtime(delta, not execution_aerial, false)
 	if progress >= 1.0:
 		_finish_execution()
+
+func _align_execution_beast() -> void:
+	if execution_aerial:
+		# El centro permanece en el núcleo; gira sobre sí misma en vez de orbitar con la cabeza larga.
+		animated_sprite.position = to_local(execution_core.global_position)
+		return
+	var mouth := LIQUID_BEAST_MOUTH * LIQUID_BEAST_CANVAS_SIZE
+	mouth.x *= execution_direction
+	animated_sprite.position = to_local(execution_core.global_position) - mouth.rotated(animated_sprite.rotation)
 
 func _finish_execution() -> void:
 	var core := execution_core
@@ -3926,6 +3979,7 @@ func _finish_execution() -> void:
 			long_jump_active = true
 			bunnyhop_bonus = maxf(execution_bonus, execution_speed - long_jump_horizontal_speed)
 			velocity.x = execution_direction * (long_jump_horizontal_speed + bunnyhop_bonus)
+			execution_air_exit = ExecutionAirExit.LAUNCH
 	else:
 		if keep_running:
 			_start_sprint(execution_direction)
@@ -3934,6 +3988,8 @@ func _finish_execution() -> void:
 			velocity.x = execution_direction * maxf(execution_speed, sprint_speed)
 		else:
 			velocity.x = execution_direction * minf(execution_speed, max_speed)
+		velocity.x = execution_direction * maxf(absf(velocity.x), execution_ground_exit_speed)
+		execution_ground_exit_timer = execution_ground_exit_duration
 	# El input dado durante el breve instante puede enlazar al salir de la ejecución.
 	if execution_jump_buffered:
 		jump_buffer_timer = jump_buffer_time
@@ -3945,7 +4001,27 @@ func _finish_execution() -> void:
 	_update_facing_visual()
 	_update_character_animation()
 
+func _update_execution_air_exit() -> void:
+	if not frontflip_active or _is_attack_active() or roar_active or dash_timer > 0.0:
+		execution_air_exit = ExecutionAirExit.NONE
+		return
+	if execution_air_exit in [ExecutionAirExit.LAUNCH, ExecutionAirExit.UPPERCUT_RISE] and velocity.y >= 0.0:
+		execution_air_exit = ExecutionAirExit.UPPERCUT_FLIP if execution_air_exit == ExecutionAirExit.UPPERCUT_RISE else ExecutionAirExit.APEX_FLIP
+		frontflip_elapsed = 0.0
+		frontflip_rotation_duration = maxf(execution_apex_flip_duration, 0.01)
+	if execution_air_exit in [ExecutionAirExit.APEX_FLIP, ExecutionAirExit.UPPERCUT_FLIP]:
+		if frontflip_elapsed < frontflip_rotation_duration:
+			velocity.y = 0.0
+		else:
+			if execution_air_exit == ExecutionAirExit.UPPERCUT_FLIP:
+				frontflip_active = false
+				aerial_stall_pose = true
+				uppercut_chain_timer = UPPERCUT_CHAIN_WINDOW
+			execution_air_exit = ExecutionAirExit.NONE
+
 func _cancel_execution() -> void:
+	execution_ground_exit_timer = 0.0
+	execution_air_exit = ExecutionAirExit.NONE
 	if execution_started:
 		z_index = execution_previous_z
 	if is_instance_valid(execution_core):

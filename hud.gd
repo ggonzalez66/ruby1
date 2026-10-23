@@ -58,6 +58,7 @@ func _ready() -> void:
 	_build_death_screen()
 	_build_boss_banner()
 	add_child(FEROCITY_HUD.new())
+	add_child(preload("res://speed_hud.gd").new())
 	_connect_player.call_deferred()
 
 func _process(delta: float) -> void:
@@ -399,7 +400,7 @@ func _build_timer() -> void:
 	timer_millis_label.size_flags_vertical = Control.SIZE_SHRINK_END
 	row.add_child(timer_millis_label)
 	_update_timer_text()
-	if get_parent().scene_file_path in RunSession.STAGES:
+	if get_parent().scene_file_path in RunSession.TIMED_STAGES:
 		var best: Dictionary = RunSession.load_record(get_parent().scene_file_path)
 		var best_label := Label.new()
 		best_label.text = "MEJOR: " + (Stats.format_time(float(best["best"])) + " · FANTASMA" if best.has("best") else "SIN RÉCORD")
