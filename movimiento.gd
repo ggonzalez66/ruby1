@@ -7,6 +7,8 @@ extends CharacterBody2D
 @export var execution_ground_exit_duration := 0.16
 @export var execution_ground_exit_speed := 520.0
 @export var execution_apex_flip_duration := 0.22
+@export var uppercut_flip_lead_time := 0.18
+@export var uppercut_flip_duration := 0.24
 
 var execution_core: Node2D
 var execution_started := false
@@ -49,7 +51,7 @@ const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_idle.png")
 const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_proud.png")
 const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_walk_v2.png")
-const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_v2.png")
+const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_feral.png")
 const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_mantle.png")
 const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_attack.png")
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_cling.png")
@@ -914,7 +916,7 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, beast_cell, 446.0, [Vector2i(0, 1), Vector2i(1, 1)], 12.0, true)
 	_add_grid_animation(frames, ANIMATION_UPPERCUT, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
 	_add_grid_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
-	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(512, 460), [Rect2(0, 0, 512, 449), Rect2(512, 0, 512, 456), Rect2(1024, 0, 512, 456), Rect2(0, 512, 512, 433), Rect2(512, 512, 512, 439), Rect2(1024, 512, 512, 439)], 14.0, true)
+	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(523, 0, 518, 512), Rect2(1041, 0, 495, 512), Rect2(0, 512, 518, 444), Rect2(518, 512, 520, 444), Rect2(1038, 512, 498, 444)], 16.0, true)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
 	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
 	_add_grid_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
@@ -4005,18 +4007,26 @@ func _update_execution_air_exit() -> void:
 	if not frontflip_active or _is_attack_active() or roar_active or dash_timer > 0.0:
 		execution_air_exit = ExecutionAirExit.NONE
 		return
-	if execution_air_exit in [ExecutionAirExit.LAUNCH, ExecutionAirExit.UPPERCUT_RISE] and velocity.y >= 0.0:
-		execution_air_exit = ExecutionAirExit.UPPERCUT_FLIP if execution_air_exit == ExecutionAirExit.UPPERCUT_RISE else ExecutionAirExit.APEX_FLIP
+	if execution_air_exit == ExecutionAirExit.UPPERCUT_RISE and velocity.y >= -gravity * uppercut_flip_lead_time:
+		# Se transforma de vuelta antes del ápice: el flip cruza la subida y la caída con gravedad normal.
+		execution_air_exit = ExecutionAirExit.UPPERCUT_FLIP
+		frontflip_elapsed = 0.0
+		frontflip_rotation_duration = maxf(uppercut_flip_duration, 0.01)
+	if execution_air_exit == ExecutionAirExit.UPPERCUT_FLIP:
+		if frontflip_elapsed >= frontflip_rotation_duration and velocity.y >= 0.0:
+			frontflip_active = false
+			aerial_stall_pose = true
+			uppercut_chain_timer = UPPERCUT_CHAIN_WINDOW
+			execution_air_exit = ExecutionAirExit.NONE
+		return
+	if execution_air_exit == ExecutionAirExit.LAUNCH and velocity.y >= 0.0:
+		execution_air_exit = ExecutionAirExit.APEX_FLIP
 		frontflip_elapsed = 0.0
 		frontflip_rotation_duration = maxf(execution_apex_flip_duration, 0.01)
-	if execution_air_exit in [ExecutionAirExit.APEX_FLIP, ExecutionAirExit.UPPERCUT_FLIP]:
+	if execution_air_exit == ExecutionAirExit.APEX_FLIP:
 		if frontflip_elapsed < frontflip_rotation_duration:
 			velocity.y = 0.0
 		else:
-			if execution_air_exit == ExecutionAirExit.UPPERCUT_FLIP:
-				frontflip_active = false
-				aerial_stall_pose = true
-				uppercut_chain_timer = UPPERCUT_CHAIN_WINDOW
 			execution_air_exit = ExecutionAirExit.NONE
 
 func _cancel_execution() -> void:

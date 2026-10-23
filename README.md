@@ -43,8 +43,10 @@ Al vencer al último guardián o tocar el Ruby se detiene el cronómetro. Si es 
 
 ### Movimiento y Escalera al cielo
 
-El HUD muestra velocidad horizontal y bonus gradual de estilo por alta velocidad. El screw attack lanza con impulso y, manteniendo correr, permite iniciar bunnyhops acelerados. El uppercut enlaza subida líquida, flip normal en el ápice y aerial stall. Dash y aterrizaje pesado tienen formas líquidas propias; caminar y correr usan ciclos ampliados.
+El HUD muestra un velocímetro discreto en km/h y conserva el bonus gradual de estilo por alta velocidad. El screw attack lanza con impulso y, manteniendo correr, permite iniciar bunnyhops acelerados. El uppercut enlaza una subida líquida breve, flip normal antes del ápice y aerial stall en caída. Dash y aterrizaje pesado tienen formas líquidas propias; caminar usa un ciclo ampliado y correr una nueva carga feroz con garras y fauces abiertas.
 
 Escalera al cielo tiene 18 fosos progresivos de 3600 a 6150 px, cadenas largas de voladores y checkpoints. Su Top 10 y fantasma del mejor tiempo se consultan en Mejores tiempos. El reloj se detiene al llegar al sol; caer conserva el tiempo transcurrido.
 
 Arte, prompts y afinación del audio: [documentación de movimiento](docs/movement_polish_art.md).
+
+La revisión de carrera, el HUD y las tres opciones de hum grave se describen en [carrera feroz y ajustes](docs/feral_sprint_feedback.md).

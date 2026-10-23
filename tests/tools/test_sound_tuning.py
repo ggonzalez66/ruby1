@@ -24,17 +24,25 @@ def samples(name):
 
 
 rate, hum = samples('shine_hold')
-check(len(hum) == rate, 'Metatrón tiene un bucle periódico de un segundo')
-
-
+check(len(hum) == rate * 4, 'el campo de fuerza tiene un bucle periódico de cuatro segundos')
+energy = sum(x * x for x in hum)
+roughness = sum((b - a) ** 2 for a, b in zip(hum, hum[1:])) / energy
+check(roughness < 0.0025, 'el hum concentra energía grave y evita el zumbido agudo anterior')
+# Comprueba la opción B elegida contra el WAV realmente empaquetado.
 def amplitude(frequency):
-    re = sum(x * math.cos(2 * math.pi * frequency * i / rate) for i, x in enumerate(hum))
-    im = sum(x * math.sin(2 * math.pi * frequency * i / rate) for i, x in enumerate(hum))
-    return math.hypot(re, im) * 2 / len(hum)
+    signal = hum[::4]
+    step = 2 * math.pi * frequency / (rate / 4)
+    real = sum(x * math.cos(i * step) for i, x in enumerate(signal))
+    imag = sum(x * math.sin(i * step) for i, x in enumerate(signal))
+    return math.hypot(real, imag) * 2 / len(signal)
 
 
-check(amplitude(852) > 0.2 and amplitude(852) > amplitude(426) > amplitude(213), '852 Hz domina con subarmónicos audibles de 426 y 213 Hz')
-check(amplitude(852) > 20 * max(amplitude(840), amplitude(864)), 'el pico tonal está afinado a 852 Hz')
+check(amplitude(106.5) > 3 * amplitude(53.25) and amplitude(106.5) > 0.1 and amplitude(852) < 0.01,
+      'la opción B mantiene 106,5 Hz como tono dominante sin recuperar el zumbido de 852 Hz')
+
+window = rate // 4
+levels = [math.sqrt(sum(x * x for x in hum[i:i + window]) / window) for i in range(0, len(hum), window)]
+check(max(levels) / min(levels) < 1.7, 'el nivel permanece estable sin pulsaciones marcadas')
 check(abs(hum[-1] - hum[0]) <= max(abs(b - a) for a, b in zip(hum, hum[1:])) * 1.01, 'la unión del loop no introduce salto audible')
 rate, roar = samples('roar_parry')
 check(0.25 < len(roar) / rate < 0.6 and max(abs(x) for x in roar) < 0.99, 'rugido corto sin clipping para superponer al parry')

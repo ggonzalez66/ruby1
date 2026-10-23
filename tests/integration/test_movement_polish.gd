@@ -64,10 +64,10 @@ func _run() -> void:
 	arena.add_child(meter)
 	player.velocity = Vector2(-1240, 300)
 	meter._update_reading()
-	check(meter.displayed_speed == 1240 and meter.bonus_label.text.contains("estilo/s"), "el medidor muestra velocidad real y bonus en ambos sentidos")
+	check(meter.displayed_speed == 1240 and meter.value_label.text == "140 km/h" and meter.bonus_label.text == "+", "el medidor muestra velocidad real y bonus en ambos sentidos")
 	player.velocity = Vector2(0, 1400)
 	meter._update_reading()
-	check(meter.displayed_speed == 0 and meter.bonus_label.text == "VELOCIDAD", "la caída vertical no se cuenta como velocidad de carrera")
+	check(meter.displayed_speed == 0 and meter.bonus_label.text == "", "la caída vertical no se cuenta como velocidad de carrera")
 
 	print("== Uppercut: bestia, flip normal, stall")
 	await reset_player()
@@ -75,16 +75,18 @@ func _run() -> void:
 	var saw_rise := false
 	var saw_flip := false
 	var saw_stall := false
-	var apex_held := false
+	var flip_started_rising := false
+	var stall_falling := false
 	for i in range(90):
 		await frames(1)
 		saw_rise = saw_rise or (not player._is_attack_active() and player.animated_sprite.animation == &"uppercut" and player.velocity.y < 0)
 		saw_flip = saw_flip or player.animated_sprite.animation == &"frontflip"
-		apex_held = apex_held or (player.execution_air_exit == player.ExecutionAirExit.UPPERCUT_FLIP and absf(player.velocity.y) < 0.01)
+		flip_started_rising = flip_started_rising or (player.execution_air_exit == player.ExecutionAirExit.UPPERCUT_FLIP and player.velocity.y < -20.0)
 		if player.animated_sprite.animation == &"aerial_stall":
 			saw_stall = true
+			stall_falling = player.velocity.y > 0
 			break
-	check(saw_rise and saw_flip and saw_stall and apex_held, "sube transformado, gira normal en el ápice y cae en stall")
+	check(saw_rise and saw_flip and saw_stall and flip_started_rising and stall_falling, "sube transformado, empieza el flip antes del ápice y entra cayendo en stall")
 
 	print("== Screw: lanzamiento y bunnyhop")
 	await reset_player()

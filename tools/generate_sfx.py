@@ -13,6 +13,7 @@ import random
 import struct
 import sys
 import wave
+from forcefield_hum import build_hum
 
 RATE = 44100
 OUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sounds", "sfx")
@@ -321,12 +322,8 @@ def shine():
 
 
 def shine_hold():
-    # Afinación artística elegida: 852 Hz; subarmónicos graves de 426 y 213 Hz.
-    # Frecuencias y modulación enteras: el bucle de 1 segundo es periódico, sin fundido ni clic.
-    d = 1.0
-    hum = mix(gain(osc(d, 852), 0.55), gain(osc(d, 426), 0.3),
-              gain(osc(d, 213), 0.25), gain(osc(d, 1704), 0.08), gain(osc(d, 2556), 0.04))
-    return finish(tremolo(hum, 2, 0.12), 0.6, fade_out=False)
+    # Campo de fuerza constante. La opción se elige en tools/forcefield_hum.py.
+    return build_hum()
 
 
 def roar_parry():
