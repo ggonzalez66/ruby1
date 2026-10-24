@@ -7,7 +7,7 @@ extends Node2D
 # 3. Al vencerlo aparecen dos portales: el de la derecha sigue a la siguiente ronda; el de la izquierda
 #    termina el Gauntlet y muestra la pantalla de fin con las medallas.
 # Si Rengar muere se acaba: tras un momento aparece la pantalla de fin con las oleadas sobrevividas y
-# "Empezar de nuevo" (sin checkpoint, y la tecla de reinicio no funciona, para que no haya trampa).
+# "Empezar de nuevo" (sin checkpoint; la pausa permite reiniciar la etapa completa).
 # Junto al reloj se muestra la oleada actual y los enemigos que quedan por matar.
 
 const CHASER_SCRIPT := preload("res://chaser_dummy.gd")

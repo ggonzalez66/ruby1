@@ -7,9 +7,9 @@ const SETTINGS_PATH := "user://settings.cfg"
 const TUTORIAL_SIGN := preload("res://tutorial_sign.gd")
 const MAIN_MENU := "res://main_menu.tscn"
 # Al cambiar el esquema por defecto se sube la versión: los controles guardados con una
-# versión anterior se ignoran (el volumen sí se conserva), salvo los de la versión 2, que se cargan
-# pasando "Fuego jade / recuperar" del mando a su nuevo botón por defecto (LT).
-const INPUT_VERSION := 3
+# versión anterior se ignoran (el volumen sí se conserva). Se migran las versiones 2 y 3:
+# Select pasa a taunt y, desde la 2, "Fuego jade / recuperar" vuelve a LT.
+const INPUT_VERSION := 4
 const MUSIC_BUS := &"Music"
 const SFX_BUS := &"SFX"
 
@@ -32,7 +32,7 @@ signal closed
 const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
-	["throw_knife", "Fuego jade / recuperar"], ["roar", "Rugido"], ["pause", "Pausa"], ["respawn", "Reiniciar"],
+	["throw_knife", "Fuego jade / recuperar"], ["roar", "Rugido"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
 	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).
@@ -51,6 +51,8 @@ var remap_page: VBoxContainer
 var remap_title: Label
 var remap_rows: VBoxContainer
 var resume_button: Button
+var checkpoint_button: Button
+var restart_stage_button: Button
 var music_slider: HSlider
 var music_value_label: Label
 var sfx_slider: HSlider
@@ -173,6 +175,19 @@ func _resume() -> void:
 	root_control.visible = false
 	get_tree().paused = false
 
+func _restart_checkpoint() -> void:
+	var player := get_tree().get_first_node_in_group(&"player")
+	if not is_instance_valid(player) or not player.respawn_enabled:
+		return
+	_resume()
+	player._respawn_player()
+
+func _restart_stage() -> void:
+	_resume()
+	RunSession._clear_run()
+	Engine.time_scale = TimeControl.base_scale()
+	get_tree().reload_current_scene()
+
 func _go_to_main_menu() -> void:
 	get_tree().paused = false
 	TimeControl.set_slow_motion(false)
@@ -187,6 +202,9 @@ func _show_main_page() -> void:
 	options_page.visible = false
 	remap_page.visible = false
 	main_page.visible = true
+	var player := get_tree().get_first_node_in_group(&"player")
+	checkpoint_button.visible = is_instance_valid(player) and player.respawn_enabled
+	restart_stage_button.visible = get_tree().current_scene != null and get_tree().current_scene.scene_file_path in RunSession.MODES
 	resume_button.grab_focus()
 
 func _show_options_page() -> void:
@@ -253,6 +271,10 @@ func _build() -> void:
 	main_page.add_child(_title("PAUSA"))
 	resume_button = _button("Reanudar", _resume)
 	main_page.add_child(resume_button)
+	checkpoint_button = _button("Reiniciar desde Checkpoint", _restart_checkpoint)
+	main_page.add_child(checkpoint_button)
+	restart_stage_button = _button("Reiniciar Etapa", _restart_stage)
+	main_page.add_child(restart_stage_button)
 	main_page.add_child(_button("Opciones", _show_options_page))
 	main_page.add_child(_button("Menú principal", _go_to_main_menu))
 
@@ -550,9 +572,12 @@ func _load_settings() -> void:
 		var saved_version := int(config.get_value("input", "version", 1))
 		if saved_version == INPUT_VERSION:
 			_load_bindings(config)
-		elif saved_version == 2:
+		elif saved_version in [2, 3]:
 			_load_bindings(config)
-			_restore_joypad_default("throw_knife")
+			if saved_version == 2:
+				_restore_joypad_default("throw_knife")
+			# El antiguo reinicio deja de ser una acción directa. Select queda libre para taunt.
+			_restore_joypad_default("taunt")
 	music_slider.set_value_no_signal(volume * 100.0)
 	music_value_label.text = "%d%%" % int(volume * 100.0)
 	_apply_music_volume(volume)

@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruby1 · Revisión de combate</title>
+<style>
+body{margin:0;background:#13251c;color:#edf4ed;font:16px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:24px}p{line-height:1.6;color:#bdcfc1}nav{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:24px 0}button,select{background:#294236;border:1px solid #63816b;border-radius:6px;padding:9px;color:inherit;font:inherit}a{color:#bfdfae}figure{margin:16px 0}img{width:100%;image-rendering:pixelated;border-radius:10px;background:#0b1912}input{width:100%;accent-color:#cde3a5}figcaption{margin:12px 0;color:#bed0c3}
+</style>
+<main><h1>Ruby1 · Revisión de combate</h1>
+<p>Capturas del juego: slashes delante del personaje, vida y postura en el Ruby, giros del Guardián Pesado, formación del shine y controles nuevos.</p>
+<nav><select id="group" aria-label="Cambio a revisar"></select><button id="previous">Anterior</button><button id="next">Siguiente</button><a href="README.md">Detalles y validación</a></nav>
+<figure><img id="image" alt=""><figcaption id="caption"></figcaption></figure><input id="frame" type="range" min="0" value="0" aria-label="Captura de la secuencia">
+</main>
+<script>
+const groups=[
+ ['Combo · Derecha',[['combo_1_right','Hit 1'],['combo_2_right','Hit 2'],['combo_3_right','Hit 3 · Media luna reflejada']]],
+ ['Combo · Izquierda',[['combo_1_left','Hit 1'],['combo_2_left','Hit 2'],['combo_3_left','Hit 3 · Media luna reflejada']]],
+ ['Ruby · Vida y postura',[['ruby_100','100% · Rojo y contorno completos'],['ruby_50','50% · Fondo oscuro y perímetro parcial'],['ruby_20','20% · Poca vida y postura'],['ruby_0','0% · Núcleo oscuro']]],
+ ['Guardián · Giro vertical',Array.from({length:4},(_,i)=>['spin_0_'+i,'Plano vertical · Pose '+(i+1)])],
+ ['Guardián · Giro horizontal',Array.from({length:4},(_,i)=>['spin_1_'+i,'Plano horizontal · Pose '+(i+1)])],
+ ['Shine · Formación',[['shine_0','0,00 s · Cubo dorado pequeño'],['shine_16','0,16 s · Formación del sello'],['shine_30','0,30 s · Metatrón completo translúcido']]],
+ ['Controles y Ready',[['taunt','Select / R · Taunt inmediato'],['pause','Reinicios desde Pausa'],['ready_0','Ready · 0.00'],['ready_50','Ready · 0.50'],['go','GO! · 1.00']]]
+];
+const group=document.querySelector('#group'),slider=document.querySelector('#frame'),image=document.querySelector('#image');
+groups.forEach(([name],i)=>{const option=document.createElement('option');option.value=i;option.textContent=name;group.append(option)});
+function draw(){const items=groups[Number(group.value)][1];slider.max=items.length-1;const frame=Math.min(Number(slider.value),items.length-1);slider.value=frame;const[file,label]=items[frame];image.src='runtime/'+file+'.png';image.alt=label;document.querySelector('#caption').textContent=`${frame+1}/${items.length} · ${label}`}
+group.onchange=()=>{slider.value=0;draw()};slider.oninput=draw;
+document.querySelector('#previous').onclick=()=>{slider.value=Math.max(0,Number(slider.value)-1);draw()};
+document.querySelector('#next').onclick=()=>{slider.value=Math.min(Number(slider.max),Number(slider.value)+1);draw()};draw();
+</script>
+</html>

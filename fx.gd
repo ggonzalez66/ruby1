@@ -62,10 +62,14 @@ static func parry_wave(parent: Node, point: Vector2, radius: float, duration: fl
 		ring.points = _circle(radius, 48, true)
 		ring.width = 3.5 - index * 0.7
 		ring.default_color = ROAR[2 if index == 0 else 1]
-		ring.scale = Vector2.ONE * (0.18 + index * 0.16)
+		ring.scale = Vector2.ONE * (0.05 + index * 0.03)
+		ring.modulate.a = 0.0
 		burst.add_child(ring)
-		tween.tween_property(ring, "scale", Vector2.ONE * (1.3 + index * 0.16), maxf(duration, 0.08)).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(ring, "modulate:a", 0.0, maxf(duration, 0.08))
+		var delay := 0.04 + index * 0.015
+		var life := maxf(duration, 0.08)
+		tween.tween_property(ring, "scale", Vector2.ONE * (1.3 + index * 0.16), life).set_delay(delay).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(ring, "modulate:a", 0.65, 0.025).set_delay(delay)
+		tween.tween_property(ring, "modulate:a", 0.0, life - 0.025).set_delay(delay + 0.025)
 	tween.chain().tween_callback(burst.queue_free)
 
 # Destello grande del deflect: anillo doble y rayos.

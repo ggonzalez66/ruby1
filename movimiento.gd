@@ -360,7 +360,7 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var parry_uses_aura_radius := true
 # Quieto este tiempo, Rengar pasa a la pose orgullosa (y el medidor de estilo sube solo).
 @export var proud_delay := 4.0
-# Con false (Gauntlet) no se puede reiniciar desde el checkpoint con la tecla de reinicio.
+# Con false (Gauntlet) la pausa no ofrece reiniciar desde checkpoint.
 @export var respawn_enabled := true
 # Bloqueo: un golpe recibido en las frames latentes del shine (sin parry) se bloquea: no quita vida,
 # gasta durabilidad y empuja a Rengar (el mismo knockback para todos los ataques, por ahora), sin
@@ -711,10 +711,6 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("throw_knife") and not stunned:
 		_on_knife_input(move_input)
 
-	if Input.is_action_just_pressed("respawn") and respawn_enabled:
-		_respawn_player()
-		return
-
 	if Input.is_action_just_pressed("dash"):
 		if roar_active and dash_cooldown_timer <= 0.0:
 			# El bloqueo del rugido se cancela con salto o con dash.
@@ -853,10 +849,13 @@ func _physics_process(delta: float) -> void:
 func _update_proud(delta: float, move_input: float) -> void:
 	# Quieto en el suelo un rato (sin moverse, atacar, rugir ni pulsar nada): pose orgullosa, y mientras
 	# dura el medidor de estilo sube solo.
-	var still: bool = is_on_floor() and velocity.length() < 5.0 and move_input == 0.0 and not _is_attack_active() \
+	var available: bool = is_on_floor() and velocity.length() < 5.0 and move_input == 0.0 and not _is_attack_active() \
 		and not roar_active and not mantle_active and dash_timer <= 0.0 and block_stun_timer <= 0.0 \
-		and hurt_lock_timer <= 0.0 and not Input.is_anything_pressed()
+		and hurt_lock_timer <= 0.0
+	var still := available and (not Input.is_anything_pressed() or Input.is_action_pressed("taunt"))
 	still_time = still_time + delta if still else 0.0
+	if available and Input.is_action_just_pressed("taunt"):
+		still_time = proud_delay
 	var was_proud: bool = proud_active
 	proud_active = still_time >= proud_delay
 	if proud_active and not was_proud:
@@ -1843,9 +1842,6 @@ func _start_death(source_position: Vector2, amount: int) -> void:
 	died.emit()
 
 func _update_death(delta: float) -> void:
-	if Input.is_action_just_pressed("respawn") and respawn_enabled:
-		_respawn_player()
-		return
 	# Rebota en paredes, techo y suelo; al final queda tirado de lado.
 	if not is_on_floor():
 		velocity.y = min(velocity.y + gravity * fall_gravity_multiplier * delta, max_fall_speed)
@@ -2226,7 +2222,6 @@ func _start_roar() -> void:
 		roar_air_stall_available = false
 	shine_idle_time = 0.0
 	roar_hit_targets.clear()
-	Fx.impact(get_parent(), get_roar_center(), Fx.ROAR, 2.0)
 	Fx.parry_wave(get_parent(), get_roar_center(), roar_radius, roar_explosive_duration)
 	_roar_explosive_hits()
 
@@ -2454,19 +2449,13 @@ func _update_roar_aura() -> void:
 		roar_aura_spin = 0.0
 		return
 	var delta: float = get_physics_process_delta_time()
-	if roar_explosive_timer > 0.0:
-		# Frames explosivos: aparece al instante, derecho y a tamaño completo, con un destello.
-		var progress: float = 1.0 - roar_explosive_timer / roar_explosive_duration
-		roar_aura.scale = Vector2.ONE
-		# Algo transparente para que el sprite no se vea plano (con el destello de brillo al aparecer).
-		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.8).lerp(Color(1.3, 1.2, 1.05, 0.8), 1.0 - progress)
-		roar_aura_spin = 0.0
-	else:
-		# Aura latente (manteniendo): empieza a girar despacio y pulsa; solo devuelve proyectiles.
-		var pulse: float = sin(Time.get_ticks_msec() / 110.0)
-		roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse)
-		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.6 + 0.1 * pulse)
-		roar_aura_spin += 0.9 * delta
+	# Solo presentación: la detección continúa usando roar_radius y el temporizador del parry.
+	var formation := smoothstep(0.08, 0.24, roar_elapsed)
+	roar_aura.set_formation(formation)
+	var pulse: float = sin(Time.get_ticks_msec() / 110.0)
+	roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse * formation)
+	roar_aura.modulate = Color(1.0, 1.0, 1.0, lerpf(0.9, 0.43 + 0.05 * pulse, formation))
+	roar_aura_spin += 0.9 * delta * formation
 	roar_aura.rotation = roar_aura_spin
 
 func _get_sprint_start_direction(move_input: float) -> int:
@@ -3273,7 +3262,7 @@ func _create_attack_effects() -> void:
 	attack_effects.name = "AttackEffects"
 	attack_effects.visible = false
 	pivot.add_child(attack_effects)
-	# Detrás del cuerpo: la estela no debe tapar la mano que da el garrazo.
+	# El combo dibuja los cortes delante; el dash conserva su estela detrás de la mano.
 	claw_slash_sprite = Sprite2D.new()
 	claw_slash_sprite.name = "ArcadeClawSlash"
 	claw_slash_sprite.texture = CLAW_SLASH_SHEET
@@ -3355,6 +3344,8 @@ func _effect_claw_slash() -> void:
 	var finisher := light_combo_step == 3
 	_hide_effect_strokes(0)
 	claw_slash_sprite.visible = true
+	claw_slash_sprite.z_index = 2
+	claw_slash_sprite.flip_h = finisher
 	claw_slash_sprite.frame = (4 if finisher else 0) + mini(int(progress * 4.0), 3)
 	claw_slash_sprite.position = claw_arc_center + _get_claw_center_offset() + Vector2(26.0, -4.0)
 	claw_slash_sprite.scale = Vector2.ONE * (142.0 if finisher else 112.0) / 512.0
@@ -3384,6 +3375,8 @@ func _effect_charged_lunge() -> void:
 	var progress := clampf(1.0 - attack_timer / charged_ground_duration, 0.0, 1.0)
 	_hide_effect_strokes(0)
 	claw_slash_sprite.visible = true
+	claw_slash_sprite.z_index = -1
+	claw_slash_sprite.flip_h = false
 	claw_slash_sprite.frame = mini(int(progress * 4.0), 3)
 	claw_slash_sprite.position = Vector2(43.0, -14.0)
 	claw_slash_sprite.scale = Vector2(0.25, 0.15)

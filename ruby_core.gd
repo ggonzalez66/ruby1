@@ -24,8 +24,6 @@ var cracks := 0
 var clock := 0.0
 var spawn_grace_left := 0.0
 var parried_attacks := {}
-var posture_bar: ColorRect
-var posture_label: Label
 
 func _ready() -> void:
 	enemy = get_parent()
@@ -34,8 +32,9 @@ func _ready() -> void:
 	enemy.add_to_group(&"ruby_enemies")
 	position = enemy.impact_offset
 	z_index = 4
-	if boss:
-		_build_posture_bar()
+	if not boss and enemy.get("health_fill") != null:
+		# La vida se lee en el núcleo; conservar los nodos antiguos para resets existentes.
+		enemy.health_fill.get_parent().hide()
 
 func reset_core() -> void:
 	open_time = 0.0
@@ -161,50 +160,68 @@ func _physics_process(delta: float) -> void:
 			enemy._on_reset()
 		elif open_time == 0.0 and enemy.get("state_timer") != null:
 			enemy.state_timer = 0.0
-	if boss:
-		posture_bar.size.x = 180.0 * posture / POSTURE_MAX
-		posture_bar.color = RED if final_open else Color(1.0, 0.67, 0.15)
-		posture_label.text = "EJECUCIÓN" if final_open else ("OPEN" if open_time > 0.0 else "POSTURA")
 	# El pulso solo reconstruye geometría cerca de la pantalla. Los timers siguen activos
 	# fuera de cámara: una apertura o una captura no depende de dónde esté mirando Viridy.
 	if is_visible_in_tree() and get_viewport_rect().grow(64.0).has_point(get_global_transform_with_canvas().origin):
 		queue_redraw()
+
+func core_radius() -> float:
+	return 15.0 if boss else (7.0 if enemy.get("patrol_width") != null else 9.0)
+
+func health_polygon(radius: float, ratio: float) -> PackedVector2Array:
+	var diamond := PackedVector2Array([Vector2(0, -radius), Vector2(radius * 0.65, 0), Vector2(0, radius), Vector2(-radius * 0.65, 0)])
+	if ratio <= 0.0:
+		return PackedVector2Array()
+	if ratio >= 1.0:
+		return diamond
+	var top := radius * (1.0 - 2.0 * ratio)
+	var half_width := radius * 0.65 * (1.0 - absf(top) / radius)
+	var filled := PackedVector2Array([Vector2(-half_width, top), Vector2(half_width, top)])
+	if top < 0.0:
+		filled.append(diamond[1])
+	filled.append(diamond[2])
+	if top < 0.0:
+		filled.append(diamond[3])
+	return filled
+
+func posture_outline(radius: float, ratio: float) -> PackedVector2Array:
+	var corners := PackedVector2Array([Vector2(0, -radius), Vector2(radius * 0.65, 0), Vector2(0, radius), Vector2(-radius * 0.65, 0), Vector2(0, -radius)])
+	var points := PackedVector2Array([corners[0]])
+	var remaining := clampf(ratio, 0.0, 1.0) * 4.0
+	for edge in range(4):
+		if remaining <= 0.0:
+			break
+		points.append(corners[edge].lerp(corners[edge + 1], minf(remaining, 1.0)))
+		remaining -= 1.0
+	return points
 
 func _draw() -> void:
 	if broken:
 		return
 	var exposed := is_open() or locked
 	var pulse := 0.5 + 0.5 * sin(clock * (18.0 if exposed else 4.0))
-	var radius := 11.0 if boss else (5.0 if enemy.get("patrol_width") != null else 7.0)
+	var radius := core_radius()
 	for layer in range(3):
 		draw_circle(Vector2.ZERO, radius + 3.0 + layer * 3.0, Color(RED, (0.10 + pulse * (0.08 if exposed else 0.02)) / (layer + 1)))
 	var diamond := PackedVector2Array([Vector2(0, -radius), Vector2(radius * 0.65, 0), Vector2(0, radius), Vector2(-radius * 0.65, 0)])
-	draw_colored_polygon(diamond, RED.lerp(Color(1.0, 0.55, 0.55), pulse * (0.6 if exposed else 0.15)))
-	draw_colored_polygon(PackedVector2Array([diamond[0], Vector2.ZERO, diamond[3]]), Color(0.55, 0.01, 0.06))
+	# El oscuro es la vida perdida; el rojo claro baja dentro del mismo rombo.
+	draw_colored_polygon(diamond, Color(0.25, 0.01, 0.035))
+	var ratio := clampf(float(enemy.current_health) / maxf(float(enemy.max_health), 1.0), 0.0, 1.0)
+	var filled := health_polygon(radius, ratio)
+	if filled.size() >= 3:
+		draw_colored_polygon(filled, RED.lerp(Color(1.0, 0.55, 0.55), pulse * (0.6 if exposed else 0.15)))
 	diamond.append(diamond[0])
-	draw_polyline(diamond, Color(1.0, 0.8, 0.8) if exposed else Color(0.25, 0.01, 0.03), 1.5, true)
+	draw_polyline(diamond, Color(0.10, 0.005, 0.015), 2.0, true)
+	if boss:
+		var outline := posture_outline(radius + 5.0, 1.0)
+		draw_polyline(outline, Color(0.10, 0.06, 0.015), 5.0, true)
+		var remaining := posture_outline(radius + 5.0, posture / POSTURE_MAX)
+		if remaining.size() > 1:
+			draw_polyline(remaining, Color(1.0, 0.67, 0.15), 2.5, true)
 	if exposed:
-		draw_arc(Vector2.ZERO, radius + 5.0 + pulse * 2.0, 0, TAU, 24, Color(1.0, 0.35, 0.3, 0.65), 1.5, true)
+		draw_polyline(posture_outline(radius + 9.0 + pulse * 2.0, 1.0), Color(1.0, 0.35, 0.3, 0.45), 1.5, true)
 	if cracks > 0 or final_open:
-		draw_polyline(PackedVector2Array([Vector2(1, -radius), Vector2(-2, -2), Vector2(3, 2), Vector2(-1, radius)]), Color(0.15, 0.0, 0.02), 2.0)
-
-func _build_posture_bar() -> void:
-	var back := ColorRect.new()
-	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	back.position = Vector2(-90, -enemy.body_size.y - 17) - position
-	back.size = Vector2(180, 4)
-	back.color = Color(0.15, 0.09, 0.04)
-	add_child(back)
-	posture_bar = ColorRect.new()
-	posture_bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	posture_bar.size = back.size
-	back.add_child(posture_bar)
-	posture_label = Label.new()
-	posture_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	posture_label.position = Vector2(-90, -enemy.body_size.y - 12) - position
-	posture_label.add_theme_font_size_override("font_size", 10)
-	posture_label.add_theme_color_override("font_color", Color(1.0, 0.78, 0.4))
-	add_child(posture_label)
+		draw_polyline(PackedVector2Array([Vector2(1, -radius), Vector2(-2, -2), Vector2(3, 2), Vector2(-1, radius)]), Color(0.10, 0.0, 0.01), 2.0)
 
 func _essence(by: Node2D, center: Vector2) -> void:
 	for index in range(6):

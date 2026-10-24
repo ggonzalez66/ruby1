@@ -8,7 +8,7 @@ Juego de acción y plataformas 2D para Godot 4.2.2. Abrir `project.godot` o ejec
 - **Gauntlet:** oleadas de enemigos y guardianes, con 2 segundos de preparación al aparecer. El portal de terminar pide confirmación; «Seguir jugando» tiene el foco por defecto y el reloj se pausa mientras decides.
 - **Escalera al Cielo:** recorrido de plataformas y rebotes.
 
-Cada escenario empieza con **Ready 3.00**, dos avisos de segundos y **GO!**. El mundo permanece detenido durante la cuenta atrás; el cronómetro empieza con GO y excluye las pausas. Los tiempos de etapa usan segundos reales de juego activo, también con cámara lenta o hitstop.
+Cada escenario empieza con **Ready 0.00**, avanza hasta **1.00** en un segundo y muestra **GO!**, con sonidos de preparación, pulso intermedio y salida. El mundo permanece detenido durante esa preparación; el cronómetro empieza con GO y excluye las pausas. Los tiempos de etapa usan segundos reales de juego activo, también con cámara lenta o hitstop.
 
 ## Movimiento y estilo
 
@@ -16,9 +16,11 @@ Los bunnyhops encadenados suman **60 px/s por salto**, ajustable con `bunnyhop_s
 
 El medidor de Ferocity muestra el tiempo aéreo y suma **10 puntos de estilo por segundo** mientras aumenta. El contacto con paredes, enganches y agarres lo pausa; aterrizar cierra la cuenta y el siguiente despegue inicia otra. La ganancia mantiene el límite de rango de las acrobacias: S; por encima sigue llenando el rango actual.
 
+Select en el mando (R en teclado) activa el taunt de la pose orgullosa estando quieto en el suelo. También aparece automáticamente tras 4 segundos de reposo. Moverse o actuar lo interrumpe. Los reinicios se eligen en Pausa: **Reiniciar desde Checkpoint** restaura el punto guardado y **Reiniciar Etapa** recarga el mapa desde el comienzo con un cronómetro nuevo. Gauntlet ofrece solo reiniciar etapa.
+
 ## Ejecuciones Ruby
 
-Todos los enemigos mecánicos llevan un rombo Ruby rojo dentro del cuerpo. El borde y el halo destellan cuando está **open**. El heavy de suelo, el heavy aéreo y el uppercut ejecutan, y el enemigo debe estar open antes del impacto: el golpe que lo deja con poca vida no ejecuta automáticamente. Los golpes ordinarios pueden seguir matando a los enemigos normales.
+Todos los enemigos mecánicos llevan un rombo Ruby rojo dentro del cuerpo. El rojo claro dentro del Ruby indica la vida restante sobre un fondo oscuro; el contorno amarillo de los guardianes indica la postura restante. Se conserva el borde negro. Un halo exterior destella cuando está **open**. El heavy de suelo, el heavy aéreo y el uppercut ejecutan, y el enemigo debe estar open antes del impacto: el golpe que lo deja con poca vida no ejecuta automáticamente. Los golpes ordinarios pueden seguir matando a los enemigos normales.
 
 - **Normales:** un parry los inmoviliza y abre durante 2 segundos; al 30 % de vida o menos permanecen open, pero siguen atacando. Los voladores también pueden ejecutarse y dan un último rebote. El sol no lleva este sistema.
 - **Guardianes:** la postura empieza en 100 y cada parry de un ataque distinto le quita un tercio, sin RNG. Las devoluciones perfectas cuentan para el tirador original; una ráfaga o un giro no se contabilizan varias veces. Romper postura abre una ventana de 2,5 segundos. Aprovecharla o perderla reinicia la postura.
@@ -56,3 +58,9 @@ Arte, prompts y afinación del audio: [documentación de movimiento](docs/moveme
 La revisión de carrera, el HUD y las tres opciones de hum grave se describen en [carrera feroz y ajustes](docs/feral_sprint_feedback.md).
 
 La corrección del braceo y sus prompts están en [carrera con brazos alternados](docs/sprint_arm_alternation.md).
+
+## Combate y presentación
+
+Los tres golpes ligeros dibujan sus slashes delante de Viridy; el remate refleja horizontalmente su media luna. El Guardián Pesado alterna el súper giro vertical con una variante horizontal con perspectiva; ambos avanzan a 65 px/s en la dirección fijada durante el aviso, sin corregirla al cruzarse con el jugador.
+
+El shine empieza con un cubo dorado pequeño. Entre 0,08 y 0,24 s aparece el Metatrón completo con menor opacidad y giro. La presentación no modifica el radio, la ventana de parry, los i-frames ni el bloqueo. [Capturas y validación](docs/combat_feedback/README.md).

@@ -3,7 +3,7 @@ extends Area2D
 const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
 var ruby_core: Node2D
 
-# Base común de los guardianes: hurtbox, barra de vida con nombre, aviso "!", inicio de combate,
+# Base común de los guardianes: hurtbox, nombre y núcleo con vida/postura, aviso "!", inicio de combate,
 # daño, bloqueo, derrota (con la pantalla de demo completada) y reinicio.
 # Cada guardián implementa _build_body(), _boss_process(), is_warning() y lo que necesite.
 
@@ -35,7 +35,6 @@ var was_warning := false
 
 var visual: Node2D
 var warning_label: Label
-var health_fill: Polygon2D
 var flash_polys: Array = []
 var flash_colors: Array = []
 
@@ -78,9 +77,6 @@ func _build_ui() -> void:
 	var bar := Node2D.new()
 	bar.position = Vector2(0, -body_size.y - 30.0)
 	add_child(bar)
-	bar.add_child(_poly([Vector2(-92, -7), Vector2(92, -7), Vector2(92, 7), Vector2(-92, 7)], Color(0.08, 0.04, 0.04, 0.9)))
-	health_fill = _poly([], Color(0.9, 0.3, 0.22))
-	bar.add_child(health_fill)
 	var name_label := Label.new()
 	name_label.text = boss_name
 	name_label.add_theme_font_size_override("font_size", 14)
@@ -249,9 +245,8 @@ func reset_dummy() -> void:
 	_on_reset()
 
 func _update_health_bar() -> void:
-	var ratio: float = float(current_health) / float(max(max_health, 1))
-	var right: float = -90.0 + 180.0 * ratio
-	health_fill.polygon = PackedVector2Array([Vector2(-90, -5), Vector2(right, -5), Vector2(right, 5), Vector2(-90, 5)])
+	if is_instance_valid(ruby_core):
+		ruby_core.queue_redraw()
 
 # ---------- Utilidades
 

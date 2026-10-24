@@ -168,7 +168,7 @@ func _build_death_screen() -> void:
 	add_child(flash_rect)
 
 func _on_player_died() -> void:
-	death_hint.text = "Presiona %s para cargar el último checkpoint" % InputHints.binding("respawn")
+	death_hint.text = "Pausa (%s) → Reiniciar desde Checkpoint" % InputHints.binding("pause")
 	# En el Gauntlet no hay checkpoint: al morir se termina.
 	if get_tree().get_first_node_in_group(&"gauntlet_director"):
 		death_hint.text = "Fin del Gauntlet"

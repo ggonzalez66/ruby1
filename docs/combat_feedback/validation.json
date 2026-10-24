@@ -1,0 +1,58 @@
+{
+  "art_refresh": {
+    "passed": 11,
+    "total": 11
+  },
+  "combat_feedback": {
+    "passed": 40,
+    "total": 40
+  },
+  "combat_modes": {
+    "passed": 64,
+    "total": 64
+  },
+  "shine_shield": {
+    "passed": 36,
+    "total": 36
+  },
+  "executions": {
+    "passed": 113,
+    "total": 113
+  },
+  "speedrun": {
+    "passed": 59,
+    "total": 59
+  },
+  "movement_polish": {
+    "passed": 14,
+    "total": 14
+  },
+  "sprites": {
+    "passed": 215,
+    "total": 215
+  },
+  "ajustes": {
+    "passed": 13,
+    "total": 13
+  },
+  "sky_performance": {
+    "passed": 8,
+    "total": 8
+  },
+  "sky_records": {
+    "passed": 12,
+    "total": 12
+  },
+  "combos": {
+    "passed": 72,
+    "total": 72
+  },
+  "enemigos": {
+    "passed": 35,
+    "total": 35
+  },
+  "gauntlet_safety": {
+    "passed": 31,
+    "total": 31
+  }
+}

@@ -29,6 +29,7 @@ extends "res://boss_base.gd"
 @export var super_revolutions := 4.0
 @export var super_damage := 18
 @export var super_recover_time := 2.4
+@export var super_advance_speed := 65.0
 
 const SHOCKWAVE_SCRIPT := preload("res://shockwave.gd")
 const BODY_COLOR := Color(0.45, 0.2, 0.17)
@@ -44,6 +45,8 @@ const CRESCENT_ANGLE := 0.55
 const SWORD_REST := Vector2(26, -108)
 # El súper giro gira la espada alrededor del centro del cuerpo para cubrir ambos lados.
 const SPIN_PIVOT := Vector2(0, -100)
+const HORIZONTAL_SPIN_PIVOT := Vector2(0, -65)
+const HORIZONTAL_SPIN_DEPTH := 0.23
 const SUPER_COLOR := Color(0.35, 0.65, 1.0)
 const GHOST_COUNT := 8# Ángulos con la espada apuntando a +x en 0. Todos terminan apuntando hacia abajo para que
 # el arco cubra también la zona pegada al guardián.
@@ -55,6 +58,7 @@ const COMBO := [
 ]
 
 enum State { IDLE, WALK, TELEGRAPH, SWING, RECOVER, STAGGER, LUNGE_WINDUP, LUNGE, SUPER_WINDUP, SUPER_SPIN, SUPER_RECOVER }
+enum SpinPlane { VERTICAL, HORIZONTAL }
 
 var state := State.IDLE
 var state_timer := 0.8
@@ -70,6 +74,9 @@ var crescent_done := false
 var super_charge := 0.0
 var spin_angle := 0.0
 var spin_turned := 0.0
+var spin_direction := -1
+var spin_plane := SpinPlane.VERTICAL
+var next_spin_plane := SpinPlane.VERTICAL
 var ghost_root: Node2D
 var charge_glow: Polygon2D
 
@@ -188,8 +195,9 @@ func _boss_process(delta: float, player: Node2D) -> void:
 			var progress: float = clamp(1.0 - state_timer / super_windup_time, 0.0, 1.0)
 			sword_pivot.rotation = lerp_angle(sword_pivot.rotation, -PI * 0.5, 6.0 * delta)
 			visual.rotation = lerp(visual.rotation, -0.12 * facing, 4.0 * delta)
-			ghost_root.rotation += 1.5 * delta * facing
-			for ghost in ghost_root.get_children():
+			for index in range(ghost_root.get_child_count()):
+				var ghost: Polygon2D = ghost_root.get_child(index)
+				ghost.rotation = TAU * index / GHOST_COUNT + 1.5 * progress * spin_direction
 				ghost.color = Color(SUPER_COLOR, lerp(0.25, 0.65, progress) * (0.8 + 0.2 * sin(Time.get_ticks_msec() / 60.0)))
 			_blink_blade(progress)
 			if state_timer <= 0.0:
@@ -295,7 +303,11 @@ func _update_super_charge(delta: float) -> void:
 func _super_ready(player: Node2D) -> bool:
 	return super_charge >= 1.0 and player != null and _distance_to(player) <= super_range
 
-func _start_super_windup() -> void:
+func _start_super_windup(plane: int = -1) -> void:
+	_face(get_tree().get_first_node_in_group(&"player") as Node2D)
+	spin_direction = facing
+	spin_plane = next_spin_plane if plane < 0 else plane
+	next_spin_plane = SpinPlane.HORIZONTAL if spin_plane == SpinPlane.VERTICAL else SpinPlane.VERTICAL
 	Sfx.play("boss_charge")
 	super_charge = 0.0
 	state = State.SUPER_WINDUP
@@ -303,7 +315,24 @@ func _start_super_windup() -> void:
 	warning_label.visible = true
 	ghost_root.visible = true
 	ghost_root.rotation = 0.0
-	Fx.text(get_parent(), global_position + Vector2(0, -250), "¡SÚPER GIRO!", SUPER_COLOR.lightened(0.4))
+	ghost_root.position = _spin_pivot_position()
+	ghost_root.scale = Vector2(1.0, _spin_depth())
+	Fx.text(get_parent(), global_position + Vector2(0, -250), "¡GIRO HORIZONTAL!" if spin_plane == SpinPlane.HORIZONTAL else "¡SÚPER GIRO!", SUPER_COLOR.lightened(0.4))
+
+func _spin_depth() -> float:
+	return HORIZONTAL_SPIN_DEPTH if spin_plane == SpinPlane.HORIZONTAL else 1.0
+
+func _spin_pivot_position() -> Vector2:
+	return HORIZONTAL_SPIN_PIVOT if spin_plane == SpinPlane.HORIZONTAL else SPIN_PIVOT
+
+func _spin_tip(angle: float) -> Vector2:
+	return _spin_pivot_position() + Vector2(cos(angle), sin(angle) * _spin_depth()) * BLADE_LENGTH
+
+func _pose_spin_sword() -> void:
+	# Proyección del plano del giro: la hoja se acorta y pasa detrás/al frente del cuerpo.
+	var depth := _spin_depth()
+	sword_pivot.transform = Transform2D(Vector2(cos(spin_angle), sin(spin_angle) * depth), Vector2(-sin(spin_angle), cos(spin_angle) * depth), _spin_pivot_position())
+	sword_pivot.z_index = (-1 if sin(spin_angle) < 0.0 else 1) if spin_plane == SpinPlane.HORIZONTAL else 0
 
 func _start_super_spin() -> void:
 	parry_serial += 1
@@ -312,7 +341,6 @@ func _start_super_spin() -> void:
 	state_timer = super_spin_time
 	warning_label.visible = false
 	ghost_root.visible = false
-	sword_pivot.position = SPIN_PIVOT
 	spin_angle = sword_pivot.rotation
 	spin_turned = 0.0
 	last_swing_angle = spin_angle
@@ -321,14 +349,18 @@ func _start_super_spin() -> void:
 	blade.color = BLADE_COLOR.lerp(SUPER_COLOR, 0.5)
 	trail.clear_points()
 	trail.modulate.a = 1.0
+	_pose_spin_sword()
 
 func _update_super_spin(delta: float, player: Node2D) -> void:
+	facing = spin_direction
+	visual.scale.x = spin_direction
+	position.x = clampf(position.x + spin_direction * super_advance_speed * delta, min_x, max_x)
 	# Varias vueltas rápidas: un golpe posible por cada media vuelta.
 	var step: float = super_revolutions * TAU / super_spin_time * delta
 	var previous: float = spin_angle
 	spin_angle += step
 	spin_turned += step
-	sword_pivot.rotation = spin_angle
+	_pose_spin_sword()
 	_update_trail()
 	if floor(spin_turned / PI) != floor((spin_turned - step) / PI):
 		swing_hit_done = false
@@ -340,26 +372,29 @@ func _update_super_spin(delta: float, player: Node2D) -> void:
 		Fx.text(get_parent(), global_position + Vector2(0, -220), "¡AGOTADO!", Color(0.8, 0.9, 1.0))
 
 func _end_super_spin() -> void:
-	sword_pivot.position = SWORD_REST
+	sword_pivot.transform = Transform2D(sword_pivot.rotation, SWORD_REST)
+	sword_pivot.z_index = 0
 	ghost_root.visible = false
+	ghost_root.scale = Vector2.ONE
 	blade.color = BLADE_COLOR
 	trail.modulate.a = 0.0
 
 func _check_spin_hit(player: Node2D, from_angle: float, to_angle: float) -> void:
 	if swing_hit_done or player == null:
 		return
-	var base: Vector2 = visual.to_global(SPIN_PIVOT)
+	var base: Vector2 = visual.to_global(_spin_pivot_position())
 	# Contra el aura del rugido (parry): la hoja en varios ángulos del tramo girado.
 	if player.has_method("parry_reaches"):
 		for index in range(4):
 			var angle: float = lerp(from_angle, to_angle, index / 3.0)
-			if player.parry_reaches(base, visual.to_global(SPIN_PIVOT + Vector2.RIGHT.rotated(angle) * BLADE_LENGTH)):
+			if player.parry_reaches(base, visual.to_global(_spin_tip(angle))):
 				swing_hit_done = true
 				_hit_player(player, super_damage)
 				return
 	var swept: float = wrapf(to_angle - from_angle, 0.0, TAU) + 0.1
 	for offset in [Vector2(0, -4), Vector2(0, -14), Vector2(0, -26)]:
-		var local: Vector2 = visual.to_local(player.global_position + offset) - SPIN_PIVOT
+		var local: Vector2 = visual.to_local(player.global_position + offset) - _spin_pivot_position()
+		local.y /= _spin_depth()
 		if local.length() > BLADE_LENGTH + 12.0:
 			continue
 		if wrapf(local.angle() - from_angle + 0.05, 0.0, TAU) <= swept:
@@ -478,6 +513,8 @@ func _on_defeat() -> void:
 	trail.clear_points()
 
 func _on_reset() -> void:
+	_end_super_spin()
+	next_spin_plane = SpinPlane.VERTICAL
 	state = State.IDLE
 	state_timer = 0.8
 	combo_step = 0

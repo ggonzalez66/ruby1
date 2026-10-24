@@ -76,7 +76,7 @@ func _run() -> void:
 	player.attack_cooldown_timer = 0.0
 	player._start_attack()
 	player._update_attack_animation()
-	check(player.claw_slash_sprite.visible and player.claw_slash_sprite.hframes == 8 and player.claw_slash_sprite.z_index < 0, "los slashes animados se dibujan detrás de la mano")
+	check(player.claw_slash_sprite.visible and player.claw_slash_sprite.hframes == 8 and player.claw_slash_sprite.z_index > 0, "los slashes del combo se dibujan delante del personaje")
 	player._cancel_all_states()
 	player._start_ground_charged_attack()
 	player._start_spin_attack()

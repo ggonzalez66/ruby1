@@ -8,7 +8,7 @@ const SKY_STAGE := "res://sky_stairs.tscn"
 const TIMED_STAGES := ["res://main.tscn", "res://stage2.tscn", "res://stage3.tscn", "res://stage4.tscn", SKY_STAGE]
 const RECORD_DIR := "user://records_v1"
 const SAMPLE_INTERVAL := 1.0 / 30.0
-const COUNTDOWN_SECONDS := 3.0
+const COUNTDOWN_SECONDS := 1.0
 
 var storage_directory := RECORD_DIR
 var records_previous_focus: Control
@@ -20,7 +20,7 @@ var running := false
 var finished := false
 var countdown_active := false
 var countdown_left := 0.0
-var countdown_tick := 3
+var countdown_tick := 0
 var samples: Array = []
 var sample_wait := 0.0
 var best_frames: Array = []
@@ -72,10 +72,10 @@ func begin_run(new_player: Node2D, with_countdown: bool = true) -> void:
 	if with_countdown:
 		countdown_active = true
 		countdown_left = COUNTDOWN_SECONDS
-		countdown_tick = 3
+		countdown_tick = 0
 		ready_label.text = "Ready"
 		ready_label.add_theme_color_override("font_color", Color(1.0, 0.12, 0.16))
-		countdown_label.text = "3.00"
+		countdown_label.text = "0.00"
 		overlay.show()
 		get_tree().paused = true
 		Sfx.play("ready")
@@ -109,10 +109,10 @@ func _process(delta: float) -> void:
 	var real_delta: float = delta / max(Engine.time_scale, 0.0001)
 	if countdown_active:
 		countdown_left = max(countdown_left - real_delta, 0.0)
-		countdown_label.text = "%.2f" % countdown_left
-		while countdown_tick > 1 and countdown_left <= countdown_tick - 1:
-			countdown_tick -= 1
-			Sfx.play("countdown_tick", 0.0, 1.0 + (3 - countdown_tick) * 0.08)
+		countdown_label.text = "%.2f" % (COUNTDOWN_SECONDS - countdown_left)
+		if countdown_tick == 0 and countdown_left <= 0.5:
+			countdown_tick = 1
+			Sfx.play("countdown_tick", 0.0, 1.08)
 		if countdown_left <= 0.0:
 			_start_clock()
 	elif go_left > 0.0:
@@ -140,7 +140,7 @@ func _start_clock() -> void:
 	if show_go:
 		ready_label.text = "GO!"
 		ready_label.add_theme_color_override("font_color", Color(0.5, 1.0, 0.35))
-		countdown_label.text = "0.00"
+		countdown_label.text = "1.00"
 		go_left = 0.75
 		Sfx.play("go")
 
@@ -287,7 +287,7 @@ func _build_countdown() -> void:
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	center.add_child(column)
 	ready_label = _label("Ready", 80, Color(1.0, 0.12, 0.16))
-	countdown_label = _label("3.00", 42, Color.WHITE)
+	countdown_label = _label("0.00", 42, Color.WHITE)
 	column.add_child(ready_label)
 	column.add_child(countdown_label)
 	overlay.hide()
