@@ -28,6 +28,9 @@ func _run() -> void:
 	camera.rotation = 0.0
 	camera.zoom = Vector2(2, 2)
 	var directory := "res://docs/art/viridy_refresh/runtime"
+	var arguments := OS.get_cmdline_user_args()
+	if not arguments.is_empty():
+		directory = arguments[0]
 	DirAccess.make_dir_recursive_absolute(directory)
 	for name in ["run", "walk", "dash", "heavy", "screw", "light1", "light2", "light3", "hurt"]:
 		player._cancel_all_states()
@@ -60,7 +63,7 @@ func _run() -> void:
 				player.hurt_lock_timer = 0.12
 		player._update_character_animation()
 		if name == "run":
-			player.animated_sprite.frame = 3
+			player.animated_sprite.frame = 4
 		player._set_attack_active(player._is_attack_active())
 		player._update_attack_animation()
 		await process_frame

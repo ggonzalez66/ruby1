@@ -68,7 +68,19 @@ func _run() -> void:
 	var period := 0.0
 	for i in range(animations.get_frame_count(&"sprint")):
 		period += animations.get_frame_duration(&"sprint", i) / animations.get_animation_speed(&"sprint")
-	check(is_equal_approx(period, 1.0 / 3.0), "las seis poses conservan el período anterior de cuatro poses")
+	check(is_equal_approx(period, 1.0 / 3.0), "las ocho poses conservan el período anterior de cuatro poses")
 	check(animations.get_frame_duration(&"sprint", 0) > animations.get_frame_duration(&"sprint", 1), "se sostiene más el apoyo que la pose de paso")
+
+	print("== Estelas y cuerpo independientes")
+	player._cancel_all_states()
+	player.attack_cooldown_timer = 0.0
+	player._start_attack()
+	player._update_attack_animation()
+	check(player.claw_slash_sprite.visible and player.claw_slash_sprite.hframes == 8 and player.claw_slash_sprite.z_index < 0, "los slashes animados se dibujan detrás de la mano")
+	player._cancel_all_states()
+	player._start_ground_charged_attack()
+	player._start_spin_attack()
+	player._update_attack_animation()
+	check(not player.claw_slash_sprite.visible and player.effect_strokes[0][1].visible, "el screw conserva su remolino y no arrastra el slash anterior")
 	print("RESULTADO: %d/%d OK" % [checks - fails, checks])
 	quit(1 if fails else 0)

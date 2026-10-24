@@ -1,0 +1,38 @@
+{
+  "sprint_wolverine": {
+    "file": "viridy_sprint_wolverine_v2.png",
+    "count": 8,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "dash_reach": {
+    "file": "viridy_dash_reach_v2.png",
+    "count": 4,
+    "cell": [
+      768,
+      512
+    ],
+    "crop_height": 480
+  },
+  "screw_front": {
+    "file": "viridy_screw_front_v2.png",
+    "count": 6,
+    "cell": [
+      768,
+      768
+    ],
+    "crop_height": 768
+  },
+  "claw_slashes": {
+    "file": "viridy_claw_slashes_v2.png",
+    "count": 8,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 512
+  }
+}

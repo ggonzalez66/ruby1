@@ -47,7 +47,8 @@ const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viri
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
 const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_beast_arcade.png")
 const LIQUID_SPIN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_ouroboros.png")
-const SCREW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_screw_arcade.png")
+const SCREW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_screw_front_v2.png")
+const CLAW_SLASH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_claw_slashes_v2.png")
 const GROUND_MORPH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_ground_heavy_arcade.png")
 const HEAVY_REMNANT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_remnant_arcade.png")
 const HURT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_hurt_arcade.png")
@@ -66,9 +67,9 @@ const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/vi
 const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_proud.png")
 const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_walk_arcade.png")
 const SPRINTING_ALTERNATE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_alternate.png")
-const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_run_arcade.png")
+const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_wolverine_v2.png")
 const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_mantle.png")
-const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_claw_arcade.png")
+const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_reach_v2.png")
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_cling.png")
 const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wallrun.png")
 const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_aerial_stall.png")
@@ -562,6 +563,7 @@ var attack_targets_hit: Array[Area2D] = []
 var show_hitbox_debug := false
 var attack_effects: Node2D
 var effect_strokes: Array = []
+var claw_slash_sprite: Sprite2D
 
 var slash_base_color := Color(1.0, 1.0, 1.0, 0.0)
 var slash_area_base_color := Color(1.0, 1.0, 1.0, 0.0)
@@ -942,14 +944,14 @@ func _configure_character_animations() -> void:
 	_add_arcade_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, 4, 12.0, true, Vector2(768, 512), 512.0, [2, 3])
 	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_TEXTURE, [UPPERCUT_REGION], 1.0, false)
 	_add_arcade_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, 4, 14.0, false, Vector2(768, 512), 512.0, [0, 1])
-	# El ciclo sigue durando 1/3 s: apoyo, paso y vuelo para cada mitad del braceo.
-	_add_arcade_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, 6, 18.0, true)
-	for index in [0, 3]:
-		frames.set_frame(ANIMATION_SPRINT, index, frames.get_frame_texture(ANIMATION_SPRINT, index), 1.35)
-	for index in [1, 4]:
+	# Ocho claves, con apoyos sostenidos; el período visual sigue siendo 1/3 s.
+	_add_arcade_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, 8, 24.0, true)
+	for index in [0, 4]:
+		frames.set_frame(ANIMATION_SPRINT, index, frames.get_frame_texture(ANIMATION_SPRINT, index), 1.7)
+	for index in [1, 2, 5, 6]:
 		frames.set_frame(ANIMATION_SPRINT, index, frames.get_frame_texture(ANIMATION_SPRINT, index), 0.65)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
-	_add_arcade_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE, 4, 18.0, false)
+	_add_arcade_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE, 4, 18.0, false, Vector2(768, 512))
 	_add_arcade_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, 4, 14.0, false, Vector2(768, 512), 512.0, [0, 1])
 	# Caída: el último frame del aire.
 	_add_region_animation(frames, ANIMATION_FALL, JUMP_AIR_SHEET, [JUMP_AIR_REGIONS[2]], 1.0, false)
@@ -3263,6 +3265,14 @@ func _create_attack_effects() -> void:
 	attack_effects.name = "AttackEffects"
 	attack_effects.visible = false
 	pivot.add_child(attack_effects)
+	# Detrás del cuerpo: la estela no debe tapar la mano que da el garrazo.
+	claw_slash_sprite = Sprite2D.new()
+	claw_slash_sprite.name = "ArcadeClawSlash"
+	claw_slash_sprite.texture = CLAW_SLASH_SHEET
+	claw_slash_sprite.hframes = 8
+	claw_slash_sprite.visible = false
+	claw_slash_sprite.z_index = -1
+	attack_effects.add_child(claw_slash_sprite)
 
 	# Media luna afilada: nace de la nada, engorda y termina en punta.
 	var width_curve := Curve.new()
@@ -3319,6 +3329,7 @@ func _effect_fade(progress: float, fade_start: float) -> float:
 	return clamp(1.0 - (progress - fade_start) / (1.0 - fade_start), 0.0, 1.0)
 
 func _update_attack_effects() -> void:
+	claw_slash_sprite.visible = false
 	match attack_mode:
 		ATTACK_SLASH:
 			_effect_claw_slash()
@@ -3332,6 +3343,17 @@ func _update_attack_effects() -> void:
 			_effect_liquid_bite()
 
 func _effect_claw_slash() -> void:
+	var progress := clampf(1.0 - attack_timer / _get_light_attack_duration(), 0.0, 1.0)
+	var finisher := light_combo_step == 3
+	_hide_effect_strokes(0)
+	claw_slash_sprite.visible = true
+	claw_slash_sprite.frame = (4 if finisher else 0) + mini(int(progress * 4.0), 3)
+	claw_slash_sprite.position = claw_arc_center + _get_claw_center_offset() + Vector2(26.0, -4.0)
+	claw_slash_sprite.scale = Vector2.ONE * (142.0 if finisher else 112.0) / 512.0
+	claw_slash_sprite.rotation = deg_to_rad(25.0 if light_combo_step == 1 else (-30.0 if light_combo_step == 2 else -10.0))
+	claw_slash_sprite.modulate.a = _effect_fade(progress, 0.6)
+
+func _effect_claw_slash_legacy() -> void:
 	# Tres zarpazos plateados paralelos siguiendo el arco de la hitbox; el remate es más grande.
 	var progress: float = 1.0 - (attack_timer / _get_light_attack_duration())
 	var sweep: float = 1.0 - pow(1.0 - progress, 2.4)
@@ -3351,6 +3373,16 @@ func _effect_claw_slash() -> void:
 		_set_effect_stroke(index, _effect_arc_points(claw_arc_center + _get_claw_center_offset(), Vector2(radius, radius), tail, head), width, EFFECT_PALETTE_SILVER, alpha)
 
 func _effect_charged_lunge() -> void:
+	var progress := clampf(1.0 - attack_timer / charged_ground_duration, 0.0, 1.0)
+	_hide_effect_strokes(0)
+	claw_slash_sprite.visible = true
+	claw_slash_sprite.frame = mini(int(progress * 4.0), 3)
+	claw_slash_sprite.position = Vector2(43.0, -14.0)
+	claw_slash_sprite.scale = Vector2(0.25, 0.15)
+	claw_slash_sprite.rotation = deg_to_rad(30.0)
+	claw_slash_sprite.modulate.a = _effect_fade(progress, 0.6) * 0.8
+
+func _effect_charged_lunge_legacy() -> void:
 	# Estocada: tres garras horizontales que convergen hacia la punta.
 	var progress: float = 1.0 - (attack_timer / charged_ground_duration)
 	var reveal: float = 1.0 - pow(1.0 - progress, 3.0)

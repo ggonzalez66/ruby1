@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Viridy · Revisión de poses</title>
+<style>
+body{margin:0;background:#14211c;color:#e7efe9;font:16px system-ui,sans-serif}main{max-width:1450px;padding:28px;margin:auto}h1{font-size:26px}p{color:#b5c9bb;line-height:1.5;max-width:900px}nav{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:24px 0}button,select{background:#294236;color:inherit;border:1px solid #5b7b65;border-radius:7px;padding:9px 14px}a{color:#b0dfba}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:16px}article{background:#1c3026;border:1px solid #3e6049;border-radius:12px;padding:15px}h2{font-size:18px;margin:0 0 10px}canvas{width:100%;background:repeating-conic-gradient(#20332a 0% 25%,#263d31 0% 50%) 50%/24px 24px;image-rendering:pixelated;border-radius:7px}input[type=range]{width:100%;accent-color:#a4d9ad}article p{font-size:14px;min-height:42px}.frame{float:right;font-size:13px;color:#acc5b2}.old{display:none}body.compare .old{display:block}
+</style>
+<main><h1>Viridy · Revisión de poses</h1>
+<p>Screw mirando a cámara, mano extendida en el dash y ocho poses de sprint. Esta vista reproduce el arte sin simular física. Las capturas de Godot muestran el shader jade y los efectos en juego.</p>
+<nav><button id="pause">Pausar</button><label>Velocidad <select id="speed"><option value="1">Normal</option><option value=".5">½</option><option value=".25">¼</option></select></label><label><input type="checkbox" id="compare"> Mostrar anteriores</label><a href="contact.png">Todas las poses</a><a href="README.md">Prompts y detalles</a><a href="runtime/screw.png">Screw en Godot</a><a href="runtime/dash.png">Dash en Godot</a></nav>
+<div class="grid" id="grid"></div></main>
+<script>
+const assets='../../../assets/sprites/player/viridy/';
+const specs=[
+ {title:'Sprint · Actual',file:'viridy_sprint_wolverine_v2.png',n:8,w:512,h:480,d:1/3,weights:[1.7,.65,.65,1,1.7,.65,.65,1],scale:.54,loop:true,note:'Torso bajo, codos que impulsan y dos mitades de braceo.'},
+ {title:'Sprint · Anterior',file:'viridy_run_arcade.png',n:6,w:512,h:480,d:1/3,weights:[1.35,.65,1,1.35,.65,1],scale:.54,loop:true,old:true,note:'Versión conservada para comparar.'},
+ {title:'Dash · Mano extendida',file:'viridy_dash_reach_v2.png',n:4,w:768,h:480,d:.22,scale:.54,note:'La palma permanece visible por delante del hocico.'},
+ {title:'Dash · Anterior',file:'viridy_dash_claw_arcade.png',n:4,w:512,h:480,d:.22,scale:.54,old:true,note:'Versión conservada para comparar.'},
+ {title:'Screw · Frontal',file:'viridy_screw_front_v2.png',n:6,w:768,h:768,d:.34,scale:100/768*3,note:'Mira a cámara. La melena se extiende mientras el cuerpo mantiene la pose.'},
+ {title:'Screw · Anterior',file:'viridy_screw_arcade.png',n:6,w:768,h:768,d:.34,scale:100/768*3,old:true,note:'La pose lateral anterior se conserva.'},
+ {title:'Slashes · Tres garras',file:'viridy_claw_slashes_v2.png',n:4,w:512,h:512,d:.16,scale:.59,note:'Estela del combo y del dash. Se muestra sin el personaje.'},
+ {title:'Slashes · Remate',file:'viridy_claw_slashes_v2.png',n:4,start:4,w:512,h:512,d:.22,scale:.59,note:'Media luna para el tercer golpe del combo.'}
+];
+let paused=false,speed=1,last=performance.now();
+const cards=specs.map(s=>{
+ const card=document.createElement('article');if(s.old)card.className='old';
+ card.innerHTML=`<h2>${s.title}<span class="frame"></span></h2><canvas width="600" height="340"></canvas><p>${s.note}</p><input type="range" aria-label="Frame de ${s.title}" min="0" max="${s.n-1}" value="0">`;
+ document.querySelector('#grid').append(card);
+ const state={...s,card,t:0,frame:0,image:new Image(),ctx:card.querySelector('canvas').getContext('2d')};
+ state.image.onload=()=>draw(state);state.image.src=assets+s.file;
+ card.querySelector('input').oninput=e=>{paused=true;document.querySelector('#pause').textContent='Reproducir';state.frame=Number(e.target.value);draw(state)};
+ return state;
+});
+function draw(s){if(!s.image.complete||!s.image.naturalWidth)return;const c=s.ctx;c.clearRect(0,0,600,340);c.imageSmoothingEnabled=false;c.drawImage(s.image,(s.frame+(s.start||0))*s.w,0,s.w,s.h,(600-s.w*s.scale)/2,320-s.h*s.scale,s.w*s.scale,s.h*s.scale);s.card.querySelector('.frame').textContent=`${s.frame+1}/${s.n}`;s.card.querySelector('input').value=s.frame}
+function selectFrame(s,p){if(s.weights){const total=s.weights.reduce((a,b)=>a+b,0);let accumulated=0;return s.weights.findIndex(w=>(accumulated+=w)>p*total)}if(s.n===4&&s.file.includes('dash'))return p<.12?0:p<.42?1:p<.72?2:3;return Math.min(s.n-1,Math.floor(p*s.n))}
+function tick(now){const dt=Math.min((now-last)/1000,.1);last=now;if(!paused)for(const s of cards){s.t+=dt*speed;const p=Math.min((s.t%(s.d+(s.loop?0:.35)))/s.d,.99999);s.frame=selectFrame(s,p);draw(s)}requestAnimationFrame(tick)}requestAnimationFrame(tick);
+document.querySelector('#pause').onclick=e=>{paused=!paused;e.target.textContent=paused?'Reproducir':'Pausar'};
+document.querySelector('#speed').onchange=e=>speed=Number(e.target.value);
+document.querySelector('#compare').onchange=e=>document.body.classList.toggle('compare',e.target.checked);
+</script>
+</html>

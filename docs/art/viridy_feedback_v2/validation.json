@@ -1,0 +1,30 @@
+{
+  "art_refresh": {
+    "passed": 11,
+    "total": 11
+  },
+  "sprites": {
+    "passed": 215,
+    "total": 215
+  },
+  "combos": {
+    "passed": 72,
+    "total": 72
+  },
+  "executions": {
+    "passed": 113,
+    "total": 113
+  },
+  "movement_polish": {
+    "passed": 14,
+    "total": 14
+  },
+  "sky_performance": {
+    "passed": 8,
+    "total": 8
+  },
+  "sky_records": {
+    "passed": 12,
+    "total": 12
+  }
+}

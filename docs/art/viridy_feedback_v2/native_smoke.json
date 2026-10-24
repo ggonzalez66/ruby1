@@ -1,0 +1,51 @@
+{
+  "linux/main": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "linux/stage2": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "linux/stage3": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "linux/stage4": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "linux/gauntlet": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "linux/sky_stairs": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "windows/main": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "windows/stage2": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "windows/stage3": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "windows/stage4": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "windows/gauntlet": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "windows/sky_stairs": {
+    "startup_passed": true,
+    "script_or_load_errors": []
+  },
+  "windows_executable_sha256": "8f66e6e38670fd82a8fb3f09d89d2b182d7a6ec03d7b88b5986099596871c2f5"
+}
