@@ -942,6 +942,11 @@ func _configure_character_animations() -> void:
 	_add_arcade_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_MORPH_SHEET, 4, 28.0, false, Vector2(1024, 640), 608.0)
 	_add_padded_animation(frames, ANIMATION_HEAVY_LANDING, LIQUID_LANDING_SHEET, Vector2(1000, 450), [Rect2(77, 454, 838, 255), Rect2(946, 343, 766, 364)], 20.0, false)
 	_add_arcade_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, 4, 12.0, true, Vector2(768, 512), 512.0, [2, 3])
+	# El heavy de suelo termina cerrando la mordida. Reutilizar la pose cerrada sin tocar las hojas.
+	var heavy_closed: AtlasTexture = frames.get_frame_texture(ANIMATION_RUBY_CHEW, 0).duplicate()
+	# Conservar el canvas de 1024 × 608 y el apoyo de los otros tres frames.
+	heavy_closed.margin = Rect2(Vector2(128, 96), Vector2(256, 96))
+	frames.set_frame(ANIMATION_GROUND_HEAVY, 3, heavy_closed)
 	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_TEXTURE, [UPPERCUT_REGION], 1.0, false)
 	_add_arcade_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, 4, 14.0, false, Vector2(768, 512), 512.0, [0, 1])
 	# Ocho claves, con apoyos sostenidos; el período visual sigue siendo 1/3 s.
@@ -1083,7 +1088,7 @@ func _update_character_animation() -> void:
 	elif execution_ground_exit_timer > 0.0 and is_on_floor():
 		next_animation = ANIMATION_LIQUID_LAUNCH
 	elif heavy_morph_recovery_timer > 0.0 and is_on_floor():
-		next_animation = ANIMATION_LIQUID_LAUNCH
+		next_animation = ANIMATION_RUBY_CHEW
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP if backflip_elapsed < backflip_rotation_duration else ANIMATION_AERIAL_STALL
 	elif frontflip_active:
@@ -1148,7 +1153,7 @@ func _update_character_animation() -> void:
 		else:
 			next_animation = ANIMATION_IDLE
 
-	var leaving_ground_beast := animated_sprite.animation == ANIMATION_LIQUID_LAUNCH and execution_ground_exit_timer <= 0.0 and is_on_floor() and next_animation in [ANIMATION_SPRINT, ANIMATION_WALK, ANIMATION_SPRINT_BRAKE]
+	var leaving_ground_beast := animated_sprite.animation in [ANIMATION_LIQUID_LAUNCH, ANIMATION_RUBY_CHEW] and execution_ground_exit_timer <= 0.0 and is_on_floor() and next_animation in [ANIMATION_SPRINT, ANIMATION_WALK, ANIMATION_SPRINT_BRAKE]
 	if leaving_ground_beast and not is_instance_valid(execution_ground_blend):
 		_begin_execution_ground_blend()
 	if animated_sprite.animation != next_animation:

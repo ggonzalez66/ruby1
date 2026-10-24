@@ -1,0 +1,18 @@
+{
+  "windows": {
+    "main": "startup_passed",
+    "stage2": "startup_passed",
+    "stage3": "startup_passed",
+    "stage4": "startup_passed",
+    "gauntlet": "startup_passed",
+    "sky_stairs": "startup_passed"
+  },
+  "linux": {
+    "main": "startup_passed",
+    "stage2": "startup_passed",
+    "stage3": "startup_passed",
+    "stage4": "startup_passed",
+    "gauntlet": "startup_passed",
+    "sky_stairs": "startup_passed"
+  }
+}

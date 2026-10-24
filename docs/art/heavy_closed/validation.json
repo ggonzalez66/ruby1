@@ -1,0 +1,18 @@
+{
+  "art_refresh": {
+    "passed": 11,
+    "total": 11
+  },
+  "executions": {
+    "passed": 113,
+    "total": 113
+  },
+  "combos": {
+    "passed": 72,
+    "total": 72
+  },
+  "sprites": {
+    "passed": 215,
+    "total": 215
+  }
+}

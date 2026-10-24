@@ -32,7 +32,10 @@ func _run() -> void:
 	if not arguments.is_empty():
 		directory = arguments[0]
 	DirAccess.make_dir_recursive_absolute(directory)
-	for name in ["run", "walk", "dash", "heavy", "screw", "light1", "light2", "light3", "hurt"]:
+	var poses: Array = ["run", "walk", "dash", "heavy", "screw", "light1", "light2", "light3", "hurt"]
+	if arguments.size() > 1:
+		poses.assign(arguments[1].split(","))
+	for name in poses:
 		player._cancel_all_states()
 		player.position = Vector2(2300, -2)
 		player.attack_mode = player.ATTACK_NONE
@@ -51,6 +54,11 @@ func _run() -> void:
 			"heavy":
 				player.attack_mode = player.ATTACK_HEAVY_GROUND
 				player.attack_timer = 0.10
+			"heavy_close":
+				player.attack_mode = player.ATTACK_HEAVY_GROUND
+				player.attack_timer = 0.02
+			"heavy_recovery":
+				player.heavy_morph_recovery_timer = 0.08
 			"screw":
 				player.position.y = -70
 				player.attack_mode = player.ATTACK_SPIN
