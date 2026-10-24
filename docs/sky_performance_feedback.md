@@ -1,6 +1,6 @@
 # Rebote, carrera y rendimiento de Escalera al cielo
 
-La ejecución aérea en carrera sale a `sprint_speed` (560 unidades/s), igual que el movimiento de un rebote normal en carrera. El heavy deja de convertir su velocidad de impacto en bonus y la salida no activa el salto largo. La componente vertical sigue usando los ratios del rebote habitual según la trayectoria del heavy. Las acciones pueden seguir interrumpiendo el flip estético.
+Revisión posterior: la ejecución aérea en carrera sale a `sprint_speed + execution_air_exit_boost` (560 + 180 = 740 unidades/s), punto intermedio entre el rebote normal y la salida excesiva anterior. El heavy deja de convertir su velocidad de impacto en bonus y la salida no activa el salto largo. La componente vertical sigue usando los ratios del rebote habitual según la trayectoria del heavy. Las acciones pueden seguir interrumpiendo el flip estético.
 
 La carrera usa cuatro poses a 12 fps, dos por cada brazo delantero. Se omite la pose intermedia de cada tripleta, manteniendo los apoyos más tiempo. Se conservan las hojas, los puños y la boca cerrados, la escala y la alternancia de brazos.
 

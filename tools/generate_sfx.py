@@ -386,24 +386,24 @@ def enemy_swing():
 
 
 def knife_throw():
-    d = 0.12
-    whoosh = mul(bandpass(noise(d, 33), 1500, sweep(9000, 3000, d)), env(d, 0.005, 0.07))
-    ting = gain(partials(d, [3200, 4700], [0.05, 0.03], 34), 0.3)
-    return finish(mix(whoosh, ting))
+    d = 0.18
+    whoosh = mul(bandpass(noise(d, 33), 180, sweep(3600, 1100, d)), env(d, 0.006, 0.12))
+    flame = gain(mul(lowpass(crackle(d, 34, 0.06), 3200), env(d, 0.005, 0.13)), 0.45)
+    return finish(mix(whoosh, flame))
 
 
 def knife_hit():
-    d = 0.14
-    tink = partials(d, [2400, 3610, 5020], [0.07, 0.05, 0.03], 35)
-    click = mul(highpass(noise(d, 36), 2500), env(d, 0.0005, 0.01))
-    return finish(mix(tink, click))
+    d = 0.17
+    burst = mul(lowpass(noise(d, 35), 2800), env(d, 0.001, 0.08))
+    flame = gain(mul(crackle(d, 36, 0.07), env(d, 0.001, 0.12)), 0.35)
+    return finish(mix(burst, flame))
 
 
 def knife_catch():
-    d = 0.08
-    click = mul(highpass(noise(d, 37), 3000), env(d, 0.0005, 0.012))
-    tone = gain(mul(osc(d, 1250), env(d, 0.001, 0.03)), 0.5)
-    return finish(mix(click, tone), 0.7)
+    d = 0.12
+    air = mul(bandpass(noise(d, 37), 300, 2100), env(d, 0.012, 0.08))
+    tone = gain(mul(osc(d, sweep(420, 740, d)), env(d, 0.005, 0.07)), 0.3)
+    return finish(mix(air, tone), 0.7)
 
 
 def rank_up():

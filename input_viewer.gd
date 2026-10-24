@@ -16,7 +16,7 @@ const TEXT := Color(0.88, 0.95, 0.86)
 const TEXT_ON := Color(0.08, 0.06, 0.02)
 const FACE := {"A": Color(0.36, 0.8, 0.28), "B": Color(0.9, 0.26, 0.24), "X": Color(0.25, 0.5, 0.95), "Y": Color(0.98, 0.78, 0.18)}
 # Acciones del teclado que se muestran (además del movimiento) y su rótulo.
-const ACTIONS := [["jump", "Salto"], ["attack", "Ataque"], ["heavy_attack", "Pesado"], ["dash", "Dash"], ["throw_knife", "Cuchillo"], ["roar", "Rugido"]]
+const ACTIONS := [["jump", "Salto"], ["attack", "Ataque"], ["heavy_attack", "Pesado"], ["dash", "Dash"], ["throw_knife", "Fuego jade"], ["roar", "Rugido"]]
 
 var enabled := false
 var panel: Control

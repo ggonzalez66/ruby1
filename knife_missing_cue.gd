@@ -4,8 +4,7 @@ extends Node2D
 # rojo, una flecha que apunta hacia donde quedó y la tecla para llamarlo. Aparece con un pequeño
 # rebote y se desvanece solo.
 
-const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_knife.png")
-const KNIFE_REGION := Rect2(141, 138, 958, 1038)
+const FIRE_VISUAL := preload("res://jade_fire_visual.gd")
 const LIFETIME := 0.8
 const WARN_COLOR := Color(1.0, 0.25, 0.2)
 const ARROW_RADIUS := 26.0
@@ -19,10 +18,8 @@ func _ready() -> void:
 	z_index = 10
 	position = Vector2(0, -108)
 	icon = Sprite2D.new()
-	icon.texture = KNIFE_TEXTURE
-	icon.region_enabled = true
-	icon.region_rect = KNIFE_REGION
-	icon.scale = Vector2.ONE * 0.028
+	icon.texture = FIRE_VISUAL.icon_texture()
+	icon.scale = Vector2.ONE * 0.065
 	icon.modulate = Color(1.0, 0.55, 0.5)
 	add_child(icon)
 	hint = Label.new()

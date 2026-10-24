@@ -547,7 +547,7 @@ theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
 theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 34
-text = "PISO 3 · CUCHILLO"
+text = "PISO 3 · FUEGO JADE"
 
 [node name="F3Slab1" type="StaticBody2D" parent="."]
 position = Vector2(743, -2170)
@@ -631,9 +631,9 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnife" type="Node2D" parent="."]
 position = Vector2(820, -2200)
 script = ExtResource("14_sign")
-text = "{throw_knife} lanza el cuchillo: se clava en enemigos y paredes.
+text = "{throw_knife} lanza el fuego jade: queda anclado en enemigos y paredes.
 Pulsa {throw_knife} otra vez para que vuelva a tu mano."
-title = "Cuchillo"
+title = "Fuego jade"
 panel_width = 320
 
 [node name="DummyKnifeTarget" parent="." instance=ExtResource("2_dummy")]
@@ -655,7 +655,7 @@ max_health = 6
 [node name="SignKnifePull" type="Node2D" parent="."]
 position = Vector2(2600, -2200)
 script = ExtResource("14_sign")
-text = "Si el cuchillo está clavado en un enemigo, al recuperarlo lo arrastras hacia ti.
+text = "Si el fuego jade está anclado en un enemigo, al recuperarlo lo arrastras hacia ti.
 Baja al dummy de la plataforma alta: la caída lo destruye."
 title = "Atraer"
 panel_width = 340
@@ -781,8 +781,8 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnifeChaser" type="Node2D" parent="."]
 position = Vector2(6950, -2200)
 script = ExtResource("14_sign")
-text = "Clávale el cuchillo a un perseguidor y recupéralo: lo atraes hacia ti fuera de su guardia."
-title = "Cuchillo y perseguidores"
+text = "Ancla el fuego jade a un perseguidor y recupéralo: lo atraes hacia ti fuera de su guardia."
+title = "Fuego jade y perseguidores"
 panel_width = 340
 
 [node name="ChaserF3A" type="Area2D" parent="."]
@@ -884,7 +884,7 @@ panel_width = 400
 position = Vector2(8900, -3300)
 script = ExtResource("14_sign")
 text = "Ruge justo cuando un proyectil te alcance: vuelve hacia quien lo disparó.
-Devolverlo abre el riposte: lanza el cuchillo enseguida, pega el doble y te cura al sacarlo.
+Devolverlo abre el riposte: lanza el fuego jade enseguida, pega el doble. Ejecutar un Ruby recupera vida.
 Ojo: a veces el tirador te lo devuelve, cada vez más fuerte."
 title = "Devolver"
 panel_width = 360
@@ -904,16 +904,16 @@ shoot_direction = Vector2(1, 0.35)
 [node name="SignShineKnife" type="Node2D" parent="."]
 position = Vector2(7700, -3300)
 script = ExtResource("14_sign")
-text = "Ruge mientras el cuchillo vuelve hacia ti: sale disparado otra vez contra el enemigo en que estaba clavado.
+text = "Ruge mientras el fuego jade vuelve hacia ti: sale disparado otra vez contra el enemigo en que estaba anclado.
 Encadénalo: recupera, ruge, recupera..."
-title = "Shine knife"
+title = "Shine jade"
 panel_width = 340
 
 [node name="SignParry" type="Node2D" parent="."]
 position = Vector2(7350, -3300)
 script = ExtResource("14_sign")
 text = "Ruge justo antes de que un perseguidor te golpee: queda aturdido.
-Riposte: tu siguiente {heavy_attack} o cuchillo hace el doble de daño y te cura."
+Riposte: tu siguiente {heavy_attack} o fuego jade hace el doble de daño. Ejecutar un Ruby recupera vida."
 title = "Parry y contraataque"
 panel_width = 340
 

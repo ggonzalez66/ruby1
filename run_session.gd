@@ -61,6 +61,9 @@ func begin_run(new_player: Node2D, with_countdown: bool = true) -> void:
 	best_frames = record.get("frames", [])
 	if not best_frames.is_empty():
 		ghost = Sprite2D.new()
+		var palette := ShaderMaterial.new()
+		palette.shader = preload("res://shaders/charge_glow.gdshader")
+		ghost.material = palette
 		ghost.name = "BestTimeGhost"
 		ghost.modulate = Color(0.35, 0.85, 1.0, 0.38)
 		ghost.z_index = 2
@@ -198,6 +201,7 @@ func _update_ghost() -> void:
 	if not frames.has_animation(animation):
 		return
 	ghost.texture = frames.get_frame_texture(animation, clampi(int(a[4]), 0, frames.get_frame_count(animation) - 1))
+	ghost.material.set_shader_parameter("jade_amount", 1.0 if player.uses_jade_palette(ghost.texture) else 0.0)
 	var feet := Vector2(float(a[1]), float(a[2])).lerp(Vector2(float(b[1]), float(b[2])), weight)
 	ghost.position = feet + Vector2(float(a[7]), float(a[8])).lerp(Vector2(float(b[7]), float(b[8])), weight)
 	ghost.scale = Vector2(float(a[5]), float(a[6]))

@@ -8,7 +8,7 @@ const TUTORIAL_SIGN := preload("res://tutorial_sign.gd")
 const MAIN_MENU := "res://main_menu.tscn"
 # Al cambiar el esquema por defecto se sube la versión: los controles guardados con una
 # versión anterior se ignoran (el volumen sí se conserva), salvo los de la versión 2, que se cargan
-# pasando "Lanzar cuchillo" del mando a su nuevo botón por defecto (LT).
+# pasando "Fuego jade / recuperar" del mando a su nuevo botón por defecto (LT).
 const INPUT_VERSION := 3
 const MUSIC_BUS := &"Music"
 const SFX_BUS := &"SFX"
@@ -32,7 +32,7 @@ signal closed
 const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
-	["throw_knife", "Lanzar cuchillo"], ["roar", "Rugido"], ["pause", "Pausa"], ["respawn", "Reiniciar"],
+	["throw_knife", "Fuego jade / recuperar"], ["roar", "Rugido"], ["pause", "Pausa"], ["respawn", "Reiniciar"],
 	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).

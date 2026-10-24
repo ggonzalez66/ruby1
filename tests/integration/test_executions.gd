@@ -191,13 +191,42 @@ func _run() -> void:
 		hit(victim, player.ATTACK_HEAVY_GROUND)
 		await wait_execution()
 		var exit_start: Vector2 = player.position
-		check(player.execution_ground_exit_timer > 0.0 and player.animated_sprite.animation == player.ANIMATION_RUBY_CHEW and player.velocity.x * direction >= player.execution_ground_exit_speed, "al explotar sale transformado hacia %d incluso sin correr" % direction)
+		check(player.execution_ground_exit_timer > 0.0 and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH and player.velocity.x * direction >= player.execution_ground_exit_speed, "al explotar sale transformado hacia %d incluso sin correr" % direction)
 		await frames(4)
-		check((player.position.x - exit_start.x) * direction > 10.0 and player.animated_sprite.animation == player.ANIMATION_RUBY_CHEW, "avanza físicamente mientras conserva la bestia")
+		check((player.position.x - exit_start.x) * direction > 10.0 and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "avanza físicamente mientras conserva la bestia")
 		await frames(16)
-		check(player.position.x * direction < 55.0 and player.execution_ground_exit_timer == 0.0 and player.animated_sprite.animation != player.ANIMATION_RUBY_CHEW, "el avance respeta la pared y la forma termina")
+		check(player.position.x * direction < 55.0 and player.execution_ground_exit_timer == 0.0 and player.animated_sprite.animation != player.ANIMATION_LIQUID_LAUNCH, "el avance respeta la pared y la forma termina")
 		wall.queue_free()
 		await clean()
+
+	print("== Salida terrestre abierta y transición libre a carrera")
+	Input.action_press("dash")
+	player._start_sprint(1)
+	player.velocity.x = player.sprint_speed
+	victim = make_enemy("chaser_dummy", Vector2(45, 0), 20)
+	victim.current_health = 1
+	hit(victim, player.ATTACK_HEAVY_GROUND)
+	await wait_execution()
+	check(player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "al romper el Ruby terrestre abre las fauces")
+	var saw_blend := false
+	var kept_running := true
+	for tick in range(22):
+		await frames(1)
+		saw_blend = saw_blend or (is_instance_valid(player.execution_ground_blend) and player.animated_sprite.self_modulate.a < 1.0)
+		kept_running = kept_running and player.velocity.x >= player.sprint_speed - 1.0
+	check(saw_blend and kept_running and player.animated_sprite.animation == player.ANIMATION_SPRINT and is_equal_approx(player.animated_sprite.self_modulate.a, 1.0), "la bestia se funde con la corrida manteniendo el movimiento y vuelve a opacidad completa")
+	await clean()
+	Input.action_press("dash")
+	player._start_sprint(1)
+	victim = make_enemy("chaser_dummy", Vector2(45, 0), 20)
+	victim.current_health = 1
+	hit(victim, player.ATTACK_HEAVY_GROUND)
+	await wait_execution()
+	Input.action_press("jump")
+	await frames(6)
+	Input.action_release("jump")
+	check(player.velocity.y < 0.0 and player.execution_ground_exit_timer == 0.0, "saltar cancela la salida terrestre sin esperar la transición")
+	await clean()
 
 	print("== Uppercut líquido y apertura previa")
 	victim = make_enemy("chaser_dummy", Vector2(60, 0), 20)
@@ -255,7 +284,7 @@ func _run() -> void:
 		check(absf(player.animated_sprite.rotation - spin_angle) > 0.2 and player.animated_sprite.global_position.distance_to(victim.ruby_core.global_position) < 0.5, "al girar no orbita ni desplaza su centro")
 		await wait_execution()
 		check(not victim.visible and player.velocity.y < 0 and player.air_jumps_remaining == player.max_air_jumps, "el volador muere y entrega el último rebote y salto aéreo")
-		check(player.is_sprinting and is_equal_approx(player.velocity.x, player.sprint_speed) and player.bunnyhop_bonus == 180, "sale a velocidad de rebote en carrera sin convertir el heavy en aceleración extra")
+		check(player.is_sprinting and is_equal_approx(player.velocity.x, player.sprint_speed + player.execution_air_exit_boost) and player.bunnyhop_bonus == 180, "sale con impulso intermedio fijo sin convertir el heavy en aceleración extra")
 		check(player.execution_air_exit == player.ExecutionAirExit.LAUNCH and player.frontflip_active and player.attack_mode == player.ATTACK_NONE and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "en carrera sale con bestia alargada sin hitbox gratuita")
 		var exit_stall := false
 		var saw_apex_flip := false
@@ -268,7 +297,7 @@ func _run() -> void:
 				break
 		check(saw_apex_flip, "en el peak se detiene verticalmente para hacer un flip normal")
 		check(exit_stall and player.velocity.y > 0, "después del flip normal cae en aerial stall")
-		check(is_equal_approx(player.velocity.x, player.sprint_speed), "la salida conserva la velocidad de rebote durante todo el vuelo")
+		check(is_equal_approx(player.velocity.x, player.sprint_speed + player.execution_air_exit_boost), "la salida conserva el impulso intermedio durante todo el vuelo")
 		player._start_heavy_attack(false)
 		check(player.attack_mode == player.ATTACK_HEAVY and player.execution_air_exit == player.ExecutionAirExit.NONE, "desde la salida aérea se puede encadenar otro ataque sin arrastrar el estado")
 	await clean()

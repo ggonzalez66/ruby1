@@ -159,9 +159,9 @@ func _run() -> void:
 	var knife: Node2D = load("res://knife.gd").new()
 	level.add_child(knife)
 	await frames(1)
-	check(knife.sprite.texture.resource_path.ends_with("viridy_knife.png"), "usa el sprite nuevo")
-	var length: float = knife.KNIFE_REGION.size.length() * knife.VISUAL_SCALE
-	check(length > 52.0 and length < 64.0, "un 30 %% más largo que antes (%.0f px)" % length)
+	check(knife.sprite.texture.resource_path.ends_with("viridy_jade_fire.png") and knife.sprite.hframes * knife.sprite.vframes == 4, "usa el sprite nuevo")
+	var length: float = knife.sprite.texture.get_width() * 0.5 * knife.VISUAL_SCALE
+	check(length >= 52.0 and length <= 80.0, "fuego de tamaño comparable al proyectil anterior (%.0f px)" % length)
 	var target: Node2D = load("res://training_dummy.tscn").instantiate()
 	target.aerial = true
 	target.max_health = 99

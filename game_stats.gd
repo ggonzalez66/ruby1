@@ -17,8 +17,8 @@ var boss_fight_time := 0.0
 const ACHIEVEMENTS := [
 	["parries", 15, "Parrygod de Sekiro", "Parrea 15 ataques"],
 	["projectiles_reflected", 25, "Devuelto al remitente", "Devuelve 25 proyectiles"],
-	["knife_shines", 10, "Malabarista", "Haz 10 shine knifes"],
-	["knife_throws", 60, "Cuchillo boomerang", "Lanza el cuchillo 60 veces"],
+	["knife_shines", 10, "Malabarista", "Devuelve 10 veces el fuego jade con el rugido"],
+	["knife_throws", 60, "Fuego de retorno", "Lanza el fuego jade 60 veces"],
 	["backflips", 40, "Leon Scott Kennedy", "Unnecessary backflips (40)"],
 	["frontflips", 50, "Maromas en el aire", "Haz 50 frontflips"],
 	["sun_hits_dealt", 25, "Mata-soles (fallido)", "Intenta matar al sol 25 veces: es inmortal"],

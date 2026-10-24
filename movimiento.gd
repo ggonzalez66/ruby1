@@ -7,6 +7,8 @@ extends CharacterBody2D
 @export var execution_ground_exit_duration := 0.16
 @export var execution_ground_exit_speed := 520.0
 @export var execution_apex_flip_duration := 0.22
+@export var execution_air_exit_boost := 180.0
+@export var execution_ground_blend_duration := 0.10
 @export var uppercut_flip_lead_time := 0.18
 @export var uppercut_flip_duration := 0.24
 
@@ -23,6 +25,10 @@ var execution_trajectory := 0
 var execution_jump_buffered := false
 var execution_action := &""
 var execution_ground_exit_timer := 0.0
+var execution_ground_blend: Sprite2D
+var execution_ground_blend_timer := 0.0
+var execution_air_boost_active := false
+var execution_ground_exit_initial_speed := 0.0
 enum ExecutionAirExit { NONE, LAUNCH, APEX_FLIP, UPPERCUT_RISE, UPPERCUT_FLIP, BOUNCE_FLIP }
 var execution_air_exit := ExecutionAirExit.NONE
 
@@ -68,6 +74,7 @@ const ROAR_HOLD_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy
 const BRAKE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_brake.png")
 const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_brake_recover.png")
 const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
+const JADE_SHEETS := [WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -631,6 +638,7 @@ func _physics_process(delta: float) -> void:
 	_interrupt_execution_air_exit()
 
 	if was_on_floor:
+		execution_air_boost_active = false
 		coyote_timer = coyote_time
 		air_jumps_remaining = max_air_jumps
 		air_uppercut_available = true
@@ -747,6 +755,8 @@ func _physics_process(delta: float) -> void:
 		_apply_wallride(delta)
 	elif wall_cling_timer > 0.0:
 		_apply_running_wall_cling_movement(delta)
+	elif execution_ground_exit_timer > 0.0 and is_on_floor():
+		_apply_execution_ground_exit(move_input)
 	elif _uses_sprint_movement():
 		_apply_sprint_movement(move_input, delta)
 	else:
@@ -1040,7 +1050,7 @@ func _update_character_animation() -> void:
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
 	elif execution_ground_exit_timer > 0.0 and is_on_floor():
-		next_animation = ANIMATION_RUBY_CHEW
+		next_animation = ANIMATION_LIQUID_LAUNCH
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP if backflip_elapsed < backflip_rotation_duration else ANIMATION_AERIAL_STALL
 	elif frontflip_active:
@@ -1105,6 +1115,9 @@ func _update_character_animation() -> void:
 		else:
 			next_animation = ANIMATION_IDLE
 
+	var leaving_ground_beast := animated_sprite.animation == ANIMATION_LIQUID_LAUNCH and execution_ground_exit_timer <= 0.0 and is_on_floor() and next_animation in [ANIMATION_SPRINT, ANIMATION_WALK, ANIMATION_SPRINT_BRAKE]
+	if leaving_ground_beast and not is_instance_valid(execution_ground_blend):
+		_begin_execution_ground_blend()
 	if animated_sprite.animation != next_animation:
 		_play_animation_sfx(next_animation)
 		animated_sprite.play(next_animation)
@@ -1126,6 +1139,28 @@ func _update_character_animation() -> void:
 	elif knife_scrape.active:
 		knife_scrape.end()
 	shadow.visible = is_on_floor()
+	if is_instance_valid(execution_ground_blend) and next_animation not in [ANIMATION_SPRINT, ANIMATION_WALK, ANIMATION_SPRINT_BRAKE]:
+		_clear_execution_ground_blend()
+
+func _begin_execution_ground_blend() -> void:
+	execution_ground_blend = Sprite2D.new()
+	execution_ground_blend.texture = animated_sprite.sprite_frames.get_frame_texture(animated_sprite.animation, animated_sprite.frame)
+	execution_ground_blend.transform = animated_sprite.transform
+	execution_ground_blend.flip_h = animated_sprite.flip_h
+	execution_ground_blend.material = charge_glow_material.duplicate()
+	add_child(execution_ground_blend)
+	execution_ground_blend_timer = maxf(execution_ground_blend_duration, 0.01)
+	animated_sprite.self_modulate.a = 0.0
+
+func _clear_execution_ground_blend() -> void:
+	if is_instance_valid(execution_ground_blend):
+		execution_ground_blend.queue_free()
+	execution_ground_blend = null
+	execution_ground_blend_timer = 0.0
+	animated_sprite.self_modulate.a = 1.0
+
+func uses_jade_palette(texture: Texture2D) -> bool:
+	return texture is AtlasTexture and texture.atlas in JADE_SHEETS
 
 func _create_screw_embers() -> void:
 	# Brasas del giro: chispas de fuego verde que saltan del cuerpo y se quedan atrás (en el mundo).
@@ -1216,6 +1251,7 @@ func _align_character_animation(animation_name: StringName) -> void:
 	# La base del frame (sus pies) va en el origen de Rengar: se usa el alto del frame actual.
 	var frame: int = animated_sprite.frame if animation_name == ANIMATION_SPRINT and animated_sprite.animation == animation_name else 0
 	var texture := animated_sprite.sprite_frames.get_frame_texture(animation_name, frame)
+	charge_glow_material.set_shader_parameter("jade_amount", 1.0 if uses_jade_palette(texture) else 0.0)
 	var texture_height: float = texture.get_height() if texture else 0.0
 	var visual_scale: float = CHARACTER_VISUAL_SCALE * ANIMATION_VISUAL_SCALES.get(animation_name, 1.0)
 	animated_sprite.scale = Vector2.ONE * visual_scale
@@ -1231,6 +1267,13 @@ func _align_character_animation(animation_name: StringName) -> void:
 		animated_sprite.position = Vector2(0.0, -33.0)
 
 func _update_timers(delta: float) -> void:
+	if is_instance_valid(execution_ground_blend):
+		execution_ground_blend_timer = maxf(execution_ground_blend_timer - delta, 0.0)
+		var blend := 1.0 - execution_ground_blend_timer / maxf(execution_ground_blend_duration, 0.01)
+		animated_sprite.self_modulate.a = blend
+		execution_ground_blend.modulate.a = 1.0 - blend
+		if execution_ground_blend_timer <= 0.0:
+			_clear_execution_ground_blend()
 	execution_ground_exit_timer = maxf(execution_ground_exit_timer - delta, 0.0)
 	if not frontflip_active:
 		execution_air_exit = ExecutionAirExit.NONE
@@ -1393,6 +1436,8 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 func _try_start_sprint_jump(move_input: float) -> bool:
 	if not is_sprinting or (not is_on_floor() and coyote_timer <= 0.0) or _is_attack_active() or dash_timer > 0.0:
 		return false
+	execution_ground_exit_timer = 0.0
+	_clear_execution_ground_blend()
 
 	var input_direction := int(sign(move_input))
 	jump_buffer_timer = 0.0
@@ -1407,6 +1452,8 @@ func _try_start_sprint_jump(move_input: float) -> bool:
 	return true
 
 func _start_long_jump_squat() -> void:
+	execution_ground_exit_timer = 0.0
+	_clear_execution_ground_blend()
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0
 	long_jump_squat_timer = long_jump_squat_duration
@@ -1420,6 +1467,8 @@ func _start_long_jump_squat() -> void:
 		_launch_long_jump()
 
 func _launch_long_jump() -> void:
+	execution_ground_exit_timer = 0.0
+	_clear_execution_ground_blend()
 	jump_origin_y = global_position.y
 	long_jump_active = true
 	long_jump_chain_timer = 0.0
@@ -1455,6 +1504,8 @@ func _try_start_long_jump_chain(move_input: float) -> bool:
 	return true
 
 func _start_backflip() -> void:
+	execution_ground_exit_timer = 0.0
+	_clear_execution_ground_blend()
 	backflip_run_direction = 0
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0
@@ -1640,6 +1691,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡IMPARABLE!", Ferocity.rank_info()["color"])
 		return
 	hurt_lock_timer = hurt_control_lock_time
+	_clear_execution_ground_blend()
+	execution_air_boost_active = false
 	execution_ground_exit_timer = 0.0
 	execution_air_exit = ExecutionAirExit.NONE
 	# Interrumpe cualquier estado de movimiento o ataque y empuja lejos del origen del daño.
@@ -1739,6 +1792,8 @@ func _update_death(delta: float) -> void:
 		animated_sprite.rotation += death_spin * delta
 
 func _cancel_all_states() -> void:
+	_clear_execution_ground_blend()
+	execution_air_boost_active = false
 	execution_ground_exit_timer = 0.0
 	execution_air_exit = ExecutionAirExit.NONE
 	_end_roar()
@@ -1981,7 +2036,7 @@ func on_knife_shined(knife: Node) -> void:
 	# Shine knife: el cuchillo que volvía sale disparado otra vez contra el enemigo.
 	_apply_hitstop(0.05)
 	Stats.add("knife_shines")
-	Ferocity.add("shine_knife", 22.0, "SHINE KNIFE", Ferocity.BONUS_COLOR, "shine_knife", knife.player_shines)
+	Ferocity.add("shine_knife", 22.0, "SHINE JADE", Ferocity.BONUS_COLOR, "shine_knife", knife.player_shines)
 
 # ---------- Mantle automático
 
@@ -2489,7 +2544,7 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 	if not is_on_floor():
 		# En el aire corriendo (p. ej. tras rebotar con el heavy) se conserva el impulso
 		# hacia delante y se puede usar el salto aéreo.
-		velocity.x = sprint_direction * sprint_speed
+		velocity.x = sprint_direction * (sprint_speed + (execution_air_exit_boost if execution_air_boost_active else 0.0))
 		_apply_gravity(delta)
 		_consume_sprint_air_jump()
 		return
@@ -2511,6 +2566,20 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 
 	velocity.x = sprint_direction * (long_jump_horizontal_speed + bunnyhop_bonus) if long_jump_chain_timer > 0.0 and bunnyhop_bonus > 0.0 else sprint_direction * sprint_speed
 	velocity.y = 0.0
+
+func _apply_execution_ground_exit(move_input: float) -> void:
+	var target_speed := max_speed if move_input != 0.0 else 0.0
+	if is_sprinting:
+		target_speed = long_jump_horizontal_speed + bunnyhop_bonus if long_jump_chain_timer > 0.0 and bunnyhop_bonus > 0.0 else sprint_speed
+	var progress := 1.0 - execution_ground_exit_timer / maxf(execution_ground_exit_duration, 0.01)
+	velocity.x = execution_direction * lerpf(execution_ground_exit_initial_speed, target_speed, smoothstep(0.0, 1.0, progress))
+	velocity.y = 0.0
+	# Salto anticipado: la presentación de salida no bloquea la cadena.
+	if jump_buffer_timer > 0.0:
+		if is_sprinting:
+			_try_start_sprint_jump(move_input)
+		else:
+			_consume_jump_buffer()
 
 func _consume_sprint_air_jump() -> void:
 	if jump_buffer_timer <= 0.0 or air_jumps_remaining <= 0 or _is_attack_active():
@@ -3038,6 +3107,8 @@ func _set_attack_active(active: bool) -> void:
 	hitbox.monitoring = active
 	hitbox_shape.disabled = not active
 	if active:
+		execution_air_boost_active = false
+		_clear_execution_ground_blend()
 		execution_ground_exit_timer = 0.0
 		execution_air_exit = ExecutionAirExit.NONE
 		frontflip_active = false
@@ -3486,6 +3557,8 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
 		return
+	execution_air_boost_active = false
+	_clear_execution_ground_blend()
 	execution_ground_exit_timer = 0.0
 	execution_air_exit = ExecutionAirExit.NONE
 	block_stun_timer = 0.0
@@ -3693,6 +3766,7 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	if attack_mode != ATTACK_HEAVY:
 		return
 	execution_air_exit = ExecutionAirExit.NONE
+	execution_air_boost_active = false
 
 	if hit_enemy:
 		# Rebotar en un enemigo devuelve un salto aéreo (sin acumular más del máximo) y el uppercut del aire.
@@ -3989,8 +4063,9 @@ func _finish_execution() -> void:
 		execution_air_exit = ExecutionAirExit.BOUNCE_FLIP
 		if keep_running:
 			_start_sprint(execution_direction)
-			# Misma velocidad que un rebote en carrera: el impulso del heavy no se convierte en bonus.
-			velocity.x = execution_direction * sprint_speed
+			# Impulso intermedio fijo: impactante, sin heredar la velocidad extrema del heavy.
+			execution_air_boost_active = true
+			velocity.x = execution_direction * (sprint_speed + execution_air_exit_boost)
 			execution_air_exit = ExecutionAirExit.LAUNCH
 	else:
 		if keep_running:
@@ -4001,6 +4076,7 @@ func _finish_execution() -> void:
 		else:
 			velocity.x = execution_direction * minf(execution_speed, max_speed)
 		velocity.x = execution_direction * maxf(absf(velocity.x), execution_ground_exit_speed)
+		execution_ground_exit_initial_speed = absf(velocity.x)
 		execution_ground_exit_timer = execution_ground_exit_duration
 	# El input dado durante el breve instante puede enlazar al salir de la ejecución.
 	if execution_jump_buffered:

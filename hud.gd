@@ -337,9 +337,7 @@ func _build() -> void:
 	header.add_child(name_label)
 	# Icono del cuchillo: brillante en la mano, apagado cuando está lanzado.
 	knife_icon = TextureRect.new()
-	var knife_texture := AtlasTexture.new()
-	knife_texture.atlas = load("res://assets/sprites/player/viridy/viridy_knife.png")
-	knife_texture.region = Rect2(141, 138, 958, 1038)
+	var knife_texture := preload("res://jade_fire_visual.gd").icon_texture()
 	knife_icon.texture = knife_texture
 	knife_icon.custom_minimum_size = Vector2(22, 20)
 	knife_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE

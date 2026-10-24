@@ -1,6 +1,7 @@
 extends Area2D
 
 const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
+const LAUNCH_MOTION := preload("res://enemy_launch_motion.gd")
 var ruby_core: Node2D
 
 @export var max_health := 6
@@ -59,7 +60,13 @@ var pull_offset := Vector2.ZERO
 # Lanzado por un uppercut: sube a un punto delante de Viridy y flota; luego se queda ahí (volador) o cae
 # en vertical (de suelo).
 var juggle_offset := Vector2.ZERO
-var juggle_tween: Tween
+var launched := false
+var launch_elapsed := 0.0
+var launch_from := Vector2.ZERO
+var launch_target := Vector2.ZERO
+var launch_rise := 0.0
+var launch_hang := 0.0
+var juggle_fall := false
 var fall_offset := 0.0
 var fall_velocity := 0.0
 var fall_distance := 0.0
@@ -85,8 +92,8 @@ func _ready() -> void:
 func reset_dummy() -> void:
 	if is_instance_valid(ruby_core):
 		ruby_core.reset_core()
-	if juggle_tween:
-		juggle_tween.kill()
+	launched = false
+	juggle_fall = false
 	juggle_offset = Vector2.ZERO
 	anchor_position = spawn_anchor
 	current_health = max_health
@@ -117,6 +124,9 @@ func _physics_process(delta: float) -> void:
 	path_time += delta
 	flash_timer = max(flash_timer - delta, 0.0)
 	wobble = move_toward(wobble, 0.0, recover_speed * delta)
+	if launched:
+		_update_launch(delta)
+		return
 	if not aerial:
 		_update_gravity(delta)
 		if current_health <= 0:
@@ -146,18 +156,27 @@ func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
 		return
 	if current_health <= 0:
 		return
-	if juggle_tween:
-		juggle_tween.kill()
-	var target: Vector2 = juggle_offset + (point - global_position)
-	juggle_tween = create_tween()
-	juggle_tween.tween_property(self, "juggle_offset", target, rise_time).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
-	juggle_tween.tween_interval(hang_time)
-	juggle_tween.tween_callback(_settle_after_launch)
-	if not aerial:
-		# El de suelo cae en vertical desde donde quedó.
-		juggle_tween.tween_property(self, "juggle_offset:y", 0.0, 0.35).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+	launched = true
+	launch_elapsed = 0.0
+	launch_from = global_position
+	launch_target = point
+	launch_rise = maxf(rise_time, 0.01)
+	launch_hang = hang_time
+
+func _update_launch(delta: float) -> void:
+	launch_elapsed += delta
+	var t := clampf(launch_elapsed / launch_rise, 0.0, 1.0)
+	if LAUNCH_MOTION.move_to(self, collision_shape, launch_from.lerp(launch_target, ease(t, 0.4))):
+		launch_target = global_position
+		launch_from = global_position
+		launch_elapsed = maxf(launch_elapsed, launch_rise)
+	body.color = hit_color if flash_timer > 0.0 else base_color
+	if launch_elapsed >= launch_rise + launch_hang:
+		juggle_offset = global_position - (anchor_position + pull_offset + Vector2(0, fall_offset) + _get_path_offset())
+		_settle_after_launch()
 
 func _settle_after_launch() -> void:
+	launched = false
 	# Se queda donde lo dejó el uppercut: el volador flota ahí (y sigue su vaivén desde ese punto); el de
 	# suelo conserva la x y luego cae.
 	if aerial:
@@ -165,7 +184,11 @@ func _settle_after_launch() -> void:
 		juggle_offset = Vector2.ZERO
 	else:
 		anchor_position.x += juggle_offset.x
-		juggle_offset.x = 0.0
+		fall_offset += juggle_offset.y
+		juggle_offset = Vector2.ZERO
+		fall_velocity = 0.0
+		fall_distance = 0.0
+		juggle_fall = true
 
 func on_deflected(_by: Node) -> void:
 	ruby_core.register_parry()
@@ -190,12 +213,13 @@ func _update_gravity(delta: float) -> void:
 	var query := PhysicsRayQueryParameters2D.create(base + Vector2(0, -4), base + Vector2(0, reach), 2)
 	var hit := get_world_2d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
-		if fall_distance > FALL_DEATH_HEIGHT:
+		if fall_distance > FALL_DEATH_HEIGHT and not juggle_fall:
 			_explode()
 			return
 		fall_offset += hit.position.y - base.y
 		fall_velocity = 0.0
 		fall_distance = 0.0
+		juggle_fall = false
 		return
 	fall_velocity = min(fall_velocity + FALL_GRAVITY * delta, FALL_MAX_SPEED)
 	var step: float = fall_velocity * delta

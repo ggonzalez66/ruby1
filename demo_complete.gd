@@ -139,7 +139,7 @@ func _fill_stats() -> void:
 		["Vida recuperada", Stats.get_count("health_healed")],
 		["Proyectiles devueltos", Stats.get_count("projectiles_reflected")],
 		["Ataques bloqueados por el guardián", Stats.get_count("blocked")],
-		["Cuchillos lanzados", Stats.get_count("knife_throws")],
+		["Llamas jade lanzadas", Stats.get_count("knife_throws")],
 		["Backflips", Stats.get_count("backflips")],
 		["Frontflips", Stats.get_count("frontflips")],
 		["Bunnyhops", Stats.get_count("bunnyhops")],

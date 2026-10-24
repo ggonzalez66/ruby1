@@ -1,20 +1,19 @@
 extends Node2D
 
-# Cuchillo lanzado por Rengar: vuela en arco, se clava en enemigos o en el escenario
+# Fuego jade recuperable de Viridy: vuela en arco, se ancla en enemigos o en el escenario
 # (a veces cae suelto) y vuelve a la mano al hacer recall, golpeando por el camino.
 # - Riposte (lanzado justo tras un parry o devolver un proyectil): rojo parpadeante, pega el doble
-#   y al sacarlo (recall) cura, si ya golpeó algo.
+#   y conserva las reglas de riposte; la curación procede de ejecutar Rubies.
 # - Shine knife: si vuelve mientras el aura del rugido está activa, sale disparado en línea recta
 #   contra el último enemigo en que estuvo clavado y se vuelve a enterrar; así se encadenan.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
-const KNIFE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_knife.png")
-const KNIFE_REGION := Rect2(141, 138, 958, 1038)
-# En el sprite la punta apunta hacia arriba a la izquierda (unos -138°).
-const TIP_ANGLE := -2.30
-# Un 30 % más largo que el cuchillo anterior (~57 px de punta a pomo).
-const VISUAL_SCALE := 0.042
-const SPIN_SPEED := 24.0
+const FIRE_VISUAL := preload("res://jade_fire_visual.gd")
+const KNIFE_TEXTURE: Texture2D = FIRE_VISUAL.TEXTURE
+# La llama apunta hacia la derecha y se orienta con la trayectoria.
+const TIP_ANGLE := 0.0
+# Tamaño comparable al proyectil anterior; se conserva la hurtbox de 52 × 18.
+const VISUAL_SCALE := 0.10
 const TRAIL_LENGTH := 9
 const BOUNCE_RESTITUTION := 0.55
 const REST_SPEED := 90.0
@@ -52,7 +51,6 @@ var return_speed := 0.0
 var recall_hits: Array = []
 var sprite: Sprite2D
 var trail: Line2D
-var spin_direction := 1.0
 # Riposte: doble daño y cura al sacarlo si golpeó algo (una vez).
 var empowered := false
 var hit_any := false
@@ -69,6 +67,7 @@ var trail_gradient: Gradient
 const HIGHLIGHT_TIME := 0.8
 const HIGHLIGHT_COLOR := Color(1.0, 0.25, 0.2)
 var highlight_timer := 0.0
+var flame_time := 0.0
 
 func _ready() -> void:
 	z_index = 2
@@ -77,8 +76,8 @@ func _ready() -> void:
 	trail.top_level = true
 	trail.width = 9.0
 	trail_gradient = Gradient.new()
-	trail_gradient.set_color(0, Color(0.85, 0.9, 1.0, 0.0))
-	trail_gradient.set_color(1, Color(1.0, 0.95, 0.75, 0.75))
+	trail_gradient.set_color(0, Color(FIRE_VISUAL.COLOR, 0.0))
+	trail_gradient.set_color(1, Color(0.73, 0.88, 0.58, 0.75))
 	trail.gradient = trail_gradient
 	var width_curve := Curve.new()
 	width_curve.add_point(Vector2(0.0, 0.1))
@@ -87,8 +86,8 @@ func _ready() -> void:
 	add_child(trail)
 	sprite = Sprite2D.new()
 	sprite.texture = KNIFE_TEXTURE
-	sprite.region_enabled = true
-	sprite.region_rect = KNIFE_REGION
+	sprite.hframes = 2
+	sprite.vframes = 2
 	sprite.scale = Vector2.ONE * VISUAL_SCALE
 	add_child(sprite)
 
@@ -97,7 +96,6 @@ func launch(owner_player: Node2D, start: Vector2, initial_velocity: Vector2) -> 
 	global_position = start
 	velocity = initial_velocity
 	state = State.FLYING
-	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
 	_point_along(velocity)
 
 func is_returning() -> bool:
@@ -138,6 +136,8 @@ func _draw() -> void:
 	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 32, Color(HIGHLIGHT_COLOR, alpha), 2.5, true)
 
 func _physics_process(delta: float) -> void:
+	flame_time += delta
+	sprite.frame = int(flame_time * 14.0) % 4
 	_update_trail()
 	_update_look()
 	match state:
@@ -176,8 +176,8 @@ func _fly(delta: float) -> void:
 		return
 
 	global_position = to
-	# Gira sobre sí mismo mientras vuela.
-	rotation += SPIN_SPEED * delta * spin_direction
+	# El núcleo encabeza la trayectoria y la cola de fuego queda atrás.
+	_point_along(velocity)
 	if state == State.FLYING:
 		var enemy := _find_enemy(recall_hits)
 		if enemy:
@@ -195,7 +195,6 @@ func _bounce_off(normal: Vector2) -> void:
 	state = State.BOUNCING
 	was_dropped = true
 	velocity = velocity.bounce(normal) * BOUNCE_RESTITUTION
-	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
 
 func _bounce_again(normal: Vector2) -> void:
 	velocity = velocity.bounce(normal) * BOUNCE_RESTITUTION
@@ -215,7 +214,7 @@ func _stick_in_enemy(enemy: Node2D) -> void:
 		return
 	var direction: int = 1 if velocity.x >= 0.0 else -1
 	enemy.take_hit(global_position, direction, _damage(DAMAGE_THROW))
-	Ferocity.add("knife", 12.0, "CUCHILLO")
+	Ferocity.add("knife", 12.0, "FUEGO JADE")
 	_on_damage_dealt()
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
@@ -247,7 +246,7 @@ func _return(delta: float) -> void:
 	var move := offset.normalized() * step
 	return_direction = move.normalized()
 	global_position += move
-	rotation += SPIN_SPEED * delta * (1.0 if move.x >= 0.0 else -1.0)
+	_point_along(move)
 	var enemy := _find_enemy(recall_hits)
 	if enemy:
 		_recall_hit(enemy)
@@ -304,7 +303,6 @@ func _player_shine() -> void:
 	state = State.FLYING
 	straight_timer = SHINE_STRAIGHT_TIME
 	was_dropped = false
-	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
 	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.2)
 	if player.has_method("on_knife_shined"):
 		player.on_knife_shined(self)
@@ -321,7 +319,6 @@ func _enemy_shine(enemy: Node2D) -> void:
 	last_target = enemy
 	var goal: Vector2 = player.get_roar_center() if is_instance_valid(player) else global_position - velocity
 	velocity = (goal - global_position).normalized() * HOSTILE_SPEED
-	spin_direction = 1.0 if velocity.x >= 0.0 else -1.0
 	Fx.text(get_parent(), global_position + Vector2(0, -30), "¡SHINE!", Shine.color(shine_level, false).lightened(0.3))
 
 func _fly_hostile(delta: float) -> void:
@@ -341,7 +338,7 @@ func _fly_hostile(delta: float) -> void:
 		_stick_in_world()
 		return
 	global_position = to
-	rotation += SPIN_SPEED * 1.4 * delta * spin_direction
+	_point_along(velocity)
 	if global_position.distance_to(player.global_position + Vector2(0, -16)) <= 24.0 and not player.dead:
 		player.take_damage(Shine.damage(HOSTILE_DAMAGE, shine_level), global_position)
 		if player.has_method("on_knife_caught"):
@@ -361,7 +358,7 @@ func _update_look() -> void:
 	# Más grande con cada shine; rojo parpadeante en riposte; tono enemigo si viene hacia Rengar.
 	sprite.scale = Vector2.ONE * VISUAL_SCALE * Shine.visual_scale(shine_level + 1 if shine_level > 0 else 0)
 	var tint := Color.WHITE
-	var trail_color := Color(1.0, 0.95, 0.75)
+	var trail_color := FIRE_VISUAL.COLOR.lightened(0.25)
 	if state == State.HOSTILE:
 		trail_color = Shine.color(shine_level, false)
 		tint = Color.WHITE.lerp(trail_color, 0.6)

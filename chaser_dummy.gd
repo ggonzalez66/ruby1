@@ -1,6 +1,7 @@
 extends Area2D
 
 const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
+const LAUNCH_MOTION := preload("res://enemy_launch_motion.gd")
 var ruby_core: Node2D
 
 # Dummy perseguidor cuerpo a cuerpo: persigue a Rengar por el suelo (sin tirarse por bordes),
@@ -222,7 +223,10 @@ func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
 func _update_launch(delta: float) -> void:
 	launch_elapsed += delta
 	var t: float = clamp(launch_elapsed / launch_rise, 0.0, 1.0)
-	global_position = launch_from.lerp(launch_target, ease(t, 0.4))
+	if LAUNCH_MOTION.move_to(self, collision_shape, launch_from.lerp(launch_target, ease(t, 0.4))):
+		launch_target = global_position
+		launch_from = global_position
+		launch_elapsed = maxf(launch_elapsed, launch_rise)
 	visual.rotation = lerp(visual.rotation, -0.35 * facing, 8.0 * delta)
 	arm.rotation = lerp_angle(arm.rotation, 0.9, 6.0 * delta)
 	body_poly.color = BODY_HIT_COLOR if flash_timer > 0.0 else body_color
