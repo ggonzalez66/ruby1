@@ -29,6 +29,7 @@ var execution_ground_blend: Sprite2D
 var execution_ground_blend_timer := 0.0
 var execution_air_boost_active := false
 var execution_ground_exit_initial_speed := 0.0
+var heavy_morph_recovery_timer := 0.0
 enum ExecutionAirExit { NONE, LAUNCH, APEX_FLIP, UPPERCUT_RISE, UPPERCUT_FLIP, BOUNCE_FLIP }
 var execution_air_exit := ExecutionAirExit.NONE
 
@@ -44,8 +45,15 @@ signal respawned
 const LIQUID_LANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_landing.png")
 const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_dash.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
-const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_beast_v2.png")
+const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_beast_arcade.png")
 const LIQUID_SPIN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_ouroboros.png")
+const SCREW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_screw_arcade.png")
+const GROUND_MORPH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_ground_heavy_arcade.png")
+const HEAVY_REMNANT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_remnant_arcade.png")
+const HURT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_hurt_arcade.png")
+const LIGHT_ONE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light1_arcade.png")
+const LIGHT_TWO_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light2_arcade.png")
+const LIGHT_THREE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light3_arcade.png")
 const KNIFE_SCRIPT := preload("res://knife.gd")
 const METATRON_SCRIPT := preload("res://metatron_cube.gd")
 const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
@@ -56,12 +64,11 @@ const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 # Sprites nuevos (hojas en cuadrícula: celdas de ancho fijo con el borde de abajo recortado a los pies).
 const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_idle.png")
 const PROUD_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_proud.png")
-const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_walk_v2.png")
+const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_walk_arcade.png")
 const SPRINTING_ALTERNATE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_alternate.png")
-const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_closed.png")
+const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_run_arcade.png")
 const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_mantle.png")
-const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_claw.png")
-const DASH_ATTACK_REGION := Rect2(30, 40, 1685, 815)
+const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_claw_arcade.png")
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_cling.png")
 const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wallrun.png")
 const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_aerial_stall.png")
@@ -77,7 +84,7 @@ const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/vi
 const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
 const UPPERCUT_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
 const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
-const JADE_SHEETS := [WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET]
+const JADE_SHEETS := [WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET, DASH_ATTACK_TEXTURE, SCREW_SHEET, GROUND_MORPH_SHEET, HEAVY_REMNANT_SHEET, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -104,6 +111,8 @@ const ANIMATION_IDLE := &"idle"
 const ANIMATION_WALK := &"walk"
 const ANIMATION_JUMP := &"jump"
 const ANIMATION_SPIN := &"spin"
+const ANIMATION_RUBY_SPIN := &"ruby_spin"
+const ANIMATION_HURT := &"hurt"
 const ANIMATION_UPPERCUT := &"uppercut"
 const ANIMATION_WALL_SLIDE := &"wall_slide"
 const ANIMATION_WALL_JUMP := &"wall_jump"
@@ -136,7 +145,7 @@ const ANIMATION_RUBY_CHEW := &"ruby_chew"
 const ANIMATION_LIQUID_LAUNCH := &"liquid_launch"
 const LIQUID_BEAST_CANVAS_SIZE := 125.0
 const LIQUID_SPIN_CANVAS_SIZE := 100.0
-const LIQUID_BEAST_MOUTH := Vector2(0.36, 0.22)
+const LIQUID_BEAST_MOUTH := Vector2(0.36, 0.0)
 # Cuánto dura esa pose (menos que la onda de impacto, que sigue igual).
 const HEAVY_LANDING_POSE_TIME := 0.1
 # Las fauces rozan el suelo al terminar el heavy, conservando el surco del deslizamiento.
@@ -149,6 +158,7 @@ const ANIMATION_PROUD := &"proud"
 # Agachado justo al despegar de un salto desde el suelo.
 const ANIMATION_JUMP_SQUAT := &"jump_squat"
 const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
+const ARCADE_ANIMATIONS := [ANIMATION_WALK, ANIMATION_SPRINT, ANIMATION_CHARGE, ANIMATION_HURT, ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH, ANIMATION_SPIN, ANIMATION_RUBY_SPIN]
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
@@ -156,7 +166,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_PROUD: 0.987,
 	ANIMATION_PROUD_ROAR: 0.987,
 	ANIMATION_PROUD_LOOP: 0.987,
-	ANIMATION_WALK: 1.05,
+	ANIMATION_WALK: 1.0,
 	ANIMATION_JUMP: 0.65,
 	ANIMATION_JUMP_SQUAT: 0.556,
 	ANIMATION_SPIN: 0.3,
@@ -164,13 +174,13 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_WALL_SLIDE: 0.38,
 	ANIMATION_WALL_JUMP: 0.687,
 	ANIMATION_LONG_JUMP: 0.687,
-	ANIMATION_CHARGE: 0.36,
+	ANIMATION_CHARGE: 1.0,
 	ANIMATION_HEAVY_AERIAL: 0.39,
 	ANIMATION_FALL: 0.65,
 	ANIMATION_DASH: 0.64,
-	ANIMATION_LIGHT_HIT: 1.25,
-	ANIMATION_LIGHT_HIT_2: 1.25,
-	ANIMATION_LIGHT_FINISHER: 1.25,
+	ANIMATION_LIGHT_HIT: 1.0,
+	ANIMATION_LIGHT_HIT_2: 1.0,
+	ANIMATION_LIGHT_FINISHER: 1.0,
 	ANIMATION_ROAR: 0.384,
 	ANIMATION_ROAR_HOLD: 0.384,
 	ANIMATION_AERIAL_STALL: 0.42,
@@ -179,7 +189,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_KNIFE_THROW: 1.25,
 	ANIMATION_GROUND_HEAVY: 0.65,
 	ANIMATION_HEAVY_LANDING: 0.65,
-	ANIMATION_SPRINT: 0.655,
+	ANIMATION_SPRINT: 1.0,
 	ANIMATION_BACKFLIP: 0.38,
 	ANIMATION_FRONTFLIP: 0.3,
 	ANIMATION_SPRINT_BRAKE: 0.514,
@@ -900,20 +910,22 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_PROUD_ROAR, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(0, 0)], 1.0, false)
 	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, false)
 	_add_grid_animation(frames, ANIMATION_PROUD_LOOP, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, true)
-	_add_padded_animation(frames, ANIMATION_WALK, WALKING_SHEET, Vector2(480, 440), [Rect2(18, 17, 426, 408), Rect2(465, 17, 397, 408), Rect2(925, 16, 376, 409), Rect2(1356, 16, 391, 409), Rect2(21, 458, 450, 402), Rect2(471, 458, 385, 402), Rect2(913, 458, 375, 410), Rect2(1354, 458, 401, 405)], 12.0, true)
+	_add_arcade_animation(frames, ANIMATION_WALK, WALKING_SHEET, 8, 12.0, true)
 	# Salto: el agachado al despegar (pose aparte, está dibujado a otra escala) y los 3 frames del aire.
 	_add_region_animation(frames, ANIMATION_JUMP_SQUAT, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
 	_add_region_animation(frames, ANIMATION_JUMP, JUMP_AIR_SHEET, JUMP_AIR_REGIONS, 10.0, false)
-	# Giro compacto de materia líquida, compartido por el screw y la captura aérea del Ruby.
+	# El ouroboros se conserva para la ejecución aérea; el screw extiende la melena sin girar.
 	var spin_cell := LIQUID_SPIN_SHEET.get_size() * 0.5
-	_add_grid_animation(frames, ANIMATION_SPIN, LIQUID_SPIN_SHEET, spin_cell, spin_cell.y, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)], 16.0, true)
+	_add_grid_animation(frames, ANIMATION_RUBY_SPIN, LIQUID_SPIN_SHEET, spin_cell, spin_cell.y, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)], 16.0, true)
+	_add_arcade_animation(frames, ANIMATION_SPIN, SCREW_SHEET, 6, 18.0, false, Vector2(768, 768), 768.0)
+	_add_arcade_animation(frames, ANIMATION_HURT, HURT_SHEET, 3, 12.0, false)
 	# Enganchado a la pared (mira hacia una pared a la derecha; ver _update_character_orientation).
 	_add_single_frame_animation(frames, ANIMATION_WALL_SLIDE, CLING_WALL_TEXTURE)
 	# Salto de pared y salto largo/bunnyhop: el 2º frame de despegar de la pared.
 	_add_region_animation(frames, ANIMATION_WALL_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
-	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_HITS_SHEET, 2, 12.5, false)
-	_add_sheet_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_HITS_SHEET, 2, 12.5, false, [1, 0])
-	_add_sheet_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_HITS_SHEET, 2, 9.0, false)
+	_add_arcade_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_ONE_SHEET, 4, 25.0, false)
+	_add_arcade_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_TWO_SHEET, 4, 25.0, false)
+	_add_arcade_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_THREE_SHEET, 3, 14.0, false)
 	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
 	# Rugido (shine): el grito durante los frames explosivos y la guardia mientras se mantiene.
 	_add_single_frame_animation(frames, ANIMATION_ROAR, ROAR_TEXTURE)
@@ -925,18 +937,20 @@ func _configure_character_animations() -> void:
 	_add_region_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, [Rect2(1090, 0, 535, 600)], 1.0, false)
 	# Wallride: Rengar corriendo pared arriba (dibujado de pie, mirando a la pared).
 	_add_region_animation(frames, ANIMATION_WALLRIDE, WALLRUN_SHEET, WALLRUN_REGIONS, 14.0, true)
-	var beast_cell := LIQUID_BEAST_SHEET.get_size() * 0.5
-	_add_grid_animation(frames, ANIMATION_GROUND_HEAVY, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
+	_add_arcade_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_MORPH_SHEET, 4, 28.0, false, Vector2(1024, 640), 608.0)
 	_add_padded_animation(frames, ANIMATION_HEAVY_LANDING, LIQUID_LANDING_SHEET, Vector2(1000, 450), [Rect2(77, 454, 838, 255), Rect2(946, 343, 766, 364)], 20.0, false)
-	_add_grid_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, beast_cell, 446.0, [Vector2i(0, 1), Vector2i(1, 1)], 12.0, true)
+	_add_arcade_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, 4, 12.0, true, Vector2(768, 512), 512.0, [2, 3])
 	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_TEXTURE, [UPPERCUT_REGION], 1.0, false)
-	_add_grid_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
-	# Dos poses marcadas por zancada; se sostiene más cada apoyo y se conserva el braceo alternado.
-	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(1041, 0, 495, 512)], 12.0, true)
-	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_ALTERNATE_SHEET, Vector2(750, 709), [Rect2(0, 0, 724, 610), Rect2(1448, 0, 724, 620)], 12.0, true, true)
+	_add_arcade_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, 4, 14.0, false, Vector2(768, 512), 512.0, [0, 1])
+	# El ciclo sigue durando 1/3 s: apoyo, paso y vuelo para cada mitad del braceo.
+	_add_arcade_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, 6, 18.0, true)
+	for index in [0, 3]:
+		frames.set_frame(ANIMATION_SPRINT, index, frames.get_frame_texture(ANIMATION_SPRINT, index), 1.35)
+	for index in [1, 4]:
+		frames.set_frame(ANIMATION_SPRINT, index, frames.get_frame_texture(ANIMATION_SPRINT, index), 0.65)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
-	_add_region_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE, [DASH_ATTACK_REGION], 1.0, false)
-	_add_grid_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
+	_add_arcade_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE, 4, 18.0, false)
+	_add_arcade_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, 4, 14.0, false, Vector2(768, 512), 512.0, [0, 1])
 	# Caída: el último frame del aire.
 	_add_region_animation(frames, ANIMATION_FALL, JUMP_AIR_SHEET, [JUMP_AIR_REGIONS[2]], 1.0, false)
 	_add_padded_animation(frames, ANIMATION_DASH, DASH_TEXTURE, Vector2(1000, 500), [Rect2(33, 306, 714, 336), Rect2(785, 306, 956, 330)], 18.0, true)
@@ -949,6 +963,16 @@ func _configure_character_animations() -> void:
 	animated_sprite.sprite_frames = frames
 	animated_sprite.frame_changed.connect(_on_character_frame_changed)
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
+
+func _add_arcade_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D, count: int, fps: float, loops: bool, cell := Vector2(512, 512), crop_height := 480.0, order: Array[int] = []) -> void:
+	var cells: Array = []
+	if order.is_empty():
+		for index in range(count):
+			cells.append(Vector2i(index, 0))
+	else:
+		for index in order:
+			cells.append(Vector2i(index, 0))
+	_add_grid_animation(frames, animation_name, texture, cell, crop_height, cells, fps, loops)
 
 func _add_single_frame_animation(frames: SpriteFrames, animation_name: StringName, texture: Texture2D) -> void:
 	frames.add_animation(animation_name)
@@ -1028,7 +1052,9 @@ func _update_character_animation() -> void:
 			or wall_embedded or dash_timer > 0.0 or frontflip_active or backflip_active or long_jump_active \
 			or (attack_mode != ATTACK_NONE and attack_mode != ATTACK_UPPERCUT)):
 		aerial_stall_pose = false
-	if roar_active:
+	if hurt_lock_timer > 0.0:
+		next_animation = ANIMATION_HURT
+	elif roar_active:
 		# El grito durante los frames explosivos (y un mínimo para que se vea); luego la guardia.
 		var shouting: bool = roar_explosive_timer > 0.0 or roar_elapsed < ROAR_SHOUT_TIME
 		next_animation = ANIMATION_ROAR if shouting else ANIMATION_ROAR_HOLD
@@ -1053,6 +1079,8 @@ func _update_character_animation() -> void:
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
 	elif execution_ground_exit_timer > 0.0 and is_on_floor():
+		next_animation = ANIMATION_LIQUID_LAUNCH
+	elif heavy_morph_recovery_timer > 0.0 and is_on_floor():
 		next_animation = ANIMATION_LIQUID_LAUNCH
 	elif backflip_active:
 		next_animation = ANIMATION_BACKFLIP if backflip_elapsed < backflip_rotation_duration else ANIMATION_AERIAL_STALL
@@ -1124,6 +1152,7 @@ func _update_character_animation() -> void:
 	if animated_sprite.animation != next_animation:
 		_play_animation_sfx(next_animation)
 		animated_sprite.play(next_animation)
+	_sync_action_sprite(next_animation)
 	_align_character_animation(next_animation)
 	_update_character_orientation(next_animation)
 	var style_color: Color = Ferocity.style_color()
@@ -1144,6 +1173,33 @@ func _update_character_animation() -> void:
 	shadow.visible = is_on_floor()
 	if is_instance_valid(execution_ground_blend) and next_animation not in [ANIMATION_SPRINT, ANIMATION_WALK, ANIMATION_SPRINT_BRAKE]:
 		_clear_execution_ground_blend()
+
+func _sync_action_sprite(animation_name: StringName) -> void:
+	# El reloj de combate manda: más dibujos no añaden startup, recovery ni bloqueos de input.
+	var duration := 0.0
+	var remaining := attack_timer
+	match animation_name:
+		ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER:
+			duration = _get_light_attack_duration()
+		ANIMATION_CHARGE:
+			duration = charged_ground_duration
+		ANIMATION_GROUND_HEAVY:
+			duration = ground_heavy_duration
+		ANIMATION_SPIN:
+			duration = spin_attack_duration
+		ANIMATION_HURT:
+			duration = hurt_control_lock_time
+			remaining = hurt_lock_timer
+		_:
+			return
+	var progress := clampf(1.0 - remaining / maxf(duration, 0.001), 0.0, 1.0)
+	var count := animated_sprite.sprite_frames.get_frame_count(animation_name)
+	var index := mini(int(progress * count), count - 1)
+	if count == 4:
+		# La anticipación cabe en el primer tick; el golpe ya es activo desde ese mismo tick.
+		index = 0 if progress < 0.12 else (1 if progress < 0.42 else (2 if progress < 0.72 else 3))
+	animated_sprite.pause()
+	animated_sprite.set_frame_and_progress(index, 0.0)
 
 func _begin_execution_ground_blend() -> void:
 	execution_ground_blend = Sprite2D.new()
@@ -1229,8 +1285,8 @@ func _update_character_orientation(animation_name: StringName) -> void:
 		ANIMATION_FRONTFLIP:
 			animated_sprite.rotation = _get_flip_rotation(frontflip_elapsed, frontflip_rotation_duration, facing)
 		ANIMATION_SPIN:
-			var spin_elapsed: float = spin_attack_duration - attack_timer if attack_mode == ATTACK_SPIN else 0.0
-			animated_sprite.rotation = facing * spin_elapsed * TAU * SCREW_SPIN_TURNS_PER_SECOND
+			# El remolino sigue girando; el cuerpo mantiene la pose y extiende la melena.
+			animated_sprite.rotation = 0.0
 		_:
 			animated_sprite.rotation = 0.0
 	if animation_name == ANIMATION_WALL_SLIDE:
@@ -1257,17 +1313,28 @@ func _align_character_animation(animation_name: StringName) -> void:
 	var visual_scale: float = CHARACTER_VISUAL_SCALE * ANIMATION_VISUAL_SCALES.get(animation_name, 1.0)
 	animated_sprite.scale = Vector2.ONE * visual_scale
 	animated_sprite.position = Vector2(0.0, -texture_height * visual_scale * 0.5)
-	if animation_name in [ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_HEAVY_LANDING, ANIMATION_DASH, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH]:
+	if animation_name in ARCADE_ANIMATIONS:
+		var layout := arcade_frame_layout(animation_name, texture)
+		animated_sprite.scale = layout.get_scale()
+		animated_sprite.position = layout.origin
+	elif animation_name in [ANIMATION_HEAVY_LANDING, ANIMATION_DASH]:
 		animated_sprite.scale = Vector2.ONE * LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
 		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
-	elif animation_name in [ANIMATION_WALK, ANIMATION_SPRINT]:
-		animated_sprite.scale = Vector2.ONE * (0.175 if animation_name == ANIMATION_WALK else CHARACTER_VISUAL_SCALE * 550.0 / texture.get_width())
-		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
-	elif animation_name == ANIMATION_SPIN:
-		animated_sprite.scale = Vector2.ONE * LIQUID_SPIN_CANVAS_SIZE / texture.get_width()
-		animated_sprite.position = Vector2(0.0, -33.0)
+
+func arcade_frame_layout(animation_name: StringName, texture: Texture2D) -> Transform2D:
+	# También lo usan los fantasmas: los replays guardados pueden tener tamaños de hojas anteriores.
+	var factor := CHARACTER_VISUAL_SCALE
+	if animation_name == ANIMATION_GROUND_HEAVY:
+		factor = 160.0 / texture.get_width()
+	elif animation_name in [ANIMATION_SPIN, ANIMATION_RUBY_SPIN]:
+		factor = LIQUID_SPIN_CANVAS_SIZE / texture.get_width()
+	elif animation_name in [ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH]:
+		factor = LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
+	var offset := Vector2(0, -33.0) if animation_name in [ANIMATION_SPIN, ANIMATION_RUBY_SPIN] else Vector2(0, -texture.get_height() * factor * 0.5)
+	return Transform2D(0.0, Vector2.ONE * factor, 0.0, offset)
 
 func _update_timers(delta: float) -> void:
+	heavy_morph_recovery_timer = maxf(heavy_morph_recovery_timer - delta, 0.0)
 	if is_instance_valid(execution_ground_blend):
 		execution_ground_blend_timer = maxf(execution_ground_blend_timer - delta, 0.0)
 		var blend := 1.0 - execution_ground_blend_timer / maxf(execution_ground_blend_duration, 0.01)
@@ -1793,6 +1860,7 @@ func _update_death(delta: float) -> void:
 		animated_sprite.rotation += death_spin * delta
 
 func _cancel_all_states() -> void:
+	heavy_morph_recovery_timer = 0.0
 	_clear_execution_ground_blend()
 	execution_air_boost_active = false
 	execution_ground_exit_timer = 0.0
@@ -2927,9 +2995,33 @@ func _start_ground_heavy_attack() -> void:
 	attack_targets_hit.clear()
 	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
 	velocity.y = 0.0
+	_spawn_heavy_body_remnant()
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
+
+func _spawn_heavy_body_remnant() -> void:
+	# Solo dibujo en el mundo: sin colisión, daño ni tiempo de inmovilización adicional.
+	if not afterimage_container.is_inside_tree():
+		return
+	var remnant := Sprite2D.new()
+	var texture := AtlasTexture.new()
+	texture.atlas = HEAVY_REMNANT_SHEET
+	texture.region = Rect2(0, 0, 512, 480)
+	remnant.name = "HeavyBodyRemnant"
+	remnant.texture = texture
+	remnant.flip_h = facing < 0
+	remnant.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
+	remnant.material = charge_glow_material.duplicate()
+	remnant.material.set_shader_parameter("jade_amount", 1.0)
+	remnant.modulate.a = 0.0
+	afterimage_container.add_child(remnant)
+	remnant.global_position = global_position + Vector2(-facing * 24.0, -480.0 * CHARACTER_VISUAL_SCALE * 0.5)
+	var fade := remnant.create_tween()
+	fade.tween_interval(0.035)
+	fade.tween_property(remnant, "modulate:a", 0.8, 0.025)
+	fade.tween_property(remnant, "modulate:a", 0.0, 0.18)
+	fade.tween_callback(remnant.queue_free)
 
 func _start_light_charged_air_attack() -> void:
 	_face_attack_input()
@@ -3049,6 +3141,7 @@ func _end_attack() -> void:
 			bunnyhop_bonus = maxf(absf(velocity.x) - long_jump_horizontal_speed, 0.0)
 	elif ending_mode == ATTACK_HEAVY_GROUND:
 		velocity.x = facing * ground_heavy_end_speed
+		heavy_morph_recovery_timer = 0.09
 
 func _reset_attack_pose() -> void:
 	claw_hitbox_shape.disabled = true
@@ -4011,7 +4104,7 @@ func _begin_execution() -> void:
 		var target: Vector2 = execution_core.global_position + Vector2(0, 30)
 		move_and_collide(target - global_position)
 	# En aire se enrolla sobre sí misma; en suelo mantiene las fauces cerradas sobre el Ruby.
-	animated_sprite.play(ANIMATION_SPIN if execution_aerial else ANIMATION_RUBY_CHEW)
+	animated_sprite.play(ANIMATION_RUBY_SPIN if execution_aerial else ANIMATION_RUBY_CHEW)
 	_align_character_animation(animated_sprite.animation)
 	animated_sprite.flip_h = execution_direction < 0
 	animated_sprite.rotation = 0.0

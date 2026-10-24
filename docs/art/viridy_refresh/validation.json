@@ -1,0 +1,74 @@
+{
+  "tests/integration/test_ajustes.gd": [
+    13,
+    13
+  ],
+  "tests/integration/test_combat_modes.gd": [
+    64,
+    64
+  ],
+  "tests/integration/test_combos.gd": [
+    72,
+    72
+  ],
+  "tests/integration/test_enemigos.gd": [
+    35,
+    35
+  ],
+  "tests/integration/test_executions.gd": [
+    113,
+    113
+  ],
+  "tests/integration/test_gauntlet_safety.gd": [
+    29,
+    29
+  ],
+  "tests/integration/test_movement_polish.gd": [
+    14,
+    14
+  ],
+  "tests/integration/test_regression.gd": [
+    16,
+    16
+  ],
+  "tests/integration/test_sfx.gd": [
+    20,
+    20
+  ],
+  "tests/integration/test_shine_shield.gd": [
+    36,
+    36
+  ],
+  "tests/integration/test_sky_performance.gd": [
+    8,
+    8
+  ],
+  "tests/integration/test_sky_records.gd": [
+    12,
+    12
+  ],
+  "tests/integration/test_speedrun.gd": [
+    59,
+    59
+  ],
+  "tests/integration/test_sprites.gd": [
+    213,
+    213
+  ],
+  "tests/integration/test_uppercut_collision.gd": [
+    12,
+    12
+  ],
+  "tests/tools/test_normalize_sheet.py": [
+    32,
+    32
+  ],
+  "tests/tools/test_sound_tuning.py": [
+    6,
+    6
+  ],
+  "tests/integration/test_art_refresh.gd": [
+    9,
+    9
+  ]
+}

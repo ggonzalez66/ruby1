@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Viridy · Animaciones arcade</title>
+<style>
+body{margin:0;background:#141d1b;color:#e4eee7;font:16px system-ui,sans-serif}main{max-width:1400px;margin:auto;padding:28px}h1{font-size:25px}p{color:#afc3b7;max-width:850px;line-height:1.5}button,select{background:#294136;color:inherit;border:1px solid #527360;padding:9px 14px;border-radius:7px;cursor:pointer}nav{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin:24px 0}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}article{border:1px solid #355044;border-radius:12px;background:#1b2b24;padding:14px}h2{font-size:17px;margin:0 0 10px}canvas{width:100%;height:225px;background:repeating-conic-gradient(#22322c 0% 25%,#263a31 0% 50%) 50% / 24px 24px;image-rendering:pixelated;border-radius:6px}article p{font-size:13px;min-height:36px;margin:9px 0}input{width:100%;accent-color:#82be95}.count{float:right;font-size:13px;color:#acc7b4}a{color:#a3d8ae}
+</style>
+<main><h1>Viridy · Tanda arcade</h1>
+<p>Revisión de poses y ciclos. Los ataques se muestran con su duración actual; esta página no simula la física. Los sprites anteriores se conservan. En el juego se aplica el ajuste de jade habitual.</p>
+<nav><button id="pause">Pausar</button><label>Velocidad <select id="speed"><option value="1">Normal</option><option value="0.5">½</option><option value="0.25">¼</option></select></label><a href="contact.png">Ver todas las poses</a><a href="README.md">Detalle y procedencia</a><a href="runtime/screw.png">Captura del screw en Godot</a></nav>
+<div class="grid" id="grid"></div></main>
+<script>
+const definitions=[
+['Carrera','run',6,512,480,1/3,'Dos apoyos marcados; braceo y piernas alternan.'],
+['Caminata','walk',8,512,480,8/12,'Marcha baja y pesada basada en las poses de Venom.'],
+['Dash attack · Garrazo','dash_claw',4,512,480,.22,'Preparación, extensión, barrido y recuperación.'],
+['Bestia líquida · Mordida','liquid_beast',2,768,512,2/14,'Cabeza alargada y fauces abiertas.'],
+['Bestia líquida · Mascado','liquid_beast',2,768,512,2/12,'Las dos poses cerradas sostienen el Ruby.',2],
+['Heavy terrestre','ground_heavy',4,1024,608,.14,'Se extiende y abandona la parte posterior del cuerpo.'],
+['Daño','hurt',3,512,480,.25,'Reacción durante el aturdimiento existente.'],
+['Screw attack','screw',6,768,768,.34,'Cuerpo fijo; púas de la melena se extienden. VFX en el juego.'],
+['Combo · Primer golpe','light1',4,512,480,.16,'Zarpazo horizontal hacia delante.'],
+['Combo · Segundo golpe','light2',4,512,480,.16,'Barrido diagonal con el otro brazo.'],
+['Combo · Remate','light3',3,512,480,.22,'Brazos cruzados sobre la cabeza y barrido descendente.']
+];
+let paused=false,last=performance.now();let speed=1;
+const cards=definitions.map(([title,name,count,width,height,duration,description,start=0])=>{
+ const card=document.createElement('article');card.innerHTML=`<h2>${title}<span class="count"></span></h2><canvas width="600" height="450"></canvas><p>${description}</p><input aria-label="Fotograma de ${title}" type="range" min="0" max="${count-1}" value="0">`;document.querySelector('#grid').append(card);
+ const image=new Image();image.src=`../../../assets/sprites/player/viridy/viridy_${name}_arcade.png`;
+ const state={card,image,count,width,height,duration,start,t:0,frame:0,ctx:card.querySelector('canvas').getContext('2d')};
+ image.onload=()=>{const source=document.createElement('canvas');source.width=image.width;source.height=image.height;const ctx=source.getContext('2d');ctx.drawImage(image,0,0);let pixels;try{pixels=ctx.getImageData(0,0,source.width,source.height)}catch(e){state.source=image;draw(state);return}const smooth=(a,b,x)=>{let t=Math.max(0,Math.min(1,(x-a)/(b-a)));return t*t*(3-2*t)};for(let i=0;i<pixels.data.length;i+=4){const r=pixels.data[i]/255,g=pixels.data[i+1]/255,b=pixels.data[i+2]/255;const pigment=smooth(-.01,.07,g-r)*smooth(.02,.12,g-b);const t=Math.min(g/.65,1),h=smooth(.65,1,g);const lo=[.025,.09,.075],mid=[.22,.48,.35],hi=[.78,.87,.58];for(let k=0;k<3;k++){const jade=(lo[k]*(1-t)+mid[k]*t)*(1-h)+hi[k]*h;pixels.data[i+k]=pixels.data[i+k]*(1-pigment)+jade*255*pigment}}ctx.putImageData(pixels,0,0);state.source=source;draw(state)};
+ card.querySelector('input').oninput=e=>{paused=true;document.querySelector('#pause').textContent='Reproducir';state.frame=Number(e.target.value);draw(state)};
+ return state;
+});
+function draw(s){if(!s.source)return;s.ctx.clearRect(0,0,600,450);s.ctx.imageSmoothingEnabled=false;const scale=Math.min(560/s.width,420/s.height);s.ctx.drawImage(s.source,(s.frame+s.start)*s.width,0,s.width,s.height,(600-s.width*scale)/2,450-s.height*scale,s.width*scale,s.height*scale);s.card.querySelector('.count').textContent=`${s.frame+1}/${s.count}`;s.card.querySelector('input').value=s.frame}
+document.querySelector('#pause').onclick=e=>{paused=!paused;e.target.textContent=paused?'Reproducir':'Pausar'};
+document.querySelector('#speed').onchange=e=>speed=Number(e.target.value);
+function animate(now){const dt=Math.min((now-last)/1000,.1);last=now;if(!paused)for(const s of cards){s.t+=dt*speed;const loop=["run","walk","liquid_beast"].includes(definitions[cards.indexOf(s)][1]);const phase=s.t%(s.duration+(loop?0:.35));const p=Math.min(phase/s.duration,.999);if(s.count===4&&['dash_claw','ground_heavy','light1','light2'].includes(definitions[cards.indexOf(s)][1]))s.frame=p<.12?0:p<.42?1:p<.72?2:3;else if(s.card===cards[0].card){const keys=[1.35,2,3,4.35,5,6];s.frame=keys.findIndex(v=>p*6<v)}else s.frame=Math.min(s.count-1,Math.floor(p*s.count));draw(s)}requestAnimationFrame(animate)}requestAnimationFrame(animate);
+</script>
+</html>

@@ -38,7 +38,7 @@ func _run() -> void:
 
 	print("== Animaciones nuevas")
 	var sprite_frames: SpriteFrames = player.animated_sprite.sprite_frames
-	var expected := {"idle": [6, "viridy_idle"], "proud": [3, "viridy_proud"], "proud_loop": [2, "viridy_proud"], "walk": [8, "viridy_walk_v2"], "sprint": [4, "viridy_sprint_closed"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [1, "viridy_dash_claw"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [2, "viridy_liquid_beast"], "ground_heavy": [2, "viridy_liquid_beast"], "heavy_landing": [2, "viridy_liquid_landing"], "ruby_chew": [2, "viridy_liquid_beast"], "liquid_launch": [2, "viridy_liquid_beast_v2"], "dash": [2, "viridy_liquid_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "spin": [4, "viridy_liquid_ouroboros"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
+	var expected := {"idle": [6, "viridy_idle"], "proud": [3, "viridy_proud"], "proud_loop": [2, "viridy_proud"], "walk": [8, "viridy_walk_arcade"], "sprint": [6, "viridy_run_arcade"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [4, "viridy_dash_claw_arcade"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [2, "viridy_liquid_beast"], "ground_heavy": [4, "viridy_ground_heavy_arcade"], "heavy_landing": [2, "viridy_liquid_landing"], "ruby_chew": [2, "viridy_liquid_beast"], "liquid_launch": [2, "viridy_liquid_beast_arcade"], "dash": [2, "viridy_liquid_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "spin": [6, "viridy_screw_arcade"], "ruby_spin": [4, "viridy_liquid_ouroboros"], "hurt": [3, "viridy_hurt_arcade"], "light_hit": [4, "viridy_light1_arcade"], "light_hit_2": [4, "viridy_light2_arcade"], "light_finisher": [3, "viridy_light3_arcade"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
 	for anim in expected:
 		var texture := sprite_frames.get_frame_texture(anim, 0)
 		var path: String = texture.atlas.resource_path if texture is AtlasTexture else texture.resource_path
@@ -60,8 +60,8 @@ func _run() -> void:
 	var ouroboros_image: Image = player.LIQUID_SPIN_SHEET.get_image()
 	if ouroboros_image.is_compressed():
 		ouroboros_image.decompress()
-	for frame in range(sprite_frames.get_frame_count(&"spin")):
-		var loop_texture: AtlasTexture = sprite_frames.get_frame_texture(&"spin", frame)
+	for frame in range(sprite_frames.get_frame_count(&"ruby_spin")):
+		var loop_texture: AtlasTexture = sprite_frames.get_frame_texture(&"ruby_spin", frame)
 		check(ouroboros_image.get_pixelv(Vector2i(loop_texture.region.get_center())).a < 0.08, "ouroboros #%d: centro transparente y cuerpo alrededor" % frame)
 	for facing in [-1, 1]:
 		player.facing = facing

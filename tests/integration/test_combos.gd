@@ -153,10 +153,10 @@ func _run() -> void:
 	await tap("jump")
 	await frames(2)
 	var texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"spin", 0)
-	check(player.animated_sprite.animation == &"spin" and texture is AtlasTexture and texture.atlas == player.LIQUID_SPIN_SHEET, "el screw usa la bestia líquida compacta")
+	check(player.animated_sprite.animation == &"spin" and texture is AtlasTexture and texture.atlas == player.SCREW_SHEET, "el screw usa el cuerpo con púas en la melena")
 	var angle_before: float = player.animated_sprite.rotation
 	await frames(4)
-	check(abs(angle_before - player.animated_sprite.rotation) > 1.0, "y gira rápido (%.1f rad en 4 frames)" % abs(angle_before - player.animated_sprite.rotation))
+	check(is_zero_approx(angle_before) and is_zero_approx(player.animated_sprite.rotation), "el cuerpo mantiene su orientación mientras gira el VFX")
 	check(player.screw_embers.emitting, "con brasas de fuego verde")
 	var fire_line: Line2D = player.effect_strokes[0][1]
 	var flame: Color = fire_line.gradient.get_color(1)
@@ -203,9 +203,9 @@ func _run() -> void:
 	print("== Heavy de suelo: mordida de bestia líquida")
 	await reset()
 	var heavy_texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"ground_heavy", 0)
-	check(heavy_texture.atlas == player.LIQUID_BEAST_SHEET and player.animated_sprite.sprite_frames.get_frame_count(&"ground_heavy") == 2, "usa los dos frames de fauces abiertas")
+	check(heavy_texture.atlas == player.GROUND_MORPH_SHEET and player.animated_sprite.sprite_frames.get_frame_count(&"ground_heavy") == 4, "usa la extensión, separación y salida de la mordida")
 	var chew_texture: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(&"ruby_chew", 0)
-	check(chew_texture.atlas == heavy_texture.atlas and chew_texture.region.position.y > heavy_texture.region.position.y, "el mascado usa otras poses cerradas de la misma bestia")
+	check(chew_texture.atlas == player.LIQUID_BEAST_SHEET and chew_texture.region.position.x >= 768 * 2, "el mascado usa las poses cerradas de la bestia nueva")
 	var victim := make_chaser(GROUND + Vector2(60, 0))
 	await frames(2)
 	var victim_health: int = victim.current_health

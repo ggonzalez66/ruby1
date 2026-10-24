@@ -147,7 +147,7 @@ func _run() -> void:
 	check(player.current_health == 40, "Viridy es invulnerable durante la ejecución")
 	await frames(2)
 	var capture_frame: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(player.ANIMATION_RUBY_CHEW, 0)
-	check(player.animated_sprite.animation == player.ANIMATION_RUBY_CHEW and capture_frame.atlas == player.LIQUID_BEAST_SHEET and capture_frame.region.position.y > 0, "captura terrestre usa las fauces cerradas de la bestia líquida")
+	check(player.animated_sprite.animation == player.ANIMATION_RUBY_CHEW and capture_frame.atlas == player.LIQUID_BEAST_SHEET and capture_frame.region.position.x >= 768 * 2, "captura terrestre usa las fauces cerradas de la bestia líquida")
 	var first_chew_frame: int = player.animated_sprite.frame
 	for tick in range(90):
 		await frames(1)
@@ -277,7 +277,7 @@ func _run() -> void:
 	if captured:
 		await frames(4)
 		check(player.global_position.distance_to(victim.ruby_core.global_position) < 65 and player.velocity == Vector2.ZERO, "se detiene junto al núcleo en lugar de seguir cayendo")
-		check(player.animated_sprite.animation == player.ANIMATION_SPIN and absf(player.animated_sprite.rotation) > 0.0, "la captura aérea usa la misma bestia compacta del screw")
+		check(player.animated_sprite.animation == player.ANIMATION_RUBY_SPIN and absf(player.animated_sprite.rotation) > 0.0, "la captura aérea conserva el ouroboros independiente del screw")
 		check(player.animated_sprite.global_position.distance_to(victim.ruby_core.global_position) < 0.5, "la bestia compacta gira sobre su centro en el Ruby")
 		var spin_angle: float = player.animated_sprite.rotation
 		await frames(5)

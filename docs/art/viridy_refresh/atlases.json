@@ -1,0 +1,101 @@
+{
+  "run": {
+    "file": "viridy_run_arcade.png",
+    "count": 6,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "walk": {
+    "file": "viridy_walk_arcade.png",
+    "count": 8,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "dash_claw": {
+    "file": "viridy_dash_claw_arcade.png",
+    "count": 4,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "hurt": {
+    "file": "viridy_hurt_arcade.png",
+    "count": 3,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "light1": {
+    "file": "viridy_light1_arcade.png",
+    "count": 4,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "light2": {
+    "file": "viridy_light2_arcade.png",
+    "count": 4,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "light3": {
+    "file": "viridy_light3_arcade.png",
+    "count": 3,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  },
+  "liquid_beast": {
+    "file": "viridy_liquid_beast_arcade.png",
+    "count": 4,
+    "cell": [
+      768,
+      512
+    ],
+    "crop_height": 512
+  },
+  "screw": {
+    "file": "viridy_screw_arcade.png",
+    "count": 6,
+    "cell": [
+      768,
+      768
+    ],
+    "crop_height": 768
+  },
+  "ground_heavy": {
+    "file": "viridy_ground_heavy_arcade.png",
+    "count": 4,
+    "cell": [
+      1024,
+      640
+    ],
+    "crop_height": 608
+  },
+  "heavy_remnant": {
+    "file": "viridy_heavy_remnant_arcade.png",
+    "count": 1,
+    "cell": [
+      512,
+      512
+    ],
+    "crop_height": 480
+  }
+}
