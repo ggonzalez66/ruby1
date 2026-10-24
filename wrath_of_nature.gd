@@ -1,10 +1,11 @@
 extends Node2D
 
-enum State { IDLE, CHARGING, READY, RUSH, RECOIL, SHATTER, RECOVERY }
+enum State { IDLE, CHARGING, READY, AIM, RUSH, RECOIL, SHATTER, RECOVERY }
 const SSS_COLOR := Color(1.0, 0.18, 0.4)
 const JADE := Color(0.22, 0.65, 0.43)
 @export var charge_duration := 1.0
 @export var ready_duration := 4.0
+@export var aim_duration := 0.25
 @export var rush_speed := 1850.0
 @export var max_distance := 4800.0
 @export var max_rush_duration := 3.0
@@ -36,16 +37,16 @@ func _ready() -> void:
 	add_child(aura)
 
 func controls_movement() -> bool:
-	return state in [State.RUSH, State.RECOIL, State.SHATTER, State.RECOVERY]
+	return state in [State.AIM, State.RUSH, State.RECOIL, State.SHATTER, State.RECOVERY]
 
 func uses_beast() -> bool:
 	return state in [State.RUSH, State.RECOIL, State.SHATTER]
 
 func invulnerable() -> bool:
-	return controls_movement()
+	return state in [State.RUSH, State.RECOIL, State.SHATTER, State.RECOVERY]
 
 func is_ready() -> bool:
-	return state == State.READY
+	return state in [State.READY, State.AIM]
 
 func tick(delta: float) -> void:
 	clock += delta
@@ -57,12 +58,15 @@ func tick(delta: float) -> void:
 			and player.execution_core == null and not player._is_attack_active() and player.dash_timer <= 0.0 \
 			and not player._blocks_actions() and player.hurt_lock_timer <= 0.0
 		if can_charge:
+			if state != State.CHARGING:
+				Sfx.start_loop("wrath_charge")
 			state = State.CHARGING
 			Ferocity.drain_locked = true
 			elapsed += delta
 			if elapsed >= charge_duration:
 				arm()
 		elif state == State.CHARGING:
+			Sfx.stop_loop("wrath_charge")
 			state = State.IDLE
 			elapsed = 0.0
 			Ferocity.drain_locked = false
@@ -77,6 +81,14 @@ func tick(delta: float) -> void:
 		elapsed += delta
 		_destroy_projectiles()
 		match state:
+			State.AIM:
+				var input_direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+				if input_direction.length_squared() >= 0.01:
+					direction = Vector2(signf(input_direction.x), signf(input_direction.y)).normalized()
+				player.velocity = Vector2.ZERO
+				Ferocity.special_progress = maxf(1.0 - elapsed / aim_duration, 0.0)
+				if elapsed >= aim_duration:
+					launch(direction)
 			State.RUSH:
 				_rush(delta)
 			State.RECOIL:
@@ -116,9 +128,27 @@ func arm() -> void:
 	state = State.READY
 	elapsed = 0.0
 	ready_left = ready_duration
-	Sfx.play("guard_break", 0.0, 0.7)
+	Sfx.stop_loop("wrath_charge")
+	Sfx.play("wrath_ready")
 	Fx.text(player.get_parent(), player.global_position + Vector2(0, -80), "WRATH OF NATURE", SSS_COLOR)
 	Stats.add("wrath_charged")
+
+func begin_aim() -> bool:
+	if state != State.READY or player.execution_core != null:
+		return false
+	direction = Vector2(player.facing, 0)
+	player._cancel_all_states()
+	player._cancel_attack_for_chain()
+	player._update_roar_aura()
+	player.velocity = Vector2.ZERO
+	player.knife_throw_pose_timer = 0.0
+	state = State.AIM
+	elapsed = 0.0
+	landed = player.is_on_floor()
+	player.animated_sprite.play(player.ANIMATION_CROUCH)
+	player._align_character_animation(player.ANIMATION_CROUCH)
+	Sfx.play("wrath_aim")
+	return true
 
 func launch(input_direction: Vector2) -> bool:
 	if not is_ready() or input_direction.length_squared() < 0.01 or player.execution_core != null:
@@ -143,7 +173,7 @@ func launch(input_direction: Vector2) -> bool:
 	trail_wait = 0.0
 	captured.clear()
 	_pose()
-	Sfx.play("dash_attack", 1.0, 0.65)
+	Sfx.play("wrath_launch")
 	Stats.add("wrath_launched")
 	return true
 
@@ -171,7 +201,7 @@ func _rush(delta: float) -> void:
 		recoil = (collision.get_normal() if collision != null else -direction) * 190.0
 		state = State.RECOIL
 		elapsed = 0.0
-		Sfx.play("heavy_land", 0.0, 0.8)
+		Sfx.play("wrath_impact")
 		player._camera_kick(0.55, 0.045)
 
 func _capture_segment(from: Vector2, to: Vector2) -> void:
@@ -206,7 +236,7 @@ func _shatter() -> void:
 			player.heal(player.boss_execution_heal if core.boss else player.execution_heal)
 	captured.clear()
 	Fx.shatter(player.get_parent(), mouth, Color(1.0, 0.1, 0.18), 70.0)
-	Sfx.play("guard_break", 1.0, 0.9)
+	Sfx.play("wrath_shatter")
 	Stats.add("wrath_rubies", count)
 	recovery_ghost = Sprite2D.new()
 	recovery_ghost.texture = player.animated_sprite.sprite_frames.get_frame_texture(player.animated_sprite.animation, player.animated_sprite.frame)
@@ -241,6 +271,8 @@ func _destroy_projectiles() -> void:
 				projectile.queue_free()
 
 func cancel() -> void:
+	if state == State.CHARGING:
+		Sfx.stop_loop("wrath_charge")
 	for core in captured:
 		if is_instance_valid(core):
 			core.release_claim(player)
@@ -263,7 +295,7 @@ func cancel() -> void:
 	queue_redraw()
 
 func _draw_aura() -> void:
-	if state not in [State.CHARGING, State.READY]:
+	if state not in [State.CHARGING, State.READY, State.AIM]:
 		return
 	var strength := clampf(elapsed / charge_duration, 0.0, 1.0) if state == State.CHARGING else 1.0
 	var points := PackedVector2Array([Vector2(-36, 0), Vector2(-45, -24), Vector2(-34, -18), Vector2(-47, -53), Vector2(-32, -43), Vector2(-34, -79), Vector2(-18, -62), Vector2(-10, -99), Vector2(0, -85), Vector2(15, -98), Vector2(18, -62), Vector2(37, -79), Vector2(30, -43), Vector2(46, -49), Vector2(37, -14), Vector2(43, -20), Vector2(34, 0), Vector2(-36, 0)])
@@ -274,6 +306,14 @@ func _draw_aura() -> void:
 	aura.draw_polyline(points, Color(1.0, 0.08, 0.16, 0.8 * strength), 1.8, true)
 
 func _draw() -> void:
+	if state == State.AIM:
+		var center := Vector2(0, -42)
+		var tip := center + direction * 72.0
+		var base := tip - direction * 14.0
+		draw_line(center + direction * 36.0, tip, SSS_COLOR, 3.0, true)
+		draw_colored_polygon(PackedVector2Array([tip, base + direction.orthogonal() * 7.0, base - direction.orthogonal() * 7.0]), SSS_COLOR)
+		draw_arc(center, 30.0, -PI * 0.5, -PI * 0.5 + TAU * maxf(1.0 - elapsed / aim_duration, 0.0), 32, SSS_COLOR, 2.0, true)
+		return
 	if not uses_beast():
 		return
 	for i in range(mini(captured.size(), 20)):

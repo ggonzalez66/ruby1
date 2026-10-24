@@ -1,0 +1,31 @@
+{
+  "scope": "Wrath: selección de dirección y sonidos, 2026-10-24",
+  "checks": {
+    "wrath_nature": {
+      "passed": 51,
+      "total": 51
+    },
+    "sfx": {
+      "passed": 20,
+      "total": 20
+    },
+    "combos": {
+      "passed": 72,
+      "total": 72
+    },
+    "executions": {
+      "passed": 113,
+      "total": 113
+    },
+    "jade_soul_pull": {
+      "passed": 14,
+      "total": 14
+    },
+    "tools_sound_tuning": {
+      "passed": 13,
+      "total": 13
+    }
+  },
+  "passed": 283,
+  "native_capture": "runtime/aim.png"
+}

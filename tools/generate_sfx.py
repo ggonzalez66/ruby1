@@ -602,6 +602,51 @@ def guard_break():
     return finish(drive(mix(tremolo(clank, 16, 0.4), thud), 1.6), 0.85)
 
 
+def wrath_charge():
+    # Energía contenida; bucle grave que desaparece al cancelar o completar la carga.
+    d = 1.2
+    body = mix(osc(d, 80), gain(osc(d, 160, "triangle"), 0.25))
+    fire = gain(lowpass(noise(d, 801), 650), 0.35)
+    return finish(make_loop(mix(body, fire), 0.2), 0.65, fade_out=False)
+
+
+def wrath_ready():
+    d = 0.42
+    bloom = mix(osc(d, sweep(180, 540, 0.15)), gain(osc(d, 810, "triangle"), 0.3))
+    return finish(mul(bloom, env(d, 0.015, 0.38, 3.0)), 0.75)
+
+
+def wrath_aim():
+    # Anticipación corta: la subida coincide con los 250 ms para elegir dirección.
+    d = 0.25
+    tension = mul(osc(d, sweep(110, 440, d, 1.5), "triangle"), env(d, 0.16, 0.08, 1.0))
+    wind = gain(mul(bandpass(noise(d, 802), 400, 2200), env(d, 0.18, 0.06, 1.0)), 0.7)
+    return finish(mix(tension, wind), 0.75)
+
+
+def wrath_launch():
+    d = 0.65
+    roar = mul(lowpass(osc(d, sweep(140, 55, d), "saw", 0.05, 27), 850), env(d, 0.008, 0.56, 2.8))
+    blast = mul(bandpass(noise(d, 803), 100, sweep(6500, 500, d)), env(d, 0.006, 0.50, 3.0))
+    bass = mul(osc(d, sweep(95, 38, 0.18)), env(d, 0.002, 0.22))
+    return finish(drive(mix(gain(roar, 0.8), blast, bass), 1.8), 0.85)
+
+
+def wrath_impact():
+    d = 0.42
+    thud = mul(osc(d, sweep(130, 35, 0.15)), env(d, 0.001, 0.22))
+    rock = mul(lowpass(noise(d, 804), 1600), env(d, 0.001, 0.22))
+    return finish(drive(mix(thud, rock), 1.5), 0.85)
+
+
+def wrath_shatter():
+    d = 0.62
+    crystal = partials(d, [620, 997, 1613, 2591, 4181], [0.4, 0.35, 0.28, 0.20, 0.14], 805)
+    shards = mul(highpass(crackle(d, 806, 0.10), 2400), env(d, 0.002, 0.30))
+    absorb = delay(mul(osc(0.35, sweep(720, 160, 0.35)), env(0.35, 0.035, 0.28)), 0.15)
+    return finish(mix(crystal, gain(shards, 0.65), gain(absorb, 0.5)), 0.82)
+
+
 def ui_move():
     d = 0.04
     return finish(lowpass(mul(osc(d, 880, "square"), env(d, 0.001, 0.02)), 3500), 0.5)

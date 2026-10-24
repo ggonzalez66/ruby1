@@ -73,6 +73,13 @@ func _run() -> void:
 	Input.action_release("move_down")
 	player._update_character_animation()
 	await capture("ready")
+	player.wrath.begin_aim()
+	advance(0.10)
+	await capture("aim")
+	if "--aim-only" in OS.get_cmdline_user_args():
+		root.get_node("RunSession")._clear_run()
+		quit()
+		return
 	var first := target(Vector2(2480, -2))
 	var boss: Area2D = load("res://boss_heavy.gd").new()
 	boss.boss_name = "GUARDIÁN PESADO"
@@ -86,7 +93,7 @@ func _run() -> void:
 	wall.disable_mode = CollisionObject2D.DISABLE_MODE_KEEP_ACTIVE
 	current_scene.add_child(wall)
 	await physics_frame
-	player.wrath.launch(Vector2.RIGHT)
+	advance(0.16)
 	for i in range(6):
 		advance(0.02)
 	camera.global_position.x = player.position.x + 80

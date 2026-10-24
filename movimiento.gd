@@ -674,6 +674,9 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("toggle_hitbox_visuals"):
 		toggle_hitbox_debug()
 
+	if Input.is_action_just_pressed("heavy_attack") and wrath.begin_aim():
+		return
+
 	if Input.is_action_just_pressed("roar"):
 		_start_roar()
 
@@ -711,9 +714,6 @@ func _physics_process(delta: float) -> void:
 			_on_attack_input()
 
 	if Input.is_action_just_pressed("heavy_attack"):
-		var wrath_direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
-		if wrath.launch(wrath_direction):
-			return
 		# Tras un parry, el pesado cancela el rugido para contraatacar al instante.
 		if roar_active and riposte_timer > 0.0:
 			_end_roar()

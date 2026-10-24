@@ -11,6 +11,8 @@ const VOICES := 16
 const SAME_SOUND_GAP_MS := 35
 # Volumen (dB) y variación de tono de cada sonido; lo que no está aquí va a 0 dB y ±5 %.
 const MIX := {
+	"wrath_charge": [-13.0, 0.0], "wrath_ready": [-5.0, 0.0], "wrath_aim": [-6.0, 0.0],
+	"wrath_launch": [-2.0, 0.03], "wrath_impact": [-3.0, 0.03], "wrath_shatter": [-3.0, 0.02],
 	"ready": [-5.0, 0.0], "countdown_tick": [-7.0, 0.0], "go": [-3.0, 0.0],
 	"step": [-11.0, 0.14], "land": [-7.0, 0.08], "jump": [-9.0, 0.06], "air_jump": [-6.0, 0.06],
 	"skid": [-8.0, 0.08], "wallride": [-8.0, 0.06], "wall_jump": [-5.0, 0.06], "grab": [-7.0, 0.08],
@@ -29,7 +31,7 @@ const MIX := {
 	"sun_hit": [-6.0, 0.06], "hawk_screech": [-7.0, 0.04], "hawk_dive": [-8.0, 0.05], "guard_break": [-3.0, 0.04],
 }
 # Sonidos en bucle (se arrancan con start_loop y se paran con stop_loop).
-const LOOPS := ["shine_hold"]
+const LOOPS := ["shine_hold", "wrath_charge"]
 const LOOP_FADE := 0.08
 
 var streams := {}
