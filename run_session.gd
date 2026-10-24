@@ -206,9 +206,9 @@ func _update_ghost() -> void:
 	ghost.position = feet + Vector2(float(a[7]), float(a[8])).lerp(Vector2(float(b[7]), float(b[8])), weight)
 	ghost.scale = Vector2(float(a[5]), float(a[6]))
 	ghost.rotation = lerp_angle(float(a[9]), float(b[9]), weight)
-	if animation == &"uppercut":
-		# Los replays anteriores guardaron el giro y la escala de la mordida líquida.
-		# La trayectoria se conserva; la pose recupera la orientación y proporción originales.
+	if animation in [&"uppercut", &"charge"]:
+		# Los replays anteriores guardaron el giro/escala del uppercut líquido o del dash con arma.
+		# La trayectoria se conserva; las poses actuales mantienen sus proporciones y orientación.
 		ghost.scale = Vector2.ONE * player.CHARACTER_VISUAL_SCALE * player.ANIMATION_VISUAL_SCALES[animation]
 		ghost.position = feet + Vector2(0.0, -ghost.texture.get_height() * ghost.scale.y * 0.5)
 		ghost.rotation = 0.0

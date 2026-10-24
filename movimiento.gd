@@ -60,7 +60,8 @@ const WALKING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/vir
 const SPRINTING_ALTERNATE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_alternate.png")
 const SPRINTING_NEW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_sprint_closed.png")
 const MANTLING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_mantle.png")
-const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_attack.png")
+const DASH_ATTACK_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash_claw.png")
+const DASH_ATTACK_REGION := Rect2(30, 40, 1685, 815)
 const CLING_WALL_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wall_cling.png")
 const WALLRUN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wallrun.png")
 const AERIAL_STALL_NEW: Texture2D = preload("res://assets/sprites/player/viridy/viridy_aerial_stall.png")
@@ -163,7 +164,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_WALL_SLIDE: 0.38,
 	ANIMATION_WALL_JUMP: 0.687,
 	ANIMATION_LONG_JUMP: 0.687,
-	ANIMATION_CHARGE: 0.336,
+	ANIMATION_CHARGE: 0.36,
 	ANIMATION_HEAVY_AERIAL: 0.39,
 	ANIMATION_FALL: 0.65,
 	ANIMATION_DASH: 0.64,
@@ -934,7 +935,7 @@ func _configure_character_animations() -> void:
 	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(1041, 0, 495, 512)], 12.0, true)
 	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_ALTERNATE_SHEET, Vector2(750, 709), [Rect2(0, 0, 724, 610), Rect2(1448, 0, 724, 620)], 12.0, true, true)
 	_add_region_animation(frames, ANIMATION_LONG_JUMP, JUMP_OFF_WALL_SHEET, [JUMP_OFF_WALL_REGION], 1.0, false)
-	_add_single_frame_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE)
+	_add_region_animation(frames, ANIMATION_CHARGE, DASH_ATTACK_TEXTURE, [DASH_ATTACK_REGION], 1.0, false)
 	_add_grid_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
 	# Caída: el último frame del aire.
 	_add_region_animation(frames, ANIMATION_FALL, JUMP_AIR_SHEET, [JUMP_AIR_REGIONS[2]], 1.0, false)
