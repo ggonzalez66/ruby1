@@ -56,6 +56,9 @@ const LIGHT_ONE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/v
 const LIGHT_TWO_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light2_arcade.png")
 const LIGHT_THREE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light3_arcade.png")
 const KNIFE_SCRIPT := preload("res://knife.gd")
+const WRATH_SCRIPT := preload("res://wrath_of_nature.gd")
+const WRATH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_wrath_nature_v1.png")
+var wrath: Node2D
 const METATRON_SCRIPT := preload("res://metatron_cube.gd")
 const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
 const ELECTRIC_FX_SCRIPT := preload("res://electric_fx.gd")
@@ -85,7 +88,7 @@ const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/vi
 const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
 const UPPERCUT_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
 const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
-const JADE_SHEETS := [WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET, DASH_ATTACK_TEXTURE, SCREW_SHEET, GROUND_MORPH_SHEET, HEAVY_REMNANT_SHEET, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET]
+const JADE_SHEETS := [WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET, DASH_ATTACK_TEXTURE, SCREW_SHEET, GROUND_MORPH_SHEET, HEAVY_REMNANT_SHEET, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET, WRATH_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -154,6 +157,9 @@ const HEAVY_LANDING_CONTACT := Vector2(42.0, -2.0)
 const ANIMATION_MANTLE := &"mantle"
 const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
+const ANIMATION_CROUCH := &"crouch"
+const ANIMATION_WRATH_RUSH := &"wrath_rush"
+const ANIMATION_WRATH_CHEW := &"wrath_chew"
 # Pose orgullosa: tras unos segundos quieto (respira y sube el medidor de estilo).
 const ANIMATION_PROUD := &"proud"
 # Agachado justo al despegar de un salto desde el suelo.
@@ -382,8 +388,6 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var shine_min_to_use := 35.0
 # Perfect devolución (en las frames del parry): no gasta durabilidad y sale con más fuerza.
 @export var perfect_reflect_speed := 1.5
-# Rango SS: los ataques fuertes (heavy aéreo y terrestre, giro del dash attack) curan al conectar.
-@export var rank_heal := 8
 const SS_RANK := 5
 const SSS_RANK := 6
 @export var roar_momentum_keep := 0.15
@@ -464,6 +468,8 @@ var has_knife := true
 var thrown_knife: Node2D
 var knife_missing_cue: Node2D
 var knife_throw_pose_timer := 0.0
+var jade_fire_cooldown_timer := 0.0
+@export var jade_fire_cooldown := 1.0
 var mantle_active := false
 var mantle_elapsed := 0.0
 var mantle_from := Vector2.ZERO
@@ -504,7 +510,6 @@ var shine_durability := 100.0
 var shine_broken := false
 var shine_idle_time := 0.0
 var shine_tint_ratio := -1.0
-var rank_heal_done := false
 # Rebotes del heavy aéreo encadenados sin tocar el suelo ("REBOTE x3").
 var bounce_chain := 0
 var dead := false
@@ -603,6 +608,9 @@ func _ready() -> void:
 	add_child(mane_emitter)
 	move_child(mane_emitter, animated_sprite.get_index())
 	_create_screw_embers()
+	wrath = WRATH_SCRIPT.new()
+	wrath.name = "WrathOfNature"
+	add_child(wrath)
 	knife_scrape = KNIFE_SCRAPE_SCRIPT.new()
 	add_child(knife_scrape)
 	air_jumps_remaining = max_air_jumps
@@ -640,6 +648,10 @@ func _ready() -> void:
 	RunSession.attach_player.call_deferred(self)
 
 func _physics_process(delta: float) -> void:
+	var wrath_owned_movement: bool = wrath.controls_movement()
+	wrath.tick(delta)
+	if wrath_owned_movement or wrath.controls_movement():
+		return
 	if execution_core != null:
 		_update_execution(delta)
 		return
@@ -699,6 +711,9 @@ func _physics_process(delta: float) -> void:
 			_on_attack_input()
 
 	if Input.is_action_just_pressed("heavy_attack"):
+		var wrath_direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
+		if wrath.launch(wrath_direction):
+			return
 		# Tras un parry, el pesado cancela el rugido para contraatacar al instante.
 		if roar_active and riposte_timer > 0.0:
 			_end_roar()
@@ -928,6 +943,8 @@ func _configure_character_animations() -> void:
 	_add_arcade_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_TWO_SHEET, 4, 25.0, false)
 	_add_arcade_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_THREE_SHEET, 3, 14.0, false)
 	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
+	_add_arcade_animation(frames, ANIMATION_WRATH_RUSH, WRATH_SHEET, 4, 16.0, true, Vector2(768, 512), 512.0, [0, 1])
+	_add_arcade_animation(frames, ANIMATION_WRATH_CHEW, WRATH_SHEET, 4, 12.0, true, Vector2(768, 512), 512.0, [2, 3])
 	# Rugido (shine): el grito durante los frames explosivos y la guardia mientras se mantiene.
 	_add_single_frame_animation(frames, ANIMATION_ROAR, ROAR_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_ROAR_HOLD, ROAR_HOLD_TEXTURE)
@@ -967,6 +984,10 @@ func _configure_character_animations() -> void:
 	_add_single_frame_animation(frames, ANIMATION_SPRINT_BRAKE, BRAKE_TEXTURE)
 	_add_single_frame_animation(frames, ANIMATION_BRAKE_RECOVER, BRAKE_RECOVER_TEXTURE)
 	animated_sprite.sprite_frames = frames
+	frames.add_animation(ANIMATION_CROUCH)
+	frames.add_frame(ANIMATION_CROUCH, frames.get_frame_texture(ANIMATION_JUMP_SQUAT, 0))
+	frames.set_animation_speed(ANIMATION_CROUCH, 1.0)
+	frames.set_animation_loop(ANIMATION_CROUCH, false)
 	animated_sprite.frame_changed.connect(_on_character_frame_changed)
 	animated_sprite.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
 
@@ -1050,6 +1071,9 @@ func _add_padded_animation(frames: SpriteFrames, animation_name: StringName, tex
 		frames.add_frame(animation_name, frame)
 
 func _update_character_animation() -> void:
+	if wrath != null and wrath.uses_beast():
+		wrath._pose()
+		return
 	var next_animation: StringName
 	if not is_on_floor():
 		brake_pending = false
@@ -1120,6 +1144,8 @@ func _update_character_animation() -> void:
 	elif heavy_landing_pose_timer > 0.0:
 		# Al aterrizar el heavy aéreo, la bestia cierra la mordida un instante.
 		next_animation = ANIMATION_HEAVY_LANDING
+	elif Input.is_action_pressed("move_down") and is_on_floor():
+		next_animation = ANIMATION_CROUCH
 	elif backflip_run_direction != 0:
 		next_animation = ANIMATION_SPRINT_BRAKE
 	elif is_sprinting and sprint_turn_timer > 0.0:
@@ -1142,6 +1168,8 @@ func _update_character_animation() -> void:
 			brake_recover_timer = BRAKE_RECOVER_TIME
 		if brake_recover_timer > 0.0:
 			next_animation = ANIMATION_BRAKE_RECOVER
+		elif Input.is_action_pressed("move_down"):
+			next_animation = ANIMATION_CROUCH
 		elif proud_active:
 			if proud_roar_timer > 0.0:
 				next_animation = ANIMATION_PROUD_ROAR
@@ -1323,6 +1351,9 @@ func _align_character_animation(animation_name: StringName) -> void:
 		var layout := arcade_frame_layout(animation_name, texture)
 		animated_sprite.scale = layout.get_scale()
 		animated_sprite.position = layout.origin
+	elif animation_name in [ANIMATION_WRATH_RUSH, ANIMATION_WRATH_CHEW]:
+		animated_sprite.scale = Vector2.ONE * 185.0 / texture.get_width()
+		animated_sprite.position = Vector2(0, -42)
 	elif animation_name in [ANIMATION_HEAVY_LANDING, ANIMATION_DASH]:
 		animated_sprite.scale = Vector2.ONE * LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
 		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
@@ -1343,6 +1374,7 @@ func arcade_frame_layout(animation_name: StringName, texture: Texture2D) -> Tran
 	return Transform2D(0.0, Vector2.ONE * factor, 0.0, offset)
 
 func _update_timers(delta: float) -> void:
+	jade_fire_cooldown_timer = maxf(jade_fire_cooldown_timer - delta, 0.0)
 	heavy_morph_recovery_timer = maxf(heavy_morph_recovery_timer - delta, 0.0)
 	if is_instance_valid(execution_ground_blend):
 		execution_ground_blend_timer = maxf(execution_ground_blend_timer - delta, 0.0)
@@ -1721,6 +1753,8 @@ func _try_start_running_wall_jump() -> bool:
 	return true
 
 func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -> void:
+	if wrath != null and wrath.invulnerable():
+		return
 	if execution_core != null:
 		return
 	if dead:
@@ -1762,7 +1796,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 
 	invulnerability_timer = hurt_invulnerability_time
 	_camera_kick(0.6)
-	if Ferocity.player_hit():
+	if (wrath != null and wrath.is_ready()) or Ferocity.player_hit():
 		# Imparable: pierde vida y estilo, pero sigue con lo que estaba haciendo.
 		Fx.impact(get_parent(), global_position + Vector2(0, -14), Fx.ROAR, 1.2)
 		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡IMPARABLE!", Ferocity.rank_info()["color"])
@@ -1791,6 +1825,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	velocity = Vector2(push_direction * hurt_knockback.x, hurt_knockback.y)
 
 func return_to_checkpoint(amount: int) -> void:
+	if wrath != null and wrath.invulnerable():
+		return
 	if execution_core != null:
 		return
 	# Espinas del plataformeo final: daño y de vuelta al último checkpoint (sin reiniciar el nivel).
@@ -1822,6 +1858,7 @@ func begin_merge() -> void:
 # ---------- Muerte
 
 func _start_death(source_position: Vector2, amount: int) -> void:
+	wrath.cancel()
 	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
 	dead = true
 	Sfx.play("death")
@@ -2036,6 +2073,8 @@ func _on_knife_input(move_input: float) -> void:
 		if is_instance_valid(thrown_knife):
 			thrown_knife.recall()
 		return
+	if jade_fire_cooldown_timer > 0.0:
+		return
 	# Con el riposte disponible, lanzar el cuchillo cancela el rugido (igual que el heavy).
 	if roar_active and riposte_timer > 0.0:
 		_end_roar()
@@ -2050,11 +2089,44 @@ func _on_knife_input(move_input: float) -> void:
 	var side: float = sign(throw_velocity.x) if throw_velocity.x != 0.0 else float(facing)
 	knife.launch(self, global_position + Vector2(side * 12.0, -22.0), throw_velocity)
 	thrown_knife = knife
+	jade_fire_cooldown_timer = jade_fire_cooldown
 	Stats.add("knife_throws")
 	Sfx.play("knife_throw")
 	has_knife = false
 	knife_throw_pose_timer = 0.15
 	knife_changed.emit(false)
+
+func try_soul_execution(target: Node2D) -> bool:
+	if dead or execution_core != null or wrath.controls_movement():
+		return false
+	var core: Node2D = target.get_node_or_null("RubyCore")
+	if core == null or not core.is_open():
+		return false
+	# El salto espacial no atraviesa físicamente el recorrido, pero el destino debe caber en el mundo.
+	var destination := Vector2.ZERO
+	var found := false
+	var shape: CollisionShape2D = get_node("CollisionShape2D")
+	for offset in [Vector2(0, 20), Vector2(-24, 20), Vector2(24, 20), Vector2(0, -12)]:
+		var query := PhysicsShapeQueryParameters2D.new()
+		query.shape = shape.shape
+		query.collision_mask = 2
+		query.transform = Transform2D(0.0, core.global_position + offset + shape.position)
+		if get_world_2d().direct_space_state.intersect_shape(query, 1).is_empty():
+			destination = core.global_position + offset
+			found = true
+			break
+	if not found or not core.claim(self):
+		return false
+	var from := global_position
+	facing = 1 if core.global_position.x >= from.x else -1
+	_cancel_all_states()
+	attack_mode = ATTACK_HEAVY
+	heavy_trajectory = HEAVY_ARC
+	global_position = destination
+	Fx.jade_splash(get_parent(), from + Vector2(0, -14), Vector2.UP, 0.35)
+	_queue_execution(core)
+	Stats.add("soul_executions")
+	return true
 
 func _get_knife_throw_velocity(move_input: float, empowered: bool = false) -> Vector2:
 	var up := Input.is_action_pressed("move_up")
@@ -2080,11 +2152,12 @@ func _get_knife_throw_velocity(move_input: float, empowered: bool = false) -> Ve
 	return result
 
 func on_knife_hit(point: Vector2) -> void:
-	Fx.impact(get_parent(), point, Fx.GOLD, 1.1)
+	Fx.impact(get_parent(), point, [Color(0.03, 0.16, 0.1), Color(0.22, 0.65, 0.43), Color(0.8, 1.0, 0.7)], 0.7)
 	Sfx.play("knife_hit")
-	_apply_hitstop(hitstop_light + 0.01)
 
 func on_knife_caught(knife: Node = null) -> void:
+	if knife != null and is_instance_valid(thrown_knife) and knife != thrown_knife:
+		return
 	Sfx.play("knife_catch")
 	has_knife = true
 	thrown_knife = null
@@ -2430,6 +2503,12 @@ func is_roar_aura_active() -> bool:
 func get_roar_center() -> Vector2:
 	return global_position + Vector2(0.0, -14.0)
 
+func is_wrath_aura_active() -> bool:
+	return wrath != null and (wrath.is_ready() or wrath.invulnerable())
+
+func wrath_aura_reaches(from: Vector2, to: Vector2) -> bool:
+	return is_wrath_aura_active() and Geometry2D.get_closest_point_to_segment(get_roar_center(), from, to).distance_to(get_roar_center()) <= 76.0
+
 func _is_roar_invincible() -> bool:
 	return roar_active and roar_explosive_timer > 0.0
 
@@ -2483,6 +2562,8 @@ func _attach_afterimage_container() -> void:
 	level.move_child(afterimage_container, get_index())
 
 func _exit_tree() -> void:
+	if is_instance_valid(wrath):
+		wrath.cancel()
 	_cancel_execution()
 	Engine.time_scale = TimeControl.base_scale()
 	Sfx.stop_loop("shine_hold")
@@ -2766,9 +2847,6 @@ func _try_combat_action(kind: StringName) -> bool:
 			_try_heavy_uppercut()
 			return attack_mode == ATTACK_UPPERCUT and not was_uppercut
 		&"heavy":
-			if not has_knife:
-				_show_knife_missing()
-				return true
 			if _in_uppercut_chain():
 				# Uppercut -> heavy aéreo.
 				if not _uppercut_can_be_cancelled():
@@ -2913,13 +2991,9 @@ func _start_heavy_attack(allow_uppercut: bool = true) -> void:
 		_try_heavy_uppercut()
 		return
 	var canceling_from_spin: bool = attack_mode == ATTACK_SPIN and not is_on_floor() and attack_timer <= spin_heavy_cancel_window
-	# Los ataques pesados son del cuchillo: sin él no se pueden hacer.
+	# La mordida es independiente del fuego jade lanzado.
 	if dash_timer > 0.0:
 		return
-	if not has_knife:
-		_show_knife_missing()
-		return
-
 	if canceling_from_spin:
 		_cancel_attack_for_chain()
 	elif _is_attack_active() or attack_cooldown_timer > 0.0:
@@ -3207,7 +3281,6 @@ func _set_attack_active(active: bool) -> void:
 		frontflip_active = false
 		wall_embedded = false
 		wallride_active = false
-		rank_heal_done = false
 	else:
 		riposte_attack = false
 	claw_hitbox_shape.disabled = true
@@ -3680,10 +3753,6 @@ func _hit_area(area: Area2D) -> void:
 			area.launch_to(target, UPPERCUT_LAUNCH_RISE, UPPERCUT_LAUNCH_HANG)
 		_spawn_hit_feedback(area)
 		_add_hit_style()
-		if Ferocity.rank >= SS_RANK and not rank_heal_done and attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN]:
-			# SS y SSS: los ataques fuertes curan (una vez por ataque).
-			rank_heal_done = true
-			heal(rank_heal)
 
 	if attack_mode == ATTACK_HEAVY:
 		# Diferido: puede venir de la señal de colisión, donde no se puede desactivar la hitbox.
@@ -3996,6 +4065,8 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	wrath.cancel()
+	jade_fire_cooldown_timer = 0.0
 	_cancel_execution()
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0

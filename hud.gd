@@ -30,6 +30,8 @@ var shine_broken := false
 # Parpadeo rojo del icono del cuchillo al intentar atacar sin él.
 var knife_warn_timer := 0.0
 var knife_in_hand := true
+var jade_status: Label
+var tracked_player: Node
 var boss_indicator: Control
 var boss_indicator_style: StyleBoxFlat
 var boss_view: SubViewport
@@ -71,6 +73,15 @@ func _process(delta: float) -> void:
 	_update_boss_banner()
 	_update_knife_warning(delta)
 	_update_shine_bar()
+	if is_instance_valid(tracked_player):
+		var cooldown: float = tracked_player.jade_fire_cooldown_timer
+		var fire: Node2D = tracked_player.thrown_knife
+		var marked: bool = is_instance_valid(fire) and fire.state in [fire.State.MARKED, fire.State.SOUL_PULL]
+		jade_status.text = "%.1f s" % cooldown if tracked_player.has_knife and cooldown > 0.0 else ("MARCA" if marked else "")
+		if tracked_player.has_knife and cooldown > 0.0:
+			knife_icon.modulate.a = 0.4
+		elif tracked_player.has_knife:
+			knife_icon.modulate = Color.WHITE
 
 func _build_boss_banner() -> void:
 	# Presentación del guardián al empezar el combate: nombre grande y subtítulo entre dos líneas.
@@ -343,6 +354,10 @@ func _build() -> void:
 	knife_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	knife_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	header.add_child(knife_icon)
+	jade_status = Label.new()
+	jade_status.add_theme_font_size_override("font_size", 11)
+	jade_status.add_theme_color_override("font_color", Color(0.55, 0.85, 0.65))
+	header.add_child(jade_status)
 	value_label = Label.new()
 	value_label.add_theme_color_override("font_color", Color(0.85, 0.95, 0.8))
 	value_label.add_theme_font_size_override("font_size", 14)
@@ -419,6 +434,7 @@ func _connect_player() -> void:
 	var player := get_tree().get_first_node_in_group(&"player")
 	if player == null:
 		return
+	tracked_player = player
 	player.health_changed.connect(_on_health_changed)
 	player.knife_changed.connect(_on_knife_changed)
 	player.shine_changed.connect(_on_shine_changed)

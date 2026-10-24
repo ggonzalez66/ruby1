@@ -158,6 +158,7 @@ func _run() -> void:
 	print("== Cuchillo nuevo")
 	var knife: Node2D = load("res://knife.gd").new()
 	level.add_child(knife)
+	knife.set_physics_process(false)
 	await frames(1)
 	check(knife.sprite.texture.resource_path.ends_with("viridy_jade_fire.png") and knife.sprite.hframes * knife.sprite.vframes == 4, "usa el sprite nuevo")
 	var length: float = knife.sprite.texture.get_width() * 0.5 * knife.VISUAL_SCALE

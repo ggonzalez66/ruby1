@@ -1,11 +1,7 @@
 extends Node2D
 
-# Fuego jade recuperable de Viridy: vuela en arco, se ancla en enemigos o en el escenario
-# (a veces cae suelto) y vuelve a la mano al hacer recall, golpeando por el camino.
-# - Riposte (lanzado justo tras un parry o devolver un proyectil): rojo parpadeante, pega el doble
-#   y conserva las reglas de riposte; la curación procede de ejecutar Rubies.
-# - Shine knife: si vuelve mientras el aura del rugido está activa, sale disparado en línea recta
-#   contra el último enemigo en que estuvo clavado y se vuelve a enterrar; así se encadenan.
+# Fuego jade: una marca activa, sin daño. Recall hace soul pull o una ejecución aérea si está open.
+# Al impactar terreno explota y deja una llama visual temporal, sin clavarse ni rebotar.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
 const FIRE_VISUAL := preload("res://jade_fire_visual.gd")
@@ -15,8 +11,6 @@ const TIP_ANGLE := 0.0
 # Tamaño comparable al proyectil anterior; se conserva la hurtbox de 52 × 18.
 const VISUAL_SCALE := 0.10
 const TRAIL_LENGTH := 9
-const BOUNCE_RESTITUTION := 0.55
-const REST_SPEED := 90.0
 
 const GRAVITY := 1100.0
 const WORLD_MASK := 2
@@ -24,13 +18,7 @@ const ENEMY_MASK := 8
 # Hitbox alargada a lo largo de la hoja (gira con el cuchillo), a la medida del sprite.
 const HIT_LENGTH := 52.0
 const HIT_WIDTH := 18.0
-const DAMAGE_THROW := 2
-const DAMAGE_RECALL := 1
-const DROP_CHANCE := 0.15
 const PULL_STRENGTH := 70.0
-const RETURN_START_SPEED := 500.0
-const RETURN_MAX_SPEED := 1500.0
-const RETURN_ACCELERATION := 3200.0
 const SHINE_SPEED := 1300.0
 # Tras un shine vuela recto (sin gravedad) este tiempo; si no encuentra nada, empieza a caer.
 const SHINE_STRAIGHT_TIME := 0.9
@@ -39,35 +27,34 @@ const HOSTILE_DAMAGE := 10
 const HOSTILE_TIME := 2.5
 const RIPOSTE_COLOR := Color(1.0, 0.12, 0.08)
 
-enum State { FLYING, FALLING, STUCK_ENEMY, STUCK_WORLD, BOUNCING, DROPPED, RETURNING, HOSTILE }
+enum State { FLYING, MARKED, SOUL_PULL, HOSTILE }
 
 var state := State.FLYING
 var velocity := Vector2.ZERO
 var player: Node2D
 var target: Node2D
 var target_offset := Vector2.ZERO
-var was_dropped := false
-var return_speed := 0.0
 var recall_hits: Array = []
 var sprite: Sprite2D
 var trail: Line2D
-# Riposte: doble daño y cura al sacarlo si golpeó algo (una vez).
+# El riposte conserva la apariencia potenciada; la marca y el recall no hacen daño.
 var empowered := false
 var hit_any := false
-var riposte_healed := false
 # Veces que se ha shineado (Rengar o enemigos) y cuántas fueron de Rengar (para el "SHINE KNIFE xN").
 var shine_level := 0
 var player_shines := 0
 var straight_timer := 0.0
 var hostile_timer := 0.0
 var last_target: Node2D
-var return_direction := Vector2.ZERO
 var trail_gradient: Gradient
 # Resaltado al intentar atacar sin él: anillo rojo pulsante y destello (el rojo del aviso sobre Rengar).
 const HIGHLIGHT_TIME := 0.8
 const HIGHLIGHT_COLOR := Color(1.0, 0.25, 0.2)
 var highlight_timer := 0.0
 var flame_time := 0.0
+var life := 4.0
+var pull_left := 0.0
+var released := false
 
 func _ready() -> void:
 	z_index = 2
@@ -99,20 +86,39 @@ func launch(owner_player: Node2D, start: Vector2, initial_velocity: Vector2) -> 
 	_point_along(velocity)
 
 func is_returning() -> bool:
-	return state == State.RETURNING
+	return false
 
 func recall() -> void:
 	# Si un enemigo lo devolvió, no se puede llamar: hay que esquivarlo o shinearlo.
-	if state == State.RETURNING or state == State.HOSTILE:
+	if state == State.HOSTILE:
 		return
-	if empowered and hit_any and not riposte_healed and is_instance_valid(player):
-		riposte_healed = true
-		player.on_riposte_knife_pulled()
-	# Al arrancarlo de un enemigo lo golpea otra vez.
-	if state == State.STUCK_ENEMY and _is_target_alive(target):
-		_recall_hit(target)
-	state = State.RETURNING
-	return_speed = RETURN_START_SPEED
+	if state == State.SOUL_PULL or released:
+		return
+	if state == State.MARKED and _is_target_alive(target):
+		if player.try_soul_execution(target):
+			_release()
+			return
+		state = State.SOUL_PULL
+		pull_left = 0.22
+		var ray := PhysicsRayQueryParameters2D.create(global_position, player.global_position + Vector2(0, -14), WORLD_MASK)
+		if get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
+			if target.has_method("pull_towards"):
+				target.pull_towards(player.global_position, PULL_STRENGTH)
+			elif target.has_method("on_shine_hit"):
+				target.on_shine_hit(int(signf(player.global_position.x - target.global_position.x)), PULL_STRENGTH * 5.0)
+		Ferocity.add("soul_pull", 8.0, "SOUL PULL")
+		Sfx.play("knife_catch", -5.0, 0.8)
+		return
+	Fx.jade_splash(get_parent(), global_position, Vector2.UP, 0.35)
+	_release()
+
+func _release() -> void:
+	if released:
+		return
+	released = true
+	if is_instance_valid(player):
+		player.on_knife_caught(self)
+	queue_free()
 
 func highlight() -> void:
 	highlight_timer = HIGHLIGHT_TIME
@@ -123,6 +129,15 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 func _draw() -> void:
+	if state in [State.MARKED, State.SOUL_PULL]:
+		for i in range(4):
+			var x := (i - 1.5) * 7.0
+			var height := 13.0 + 6.0 * sin(flame_time * 14.0 + i * 2.0)
+			draw_colored_polygon(PackedVector2Array([Vector2(x - 5, 6), Vector2(x, -height), Vector2(x + 5, 4)]), Color(0.24, 0.8, 0.48, 0.42))
+		if state == State.SOUL_PULL and is_instance_valid(player):
+			var goal := to_local(player.global_position + Vector2(0, -20))
+			var side := goal.orthogonal().normalized() * sin(flame_time * 18.0) * 6.0
+			draw_polyline(PackedVector2Array([Vector2.ZERO, goal * 0.33 + side, goal * 0.66 - side, goal]), Color(0.5, 0.9, 0.65, 0.18), 2.0, true)
 	if highlight_timer <= 0.0:
 		return
 	# Anillo que late y se cierra sobre el cuchillo (sin girar con él).
@@ -140,20 +155,28 @@ func _physics_process(delta: float) -> void:
 	sprite.frame = int(flame_time * 14.0) % 4
 	_update_trail()
 	_update_look()
+	if state in [State.MARKED, State.SOUL_PULL]:
+		rotation = 0.0
+		sprite.hide()
+		if not _is_target_alive(target):
+			_release()
+			return
+		global_position = _target_center(target)
+		if state == State.SOUL_PULL:
+			pull_left -= delta
+			if pull_left <= 0.0:
+				_release()
+		queue_redraw()
+		return
+	life -= delta
+	if life <= 0.0:
+		_release()
+		return
 	match state:
-		State.FLYING, State.FALLING, State.BOUNCING:
+		State.FLYING:
 			_fly(delta)
 		State.HOSTILE:
 			_fly_hostile(delta)
-		State.STUCK_ENEMY:
-			if _is_target_alive(target):
-				global_position = target.to_global(target_offset)
-			else:
-				# El enemigo murió: el cuchillo cae desde ahí.
-				state = State.FALLING
-				velocity = Vector2(0.0, 60.0)
-		State.RETURNING:
-			_return(delta)
 
 func _fly(delta: float) -> void:
 	if straight_timer > 0.0:
@@ -166,13 +189,9 @@ func _fly(delta: float) -> void:
 	var hit := get_world_2d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
 		global_position = hit.position + hit.normal * 1.0
-		if state == State.BOUNCING:
-			_bounce_again(hit.normal)
-		elif randf() < DROP_CHANCE:
-			_bounce_off(hit.normal)
-		else:
-			global_position = hit.position
-			_stick_in_world()
+		Fx.jade_splash(get_parent(), hit.position + hit.normal * 3.0, hit.normal)
+		Fx.impact(get_parent(), hit.position, [FIRE_VISUAL.COLOR.darkened(0.6), FIRE_VISUAL.COLOR, Color(0.8, 1.0, 0.7)], 0.5)
+		_release()
 		return
 
 	global_position = to
@@ -184,28 +203,8 @@ func _fly(delta: float) -> void:
 			_stick_in_enemy(enemy)
 
 func _stick_in_world() -> void:
-	state = State.STUCK_WORLD
-	was_dropped = false
-	# Se clava con la punta por delante en la dirección en que iba.
-	_point_along(velocity)
-	global_position += velocity.normalized() * 4.0
-
-func _bounce_off(normal: Vector2) -> void:
-	# 15% de las veces no se clava: rebota libremente hasta quedar tirado.
-	state = State.BOUNCING
-	was_dropped = true
-	velocity = velocity.bounce(normal) * BOUNCE_RESTITUTION
-
-func _bounce_again(normal: Vector2) -> void:
-	velocity = velocity.bounce(normal) * BOUNCE_RESTITUTION
-	# Sobre el suelo y casi sin velocidad: se queda tirado.
-	if normal.y < -0.5 and velocity.length() < REST_SPEED:
-		_lie_down(normal)
-
-func _lie_down(normal: Vector2) -> void:
-	state = State.DROPPED
-	global_position += normal * 3.0
-	rotation = -TIP_ANGLE if velocity.x >= 0.0 else PI - TIP_ANGLE
+	Fx.jade_splash(get_parent(), global_position, Vector2.UP)
+	_release()
 
 func _stick_in_enemy(enemy: Node2D) -> void:
 	# Algunos enemigos lo shinean de vuelta en vez de dejar que se clave.
@@ -213,70 +212,17 @@ func _stick_in_enemy(enemy: Node2D) -> void:
 		_enemy_shine(enemy)
 		return
 	var direction: int = 1 if velocity.x >= 0.0 else -1
-	enemy.take_hit(global_position, direction, _damage(DAMAGE_THROW))
-	Ferocity.add("knife", 12.0, "FUEGO JADE")
-	_on_damage_dealt()
+	Ferocity.add("knife_mark", 8.0, "FUEGO JADE")
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
-	state = State.STUCK_ENEMY
+	state = State.MARKED
+	hit_any = true
+	sprite.hide()
+	trail.clear_points()
 	straight_timer = 0.0
-	was_dropped = false
 	target = enemy
 	last_target = enemy
 	target_offset = enemy.to_local(global_position)
-
-func _return(delta: float) -> void:
-	if not is_instance_valid(player):
-		queue_free()
-		return
-	var goal: Vector2 = player.global_position + Vector2(0.0, -16.0)
-	var offset := goal - global_position
-	return_speed = min(return_speed + RETURN_ACCELERATION * delta, RETURN_MAX_SPEED)
-	var step: float = return_speed * delta
-	# Shine knife: el aura del rugido lo despide de nuevo antes de que llegue a la mano. Se mira antes
-	# de atraparlo (y en todo el tramo de este frame): si no, a veces entraba en la mano de un salto.
-	if _player_aura_reaches() or _aura_reaches_segment(global_position, global_position + offset.normalized() * min(step, offset.length())):
-		_player_shine()
-		return
-	if offset.length() <= step + 14.0:
-		if player.has_method("on_knife_caught"):
-			player.on_knife_caught(self)
-		queue_free()
-		return
-	var move := offset.normalized() * step
-	return_direction = move.normalized()
-	global_position += move
-	_point_along(move)
-	var enemy := _find_enemy(recall_hits)
-	if enemy:
-		_recall_hit(enemy)
-
-func _recall_hit(enemy: Node2D) -> void:
-	recall_hits.append(enemy)
-	var direction: int = 1 if player.global_position.x >= enemy.global_position.x else -1
-	enemy.take_hit(global_position, direction, _damage(DAMAGE_RECALL))
-	_on_damage_dealt()
-	if player and player.has_method("on_knife_hit"):
-		player.on_knife_hit(global_position)
-	# Si el cuchillo estaba tirado en el suelo solo golpea; si no, atrae hacia Rengar.
-	if not was_dropped and enemy.has_method("pull_towards"):
-		Ferocity.add("knife_pull", 15.0, "ATRAÍDO")
-		enemy.pull_towards(player.global_position, PULL_STRENGTH)
-
-# ---------- Shine y riposte
-
-func _damage(base: int) -> int:
-	# El primer shine de Rengar ya pega más que un lanzamiento normal; el riposte lo duplica.
-	var amount: float = base * Ferocity.damage_multiplier() * Shine.multiplier(shine_level + 1)
-	if empowered:
-		amount *= 2.0
-	return int(round(amount))
-
-func _on_damage_dealt() -> void:
-	if empowered and not hit_any:
-		Fx.text(get_parent(), global_position + Vector2(0, -30), "¡RIPOSTE!", Color(1.0, 0.4, 0.3))
-		Ferocity.add("ranged_riposte", 40.0, "RIPOSTE A DISTANCIA", Ferocity.BONUS_COLOR)
-	hit_any = true
 
 func _aura_reaches_segment(from: Vector2, to: Vector2) -> bool:
 	if not is_instance_valid(player) or not player.is_roar_aura_active():
@@ -294,7 +240,7 @@ func _player_shine() -> void:
 	shine_level += 2 if perfect and from_enemy else 1
 	player_shines += 1
 	recall_hits.clear()
-	var direction: Vector2 = -return_direction if state == State.RETURNING else -velocity.normalized()
+	var direction: Vector2 = -velocity.normalized()
 	if _is_target_alive(last_target):
 		direction = (_target_center(last_target) - global_position).normalized()
 	if direction.length_squared() < 0.01:
@@ -302,7 +248,6 @@ func _player_shine() -> void:
 	velocity = direction * SHINE_SPEED * (player.perfect_reflect_speed if perfect and from_enemy else 1.0)
 	state = State.FLYING
 	straight_timer = SHINE_STRAIGHT_TIME
-	was_dropped = false
 	Fx.impact(get_parent(), global_position, Fx.ROAR, 1.2)
 	if player.has_method("on_knife_shined"):
 		player.on_knife_shined(self)
@@ -322,6 +267,9 @@ func _enemy_shine(enemy: Node2D) -> void:
 	Fx.text(get_parent(), global_position + Vector2(0, -30), "¡SHINE!", Shine.color(shine_level, false).lightened(0.3))
 
 func _fly_hostile(delta: float) -> void:
+	if is_instance_valid(player) and player.wrath_aura_reaches(global_position, global_position + velocity * delta):
+		_release()
+		return
 	# Devuelto por un enemigo: recto hacia Rengar. Si lo alcanza le hace daño y vuelve a su mano.
 	hostile_timer -= delta
 	if not is_instance_valid(player):
@@ -346,9 +294,7 @@ func _fly_hostile(delta: float) -> void:
 		queue_free()
 		return
 	if hostile_timer <= 0.0:
-		# Se le acabó el impulso: cae y queda como un cuchillo normal.
-		state = State.BOUNCING
-		was_dropped = true
+		_release()
 
 func _target_center(node: Node2D) -> Vector2:
 	var offset = node.get("impact_offset")
@@ -400,7 +346,7 @@ func _is_target_alive(node: Object) -> bool:
 	return is_instance_valid(node) and node.visible and node.get("monitorable") != false
 
 func _update_trail() -> void:
-	var moving: bool = state in [State.FLYING, State.FALLING, State.BOUNCING, State.RETURNING, State.HOSTILE]
+	var moving: bool = state in [State.FLYING, State.HOSTILE]
 	if moving:
 		trail.add_point(global_position)
 		while trail.get_point_count() > TRAIL_LENGTH:

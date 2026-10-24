@@ -59,6 +59,10 @@ func _ready() -> void:
 	area_entered.connect(_on_area_entered)
 
 func _physics_process(delta: float) -> void:
+	var wrath_player := get_tree().get_first_node_in_group(&"player")
+	if wrath_player and wrath_player.wrath_aura_reaches(global_position, global_position + velocity * delta):
+		_destroy()
+		return
 	life -= delta
 	if life <= 0.0:
 		queue_free()
@@ -80,6 +84,9 @@ func _physics_process(delta: float) -> void:
 		_reflect(player)
 
 func _on_body_entered(body: Node) -> void:
+	if body.has_method("is_wrath_aura_active") and body.is_wrath_aura_active():
+		_destroy()
+		return
 	if body.is_in_group(&"player"):
 		if reflected:
 			return

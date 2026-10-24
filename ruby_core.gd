@@ -24,6 +24,9 @@ var cracks := 0
 var clock := 0.0
 var spawn_grace_left := 0.0
 var parried_attacks := {}
+var stolen := false
+var stasis_mode := Node.PROCESS_MODE_INHERIT
+var stasis_tint := Color.WHITE
 
 func _ready() -> void:
 	enemy = get_parent()
@@ -37,6 +40,7 @@ func _ready() -> void:
 		enemy.health_fill.get_parent().hide()
 
 func reset_core() -> void:
+	_restore_stasis()
 	open_time = 0.0
 	spawn_grace_left = 0.0
 	posture = POSTURE_MAX
@@ -46,6 +50,7 @@ func reset_core() -> void:
 	claimant = null
 	cracks = 0
 	parried_attacks.clear()
+	stolen = false
 	z_index = 4
 	show()
 
@@ -107,9 +112,47 @@ func claimed_by(by: Node) -> bool:
 
 func release_claim(by: Node) -> void:
 	if claimant != null and claimant.get_ref() == by:
+		_restore_stasis()
 		locked = false
 		z_index = 4
 		claimant = null
+
+func claim_wrath(by: Node) -> bool:
+	if not alive() or locked:
+		return false
+	locked = true
+	stolen = true
+	claimant = weakref(by)
+	stasis_mode = enemy.process_mode
+	enemy.process_mode = Node.PROCESS_MODE_DISABLED
+	if enemy.get("visual") != null:
+		stasis_tint = enemy.visual.modulate
+		enemy.visual.modulate = Color(0.45, 0.75, 0.65, 0.65)
+	queue_redraw()
+	return true
+
+func _restore_stasis() -> void:
+	if not stolen:
+		return
+	stolen = false
+	if is_instance_valid(enemy):
+		enemy.process_mode = stasis_mode
+		if enemy.get("visual") != null:
+			enemy.visual.modulate = stasis_tint
+	queue_redraw()
+
+func complete_wrath(by: Node, mouth: Vector2) -> bool:
+	if not stolen or not claimed_by(by):
+		return false
+	_restore_stasis()
+	if boss:
+		final_open = true
+	# La ultimate sí arranca el núcleo incluso con vida; no exige un segundo heavy al jefe.
+	var original_position := position
+	global_position = mouth
+	var executed := complete(by)
+	position = original_position
+	return executed
 
 func complete(by: Node) -> bool:
 	if not claimed_by(by):
@@ -196,7 +239,7 @@ func posture_outline(radius: float, ratio: float) -> PackedVector2Array:
 	return points
 
 func _draw() -> void:
-	if broken:
+	if broken or stolen:
 		return
 	var exposed := is_open() or locked
 	var pulse := 0.5 + 0.5 * sin(clock * (18.0 if exposed else 4.0))

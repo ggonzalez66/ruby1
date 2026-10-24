@@ -176,7 +176,7 @@ func _run() -> void:
 	release_all()
 	await frames(20)
 
-	print("== Shine knife: el recall siempre rebota")
+	print("== Fuego marcado: recall hace soul pull incluso con rugido")
 	var bounced := 0
 	var tries := 0
 	for distance in [180.0, 223.0, 260.0, 297.0, 335.0, 371.0, 410.0, 455.0]:
@@ -189,7 +189,7 @@ func _run() -> void:
 		await tap("throw_knife")
 		await frames(30)
 		var knife: Node2D = player.thrown_knife
-		if knife == null or knife.state != knife.State.STUCK_ENEMY:
+		if knife == null or knife.state != knife.State.MARKED:
 			target.queue_free()
 			continue
 		tries += 1
@@ -198,9 +198,9 @@ func _run() -> void:
 		await tap("throw_knife")
 		for i in range(60):
 			await frames(1)
-			if not is_instance_valid(knife) or knife.player_shines > 0:
+			if not is_instance_valid(knife):
 				break
-		if is_instance_valid(knife) and knife.player_shines > 0:
+		if not is_instance_valid(knife) and player.has_knife and target.current_health == 999:
 			bounced += 1
 		release_all()
 		target.queue_free()
@@ -208,7 +208,7 @@ func _run() -> void:
 		if is_instance_valid(player.thrown_knife):
 			player.thrown_knife.queue_free()
 			player.on_knife_caught()
-	check(tries >= 6 and bounced == tries, "rebota en %d de %d recalls" % [bounced, tries])
+	check(tries >= 6 and bounced == tries, "soul pull sin daño en %d de %d recalls" % [bounced, tries])
 
 	print("== Shine enemigo")
 	await reset()
@@ -270,7 +270,7 @@ func _run() -> void:
 		await frames(1)
 		if player.attack_mode != player.ATTACK_HEAVY:
 			break
-	check(F.rank == 5 and player.current_health == 50 + player.rank_heal, "SS: el heavy aéreo cura al conectar (%d)" % player.current_health)
+	check(F.rank == 5 and player.current_health == 50, "SS: el heavy aéreo ya no cura al conectar (%d)" % player.current_health)
 	air_dummy.queue_free()
 	await frames(40)
 	# SSS: i-frames en el heavy aéreo y destrucción de proyectiles.

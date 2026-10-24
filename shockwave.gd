@@ -77,6 +77,9 @@ func _physics_process(delta: float) -> void:
 				return
 		return
 	var player := get_tree().get_first_node_in_group(&"player")
+	if player and player.wrath_aura_reaches(global_position, global_position + Vector2(0, -height)):
+		queue_free()
+		return
 	if player and player.is_roar_aura_active() and _touches_aura(player):
 		_reflect(player)
 		return

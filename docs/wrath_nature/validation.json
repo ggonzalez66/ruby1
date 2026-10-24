@@ -1,0 +1,86 @@
+{
+  "sprites": {
+    "passed": 220,
+    "total": 220
+  },
+  "combos": {
+    "passed": 72,
+    "total": 72
+  },
+  "executions": {
+    "passed": 113,
+    "total": 113
+  },
+  "regression": {
+    "passed": 16,
+    "total": 16
+  },
+  "sfx": {
+    "passed": 20,
+    "total": 20
+  },
+  "combat_modes": {
+    "passed": 64,
+    "total": 64
+  },
+  "speedrun": {
+    "passed": 59,
+    "total": 59
+  },
+  "combat_feedback": {
+    "passed": 40,
+    "total": 40
+  },
+  "sky_performance": {
+    "passed": 8,
+    "total": 8
+  },
+  "sky_records": {
+    "passed": 12,
+    "total": 12
+  },
+  "gauntlet_safety": {
+    "passed": 29,
+    "total": 29
+  },
+  "uppercut_collision": {
+    "passed": 12,
+    "total": 12
+  },
+  "movement_polish": {
+    "passed": 14,
+    "total": 14
+  },
+  "enemigos": {
+    "passed": 35,
+    "total": 35
+  },
+  "ajustes": {
+    "passed": 13,
+    "total": 13
+  },
+  "art_refresh": {
+    "passed": 11,
+    "total": 11
+  },
+  "wrath_nature": {
+    "passed": 32,
+    "total": 32
+  },
+  "jade_soul_pull": {
+    "passed": 14,
+    "total": 14
+  },
+  "shine_shield": {
+    "passed": 36,
+    "total": 36
+  },
+  "tools_normalize_sheet": {
+    "passed": 32,
+    "total": 32
+  },
+  "tools_sound_tuning": {
+    "passed": 6,
+    "total": 6
+  }
+}

@@ -9,6 +9,25 @@ const GOLD: Array[Color] = [Color(0.32, 0.16, 0.03), Color(1.0, 0.7, 0.14), Colo
 const ROAR: Array[Color] = [Color(0.4, 0.22, 0.02), Color(1.0, 0.8, 0.28), Color(1.0, 0.98, 0.82)]
 const DUST := Color(0.86, 0.8, 0.66, 0.85)
 
+# Llama residual visual: ni daño ni colisión, se borra al terminar su vida.
+static func jade_splash(parent: Node, point: Vector2, normal: Vector2 = Vector2.UP, duration: float = 2.5, size: float = 1.0) -> void:
+	var flame := Sprite2D.new()
+	flame.name = "JadeFireResidue"
+	flame.texture = preload("res://jade_fire_visual.gd").TEXTURE
+	flame.hframes = 2
+	flame.vframes = 2
+	flame.frame = randi() % 4
+	flame.scale = Vector2(0.065, 0.09) * size
+	flame.rotation = normal.angle()
+	flame.modulate.a = 0.65
+	flame.z_index = 1
+	parent.add_child(flame)
+	flame.global_position = point
+	var tween := flame.create_tween().set_parallel(true)
+	tween.tween_property(flame, "modulate:a", 0.0, duration).set_delay(duration * 0.15)
+	tween.tween_property(flame, "scale", flame.scale * 0.25, duration)
+	tween.chain().tween_callback(flame.queue_free)
+
 # Impacto al conectar un golpe: estrella de puntas que se abre y chispas.
 static func impact(parent: Node, point: Vector2, palette: Array[Color], size: float = 1.0) -> void:
 	var burst := _spawn(parent, point)

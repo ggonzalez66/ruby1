@@ -631,8 +631,8 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnife" type="Node2D" parent="."]
 position = Vector2(820, -2200)
 script = ExtResource("14_sign")
-text = "{throw_knife} lanza el fuego jade: queda anclado en enemigos y paredes.
-Pulsa {throw_knife} otra vez para que vuelva a tu mano."
+text = "{throw_knife} lanza fuego jade sin daño y marca a un enemigo.
+Pulsa otra vez para atraerlo; si está open, te teletransportas para ejecutarlo. Tiene cooldown."
 title = "Fuego jade"
 panel_width = 320
 
@@ -655,7 +655,7 @@ max_health = 6
 [node name="SignKnifePull" type="Node2D" parent="."]
 position = Vector2(2600, -2200)
 script = ExtResource("14_sign")
-text = "Si el fuego jade está anclado en un enemigo, al recuperarlo lo arrastras hacia ti.
+text = "Marca con fuego jade y pulsa otra vez para hacer Soul pull, sin daño.
 Baja al dummy de la plataforma alta: la caída lo destruye."
 title = "Atraer"
 panel_width = 340
@@ -781,7 +781,7 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnifeChaser" type="Node2D" parent="."]
 position = Vector2(6950, -2200)
 script = ExtResource("14_sign")
-text = "Ancla el fuego jade a un perseguidor y recupéralo: lo atraes hacia ti fuera de su guardia."
+text = "Marca al perseguidor con fuego jade y usa Soul pull para atraerlo. Si está open, lo ejecutarás al instante."
 title = "Fuego jade y perseguidores"
 panel_width = 340
 

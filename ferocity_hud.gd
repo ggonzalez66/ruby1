@@ -26,6 +26,7 @@ const SHAKE_TIME := 0.6
 
 var airtime_label: Label
 var rank_row: Control
+var special_label: Label
 var letter: Label
 var rest: Label
 var bar_root: Control
@@ -68,6 +69,10 @@ func _ready() -> void:
 	rank_row.add_child(letter)
 	rest = _label("", REST_SIZE, Color.WHITE)
 	rank_row.add_child(rest)
+	special_label = _label("Wrath of Nature", 27, Color(1.0, 0.15, 0.25))
+	special_label.position = Vector2(14, 32)
+	special_label.hide()
+	add_child(special_label)
 	bar_root = Control.new()
 	bar_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	bar_root.position = _bar_home()
@@ -117,6 +122,10 @@ func _ready() -> void:
 	Ferocity.promotion_blocked.connect(func(): cap_flash = 0.4)
 
 func _process(delta: float) -> void:
+	var special := not Ferocity.special_name.is_empty()
+	rank_row.visible = not special
+	special_label.visible = special
+	special_label.text = Ferocity.special_name
 	var status := " · PAUSA" if Ferocity.airtime_paused else ("" if Ferocity.airtime_active else " · FIN")
 	airtime_label.text = "AIRE %.2f s%s" % [Ferocity.airtime, status]
 	airtime_label.visible = Ferocity.airtime > 0.0
@@ -125,6 +134,8 @@ func _process(delta: float) -> void:
 		_layout_rank(Ferocity.rank)
 	var info: Dictionary = Ferocity.rank_info()
 	var color: Color = info["color"]
+	if special:
+		color = Color(1.0, 0.12, 0.22)
 	if Ferocity.rank == Ferocity.RANKS.size() - 1:
 		# SSS: el dorado parpadea hacia blanco.
 		color = color.lerp(Color.WHITE, 0.35 + 0.35 * sin(Time.get_ticks_msec() / 90.0))
@@ -134,10 +145,10 @@ func _process(delta: float) -> void:
 	_update_bar(color, real_delta)
 	_update_shake(real_delta)
 	_update_shards(real_delta)
-	unstoppable_label.visible = Ferocity.is_unstoppable()
+	unstoppable_label.visible = Ferocity.is_unstoppable() or special
 	unstoppable_label.add_theme_color_override("font_color", Color.WHITE if int(Time.get_ticks_msec() / 120) % 2 == 0 else color)
 	# Visible solo con algo de estilo (o mientras quedan logs o astillas).
-	var wanted: float = 1.0 if Ferocity.points > 1.0 or Ferocity.airtime > 0.0 or not logs.is_empty() or not shards.is_empty() else 0.0
+	var wanted: float = 1.0 if special or Ferocity.points > 1.0 or Ferocity.airtime > 0.0 or not logs.is_empty() or not shards.is_empty() else 0.0
 	shown_alpha = move_toward(shown_alpha, wanted, real_delta * 3.0)
 	modulate.a = shown_alpha
 	_update_logs(real_delta)
@@ -162,7 +173,7 @@ func _bar_home() -> Vector2:
 	return Vector2(PANEL_WIDTH - BAR_WIDTH, 82)
 
 func _update_bar(color: Color, real_delta: float) -> void:
-	var fill_width: float = BAR_WIDTH * Ferocity.rank_progress()
+	var fill_width: float = BAR_WIDTH * (Ferocity.special_progress if not Ferocity.special_name.is_empty() else Ferocity.rank_progress())
 	bar_fill.size.x = fill_width
 	bar_flash = max(bar_flash - real_delta, 0.0)
 	if bar_flash > 0.0:

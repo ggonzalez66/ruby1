@@ -9,9 +9,8 @@ extends Node
 # - Desde el rango A Rengar es IMPARABLE: los golpes le quitan vida pero no lo frenan, a cambio de
 #   bajar dos rangos (en A y S aguanta un golpe; en SS y SSS, dos).
 # - Cuanto más estilo, más daño e impacto (hitstop) tienen sus golpes.
-# - SS: los ataques fuertes (heavy aéreo y terrestre, giro del dash attack) curan al conectar.
-#   SSS: además, esos ataques destruyen proyectiles, y el heavy aéreo y el giro dan i-frames hasta que
-#   terminan (ver movimiento.gd).
+# - La curación de combate procede de ejecutar Rubies. SSS permite cargar Wrath of Nature.
+#   Los ataques fuertes SSS conservan su destrucción de proyectiles e i-frames habituales.
 
 signal rank_changed(rank: int, previous: int)
 # chain: acciones encadenadas que el HUD agrupa en una línea ("+REBOTE x3"); count es el número exacto
@@ -81,12 +80,18 @@ var rank := 0
 var grace := 0.0
 var freshness := {}
 var unstoppable := false
+var style_locked := false
+var drain_locked := false
+var special_name := ""
+var special_progress := 0.0
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
 	Stats.counter_added.connect(_on_stat)
 
 func _physics_process(delta: float) -> void:
+	if style_locked or drain_locked:
+		return
 	for key in freshness.keys():
 		freshness[key] = min(freshness[key] + 0.2 * delta, 1.0)
 	if grace > 0.0:
@@ -97,6 +102,8 @@ func _physics_process(delta: float) -> void:
 # ---------- Entradas
 
 func add(key: String, amount: float, label: String = "", color: Color = GOOD_COLOR, chain: String = "", count: int = 0) -> void:
+	if style_locked:
+		return
 	# Cada repetición del mismo evento rinde un 20 % menos; se recupera con el tiempo.
 	var fresh: float = freshness.get(key, 1.0)
 	freshness[key] = max(fresh - 0.2, 0.3)
@@ -163,6 +170,10 @@ func update_airtime(delta: float, grounded: bool, wall_contact: bool) -> void:
 	_add_capped(AIRTIME_GAIN * delta, _rank_top(max(rank, ACROBATIC_RANK_LIMIT)))
 
 func reset() -> void:
+	style_locked = false
+	drain_locked = false
+	special_name = ""
+	special_progress = 0.0
 	airtime = 0.0
 	airtime_active = false
 	airtime_paused = false
@@ -233,6 +244,8 @@ func _rank_floor(index: int) -> float:
 	return max(index, 0) * RANK_POINTS
 
 func _set_points(value: float) -> void:
+	if style_locked and value > points:
+		return
 	points = clamp(value, 0.0, MAX_POINTS)
 	var new_rank: int = clamp(int(points / RANK_POINTS), 0, RANKS.size() - 1)
 	if new_rank != rank:

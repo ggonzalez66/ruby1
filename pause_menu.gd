@@ -8,7 +8,7 @@ const TUTORIAL_SIGN := preload("res://tutorial_sign.gd")
 const MAIN_MENU := "res://main_menu.tscn"
 # Al cambiar el esquema por defecto se sube la versión: los controles guardados con una
 # versión anterior se ignoran (el volumen sí se conserva). Se migran las versiones 2 y 3:
-# Select pasa a taunt y, desde la 2, "Fuego jade / recuperar" vuelve a LT.
+# Select pasa a taunt y, desde la 2, "Fuego jade / Soul pull" vuelve a LT.
 const INPUT_VERSION := 4
 const MUSIC_BUS := &"Music"
 const SFX_BUS := &"SFX"
@@ -32,7 +32,7 @@ signal closed
 const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
-	["throw_knife", "Fuego jade / recuperar"], ["roar", "Rugido"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
+	["throw_knife", "Fuego jade / Soul pull"], ["roar", "Rugido"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
 	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).

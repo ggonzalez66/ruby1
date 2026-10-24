@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruby1 · Wrath of Nature</title>
+<style>
+body{margin:0;background:#12251e;color:#eaf3e9;font:16px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:24px}p{line-height:1.6;color:#c3d7c9}nav{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:22px 0}button,select{background:#294535;border:1px solid #63816b;border-radius:6px;padding:9px;color:inherit;font:inherit}a{color:#b5e7ba}figure{margin:16px 0}img{width:100%;image-rendering:pixelated;border-radius:9px;background:#0b1912}input{width:100%;accent-color:#e75868}figcaption{margin:12px 0;color:#cfdfce}
+</style>
+<main><h1>Wrath of Nature · Fuego jade y Soul pull</h1>
+<p>Capturas del juego con el arte nuevo, los efectos y el HUD reales. Wrath ejecuta también a jefes con vida; el fuego jade conserva una sola marca y no inflige daño.</p>
+<nav><select id="group" aria-label="Mecánica"></select><button id="previous">Anterior</button><button id="next">Siguiente</button><a href="README.md">Mecánica, parámetros y arte</a><a href="prompts.json">Prompt OpenAI</a><a href="../../assets/sprites/player/viridy/viridy_wrath_nature_v1.png">Hoja nueva</a></nav>
+<figure><img id="image" alt=""><figcaption id="caption"></figcaption></figure><input id="frame" type="range" min="0" value="0" aria-label="Momento de la secuencia">
+</main>
+<script>
+const groups=[
+ ['Wrath of Nature',[
+ ['charge','Abajo + SSS · Carga de un segundo'],['ready','Preparación de cuatro segundos · Aura roja e Imparable'],['rush','Heavy + dirección · Bestia de fuego jade y afterimages SSS'],['rubies','Choque · Los Rubies están en la boca y las víctimas en stasis'],['chew','Mascado · Preparación de la rotura'],['shatter','Rotura conjunta · Muerte de las víctimas y absorción'],['recovery','Recuperación · La bestia se desvanece'],['normal','Viridy normal · Ferocidad cero']]],
+ ['Fuego jade',[
+ ['mark','Impacto sin daño · Enemigo marcado por fuego jade'],['soul_pull','Recall · Atracción con tether translúcido'],['soul_execution','Objetivo open · Salto espacial y ejecución aérea']]]
+];
+const group=document.querySelector('#group'),slider=document.querySelector('#frame'),image=document.querySelector('#image');
+groups.forEach(([name],i)=>{const option=document.createElement('option');option.value=i;option.textContent=name;group.append(option)});
+function draw(){const items=groups[Number(group.value)][1];slider.max=items.length-1;const frame=Math.min(Number(slider.value),items.length-1);slider.value=frame;const[file,label]=items[frame];image.src='runtime/'+file+'.png';image.alt=label;document.querySelector('#caption').textContent=`${frame+1}/${items.length} · ${label}`}
+group.onchange=()=>{slider.value=0;draw()};slider.oninput=draw;
+document.querySelector('#previous').onclick=()=>{slider.value=Math.max(0,Number(slider.value)-1);draw()};
+document.querySelector('#next').onclick=()=>{slider.value=Math.min(Number(slider.max),Number(slider.value)+1);draw()};draw();
+</script>
+</html>
