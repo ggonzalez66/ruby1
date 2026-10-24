@@ -74,6 +74,8 @@ const ROAR_HOLD_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy
 const BRAKE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_brake.png")
 const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_brake_recover.png")
 const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
+const UPPERCUT_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
+const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
 const JADE_SHEETS := [WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
@@ -926,7 +928,7 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_GROUND_HEAVY, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
 	_add_padded_animation(frames, ANIMATION_HEAVY_LANDING, LIQUID_LANDING_SHEET, Vector2(1000, 450), [Rect2(77, 454, 838, 255), Rect2(946, 343, 766, 364)], 20.0, false)
 	_add_grid_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, beast_cell, 446.0, [Vector2i(0, 1), Vector2i(1, 1)], 12.0, true)
-	_add_grid_animation(frames, ANIMATION_UPPERCUT, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
+	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_TEXTURE, [UPPERCUT_REGION], 1.0, false)
 	_add_grid_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, beast_cell, 588.0, [Vector2i(0, 0), Vector2i(1, 0)], 14.0, false)
 	# Dos poses marcadas por zancada; se sostiene más cada apoyo y se conserva el braceo alternado.
 	_add_padded_animation(frames, ANIMATION_SPRINT, SPRINTING_NEW_SHEET, Vector2(550, 520), [Rect2(0, 0, 523, 512), Rect2(1041, 0, 495, 512)], 12.0, true)
@@ -1216,8 +1218,6 @@ func _is_braking() -> bool:
 
 func _update_character_orientation(animation_name: StringName) -> void:
 	match animation_name:
-		ANIMATION_UPPERCUT:
-			animated_sprite.rotation = -facing * deg_to_rad(75.0)
 		ANIMATION_LIQUID_LAUNCH:
 			animated_sprite.rotation = facing * atan2(velocity.y, maxf(absf(velocity.x), 1.0))
 		ANIMATION_HEAVY_AERIAL:
@@ -1256,7 +1256,7 @@ func _align_character_animation(animation_name: StringName) -> void:
 	var visual_scale: float = CHARACTER_VISUAL_SCALE * ANIMATION_VISUAL_SCALES.get(animation_name, 1.0)
 	animated_sprite.scale = Vector2.ONE * visual_scale
 	animated_sprite.position = Vector2(0.0, -texture_height * visual_scale * 0.5)
-	if animation_name in [ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_HEAVY_LANDING, ANIMATION_DASH, ANIMATION_RUBY_CHEW, ANIMATION_UPPERCUT, ANIMATION_LIQUID_LAUNCH]:
+	if animation_name in [ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_HEAVY_LANDING, ANIMATION_DASH, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH]:
 		animated_sprite.scale = Vector2.ONE * LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
 		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
 	elif animation_name in [ANIMATION_WALK, ANIMATION_SPRINT]:
@@ -3232,7 +3232,9 @@ func _update_attack_effects() -> void:
 			_effect_charged_lunge()
 		ATTACK_SPIN:
 			_effect_spin()
-		ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_UPPERCUT:
+		ATTACK_UPPERCUT:
+			_effect_uppercut()
+		ATTACK_HEAVY, ATTACK_HEAVY_GROUND:
 			_effect_liquid_bite()
 
 func _effect_claw_slash() -> void:
@@ -3272,6 +3274,23 @@ func _effect_charged_lunge() -> void:
 		var width: float = 6.0 if index == 1 else 4.5
 		_set_effect_stroke(index, points, width, EFFECT_PALETTE_SILVER, alpha)
 
+func _effect_uppercut() -> void:
+	# El sprite del uppercut es solo la pose: el golpe se dibuja con dos medias lunas doradas que suben
+	# por delante siguiendo la hitbox, y una estela vertical del puño.
+	var progress: float = 1.0 - (attack_timer / light_uppercut_duration)
+	var sweep: float = 1.0 - pow(1.0 - progress, 2.0)
+	var start_angle: float = deg_to_rad(70.0)
+	var head: float = lerp(start_angle, deg_to_rad(-115.0), max(sweep, 0.2))
+	var rise: float = lerp(6.0, -40.0, progress)
+	for index in range(2):
+		var radius: float = 36.0 + index * 14.0
+		var width: float = 9.0 if index == 0 else 6.0
+		_set_effect_stroke(index, _effect_arc_points(Vector2(8.0, -14.0 + rise * 0.4), Vector2(radius * 0.85, radius), start_angle, head - index * 0.14), width, EFFECT_PALETTE_GOLD, 1.0)
+	var streak := PackedVector2Array()
+	for step in range(6):
+		streak.append(Vector2(12.0, lerp(24.0, rise - 34.0, step / 5.0)))
+	_set_effect_stroke(2, streak, 7.0, EFFECT_PALETTE_GOLD, 0.9)
+
 func _effect_spin() -> void:
 	# Tres brazos de espiral: el radio crece a medida que el viento envuelve el ouroboros.
 	var fire: Array[Color] = _style_fire_palette(Ferocity.style_color())
@@ -3299,9 +3318,7 @@ func _ground_chop_sweep(progress: float) -> float:
 func _effect_liquid_bite() -> void:
 	# Estelas líquidas detrás de la melena; las fauces del sprite dibujan el ataque.
 	var direction := Vector2.RIGHT
-	if attack_mode == ATTACK_UPPERCUT:
-		direction = Vector2(light_uppercut_forward_speed, light_uppercut_velocity).normalized()
-	elif attack_mode == ATTACK_HEAVY:
+	if attack_mode == ATTACK_HEAVY:
 		direction = Vector2(absf(velocity.x), maxf(velocity.y, 60.0)).normalized()
 	var side := direction.orthogonal()
 	var palette: Array[Color] = [Color(0.015, 0.12, 0.08), Color(0.20, 0.65, 0.35), Color(0.78, 0.95, 0.45)]

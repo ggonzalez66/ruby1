@@ -56,6 +56,13 @@ func _run() -> void:
 	session.elapsed = 2.0
 	session._update_ghost()
 	check(session.ghost.visible and session.ghost.texture != null, "el replay reproduce los sprites al ritmo del cronómetro")
+	var saved_frames: Array = session.best_frames
+	session.best_frames = [[0.0, 100.0, -100.0, "uppercut", 1, 0.12, 0.12, 0.0, -60.0, -1.3, false]]
+	session.ghost_index = 0
+	session._update_ghost()
+	check(is_zero_approx(session.ghost.rotation) and absf(session.ghost.scale.x - player.CHARACTER_VISUAL_SCALE * player.ANIMATION_VISUAL_SCALES[&"uppercut"]) < 0.001, "el fantasma antiguo de uppercut líquido usa la pose original erguida sin deformarla")
+	session.best_frames = saved_frames
+	session.ghost_index = 0
 	session.elapsed = 30.0
 	result = session.finish_stage()
 	record = session.load_record(session.SKY_STAGE)

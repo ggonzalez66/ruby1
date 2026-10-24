@@ -69,7 +69,7 @@ func _run() -> void:
 	meter._update_reading()
 	check(meter.displayed_speed == 0 and meter.bonus_label.text == "", "la caída vertical no se cuenta como velocidad de carrera")
 
-	print("== Uppercut: bestia, flip normal, stall")
+	print("== Uppercut original, flip normal, stall")
 	await reset_player()
 	player._start_uppercut_attack(false)
 	var saw_rise := false
@@ -86,7 +86,7 @@ func _run() -> void:
 			saw_stall = true
 			stall_falling = player.velocity.y > 0
 			break
-	check(saw_rise and saw_flip and saw_stall and flip_started_rising and stall_falling, "sube transformado, empieza el flip antes del ápice y entra cayendo en stall")
+	check(saw_rise and saw_flip and saw_stall and flip_started_rising and stall_falling, "sube en pose de uppercut, empieza el flip antes del ápice y entra cayendo en stall")
 
 	print("== Screw: lanzamiento y bunnyhop")
 	await reset_player()

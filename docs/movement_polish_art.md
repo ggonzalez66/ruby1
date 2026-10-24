@@ -64,7 +64,7 @@ La última iteración da más espacio entre poses para que no entren fragmentos 
 
 La velocidad horizontal se presenta en km/h, con escala visual de 32 unidades de mundo por metro. Sobre la carrera base (560 px/s), el bonus aumenta linealmente hasta +24 estilo/s a 1400 px/s; el movimiento no asciende más allá de S. El screw lanza a un mínimo de 1240 px/s, o añade 220 px/s si el impulso previo era mayor. Mantener correr permite llevarlo al bunnyhop.
 
-Uppercut: subida líquida, giro normal de 0,24 s que comienza 0,18 s antes del ápice, con gravedad continua y entrada en aerial stall ya cayendo. El combo queda disponible a los 0,35 s desde el inicio; el heavy puede interrumpir la subida o el flip estético.
+Uppercut: pose original de puñetazo ascendente (`viridy_uppercut.png`), giro normal de 0,24 s que comienza 0,18 s antes del ápice, con gravedad continua y entrada en aerial stall ya cayendo. El combo queda disponible a los 0,35 s desde el inicio; el heavy puede interrumpir la subida o el flip estético.
 
 El VFX del screw usa tres espirales con radio creciente. El parry añade tres ondas durante su ventana inicial y un rugido sintetizado original con ±12 % de pitch. El humming actual usa un campo de fuerza grave y constante; las opciones de escucha y la afinación seleccionada están en `tools/forcefield_hum.py` y `docs/feral_sprint_feedback.md`. Receta reproducible: `python3 tools/generate_sfx.py shine_hold roar_parry`.
 
