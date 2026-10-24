@@ -1,0 +1,75 @@
+{
+  "file": "viridy_screw_radial_v3.png",
+  "size": [
+    4608,
+    768
+  ],
+  "cell": [
+    768,
+    768
+  ],
+  "count": 6,
+  "previous_v2_unchanged": true,
+  "frames": [
+    {
+      "frame": 0,
+      "bbox": [
+        135,
+        144,
+        669,
+        625
+      ],
+      "transparent_edges": true
+    },
+    {
+      "frame": 1,
+      "bbox": [
+        104,
+        128,
+        652,
+        655
+      ],
+      "transparent_edges": true
+    },
+    {
+      "frame": 2,
+      "bbox": [
+        92,
+        99,
+        656,
+        689
+      ],
+      "transparent_edges": true
+    },
+    {
+      "frame": 3,
+      "bbox": [
+        50,
+        26,
+        749,
+        683
+      ],
+      "transparent_edges": true
+    },
+    {
+      "frame": 4,
+      "bbox": [
+        104,
+        61,
+        652,
+        659
+      ],
+      "transparent_edges": true
+    },
+    {
+      "frame": 5,
+      "bbox": [
+        47,
+        49,
+        718,
+        699
+      ],
+      "transparent_edges": true
+    }
+  ]
+}

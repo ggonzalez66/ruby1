@@ -47,7 +47,7 @@ const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viri
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
 const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_beast_arcade.png")
 const LIQUID_SPIN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_ouroboros.png")
-const SCREW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_screw_front_v2.png")
+const SCREW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_screw_radial_v3.png")
 const CLAW_SLASH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_claw_slashes_v2.png")
 const GROUND_MORPH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_ground_heavy_arcade.png")
 const HEAVY_REMNANT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_remnant_arcade.png")
@@ -1333,6 +1333,9 @@ func arcade_frame_layout(animation_name: StringName, texture: Texture2D) -> Tran
 	elif animation_name in [ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH]:
 		factor = LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
 	var offset := Vector2(0, -33.0) if animation_name in [ANIMATION_SPIN, ANIMATION_RUBY_SPIN] else Vector2(0, -texture.get_height() * factor * 0.5)
+	if animation_name == ANIMATION_SPIN:
+		# La hoja radial centra el torso, dejando espacio también para la melena inferior.
+		offset.y = -18.0
 	return Transform2D(0.0, Vector2.ONE * factor, 0.0, offset)
 
 func _update_timers(delta: float) -> void:

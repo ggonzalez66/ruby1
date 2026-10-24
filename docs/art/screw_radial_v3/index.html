@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Viridy · Screw radial</title>
+<style>
+body{margin:0;background:#14211c;color:#e7efe9;font:16px system-ui,sans-serif}main{max-width:1100px;margin:auto;padding:24px}p{line-height:1.6;color:#bacdbf}a{color:#b0dfba}nav{display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin:24px 0}button,select{background:#294236;color:inherit;border:1px solid #5b7b65;border-radius:6px;padding:8px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px}article{background:#1c3026;padding:16px;border-radius:12px}h2{font-size:18px}canvas{width:100%;image-rendering:pixelated;background:repeating-conic-gradient(#20332a 0% 25%,#263d31 0% 50%) 50%/24px 24px}input{width:100%}
+</style>
+<main>
+<h1>Screw · Tentáculos alrededor del cuerpo</h1>
+<p>La nueva melena se extiende también hacia abajo. Se conservan la pose frontal, los seis frames, la duración de 0,34 s y el remolino existente.</p>
+<nav><button id="pause">Pausar</button><label>Velocidad <select id="speed"><option value="1">Normal</option><option value=".5">½</option><option value=".25">¼</option></select></label><a href="runtime/screw.png">Ver en Godot</a><a href="comparison.png">Todas las poses</a><a href="README.md">Producción y prompt</a></nav>
+<div class="grid" id="grid"></div>
+<p id="frame"></p><input id="scrub" aria-label="Frame" type="range" min="0" max="5" value="0">
+</main>
+<script>
+const specs=[['Nueva · Radial v3','viridy_screw_radial_v3.png',-18],['Anterior · Frontal v2 conservada','viridy_screw_front_v2.png',-33]];
+let paused=false,speed=1,time=0,last=performance.now(),frame=0;
+const cards=specs.map(([title,file,offset])=>{
+ const card=document.createElement('article');card.innerHTML=`<h2>${title}</h2><canvas width="480" height="400"></canvas>`;document.querySelector('#grid').append(card);
+ const image=new Image(),ctx=card.querySelector('canvas').getContext('2d');image.onload=draw;image.src='../../../assets/sprites/player/viridy/'+file;return{image,ctx,offset};
+});
+function draw(){for(const{image,ctx,offset}of cards){if(!image.complete||!image.naturalWidth)continue;ctx.clearRect(0,0,480,400);ctx.imageSmoothingEnabled=false;const scale=100/768*3;ctx.drawImage(image,frame*768,0,768,768,(480-768*scale)/2,250+offset*3-768*scale/2,768*scale,768*scale)}document.querySelector('#frame').textContent=`Frame ${frame+1}/6`;document.querySelector('#scrub').value=frame}
+function tick(now){const dt=Math.min((now-last)/1000,.1);last=now;if(!paused){time+=dt*speed;frame=Math.min(5,Math.floor(Math.min((time%.69)/.34,.99999)*6));draw()}requestAnimationFrame(tick)}requestAnimationFrame(tick);
+document.querySelector('#pause').onclick=e=>{paused=!paused;e.target.textContent=paused?'Reproducir':'Pausar'};
+document.querySelector('#speed').onchange=e=>speed=Number(e.target.value);
+document.querySelector('#scrub').oninput=e=>{paused=true;document.querySelector('#pause').textContent='Reproducir';frame=Number(e.target.value);draw()};
+</script>
+</html>

@@ -1,0 +1,18 @@
+{
+  "sprites": {
+    "passed": 215,
+    "total": 215
+  },
+  "combos": {
+    "passed": 72,
+    "total": 72
+  },
+  "movement_polish": {
+    "passed": 14,
+    "total": 14
+  },
+  "executions": {
+    "passed": 113,
+    "total": 113
+  }
+}
