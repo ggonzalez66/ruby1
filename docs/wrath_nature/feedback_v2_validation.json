@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-24",
+  "total_checks": 373,
+  "suites": {
+    "feedback_v2": {
+      "passed": 26,
+      "total": 26
+    },
+    "wrath_nature": {
+      "passed": 59,
+      "total": 59
+    },
+    "jade_soul_pull": {
+      "passed": 14,
+      "total": 14
+    },
+    "sfx": {
+      "passed": 20,
+      "total": 20
+    },
+    "combos": {
+      "passed": 74,
+      "total": 74
+    },
+    "gauntlet_safety": {
+      "passed": 31,
+      "total": 31
+    },
+    "uppercut_collision": {
+      "passed": 12,
+      "total": 12
+    },
+    "executions": {
+      "passed": 121,
+      "total": 121
+    },
+    "tools_sound_tuning": {
+      "passed": 16,
+      "total": 16
+    }
+  },
+  "native_captures": [
+    "mark_boss",
+    "fill_ferocity",
+    "aim",
+    "rush",
+    "rubies",
+    "soul_pull"
+  ],
+  "changes": [
+    "Full-volume swept hawk movement and terrain line of sight",
+    "Correct spin scale before afterimage capture",
+    "Temporary jade mark material and seven flames across collider bounds",
+    "100 ms electric soul pull",
+    "500 ms invulnerable Wrath aim, individual impacts, continuous rush loop, jade collision burst",
+    "Pause options fill ferocity to SSS"
+  ]
+}

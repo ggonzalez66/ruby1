@@ -263,7 +263,7 @@ func pull_towards(point: Vector2, strength: float) -> void:
 	if pull_tween:
 		pull_tween.kill()
 	pull_tween = create_tween()
-	pull_tween.tween_property(self, "pull_offset", pull_offset + direction * distance, 0.18).set_ease(Tween.EASE_OUT)
+	pull_tween.tween_property(self, "pull_offset", pull_offset + direction * distance, 0.10).set_ease(Tween.EASE_OUT)
 
 func _update_shooting(delta: float) -> void:
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D

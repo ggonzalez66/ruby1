@@ -5,7 +5,7 @@ const SSS_COLOR := Color(1.0, 0.18, 0.4)
 const JADE := Color(0.22, 0.65, 0.43)
 @export var charge_duration := 1.0
 @export var ready_duration := 4.0
-@export var aim_duration := 0.25
+@export var aim_duration := 0.50
 @export var rush_speed := 1850.0
 @export var max_distance := 4800.0
 @export var max_rush_duration := 3.0
@@ -43,7 +43,7 @@ func uses_beast() -> bool:
 	return state in [State.RUSH, State.RECOIL, State.SHATTER]
 
 func invulnerable() -> bool:
-	return state in [State.RUSH, State.RECOIL, State.SHATTER, State.RECOVERY]
+	return state in [State.AIM, State.RUSH, State.RECOIL, State.SHATTER, State.RECOVERY]
 
 func is_ready() -> bool:
 	return state in [State.READY, State.AIM]
@@ -173,6 +173,7 @@ func launch(input_direction: Vector2) -> bool:
 	captured.clear()
 	_pose()
 	Sfx.play("wrath_launch")
+	Sfx.start_loop("wrath_rush")
 	Stats.add("wrath_launched")
 	return true
 
@@ -196,6 +197,9 @@ func _rush(delta: float) -> void:
 		trail_wait = 0.045
 		Fx.jade_splash(player.get_parent(), to + Vector2(0, -42), -direction, 0.50, 0.65)
 	if collision != null or distance >= max_distance - 0.1 or elapsed >= max_rush_duration:
+		Sfx.stop_loop("wrath_rush")
+		if collision != null:
+			Fx.jade_burst(player.get_parent(), collision.get_position(), 1.3)
 		landed = collision != null and collision.get_normal().y < -0.7
 		recoil = (collision.get_normal() if collision != null else -direction) * 190.0
 		state = State.RECOIL
@@ -224,8 +228,8 @@ func _capture_segment(from: Vector2, to: Vector2) -> void:
 			continue
 		if core.claim_wrath(player):
 			captured.append(core)
-			Fx.impact(player.get_parent(), core.global_position, [JADE.darkened(0.7), JADE, Color(0.8, 1.0, 0.7)], 0.7)
-			Sfx.play("grab", -5.0, 1.25)
+			Fx.impact(player.get_parent(), core.global_position, [JADE.darkened(0.7), JADE, Color(0.8, 1.0, 0.7)], 1.3)
+			Sfx.play("wrath_hit", -2.0, 1.0 + minf(captured.size() * 0.025, 0.2), true)
 
 func _shatter() -> void:
 	var count := captured.size()
@@ -270,6 +274,8 @@ func _destroy_projectiles() -> void:
 				projectile.queue_free()
 
 func cancel() -> void:
+	if state == State.RUSH:
+		Sfx.stop_loop("wrath_rush")
 	if state == State.CHARGING:
 		Sfx.stop_loop("wrath_charge")
 	for core in captured:

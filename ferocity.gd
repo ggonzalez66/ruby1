@@ -169,6 +169,12 @@ func update_airtime(delta: float, grounded: bool, wall_contact: bool) -> void:
 	grace = DRAIN_GRACE
 	_add_capped(AIRTIME_GAIN * delta, _rank_top(max(rank, ACROBATIC_RANK_LIMIT)))
 
+func fill_for_testing() -> void:
+	if style_locked:
+		return
+	grace = DRAIN_GRACE
+	_set_points(MAX_POINTS)
+
 func reset() -> void:
 	style_locked = false
 	drain_locked = false

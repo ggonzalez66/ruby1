@@ -13,6 +13,7 @@ const SAME_SOUND_GAP_MS := 35
 const MIX := {
 	"wrath_charge": [-13.0, 0.0], "wrath_ready": [-5.0, 0.0], "wrath_aim": [-6.0, 0.0],
 	"wrath_launch": [-2.0, 0.03], "wrath_impact": [-3.0, 0.03], "wrath_shatter": [-3.0, 0.02],
+	"wrath_rush": [-12.0, 0.0], "wrath_hit": [-3.0, 0.04], "soul_snap": [-5.0, 0.03],
 	"ready": [-5.0, 0.0], "countdown_tick": [-7.0, 0.0], "go": [-3.0, 0.0],
 	"step": [-11.0, 0.14], "land": [-7.0, 0.08], "jump": [-9.0, 0.06], "air_jump": [-6.0, 0.06],
 	"skid": [-8.0, 0.08], "wallride": [-8.0, 0.06], "wall_jump": [-5.0, 0.06], "grab": [-7.0, 0.08],
@@ -31,7 +32,7 @@ const MIX := {
 	"sun_hit": [-6.0, 0.06], "hawk_screech": [-7.0, 0.04], "hawk_dive": [-8.0, 0.05], "guard_break": [-3.0, 0.04],
 }
 # Sonidos en bucle (se arrancan con start_loop y se paran con stop_loop).
-const LOOPS := ["shine_hold", "wrath_charge"]
+const LOOPS := ["shine_hold", "wrath_charge", "wrath_rush"]
 const LOOP_FADE := 0.08
 
 var streams := {}
@@ -50,12 +51,12 @@ func _ready() -> void:
 		add_child(player)
 		players.append(player)
 
-func play(sound: String, volume_offset_db: float = 0.0, pitch: float = 1.0) -> void:
+func play(sound: String, volume_offset_db: float = 0.0, pitch: float = 1.0, allow_overlap: bool = false) -> void:
 	var stream: AudioStream = streams.get(sound)
 	if stream == null:
 		return
 	var now := Time.get_ticks_msec()
-	if now - int(last_played.get(sound, -100000)) < SAME_SOUND_GAP_MS:
+	if not allow_overlap and now - int(last_played.get(sound, -100000)) < SAME_SOUND_GAP_MS:
 		return
 	last_played[sound] = now
 	Rumble.on_sound(sound)

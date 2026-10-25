@@ -10,20 +10,21 @@ body{margin:0;background:#12251e;color:#eaf3e9;font:16px system-ui,sans-serif}ma
 <p>Capturas del juego con el arte nuevo, los efectos y el HUD reales. Wrath ejecuta también a jefes con vida; el fuego jade conserva una sola marca y no inflige daño.</p>
 <nav><select id="group" aria-label="Mecánica"></select><button id="previous">Anterior</button><button id="next">Siguiente</button><a href="README.md">Mecánica, parámetros y arte</a><a href="prompts.json">Prompt OpenAI</a><a href="../../assets/sprites/player/viridy/viridy_wrath_nature_v1.png">Hoja nueva</a></nav>
 <figure><img id="image" alt=""><figcaption id="caption"></figcaption></figure><input id="frame" type="range" min="0" value="0" aria-label="Momento de la secuencia">
-<p>Sonidos de Wrath: <select id="sound" aria-label="Sonido"><option value="charge">Carga (bucle)</option><option value="ready">Carga lista</option><option value="aim">Preparar dirección</option><option value="launch">Lanzamiento</option><option value="impact">Choque</option><option value="shatter">Fragmentación y absorción</option></select></p><audio id="audio" controls preload="none" src="../../assets/sounds/sfx/wrath_charge.wav"></audio>
+<p>Sonidos: <select id="sound" aria-label="Sonido"><option value="wrath_charge">Carga (bucle)</option><option value="wrath_ready">Carga lista</option><option value="wrath_aim">Preparar dirección</option><option value="wrath_launch">Lanzamiento</option><option value="wrath_rush">Avance (bucle)</option><option value="wrath_hit">Impacto en enemigo</option><option value="wrath_impact">Choque</option><option value="wrath_shatter">Fragmentación y absorción</option><option value="soul_snap">Tirón eléctrico</option></select></p><audio id="audio" controls preload="none" src="../../assets/sounds/sfx/wrath_charge.wav"></audio>
 </main>
 <script>
 const groups=[
  ['Wrath of Nature',[
- ['charge','Abajo + SSS · Carga de un segundo'],['ready','Preparación de cuatro segundos · Aura roja e Imparable'],['aim','Heavy · 0,25 s para elegir dirección; por defecto hacia delante'],['rush','Salida automática · Bestia de fuego jade y afterimages SSS'],['rubies','Choque · Los Rubies están en la boca y las víctimas en stasis'],['chew','Mascado · Preparación de la rotura'],['shatter','Rotura conjunta · Muerte de las víctimas y absorción'],['recovery','Recuperación · La bestia se desvanece'],['normal','Viridy normal · Ferocidad cero']]],
+ ['charge','Abajo + SSS · Carga de un segundo'],['ready','Preparación de cuatro segundos · Aura roja e Imparable'],['aim','Heavy · 0,50 s invulnerable para elegir dirección; por defecto hacia delante'],['rush','Salida automática · Bestia de fuego jade y afterimages SSS'],['rubies','Choque · Los Rubies están en la boca y las víctimas en stasis'],['chew','Mascado · Preparación de la rotura'],['shatter','Rotura conjunta · Muerte de las víctimas y absorción'],['recovery','Recuperación · La bestia se desvanece'],['normal','Viridy normal · Ferocidad cero']]],
  ['Fuego jade',[
- ['mark','Impacto sin daño · Enemigo marcado por fuego jade'],['soul_pull','Recall · Atracción con tether translúcido'],['soul_execution','Objetivo open · Salto espacial y ejecución aérea']]]
+ ['mark','Impacto sin daño · Enemigo verde y llamitas por el cuerpo'],['mark_boss','Marca jade · Cuerpo del jefe teñido y llamas repartidas'],['soul_pull','Recall · Tirón eléctrico de 0,10 s'],['soul_execution','Objetivo open · Salto espacial y ejecución aérea']]],
+ ['Pruebas', [['fill_ferocity','Pausa → Opciones → Llenar ferocidad']]]
 ];
 const group=document.querySelector('#group'),slider=document.querySelector('#frame'),image=document.querySelector('#image');
 groups.forEach(([name],i)=>{const option=document.createElement('option');option.value=i;option.textContent=name;group.append(option)});
 function draw(){const items=groups[Number(group.value)][1];slider.max=items.length-1;const frame=Math.min(Number(slider.value),items.length-1);slider.value=frame;const[file,label]=items[frame];image.src='runtime/'+file+'.png';image.alt=label;document.querySelector('#caption').textContent=`${frame+1}/${items.length} · ${label}`}
 group.onchange=()=>{slider.value=0;draw()};slider.oninput=draw;
-document.querySelector('#sound').onchange=event=>{const audio=document.querySelector('#audio');audio.src='../../assets/sounds/sfx/wrath_'+event.target.value+'.wav';audio.load()};
+document.querySelector('#sound').onchange=event=>{const audio=document.querySelector('#audio');audio.src='../../assets/sounds/sfx/'+event.target.value+'.wav';audio.load()};
 document.querySelector('#previous').onclick=()=>{slider.value=Math.max(0,Number(slider.value)-1);draw()};
 document.querySelector('#next').onclick=()=>{slider.value=Math.min(Number(slider.max),Number(slider.value)+1);draw()};draw();
 </script>

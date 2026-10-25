@@ -28,6 +28,27 @@ static func jade_splash(parent: Node, point: Vector2, normal: Vector2 = Vector2.
 	tween.tween_property(flame, "scale", flame.scale * 0.25, duration)
 	tween.chain().tween_callback(flame.queue_free)
 
+static func jade_burst(parent: Node, point: Vector2, size: float = 1.0) -> void:
+	var burst := _spawn(parent, point)
+	burst.name = "JadeFireBurst"
+	burst.z_index = 6
+	var tween := burst.create_tween().set_parallel(true)
+	for index in range(12):
+		var direction := Vector2.from_angle(TAU * index / 12.0)
+		var flame := Sprite2D.new()
+		flame.texture = preload("res://jade_fire_visual.gd").TEXTURE
+		flame.hframes = 2
+		flame.vframes = 2
+		flame.frame = index % 4
+		flame.scale = Vector2(0.07, 0.045) * size
+		flame.rotation = direction.angle()
+		burst.add_child(flame)
+		tween.tween_property(flame, "position", direction * (60.0 + (index % 3) * 20.0) * size, 0.36).set_ease(Tween.EASE_OUT)
+		tween.tween_property(flame, "scale", Vector2.ZERO, 0.36)
+		tween.tween_property(flame, "modulate:a", 0.0, 0.30).set_delay(0.06)
+	impact(parent, point, [Color(0.03, 0.15, 0.1), Color(0.22, 0.8, 0.45), Color(0.85, 1.0, 0.75)], size * 1.5)
+	tween.chain().tween_callback(burst.queue_free)
+
 # Impacto al conectar un golpe: estrella de puntas que se abre y chispas.
 static func impact(parent: Node, point: Vector2, palette: Array[Color], size: float = 1.0) -> void:
 	var burst := _spawn(parent, point)

@@ -844,8 +844,8 @@ func _physics_process(delta: float) -> void:
 	Ferocity.update_airtime(delta, is_on_floor(), is_on_wall() or wallride_active or wall_cling_timer > 0.0 or mantle_active or wall_embedded)
 	_update_movement_fx(delta, was_on_floor, air_jumps_before, fall_speed)
 	_update_proud(delta, move_input)
-	_update_afterimages(delta)
 	_update_character_animation()
+	_update_afterimages(delta)
 	_update_hurt_visual()
 
 func _update_proud(delta: float, move_input: float) -> void:
@@ -3077,6 +3077,7 @@ func _start_spin_attack() -> void:
 	velocity.y = charged_ground_jump_cancel_velocity
 	_set_attack_active(true)
 	animated_sprite.play(ANIMATION_SPIN)
+	_align_character_animation(ANIMATION_SPIN)
 	_update_attack_animation()
 	_refresh_attack_hits()
 
@@ -3099,6 +3100,7 @@ func _start_wall_spin_attack() -> void:
 	_set_attack_active(true)
 	_update_facing_visual()
 	animated_sprite.play(ANIMATION_SPIN)
+	_align_character_animation(ANIMATION_SPIN)
 	_update_attack_animation()
 	_refresh_attack_hits()
 

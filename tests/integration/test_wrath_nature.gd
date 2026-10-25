@@ -98,11 +98,14 @@ func _run() -> void:
 	style._set_points(650)
 	wrath.arm()
 	check(wrath.launch(Vector2.RIGHT), "heavy con dirección inicia la ultimate")
+	check(sound.is_looping("wrath_rush"), "el avance mantiene un sonido continuo")
 	for i in range(90):
 		await frames(1)
 		if wrath.state != wrath.State.RUSH:
 			break
 	check(wrath.state == wrath.State.RECOIL and player.position.x < 490, "el avance se detiene en la pared")
+	check(sound.last_played.has("wrath_hit"), "capturar enemigos dispara el sonido propio de impacto")
+	check(arena.get_node_or_null("JadeFireBurst") != null, "chocar con terreno crea una explosión de fuego jade")
 	check(wrath.captured.size() == 3 and first.ruby_core.stolen and second.ruby_core.stolen and boss.ruby_core.stolen, "atraviesa normales y jefe con vida y toma sus tres Rubies")
 	check(first.current_health == 100 and boss.current_health == 100 and first.process_mode == Node.PROCESS_MODE_DISABLED, "siguen vivos en stasis hasta romper sus Rubies")
 	player.take_damage(999, player.position)
@@ -111,6 +114,8 @@ func _run() -> void:
 	check(not player.dead and player.current_health == 40 and player.position == stopped, "avance y ejecución son invulnerables, también ante pinchos")
 	await frames(4)
 	check(player.position.x < stopped.x, "al chocar retrocede un poco antes de romperlos")
+	await frames(5)
+	check(not sound.is_looping("wrath_rush"), "el sonido continuo se apaga al detenerse")
 	for i in range(90):
 		await frames(1)
 		if wrath.state == wrath.State.IDLE:
@@ -181,7 +186,7 @@ func _run() -> void:
 	Input.action_release("heavy_attack")
 	check(wrath.state == wrath.State.AIM and player.attack_mode == player.ATTACK_NONE, "heavy abre la selección y no activa un uppercut")
 	check(sound.last_played.has("wrath_aim"), "la ventana de dirección tiene anticipación sonora")
-	await frames(17)
+	await frames(33)
 	check(wrath.state == wrath.State.RUSH and wrath.direction == Vector2.UP, "conserva la dirección elegida aunque se suelte antes de salir")
 	wrath.cancel()
 
@@ -195,14 +200,16 @@ func _run() -> void:
 		await frames(2)
 		Input.action_release("heavy_attack")
 		var held_position := player.position
-		check(wrath.state == wrath.State.AIM and not wrath.invulnerable(), "heavy solo prepara la salida sin invulnerabilidad anticipada")
+		check(wrath.state == wrath.State.AIM and wrath.invulnerable(), "heavy prepara la salida con invulnerabilidad")
 		player.invulnerability_timer = 0.0
 		player.current_health = 100
 		player.take_damage(10, player.position + Vector2(-20, 0))
-		check(player.current_health == 90 and player.hurt_lock_timer == 0 and wrath.state == wrath.State.AIM, "durante selección recibe daño pero sigue imparable")
+		check(player.current_health == 100 and player.hurt_lock_timer == 0 and wrath.state == wrath.State.AIM, "durante selección no recibe daño")
 		await frames(6)
 		check(wrath.state == wrath.State.AIM and player.position == held_position, "la anticipación mantiene el lugar sin lanzar prematuramente")
-		await frames(11)
+		await frames(12)
+		check(wrath.state == wrath.State.AIM, "la selección sigue abierta después de los antiguos 0,25 segundos")
+		await frames(14)
 		check(wrath.state == wrath.State.RUSH and wrath.direction == Vector2(facing_direction, 0), "sin dirección lanza hacia facing %d" % facing_direction)
 		wrath.cancel()
 
@@ -222,7 +229,7 @@ func _run() -> void:
 	await frames(3)
 	Input.action_release("move_right")
 	Input.action_release("move_up")
-	await frames(9)
+	await frames(24)
 	check(wrath.state == wrath.State.RUSH and wrath.direction.is_equal_approx(Vector2(1, -1).normalized()), "elige y corrige una diagonal después del heavy, sin segundo botón")
 	Input.action_press("move_down")
 	await frames(2)
@@ -235,5 +242,19 @@ func _run() -> void:
 	wrath.cancel()
 	await frames(2)
 	check(not wrath.controls_movement() and not style.style_locked and player.animated_sprite.animation != player.ANIMATION_CROUCH, "reiniciar durante selección libera el control y la pose")
+	player.set_physics_process(false)
+	player.position = Vector2(2000, -300)
+	var packed_a := dummy(Vector2(2010, -300))
+	var packed_b := dummy(Vector2(2018, -300))
+	await frames(2)
+	style._set_points(650)
+	wrath.arm()
+	wrath.launch(Vector2.RIGHT)
+	wrath._capture_segment(Vector2(1990, -328), Vector2(2030, -328))
+	var impact_voices: Array = sound.players.filter(func(voice): return voice.playing and voice.stream == sound.streams["wrath_hit"])
+	check(packed_a.ruby_core.stolen and packed_b.ruby_core.stolen and impact_voices.size() >= 2, "dos enemigos en el mismo tick producen dos impactos sonoros")
+	wrath.cancel()
+	await frames(8)
+	check(not sound.is_looping("wrath_rush"), "cancelar Wrath detiene el audio del avance")
 	print("RESULTADO: %d/%d OK" % [checks - fails, checks])
 	quit(1 if fails else 0)

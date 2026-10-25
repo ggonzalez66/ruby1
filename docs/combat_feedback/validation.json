@@ -52,12 +52,12 @@
     "total": 35
   },
   "gauntlet_safety": {
-    "passed": 29,
-    "total": 29
+    "passed": 31,
+    "total": 31
   },
   "wrath_nature": {
-    "passed": 51,
-    "total": 51
+    "passed": 59,
+    "total": 59
   },
   "combat_revision": {
     "passed": 30,
@@ -66,5 +66,21 @@
   "jade_soul_pull": {
     "passed": 14,
     "total": 14
+  },
+  "feedback_v2": {
+    "passed": 26,
+    "total": 26
+  },
+  "sfx": {
+    "passed": 20,
+    "total": 20
+  },
+  "uppercut_collision": {
+    "passed": 12,
+    "total": 12
+  },
+  "tools_sound_tuning": {
+    "passed": 16,
+    "total": 16
   }
 }

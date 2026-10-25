@@ -45,7 +45,8 @@ func _run() -> void:
 			"shield_bearer.gd": shield = enemy
 	check(chaser != null and hawk != null and shooter != null and shield != null, "la preparación cubre los cuatro tipos de enemigo")
 	player.position = chaser.global_position + Vector2(30, -2)
-	hawk.position = player.position + Vector2(0, -200)
+	# Debajo de la plataforma: al vencer la gracia debe tener línea de visión despejada.
+	hawk.position = player.position + Vector2(0, -90)
 	hawk.home = hawk.position
 	var health: int = player.current_health
 	var shot_time: float = shooter.shoot_timer

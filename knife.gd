@@ -5,6 +5,8 @@ extends Node2D
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
 const FIRE_VISUAL := preload("res://jade_fire_visual.gd")
+const JADE_MARK := preload("res://jade_mark.gd")
+const PULL_DURATION := 0.10
 const KNIFE_TEXTURE: Texture2D = FIRE_VISUAL.TEXTURE
 # La llama apunta hacia la derecha y se orienta con la trayectoria.
 const TIP_ANGLE := 0.0
@@ -55,6 +57,7 @@ var flame_time := 0.0
 var life := 4.0
 var pull_left := 0.0
 var released := false
+var mark_effect: Node2D
 
 func _ready() -> void:
 	z_index = 2
@@ -99,7 +102,7 @@ func recall() -> void:
 			_release()
 			return
 		state = State.SOUL_PULL
-		pull_left = 0.22
+		pull_left = PULL_DURATION
 		var ray := PhysicsRayQueryParameters2D.create(global_position, player.global_position + Vector2(0, -14), WORLD_MASK)
 		if get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
 			if target.has_method("pull_towards"):
@@ -107,7 +110,8 @@ func recall() -> void:
 			elif target.has_method("on_shine_hit"):
 				target.on_shine_hit(int(signf(player.global_position.x - target.global_position.x)), PULL_STRENGTH * 5.0)
 		Ferocity.add("soul_pull", 8.0, "SOUL PULL")
-		Sfx.play("knife_catch", -5.0, 0.8)
+		Sfx.play("soul_snap")
+		Fx.impact(get_parent(), global_position, [Color(0.05, 0.25, 0.12), FIRE_VISUAL.COLOR, Color(0.85, 1.0, 0.8)], 0.7)
 		return
 	Fx.jade_splash(get_parent(), global_position, Vector2.UP, 0.35)
 	_release()
@@ -130,14 +134,16 @@ func _process(delta: float) -> void:
 
 func _draw() -> void:
 	if state in [State.MARKED, State.SOUL_PULL]:
-		for i in range(4):
-			var x := (i - 1.5) * 7.0
-			var height := 13.0 + 6.0 * sin(flame_time * 14.0 + i * 2.0)
-			draw_colored_polygon(PackedVector2Array([Vector2(x - 5, 6), Vector2(x, -height), Vector2(x + 5, 4)]), Color(0.24, 0.8, 0.48, 0.42))
 		if state == State.SOUL_PULL and is_instance_valid(player):
 			var goal := to_local(player.global_position + Vector2(0, -20))
-			var side := goal.orthogonal().normalized() * sin(flame_time * 18.0) * 6.0
-			draw_polyline(PackedVector2Array([Vector2.ZERO, goal * 0.33 + side, goal * 0.66 - side, goal]), Color(0.5, 0.9, 0.65, 0.18), 2.0, true)
+			var side := goal.orthogonal().normalized()
+			var points := PackedVector2Array()
+			for index in range(9):
+				var t := index / 8.0
+				points.append(goal * t + side * sin(flame_time * 150.0 + index * 19.0) * 7.0 * sin(t * PI))
+			var fade := clampf(pull_left / PULL_DURATION, 0.0, 1.0)
+			draw_polyline(points, Color(0.2, 0.9, 0.48, 0.32 * fade), 5.0, true)
+			draw_polyline(points, Color(0.8, 1.0, 0.85, 0.75 * fade), 1.4, true)
 	if highlight_timer <= 0.0:
 		return
 	# Anillo que late y se cierra sobre el cuchillo (sin girar con él).
@@ -223,6 +229,11 @@ func _stick_in_enemy(enemy: Node2D) -> void:
 	target = enemy
 	last_target = enemy
 	target_offset = enemy.to_local(global_position)
+	rotation = 0.0
+	global_position = _target_center(target)
+	mark_effect = JADE_MARK.new()
+	mark_effect.target = target
+	add_child(mark_effect)
 
 func _aura_reaches_segment(from: Vector2, to: Vector2) -> bool:
 	if not is_instance_valid(player) or not player.is_roar_aura_active():

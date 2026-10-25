@@ -1,6 +1,7 @@
 extends Area2D
 
 const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
+const FLIGHT_MOTION := preload("res://enemy_launch_motion.gd")
 var ruby_core: Node2D
 
 # Halcón: vuela libre patrullando de un lado a otro. Si ve a Viridy debajo, chilla (aviso agudo, "!"),
@@ -148,7 +149,8 @@ func _physics_process(delta: float) -> void:
 	state_timer -= delta
 	var player := get_tree().get_first_node_in_group(&"player") as Node2D
 	if abs(knock_velocity) > 1.0:
-		global_position.x += knock_velocity * delta
+		if FLIGHT_MOTION.move_to(self, collision_shape, global_position + Vector2(knock_velocity * delta, 0)):
+			knock_velocity = 0.0
 		knock_velocity = move_toward(knock_velocity, 0.0, 900.0 * delta)
 	if launched:
 		_update_launch(delta)
@@ -160,27 +162,31 @@ func _physics_process(delta: float) -> void:
 			var target_x: float = home.x + patrol_direction * patrol_width
 			if abs(target_x - global_position.x) < 6.0:
 				patrol_direction = -patrol_direction
-			global_position.x = move_toward(global_position.x, target_x, patrol_speed * delta)
-			global_position.y = lerp(global_position.y, home.y + sin(flight_time * 2.2) * 12.0, 3.0 * delta)
+			if FLIGHT_MOTION.move_to(self, collision_shape, Vector2(move_toward(global_position.x, target_x, patrol_speed * delta), global_position.y)):
+				patrol_direction = -patrol_direction
+			FLIGHT_MOTION.move_to(self, collision_shape, Vector2(global_position.x, lerpf(global_position.y, home.y + sin(flight_time * 2.2) * 12.0, minf(3.0 * delta, 1.0))))
 			facing = 1 if target_x >= global_position.x else -1
 			if cooldown <= 0.0 and player and _can_see(player):
 				_start_watch(player)
 		State.WATCH:
 			# Planea en el sitio mirando a Viridy, con el aviso, antes de lanzarse.
 			_face(player)
-			global_position.y = lerp(global_position.y, home.y - 18.0 + sin(flight_time * 9.0) * 4.0, 4.0 * delta)
+			FLIGHT_MOTION.move_to(self, collision_shape, Vector2(global_position.x, lerpf(global_position.y, home.y - 18.0 + sin(flight_time * 9.0) * 4.0, minf(4.0 * delta, 1.0))))
 			if state_timer <= 0.0:
 				_start_dive(player)
 		State.DIVE:
 			_update_dive(delta, player)
 		State.CLIMB:
 			var goal := Vector2(global_position.x + facing * 120.0, home.y)
-			global_position = global_position.move_toward(goal, climb_speed * delta)
+			var destination := global_position.move_toward(goal, climb_speed * delta)
+			# Subir junto a una pared debe deslizar el cuerpo, sin atravesarla ni bloquear la subida.
+			FLIGHT_MOTION.move_to(self, collision_shape, Vector2(global_position.x, destination.y))
+			FLIGHT_MOTION.move_to(self, collision_shape, Vector2(destination.x, global_position.y))
 			if global_position.y <= home.y + 4.0:
 				state = State.PATROL
 				cooldown = cooldown_time
 		State.STAGGER:
-			global_position.y += (-30.0 if crashed else 60.0) * delta
+			FLIGHT_MOTION.move_to(self, collision_shape, global_position + Vector2(0, (-30.0 if crashed else 60.0) * delta))
 			if state_timer <= 0.0:
 				state = State.CLIMB
 	_update_visual(delta)
@@ -189,7 +195,9 @@ func _can_see(player: Node2D) -> bool:
 	if player.current_health <= 0:
 		return false
 	var offset := player.global_position - global_position
-	return abs(offset.x) < detect_range and offset.y > 40.0 and offset.y < detect_depth
+	if abs(offset.x) >= detect_range or offset.y <= 40.0 or offset.y >= detect_depth:
+		return false
+	return get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(global_position, player.global_position + Vector2(0, -18), 2)).is_empty()
 
 func _face(player: Node2D) -> void:
 	if player:
@@ -222,15 +230,13 @@ func _update_dive(delta: float, player: Node2D) -> void:
 	var step: float = min(dive_speed * delta, dive_left)
 	var from := global_position
 	var to: Vector2 = from + dive_direction * step
-	var hit := get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(from, to + dive_direction * 14.0, 2))
-	if not hit.is_empty():
-		to = hit.position - dive_direction * 14.0
-	global_position = to
+	var blocked := FLIGHT_MOTION.move_to(self, collision_shape, to)
+	to = global_position
 	dive_left -= step
 	_check_dive_hit(player, from, to)
-	if not hit.is_empty():
+	if blocked:
 		# Se estrella: polvo y aturdido un momento.
-		Fx.puff(get_parent(), hit.position, Color(0.8, 0.7, 0.55, 0.9))
+		Fx.puff(get_parent(), to + dive_direction * 24.0, Color(0.8, 0.7, 0.55, 0.9))
 		state = State.STAGGER
 		state_timer = 0.7
 		crashed = true
@@ -242,6 +248,8 @@ func _check_dive_hit(player: Node2D, from: Vector2, to: Vector2) -> void:
 	if dive_hit_done or player == null or state != State.DIVE:
 		return
 	var center: Vector2 = player.global_position + Vector2(0, -18)
+	if not get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(to, center, 2)).is_empty():
+		return
 	var touches: bool = Geometry2D.get_closest_point_to_segment(center, from, to).distance_to(center) <= CONTACT_RADIUS
 	var aura: bool = player.has_method("parry_reaches") and player.parry_reaches(from, to + dive_direction * 24.0)
 	if touches or aura:
@@ -267,7 +275,10 @@ func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
 func _update_launch(delta: float) -> void:
 	launch_elapsed += delta
 	var t: float = clamp(launch_elapsed / launch_rise, 0.0, 1.0)
-	global_position = launch_from.lerp(launch_target, ease(t, 0.4))
+	if FLIGHT_MOTION.move_to(self, collision_shape, launch_from.lerp(launch_target, ease(t, 0.4))):
+		launch_target = global_position
+		launch_from = global_position
+		launch_elapsed = maxf(launch_elapsed, launch_rise)
 	if launch_elapsed >= launch_rise + launch_hang:
 		launched = false
 		state = State.STAGGER
@@ -308,7 +319,7 @@ func on_deflected(_by: Node) -> void:
 	dive_hit_done = true
 	state = State.STAGGER
 	state_timer = 2.0
-	global_position -= dive_direction * 30.0
+	FLIGHT_MOTION.move_to(self, collision_shape, global_position - dive_direction * 30.0)
 	Fx.deflect(get_parent(), global_position)
 
 func pull_towards(point: Vector2, strength: float) -> void:

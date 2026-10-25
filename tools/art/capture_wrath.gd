@@ -63,6 +63,22 @@ func _run() -> void:
 	camera.rotation = 0.0
 	camera.zoom = Vector2(2, 2)
 	DirAccess.make_dir_recursive_absolute(DIRECTORY)
+	if "--feedback-only" in OS.get_cmdline_user_args():
+		var marked_boss: Area2D = load("res://boss_heavy.gd").new()
+		marked_boss.position = Vector2(2470, -2)
+		marked_boss.shine_chance = 0.0
+		current_scene.add_child(marked_boss)
+		camera.global_position.x = 2420
+		mark(marked_boss)
+		await capture("mark_boss")
+		var options: CanvasLayer = current_scene.get_node("PauseMenu")
+		options._open()
+		options._show_options_page()
+		await capture("fill_ferocity")
+		options._resume()
+		root.get_node("RunSession")._clear_run()
+		quit()
+		return
 	var style: Node = root.get_node("Ferocity")
 	style._set_points(650)
 	Input.action_press("move_down")
@@ -93,7 +109,7 @@ func _run() -> void:
 	wall.disable_mode = CollisionObject2D.DISABLE_MODE_KEEP_ACTIVE
 	current_scene.add_child(wall)
 	await physics_frame
-	advance(0.16)
+	advance(0.41)
 	for i in range(6):
 		advance(0.02)
 	camera.global_position.x = player.position.x + 80

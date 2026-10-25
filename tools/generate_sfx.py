@@ -617,11 +617,32 @@ def wrath_ready():
 
 
 def wrath_aim():
-    # Anticipación corta: la subida coincide con los 250 ms para elegir dirección.
-    d = 0.25
-    tension = mul(osc(d, sweep(110, 440, d, 1.5), "triangle"), env(d, 0.16, 0.08, 1.0))
-    wind = gain(mul(bandpass(noise(d, 802), 400, 2200), env(d, 0.18, 0.06, 1.0)), 0.7)
+    # La subida coincide con los 500 ms para elegir dirección.
+    d = 0.50
+    tension = mul(osc(d, sweep(110, 440, d, 1.5), "triangle"), env(d, 0.38, 0.10, 1.0))
+    wind = gain(mul(bandpass(noise(d, 802), 400, 2200), env(d, 0.40, 0.08, 1.0)), 0.7)
     return finish(mix(tension, wind), 0.75)
+
+
+def wrath_rush():
+    d = 1.2
+    wind = bandpass(noise(d, 807), 90, 2600)
+    body = mix(gain(osc(d, 70), 0.45), gain(osc(d, 140, "triangle"), 0.15))
+    return finish(make_loop(drive(mix(wind, body), 1.5), 0.2), 0.65, fade_out=False)
+
+
+def wrath_hit():
+    d = 0.16
+    thud = mul(osc(d, sweep(190, 65, 0.10)), env(d, 0.001, 0.12))
+    tear = mul(bandpass(noise(d, 808), 600, 6000), env(d, 0.001, 0.10))
+    return finish(mix(thud, tear), 0.8)
+
+
+def soul_snap():
+    d = 0.13
+    crack = mul(highpass(noise(d, 809), 1600), env(d, 0.001, 0.07))
+    bolt = mul(osc(d, sweep(1800, 100, 0.08), "triangle"), env(d, 0.001, 0.10))
+    return finish(drive(mix(crack, gain(bolt, 0.6)), 1.7), 0.8)
 
 
 def wrath_launch():

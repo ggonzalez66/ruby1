@@ -46,8 +46,8 @@ check(max(levels) / min(levels) < 1.7, 'el nivel permanece estable sin pulsacion
 check(abs(hum[-1] - hum[0]) <= max(abs(b - a) for a, b in zip(hum, hum[1:])) * 1.01, 'la unión del loop no introduce salto audible')
 rate, roar = samples('roar_parry')
 check(0.25 < len(roar) / rate < 0.6 and max(abs(x) for x in roar) < 0.99, 'rugido corto sin clipping para superponer al parry')
-for name, duration in [('wrath_charge', 1.0), ('wrath_ready', 0.42), ('wrath_aim', 0.25),
-                       ('wrath_launch', 0.65), ('wrath_impact', 0.42), ('wrath_shatter', 0.62)]:
+for name, duration in [('wrath_charge', 1.0), ('wrath_ready', 0.42), ('wrath_aim', 0.50),
+                       ('wrath_rush', 1.0), ('wrath_hit', 0.16), ('soul_snap', 0.13), ('wrath_launch', 0.65), ('wrath_impact', 0.42), ('wrath_shatter', 0.62)]:
     rate, effect = samples(name)
     rms = math.sqrt(sum(x * x for x in effect) / len(effect))
     check(abs(len(effect) / rate - duration) < 0.001 and 0.02 < rms < 0.65

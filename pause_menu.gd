@@ -60,6 +60,7 @@ var sfx_value_label: Label
 var tutorials_button: Button
 var vibration_button: Button
 var input_viewer_button: Button
+var fill_ferocity_button: Button
 # Pausa de frame (P): congela el juego justo donde está, sin menú, para inspeccionar ese frame
 # (con H se ven las hitboxes). Otra P lo reanuda.
 var frame_paused := false
@@ -212,6 +213,8 @@ func _show_options_page() -> void:
 	main_page.visible = false
 	remap_page.visible = false
 	options_page.visible = true
+	fill_ferocity_button.visible = not menu_mode and get_tree().get_first_node_in_group(&"player") != null
+	fill_ferocity_button.disabled = Ferocity.style_locked
 	music_slider.grab_focus()
 
 func _show_remap_page(device: Device) -> void:
@@ -325,6 +328,9 @@ func _build() -> void:
 	options_page.add_child(vibration_button)
 	input_viewer_button = _button("", _toggle_input_viewer)
 	options_page.add_child(input_viewer_button)
+	fill_ferocity_button = _button("Llenar ferocidad", Ferocity.fill_for_testing)
+	fill_ferocity_button.visible = not menu_mode
+	options_page.add_child(fill_ferocity_button)
 	_refresh_tutorials_button()
 	options_page.add_child(_label("Controles", 18, Color(0.7, 0.9, 0.62)))
 	options_page.add_child(_button("Mapear teclado", _show_remap_page.bind(Device.KEYBOARD)))
