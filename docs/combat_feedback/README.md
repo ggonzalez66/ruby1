@@ -1,6 +1,6 @@
 # Combate, Ruby y controles
 
-`index.html` permite revisar capturas reales del renderer de Godot: combo en ambas direcciones, vida y postura del Ruby, las dos variantes del giro, la formación del shine, taunt, pausa y Ready/GO. Se reutilizan los sprites existentes y no se borra arte anterior.
+`index.html` permite revisar capturas reales del renderer de Godot: combo en ambas direcciones, vida y postura del Ruby, las dos variantes del giro, el shine, taunt, pausa y Ready/GO. Se reutilizan los sprites existentes y no se borra arte anterior.
 
 Los slashes del combo se dibujan delante de Viridy. El tercer golpe refleja horizontalmente su media luna; el reflejo se combina con la orientación del personaje. Al entrar en un dash se limpia ese reflejo y su estela conserva su capa anterior.
 
@@ -12,7 +12,7 @@ Select (R en teclado) activa la pose orgullosa estando quieto en el suelo. Se ma
 
 Ready muestra 0.00 y cuenta hasta 1.00 en un segundo real. Durante ese segundo el mundo está detenido; el reloj de la run empieza con GO. Se conservan los sonidos de Ready y GO y se añade el pulso intermedio a 0,50 s.
 
-El shine comienza con un cubo isométrico dorado de 16 px de alto. Entre 0,08 y 0,24 s se forma el Metatrón existente; completo usa una opacidad aproximada de 0,43 y gira. Las ondas visuales comienzan ligeramente después del cubo, y el destello de impacto se conserva al conectar un parry, sin el destello grande automático al pulsar. El radio del parry, sus 0,16 s, i-frames, empuje y bloqueo no se modifican.
+El shine recupera su Metatrón anterior: aparece completo de inmediato, derecho, a tamaño normal, con opacidad 0,8 y un brillo inicial. Después del parry gira lentamente, pulsa y mantiene su opacidad original entre 0,5 y 0,7. Se conservan las ondas del rugido y el destello al conectar un parry. El radio del parry, sus 0,16 s, i-frames, empuje y bloqueo no se modifican.
 
 ```bash
 RUBY1_SKIP_COUNTDOWN=1 godot --path . --rendering-method gl_compatibility --audio-driver Dummy -s res://tools/art/capture_combat_feedback.gd

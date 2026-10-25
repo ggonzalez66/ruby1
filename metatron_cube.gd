@@ -14,13 +14,6 @@ extends Node2D
 # El cubo del sprite ocupa este ancho relativo al diámetro (el resto son destellos alrededor).
 @export var texture_fit := 1.15
 var wear_material: ShaderMaterial
-var formation := 1.0
-
-func set_formation(amount: float) -> void:
-	var value := clampf(amount, 0.0, 1.0)
-	if not is_equal_approx(value, formation):
-		formation = value
-		queue_redraw()
 
 func _ready() -> void:
 	queue_redraw()
@@ -52,17 +45,10 @@ func get_centers() -> PackedVector2Array:
 
 func _draw() -> void:
 	if texture:
-		if formation < 1.0:
-			# Un cubo isométrico pequeño forma el sello sin ocultar a Viridy rugiendo.
-			var corners := PackedVector2Array([Vector2(0, -8), Vector2(7, -4), Vector2(7, 4), Vector2(0, 8), Vector2(-7, 4), Vector2(-7, -4), Vector2(0, -8)])
-			var gold := Color(1.0, 0.75, 0.25, 1.0 - formation)
-			draw_polyline(corners, gold, 1.5, true)
-			for corner in [Vector2(0, 8), Vector2(7, -4), Vector2(-7, -4)]:
-				draw_line(Vector2.ZERO, corner, gold, 1.5, true)
 		var width: float = outer_radius * 2.0 * texture_fit
 		var size := Vector2(width, width * texture.get_height() / texture.get_width())
 		# El cubo del sprite está un poco por encima del centro de la imagen.
-		draw_texture_rect(texture, Rect2(-size * 0.5 - Vector2(0, size.y * 0.02), size), false, Color(1.0, 1.0, 1.0, formation))
+		draw_texture_rect(texture, Rect2(-size * 0.5 - Vector2(0, size.y * 0.02), size), false)
 		return
 	var spacing: float = outer_radius / 2.5
 	var circle_radius: float = spacing * 0.5

@@ -98,16 +98,16 @@ func _run() -> void:
 	player.position = Vector2(2300, -2)
 	await frames(5)
 
-	print("== Formación visual sin cambiar el parry")
+	print("== Metatrón inmediato sin cambiar el parry")
 	player._start_roar()
 	player._update_roar_aura()
 	var center: Vector2 = player.get_roar_center()
-	check(player.roar_aura.formation == 0.0 and player._is_roar_invincible(), "el cubo miniatura aparece con los i-frames ya activos")
-	check(player.parry_reaches(center + Vector2(player.roar_radius - 1.0, -3), center + Vector2(player.roar_radius - 1.0, 3)), "el cubo pequeño mantiene el radio completo del parry")
+	check(player.roar_aura.visible and player.roar_aura.scale == Vector2.ONE and player.roar_aura.rotation == 0.0 and is_equal_approx(player.roar_aura.modulate.a, 0.8) and player._is_roar_invincible(), "el Metatrón aparece completo, derecho y con brillo durante el parry")
+	check(player.parry_reaches(center + Vector2(player.roar_radius - 1.0, -3), center + Vector2(player.roar_radius - 1.0, 3)), "el Metatrón mantiene el radio completo del parry")
 	player.roar_elapsed = 0.30
 	player.roar_explosive_timer = 0.0
 	player._update_roar_aura()
-	check(player.roar_aura.formation == 1.0 and player.roar_aura.modulate.a < 0.5 and not player._is_roar_invincible(), "el Metatrón completo es translúcido y no extiende los i-frames")
+	check(player.roar_aura.rotation > 0.0 and player.roar_aura.modulate.a >= 0.5 and player.roar_aura.modulate.a <= 0.7 and not player._is_roar_invincible(), "al mantenerlo gira con su opacidad original y no extiende los i-frames")
 	player._end_roar()
 
 	print("== Select: taunt, no reinicio")

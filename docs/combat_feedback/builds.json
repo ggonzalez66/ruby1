@@ -1,12 +1,12 @@
 {
   "windows": {
     "file": "builds/windows/Ruby1.exe",
-    "bytes": 131182432,
-    "sha256": "b8b3cd1d96adc54cc6aefa6b3a6cfeaa120d436a85e3487625d57b44c9cbe1a0"
+    "bytes": 132582416,
+    "sha256": "baca72efac4530738d363fc8d4b1cf86fbfab0379dfbdd49d31dbf1d9717e5da"
   },
   "linux": {
     "file": "builds/linux/Ruby1.x86_64",
-    "bytes": 123575904,
-    "sha256": "98795f801647283694f4acc2a2842fecbfd34d164d3a77b1f8001d31e4ad68e1"
+    "bytes": 124975872,
+    "sha256": "adec34a5ba6aaf0cc4138319e2455be63d2d018e8733deaddc3a39b829442007"
   }
 }

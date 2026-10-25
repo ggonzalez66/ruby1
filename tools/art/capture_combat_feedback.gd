@@ -31,7 +31,8 @@ func _run() -> void:
 	camera.rotation = 0.0
 	camera.zoom = Vector2(2, 2)
 	DirAccess.make_dir_recursive_absolute(DIRECTORY)
-	for facing in [1, -1]:
+	var shine_only := "--shine-only" in OS.get_cmdline_user_args()
+	for facing in ([] if shine_only else [1, -1]):
 		for hit in [1, 2, 3]:
 			player._cancel_all_states()
 			player.facing = facing
@@ -59,6 +60,10 @@ func _run() -> void:
 		await capture("shine_%d" % roundi(elapsed * 100.0))
 	player._end_roar()
 	player._update_roar_aura()
+	if shine_only:
+		root.get_node("RunSession")._clear_run()
+		quit()
+		return
 	for tween in get_processed_tweens():
 		tween.custom_step(1.0)
 	player._cancel_all_states()

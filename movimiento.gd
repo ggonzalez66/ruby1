@@ -2528,13 +2528,19 @@ func _update_roar_aura() -> void:
 		roar_aura_spin = 0.0
 		return
 	var delta: float = get_physics_process_delta_time()
-	# Solo presentación: la detección continúa usando roar_radius y el temporizador del parry.
-	var formation := smoothstep(0.08, 0.24, roar_elapsed)
-	roar_aura.set_formation(formation)
-	var pulse: float = sin(Time.get_ticks_msec() / 110.0)
-	roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse * formation)
-	roar_aura.modulate = Color(1.0, 1.0, 1.0, lerpf(0.9, 0.43 + 0.05 * pulse, formation))
-	roar_aura_spin += 0.9 * delta * formation
+	if roar_explosive_timer > 0.0:
+		# Frames explosivos: aparece al instante, derecho y a tamaño completo, con un destello.
+		var progress: float = 1.0 - roar_explosive_timer / roar_explosive_duration
+		roar_aura.scale = Vector2.ONE
+		# Algo transparente para que el sprite no se vea plano (con el destello de brillo al aparecer).
+		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.8).lerp(Color(1.3, 1.2, 1.05, 0.8), 1.0 - progress)
+		roar_aura_spin = 0.0
+	else:
+		# Aura latente (manteniendo): empieza a girar despacio y pulsa; solo devuelve proyectiles.
+		var pulse: float = sin(Time.get_ticks_msec() / 110.0)
+		roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse)
+		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.6 + 0.1 * pulse)
+		roar_aura_spin += 0.9 * delta
 	roar_aura.rotation = roar_aura_spin
 
 func _get_sprint_start_direction(move_input: float) -> int:
