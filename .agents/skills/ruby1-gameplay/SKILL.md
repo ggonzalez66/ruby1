@@ -24,7 +24,7 @@ Usar esta skill para implementar o investigar comportamiento del juego. Si el en
 - Distinguir invulnerabilidad, Imparable y captura de Ruby. Usar las consultas del sistema existente; no extender i-frames para disimular errores de presentación. Wrath distingue carga, READY, AIM y avance.
 - El heavy ordinario reclama un Ruby que ya estaba open antes del impacto. El crítico y el remate de jefe tienen resultados distintos. Wrath es la excepción que puede ejecutar jefes con vida; conservar esa diferencia al reutilizar lógica.
 - Los enemigos usan `Area2D` como hurtbox. Un cambio directo de `position` no resuelve terreno: para desplazamientos rápidos, empujes y lanzamientos consultar el volumen barrido. `enemy_launch_motion.gd` es la utilidad existente para enemigos; el terreno usa capa 2. Revisar también visión y daño a través de paredes.
-- El fuego jade y Soul pull hacen cero daño; la marca temporal y la stasis deben restaurar los materiales, estados y controles al consumirse, morir, reiniciar o cambiar de escena. Detener los bucles de audio en las salidas y cancelaciones correspondientes.
+- La lanza jade conserva impacto y Soul pull sin daño instantáneo, y añade una quemadura periódica no letal mientras está clavada. La marca temporal y la stasis deben restaurar los materiales, estados y controles al consumirse, morir, reiniciar o cambiar de escena. Detener los bucles de audio en las salidas y cancelaciones correspondientes.
 - Mantener el orden de actualización de presentación antes de copiar afterimages. Al entrar a screw desde suelo o pared, alinear textura, escala y orientación antes de generar la primera estela.
 
 ## Verificar y entregar

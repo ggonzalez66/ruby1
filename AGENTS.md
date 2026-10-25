@@ -39,7 +39,7 @@ Antes de editar una escena generada, comprobar su generador y mantener ambos coh
 
 ## Ejecución y validación
 
-Abrir el proyecto con `godot --path .`. Para importar recursos nuevos, usar `godot --headless --editor --path . --quit`.
+Abrir el proyecto con `godot --path .`. Para importar recursos nuevos, usar `godot --headless --path . --import`; espera a terminar la importación antes de salir.
 
 Seleccionar las suites por el comportamiento afectado; ver la tabla de la skill de gameplay. Ejemplo de prueba aislada, con datos temporales:
 

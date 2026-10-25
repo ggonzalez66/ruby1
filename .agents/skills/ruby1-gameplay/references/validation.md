@@ -8,7 +8,7 @@ Ejecutar desde la raíz de Ruby1. Elegir las filas relacionadas con el cambio; n
 | Captura, crítico, remate, salida aérea y cancelaciones | `test_executions.gd`, `test_combat_revision.gd` |
 | Parry, shine, i-frames y feedback de combate | `test_shine_shield.gd`, `test_combat_feedback.gd` |
 | Wrath: carga, dirección, invulnerabilidad, captura y cancelación | `test_wrath_nature.gd` |
-| Fuego jade, recall, cero daño y teleejecución | `test_jade_soul_pull.gd`, `test_feedback_v2.gd` |
+| Lanza jade, DoT no letal, recall y teleejecución | `test_spirit_spear.gd`, `test_jade_soul_pull.gd`, `test_feedback_v2.gd` |
 | Halcón, terreno, primer screw y marca jade | `test_feedback_v2.gd` |
 | Uppercut contra plataformas y paredes | `test_uppercut_collision.gd` |
 | Gauntlet: aparición, gracia y portal de terminar | `test_gauntlet_safety.gd` |

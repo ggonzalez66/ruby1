@@ -47,8 +47,8 @@ func _run() -> void:
 	player._on_knife_input(0)
 	var fire: Node2D = player.thrown_knife
 	await frames(35)
-	check(is_instance_valid(fire) and fire.state == fire.State.MARKED and fire.target == target, "el lanzamiento real explota y deja una marca en el enemigo")
-	check(target.current_health == 100 and not fire.sprite.visible and not player.has_knife, "el fuego no inflige daño ni queda como proyectil clavado")
+	check(is_instance_valid(fire) and fire.state == fire.State.MARKED and fire.target == target, "el lanzamiento real clava la lanza y deja una marca en el enemigo")
+	check(target.current_health == 100 and fire.sprite.visible and not player.has_knife, "la lanza queda visible y el impacto no añade daño instantáneo")
 	player.attack_cooldown_timer = 0
 	player._start_heavy_attack(false)
 	check(player.attack_mode == player.ATTACK_HEAVY_GROUND, "se puede hacer heavy aunque el fuego esté marcado")

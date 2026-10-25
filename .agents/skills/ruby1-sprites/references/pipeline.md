@@ -41,7 +41,7 @@ Tomar el período y las duraciones de los frames del código actual. La carrera 
 
 ## Importación y revisión en juego
 
-Importar con `godot --headless --editor --path . --quit`. Revisar los `.import` nuevos y ejecutar `test_sprites.gd` y `test_art_refresh.gd` con datos temporales según `AGENTS.md`. Añadir `test_combos.gd` cuando la integración afecte transiciones; usar `test_feedback_v2.gd` para las estelas iniciales del screw.
+Importar con `godot --headless --path . --import`, que espera a finalizar la importación. Revisar los `.import` nuevos y ejecutar `test_sprites.gd` y `test_art_refresh.gd` con datos temporales según `AGENTS.md`. Añadir `test_combos.gd` cuando la integración afecte transiciones; usar `test_feedback_v2.gd` para las estelas iniciales del screw.
 
 Las capturas requieren ventana/rendering activo. Ejemplo con carpeta nueva y solo las poses pertinentes:
 

@@ -1,0 +1,20 @@
+{
+  "throw": {
+    "file": "viridy_javelin_throw_v1.png",
+    "count": 4,
+    "cell": [
+      768,
+      640
+    ],
+    "baseline": 608
+  },
+  "spear": {
+    "file": "viridy_spirit_spear_v1.png",
+    "count": 4,
+    "cell": [
+      768,
+      192
+    ],
+    "tip_x": 724
+  }
+}

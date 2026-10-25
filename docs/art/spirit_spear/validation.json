@@ -1,0 +1,51 @@
+{
+  "date": "2026-10-25",
+  "total": 650,
+  "suites": {
+    "spirit_spear": {
+      "passed": 25,
+      "total": 25
+    },
+    "jade_soul_pull": {
+      "passed": 14,
+      "total": 14
+    },
+    "feedback_v2": {
+      "passed": 26,
+      "total": 26
+    },
+    "sprites": {
+      "passed": 219,
+      "total": 219
+    },
+    "art_refresh": {
+      "passed": 11,
+      "total": 11
+    },
+    "combos": {
+      "passed": 74,
+      "total": 74
+    },
+    "executions": {
+      "passed": 121,
+      "total": 121
+    },
+    "wrath_nature": {
+      "passed": 59,
+      "total": 59
+    },
+    "combat_revision": {
+      "passed": 30,
+      "total": 30
+    },
+    "uppercut_collision": {
+      "passed": 12,
+      "total": 12
+    },
+    "speedrun": {
+      "passed": 59,
+      "total": 59
+    }
+  },
+  "visual_review": "Godot native OpenGL Compatibility: throws left/right, flight, embedded spear, burn and soul pull"
+}

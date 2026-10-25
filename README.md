@@ -31,9 +31,9 @@ Todos los enemigos mecánicos llevan un rombo Ruby rojo dentro del cuerpo. El ro
 
 Los tiempos, impulso de salida y curaciones se ajustan con las propiedades `execution_*`, `critical_heal` y `boss_execution_heal` en `movimiento.gd`; las reglas del núcleo están en `ruby_core.gd`. Las hojas anteriores se conservan. `viridy_liquid_beast_v2.png` incluye las poses abiertas y cerradas; `viridy_liquid_ouroboros.png` contiene las cuatro fases del giro actual. Su procedencia y prompts están en `docs/liquid_beast_art.md`, `docs/liquid_beast_v2_art.md` y `docs/liquid_ouroboros_art.md`.
 
-## Fuego jade y paleta
+## Lanza espiritual jade y paleta
 
-El fuego jade no inflige daño al lanzar ni al hacer recall. Al impactar un enemigo explota visualmente y deja una única marca verde; una segunda pulsación hace Soul pull con un tether translúcido. Si ese enemigo ya está open, Viridy se teletransporta a un destino libre junto al núcleo y hace una ejecución aérea con el rebote habitual. El terreno disipa el proyectil y deja una llama visual que desaparece sola. El cooldown de lanzamiento es 1 s y el HUD muestra su disponibilidad. Tener el fuego fuera ya no impide los ataques fuertes.
+Viridy lanza una jabalina de fuego espiritual jade con cuatro poses nuevas. Conserva las velocidades, gravedad, tiempo de vuelo y cooldown del proyectil anterior. Al impactar queda clavada y enciende el cuerpo: aplica 1 de daño cada 0,5 s, sin bajar de 1 de vida ni interrumpir ataques. Una segunda pulsación consume la lanza y hace Soul pull con el tether eléctrico habitual, sin daño adicional. Si ese enemigo ya está open, Viridy se teletransporta a un destino libre junto al núcleo y hace una ejecución aérea con el rebote habitual. El terreno disipa el proyectil y deja una llama visual que desaparece sola. El cooldown de lanzamiento es 1 s y el HUD muestra su disponibilidad. Tener el fuego fuera ya no impide los ataques fuertes.
 
 Las hojas recientes reciben una corrección selectiva al jade original, conservando ojos blancos, dientes y armadura. El uppercut sigue respetando plataformas y paredes. [Arte histórico del fuego jade](docs/jade_fire_art.md) y [mecánica actual](docs/wrath_nature/README.md).
 

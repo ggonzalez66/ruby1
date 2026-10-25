@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="es">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ruby1 · Lanza espiritual jade</title>
+<style>body{background:#14261e;color:#e5f1df;font:16px system-ui;margin:0}main{max-width:1152px;margin:auto;padding:24px}nav{display:flex;gap:12px;flex-wrap:wrap;align-items:center}button,select{font:inherit;background:#284735;color:inherit;padding:8px;border:1px solid #76906b;border-radius:6px}img{max-width:100%;image-rendering:pixelated}a{color:#b3e6ac}input{width:100%}figure{margin:20px 0}figcaption{margin:12px 0}p{line-height:1.6}</style>
+<main><h1>Lanza espiritual jade</h1><p>Cuatro poses de jabalina, lanza animada y quemadura no letal: 1 de daño cada 0,5 segundos, mínimo 1 de vida. Conserva el recall y la teleejecución.</p>
+<nav><select id="mode" aria-label="Secuencia"><option value="right">Lanzamiento a la derecha</option><option value="left">Lanzamiento a la izquierda</option><option value="action">Vuelo, quemadura y recall</option></select><button id="play">Reproducir / pausar</button><a href="README.md">Detalles</a><a href="prompts.json">Prompts OpenAI</a><a href="contact.png">Hoja de contacto</a></nav>
+<figure><img id="image" alt=""><figcaption id="caption"></figcaption></figure><input id="frame" type="range" min="0" value="0" aria-label="Frame">
+</main><script>
+const mode=document.querySelector('#mode'),slider=document.querySelector('#frame'),image=document.querySelector('#image');let playing=false;
+const scenes=[['flight','Vuelo · velocidad y trayectoria conservadas'],['embedded','Lanza clavada · tintado y llamitas por el cuerpo'],['burn','Quemadura · el Ruby muestra la vida consumida'],['soul_pull','Recall · se consume la lanza y tira del objetivo']];
+function draw(){const action=mode.value==='action';slider.max=3;const index=Number(slider.value);const file=action?scenes[index][0]:`throw_${mode.value}_${index}`;const label=action?scenes[index][1]:['Preparación sobre el hombro','Impulso','Liberación','Follow-through'][index];image.src=`runtime/${file}.png`;image.alt=label;document.querySelector('#caption').textContent=`${index+1}/4 · ${label}`}
+slider.oninput=()=>{playing=false;draw()};mode.onchange=()=>{slider.value=0;draw()};document.querySelector('#play').onclick=()=>playing=!playing;setInterval(()=>{if(playing){slider.value=(Number(slider.value)+1)%4;draw()}},180);draw();
+</script></html>

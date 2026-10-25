@@ -34,6 +34,8 @@ signal respawned
 const LIQUID_LANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_landing.png")
 const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_dash.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
+const JAVELIN_THROW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_javelin_throw_v1.png")
+const JAVELIN_THROW_DURATION := 0.15
 const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_beast_arcade.png")
 const LIQUID_SPIN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_ouroboros.png")
 const CLAW_SLASH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_claw_slashes_v2.png")
@@ -76,7 +78,7 @@ const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/vi
 const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
 const UPPERCUT_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
 const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
-const JADE_SHEETS := [WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET, DASH_ATTACK_TEXTURE, GROUND_MORPH_SHEET, HEAVY_REMNANT_SHEET, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET, WRATH_SHEET]
+const JADE_SHEETS := [JAVELIN_THROW_SHEET, WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET, DASH_ATTACK_TEXTURE, GROUND_MORPH_SHEET, HEAVY_REMNANT_SHEET, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET, WRATH_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -153,7 +155,7 @@ const ANIMATION_PROUD := &"proud"
 # Agachado justo al despegar de un salto desde el suelo.
 const ANIMATION_JUMP_SQUAT := &"jump_squat"
 const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
-const ARCADE_ANIMATIONS := [ANIMATION_WALK, ANIMATION_SPRINT, ANIMATION_CHARGE, ANIMATION_HURT, ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH, ANIMATION_RUBY_SPIN]
+const ARCADE_ANIMATIONS := [ANIMATION_KNIFE_THROW, ANIMATION_WALK, ANIMATION_SPRINT, ANIMATION_CHARGE, ANIMATION_HURT, ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH, ANIMATION_RUBY_SPIN]
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
@@ -182,7 +184,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_AERIAL_STALL: 0.42,
 	ANIMATION_MANTLE: 0.74,
 	ANIMATION_WALLRIDE: 0.95,
-	ANIMATION_KNIFE_THROW: 1.25,
+	ANIMATION_KNIFE_THROW: 1.0,
 	ANIMATION_GROUND_HEAVY: 0.65,
 	ANIMATION_HEAVY_LANDING: 0.65,
 	ANIMATION_SPRINT: 1.0,
@@ -929,7 +931,7 @@ func _configure_character_animations() -> void:
 	_add_arcade_animation(frames, ANIMATION_LIGHT_HIT, LIGHT_ONE_SHEET, 4, 25.0, false)
 	_add_arcade_animation(frames, ANIMATION_LIGHT_HIT_2, LIGHT_TWO_SHEET, 4, 25.0, false)
 	_add_arcade_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_THREE_SHEET, 3, 14.0, false)
-	_add_sheet_animation(frames, ANIMATION_KNIFE_THROW, LIGHT_HITS_SHEET, 2, 1.0, false, [1])
+	_add_arcade_animation(frames, ANIMATION_KNIFE_THROW, JAVELIN_THROW_SHEET, 4, 4.0 / JAVELIN_THROW_DURATION, false, Vector2(768, 640), 608.0)
 	_add_arcade_animation(frames, ANIMATION_WRATH_RUSH, WRATH_SHEET, 4, 16.0, true, Vector2(768, 512), 512.0, [0, 1])
 	_add_arcade_animation(frames, ANIMATION_WRATH_CHEW, WRATH_SHEET, 4, 12.0, true, Vector2(768, 512), 512.0, [2, 3])
 	# Rugido (shine): el grito durante los frames explosivos y la guardia mientras se mantiene.
@@ -1199,6 +1201,9 @@ func _sync_action_sprite(animation_name: StringName) -> void:
 			duration = ground_heavy_duration
 		ANIMATION_SPIN:
 			duration = spin_attack_duration
+		ANIMATION_KNIFE_THROW:
+			duration = JAVELIN_THROW_DURATION
+			remaining = knife_throw_pose_timer
 		ANIMATION_HURT:
 			duration = hurt_control_lock_time
 			remaining = hurt_lock_timer
@@ -2012,7 +2017,7 @@ func _get_target_center(target: Node2D) -> Vector2:
 	var offset = target.get("impact_offset")
 	return target.global_position + (offset if offset is Vector2 else Vector2.ZERO)
 
-# ---------- Cuchillo
+# ---------- Lanza espiritual (nombres de input/señales conservados por compatibilidad)
 
 func _on_knife_input(move_input: float) -> void:
 	if not has_knife:
@@ -2040,7 +2045,7 @@ func _on_knife_input(move_input: float) -> void:
 	Stats.add("knife_throws")
 	Sfx.play("knife_throw")
 	has_knife = false
-	knife_throw_pose_timer = 0.15
+	knife_throw_pose_timer = JAVELIN_THROW_DURATION
 	knife_changed.emit(false)
 
 func try_soul_execution(target: Node2D) -> bool:

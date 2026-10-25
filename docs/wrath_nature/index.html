@@ -7,7 +7,7 @@
 body{margin:0;background:#12251e;color:#eaf3e9;font:16px system-ui,sans-serif}main{max-width:1200px;margin:auto;padding:24px}p{line-height:1.6;color:#c3d7c9}nav{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:22px 0}button,select{background:#294535;border:1px solid #63816b;border-radius:6px;padding:9px;color:inherit;font:inherit}a{color:#b5e7ba}figure{margin:16px 0}img{width:100%;image-rendering:pixelated;border-radius:9px;background:#0b1912}input{width:100%;accent-color:#e75868}figcaption{margin:12px 0;color:#cfdfce}
 </style>
 <main><h1>Wrath of Nature · Fuego jade y Soul pull</h1>
-<p>Capturas del juego con el arte nuevo, los efectos y el HUD reales. Wrath ejecuta también a jefes con vida; el fuego jade conserva una sola marca y no inflige daño.</p>
+<p>Capturas del juego con el arte nuevo, los efectos y el HUD reales. Wrath ejecuta también a jefes con vida; la lanza jade conserva una sola marca y añade quemadura no letal; impacto y recall no causan daño instantáneo.</p>
 <nav><select id="group" aria-label="Mecánica"></select><button id="previous">Anterior</button><button id="next">Siguiente</button><a href="README.md">Mecánica, parámetros y arte</a><a href="prompts.json">Prompt OpenAI</a><a href="../../assets/sprites/player/viridy/viridy_wrath_nature_v1.png">Hoja nueva</a></nav>
 <figure><img id="image" alt=""><figcaption id="caption"></figcaption></figure><input id="frame" type="range" min="0" value="0" aria-label="Momento de la secuencia">
 <p>Sonidos: <select id="sound" aria-label="Sonido"><option value="wrath_charge">Carga (bucle)</option><option value="wrath_ready">Carga lista</option><option value="wrath_aim">Preparar dirección</option><option value="wrath_launch">Lanzamiento</option><option value="wrath_rush">Avance (bucle)</option><option value="wrath_hit">Impacto en enemigo</option><option value="wrath_impact">Choque</option><option value="wrath_shatter">Fragmentación y absorción</option><option value="soul_snap">Tirón eléctrico</option></select></p><audio id="audio" controls preload="none" src="../../assets/sounds/sfx/wrath_charge.wav"></audio>
@@ -17,7 +17,7 @@ const groups=[
  ['Wrath of Nature',[
  ['charge','Abajo + SSS · Carga de un segundo'],['ready','Preparación de cuatro segundos · Aura roja e Imparable'],['aim','Heavy · 0,50 s invulnerable para elegir dirección; por defecto hacia delante'],['rush','Salida automática · Bestia de fuego jade y afterimages SSS'],['rubies','Choque · Los Rubies están en la boca y las víctimas en stasis'],['chew','Mascado · Preparación de la rotura'],['shatter','Rotura conjunta · Muerte de las víctimas y absorción'],['recovery','Recuperación · La bestia se desvanece'],['normal','Viridy normal · Ferocidad cero']]],
  ['Fuego jade',[
- ['mark','Impacto sin daño · Enemigo verde y llamitas por el cuerpo'],['mark_boss','Marca jade · Cuerpo del jefe teñido y llamas repartidas'],['soul_pull','Recall · Tirón eléctrico de 0,10 s'],['soul_execution','Objetivo open · Salto espacial y ejecución aérea']]],
+ ['mark','Impacto sin daño instantáneo · Enemigo verde y llamitas por el cuerpo'],['mark_boss','Marca jade · Cuerpo del jefe teñido y llamas repartidas'],['soul_pull','Recall · Tirón eléctrico de 0,10 s'],['soul_execution','Objetivo open · Salto espacial y ejecución aérea']]],
  ['Pruebas', [['fill_ferocity','Pausa → Opciones → Llenar ferocidad']]]
 ];
 const group=document.querySelector('#group'),slider=document.querySelector('#frame'),image=document.querySelector('#image');

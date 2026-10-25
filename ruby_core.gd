@@ -69,6 +69,18 @@ func is_open() -> bool:
 func holds_actor() -> bool:
 	return locked or final_open or open_time > 0.0 or spawn_grace_left > 0.0
 
+func apply_spirit_burn(damage: int) -> int:
+	# La quemadura no cuenta como golpe: no empuja, rompe guardia ni corta ataques.
+	# Tampoco puede resolver una baja ni alterar una captura/crítico en curso.
+	if not alive() or locked or final_open or enemy.current_health <= 1:
+		return 0
+	var applied := mini(maxi(damage, 0), enemy.current_health - 1)
+	if applied > 0:
+		enemy.current_health -= applied
+		enemy._update_health_bar()
+		queue_redraw()
+	return applied
+
 func register_parry(token: int = -1) -> bool:
 	if not alive() or locked or final_open or open_time > 0.0:
 		return false

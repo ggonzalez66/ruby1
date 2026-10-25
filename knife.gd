@@ -1,13 +1,14 @@
 extends Node2D
 
-# Fuego jade: una marca activa, sin daño. Recall hace soul pull o una ejecución aérea si está open.
+# Lanza espiritual jade: una marca activa, con quemadura periódica no letal.
+# Recall conserva soul pull o ejecución aérea si el enemigo está open.
 # Al impactar terreno explota y deja una llama visual temporal, sin clavarse ni rebotar.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
 const FIRE_VISUAL := preload("res://jade_fire_visual.gd")
 const JADE_MARK := preload("res://jade_mark.gd")
 const PULL_DURATION := 0.10
-const KNIFE_TEXTURE: Texture2D = FIRE_VISUAL.TEXTURE
+const KNIFE_TEXTURE: Texture2D = preload("res://spirit_spear_visual.gd").TEXTURE
 # La llama apunta hacia la derecha y se orienta con la trayectoria.
 const TIP_ANGLE := 0.0
 # Tamaño comparable al proyectil anterior; se conserva la hurtbox de 52 × 18.
@@ -58,6 +59,10 @@ var life := 4.0
 var pull_left := 0.0
 var released := false
 var mark_effect: Node2D
+@export var burn_tick_interval := 0.5
+@export var burn_tick_damage := 1
+var burn_left := 0.5
+var embedded_angle := 0.0
 
 func _ready() -> void:
 	z_index = 2
@@ -102,6 +107,7 @@ func recall() -> void:
 			_release()
 			return
 		state = State.SOUL_PULL
+		sprite.hide()
 		pull_left = PULL_DURATION
 		var ray := PhysicsRayQueryParameters2D.create(global_position, player.global_position + Vector2(0, -14), WORLD_MASK)
 		if get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
@@ -163,11 +169,12 @@ func _physics_process(delta: float) -> void:
 	_update_look()
 	if state in [State.MARKED, State.SOUL_PULL]:
 		rotation = 0.0
-		sprite.hide()
 		if not _is_target_alive(target):
 			_release()
 			return
 		global_position = _target_center(target)
+		if state == State.MARKED:
+			_update_burn(delta)
 		if state == State.SOUL_PULL:
 			pull_left -= delta
 			if pull_left <= 0.0:
@@ -218,22 +225,38 @@ func _stick_in_enemy(enemy: Node2D) -> void:
 		_enemy_shine(enemy)
 		return
 	var direction: int = 1 if velocity.x >= 0.0 else -1
-	Ferocity.add("knife_mark", 8.0, "FUEGO JADE")
+	Ferocity.add("knife_mark", 8.0, "LANZA JADE")
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
 	state = State.MARKED
 	hit_any = true
-	sprite.hide()
+	sprite.show()
 	trail.clear_points()
 	straight_timer = 0.0
 	target = enemy
 	last_target = enemy
 	target_offset = enemy.to_local(global_position)
+	embedded_angle = velocity.angle()
+	sprite.rotation = embedded_angle
+	sprite.position = -Vector2.from_angle(embedded_angle) * 20.0
+	burn_left = maxf(burn_tick_interval, 0.01)
 	rotation = 0.0
 	global_position = _target_center(target)
 	mark_effect = JADE_MARK.new()
 	mark_effect.target = target
 	add_child(mark_effect)
+
+func _update_burn(delta: float) -> void:
+	var core: Node2D = target.get_node_or_null("RubyCore")
+	if core == null:
+		return
+	if core.locked or core.final_open:
+		burn_left = maxf(burn_tick_interval, 0.01)
+		return
+	burn_left -= delta
+	while burn_left <= 0.0:
+		burn_left += maxf(burn_tick_interval, 0.01)
+		core.apply_spirit_burn(burn_tick_damage)
 
 func _aura_reaches_segment(from: Vector2, to: Vector2) -> bool:
 	if not is_instance_valid(player) or not player.is_roar_aura_active():
