@@ -1,0 +1,32 @@
+{
+  "scope": "Audio completo de crítico, remate de cinco segundos y screw frontflip, 2026-10-24",
+  "checks": {
+    "combat_revision": {
+      "passed": 30,
+      "total": 30
+    },
+    "executions": {
+      "passed": 121,
+      "total": 121
+    },
+    "combos": {
+      "passed": 74,
+      "total": 74
+    },
+    "sprites": {
+      "passed": 214,
+      "total": 214
+    },
+    "sky_records": {
+      "passed": 14,
+      "total": 14
+    }
+  },
+  "passed": 453,
+  "native_captures": [
+    "runtime/screw_frontflip_0.png",
+    "runtime/screw_frontflip_1.png",
+    "runtime/screw_frontflip_2.png",
+    "runtime/screw_frontflip_3.png"
+  ]
+}

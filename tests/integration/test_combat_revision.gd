@@ -107,20 +107,28 @@ func _run() -> void:
 	boss.ruby_core.register_parry(3)
 	check(boss.ruby_core.claim(player), "se puede reclamar el Ruby del jefe abierto")
 	var before_critical: Array = arena.get_children()
+	var sounds: Node = root.get_node("Sfx")
+	var hurt_before: int = int(sounds.last_played.get("boss_hurt", -1))
 	boss.ruby_core.complete(player)
 	var critical_shards := 0
 	for child in arena.get_children():
 		if child not in before_critical and child.get_child_count() == 16 and child.get_child(0) is Line2D:
 			critical_shards += 1
 	check(critical_shards == 1 and boss.ruby_core.visible and not boss.ruby_core.broken and boss.ruby_core.cracks == 1, "el crítico emite la explosión de 16 fragmentos y conserva el Ruby agrietado")
-	var sounds: Node = root.get_node("Sfx")
 	var critical_mix := false
+	var completion_mix := false
 	for voice in sounds.players:
 		if voice.stream == sounds.streams["guard_break"] and is_equal_approx(voice.volume_db, float(sounds.MIX["guard_break"][0]) + 1.0) and voice.pitch_scale > 1.19 and voice.pitch_scale < 1.31:
 			critical_mix = true
+		if voice.stream == sounds.streams["enemy_die"] and is_equal_approx(voice.volume_db, float(sounds.MIX["enemy_die"][0]) + 4.0) and voice.pitch_scale > 0.64 and voice.pitch_scale < 0.76:
+			completion_mix = true
 	check(critical_mix, "el crítico usa el sonido de rotura con la misma mezcla y tono del remate")
+	check(completion_mix and int(sounds.last_played.get("boss_hurt", -1)) == hurt_before, "el crítico suma la finalización grave de la ejecución y sustituye el sonido de golpe normal")
 	boss.take_hit(player.position, 1, 999)
-	boss.ruby_core._physics_process(boss.ruby_core.BOSS_OPEN_TIME + 0.01)
+	check(is_equal_approx(boss.ruby_core.open_time, 5.0), "el jefe a cero abre cinco segundos de remate")
+	boss.ruby_core._physics_process(4.99)
+	check(boss.current_health == 0 and boss.ruby_core.is_open(), "la ventana de remate sigue abierta hasta completar cinco segundos")
+	boss.ruby_core._physics_process(0.02)
 	check(boss.current_health == 21 and not boss.ruby_core.is_open(), "recuperar el 20 % usa la vida máxima del jefe, incluso con máximos distintos de 100")
 	await frames(5)
 	boss.take_hit(player.position, 1, 999)

@@ -1,11 +1,11 @@
 {
   "sprites": {
-    "passed": 220,
-    "total": 220
+    "passed": 214,
+    "total": 214
   },
   "combos": {
-    "passed": 72,
-    "total": 72
+    "passed": 74,
+    "total": 74
   },
   "executions": {
     "passed": 121,
@@ -36,8 +36,8 @@
     "total": 8
   },
   "sky_records": {
-    "passed": 12,
-    "total": 12
+    "passed": 14,
+    "total": 14
   },
   "gauntlet_safety": {
     "passed": 29,
@@ -84,7 +84,7 @@
     "total": 13
   },
   "combat_revision": {
-    "passed": 27,
-    "total": 27
+    "passed": 30,
+    "total": 30
   }
 }

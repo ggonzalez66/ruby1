@@ -153,14 +153,14 @@ func _on_posture_broken() -> void:
 func is_defeated() -> bool:
 	return defeated
 
-func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1) -> void:
+func take_hit(_source_position: Vector2, _direction: int = 1, damage: int = 1, play_hit_sound: bool = true) -> void:
 	if ruby_core != null and ruby_core.locked:
 		return
 	if defeated or ruby_core.final_open:
 		return
 	current_health = max(current_health - max(damage, 0), 0)
 	flash_timer = 0.08
-	if current_health > 0:
+	if current_health > 0 and play_hit_sound:
 		Sfx.play("boss_hurt")
 	_update_health_bar()
 	_on_hit(damage)
@@ -194,9 +194,12 @@ func try_block(_source_position: Vector2) -> bool:
 	_on_block()
 	return true
 
+func play_ruby_completion_sound() -> void:
+	Sfx.play("enemy_die", 4.0, 0.7)
+
 func _defeat() -> void:
 	defeated = true
-	Sfx.play("enemy_die", 4.0, 0.7)
+	play_ruby_completion_sound()
 	Ferocity.add("boss_kill", 200.0, "GUARDIÁN CAÍDO", Ferocity.BONUS_COLOR)
 	warning_label.visible = false
 	set_deferred("monitorable", false)

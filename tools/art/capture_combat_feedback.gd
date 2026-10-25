@@ -33,6 +33,21 @@ func _run() -> void:
 	camera.rotation = 0.0
 	camera.zoom = Vector2(2, 2)
 	DirAccess.make_dir_recursive_absolute(DIRECTORY)
+	if "--screw-only" in OS.get_cmdline_user_args():
+		player._cancel_all_states()
+		player.position = Vector2(2300, -80)
+		player.attack_mode = player.ATTACK_LIGHT_CHARGED_AIR
+		player._start_spin_attack()
+		for index in range(4):
+			player.facing = -1 if index == 3 else 1
+			player.attack_timer = player.spin_attack_duration - [0.01, 0.07, 0.13, 0.07][index]
+			player._update_attack_animation()
+			player._update_character_animation()
+			camera.global_position = Vector2(2300, -80)
+			await capture("screw_frontflip_%d" % index)
+		root.get_node("RunSession")._clear_run()
+		quit()
+		return
 	if "--execution-only" in OS.get_cmdline_user_args():
 		await capture_executions(player)
 		root.get_node("RunSession")._clear_run()

@@ -153,10 +153,15 @@ func _run() -> void:
 	await tap("jump")
 	await frames(2)
 	var texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"spin", 0)
-	check(player.animated_sprite.animation == &"spin" and texture is AtlasTexture and texture.atlas == player.SCREW_SHEET, "el screw usa el cuerpo con púas en la melena")
+	check(player.animated_sprite.animation == &"spin" and texture == player.FRONTFLIP_TEXTURE, "el screw usa la pose original de frontflip")
 	var angle_before: float = player.animated_sprite.rotation
 	await frames(4)
-	check(is_zero_approx(angle_before) and is_zero_approx(player.animated_sprite.rotation), "el cuerpo mantiene su orientación mientras gira el VFX")
+	check(absf(player.animated_sprite.rotation - angle_before) > 0.1, "el cuerpo gira mientras se mantiene el remolino")
+	for side in [-1, 1]:
+		player.facing = side
+		player._update_character_orientation(&"spin")
+		check(player.animated_sprite.rotation * side > 0.0, "el screw gira según su orientación %d" % side)
+	player.facing = 1
 	check(player.screw_embers.emitting, "con brasas de fuego verde")
 	var fire_line: Line2D = player.effect_strokes[0][1]
 	var flame: Color = fire_line.gradient.get_color(1)

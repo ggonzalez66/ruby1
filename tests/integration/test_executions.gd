@@ -341,7 +341,7 @@ func _run() -> void:
 		check(boss.current_health == 0 and boss.ruby_core.final_open and not boss.is_defeated(), "un crítico a cero exige otro heavy")
 		hit(boss, player.ATTACK_SLASH)
 		check(not boss.is_defeated(), "un ligero no remata al jefe a cero")
-		boss.ruby_core._physics_process(boss.ruby_core.BOSS_OPEN_TIME + 0.01)
+		boss.ruby_core._physics_process(boss.ruby_core.BOSS_FINAL_OPEN_TIME + 0.01)
 		check(boss.current_health == 20 and not boss.ruby_core.final_open and not boss.ruby_core.is_open() and boss.ruby_core.posture == 100, "perder el remate a cero restaura el 20 % de vida y toda la postura")
 		boss.take_hit(player.position, 1, 999)
 		check(boss.ruby_core.final_open and boss.ruby_core.open_time > 0.0, "volver a cero abre otra ventana limitada de remate")

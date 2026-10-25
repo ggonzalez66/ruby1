@@ -61,6 +61,11 @@ func _run() -> void:
 	session.ghost_index = 0
 	session._update_ghost()
 	check(is_zero_approx(session.ghost.rotation) and absf(session.ghost.scale.x - player.CHARACTER_VISUAL_SCALE * player.ANIMATION_VISUAL_SCALES[&"uppercut"]) < 0.001, "el fantasma antiguo de uppercut líquido usa la pose original erguida sin deformarla")
+	session.best_frames = [[0.0, 100.0, -100.0, "spin", 5, 0.13, 0.13, 0.0, -18.0, 1.25, true]]
+	session.ghost_index = 0
+	session._update_ghost()
+	check(session.ghost.texture == player.FRONTFLIP_TEXTURE and absf(session.ghost.scale.x - player.CHARACTER_VISUAL_SCALE * player.ANIMATION_VISUAL_SCALES[&"spin"]) < 0.001, "el replay del screw antiguo normaliza la nueva pose de frontflip")
+	check(is_equal_approx(session.ghost.rotation, 1.25), "el fantasma conserva el giro grabado del screw")
 	session.best_frames = saved_frames
 	session.ghost_index = 0
 	session.elapsed = 30.0
