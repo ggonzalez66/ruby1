@@ -1,0 +1,33 @@
+{
+  "scope": "Hexágonos del parry y agachado, 2026-10-24",
+  "checks": {
+    "movement_polish": {
+      "passed": 25,
+      "total": 25
+    },
+    "wrath_nature": {
+      "passed": 51,
+      "total": 51
+    },
+    "combat_feedback": {
+      "passed": 42,
+      "total": 42
+    },
+    "shine_shield": {
+      "passed": 36,
+      "total": 36
+    },
+    "combos": {
+      "passed": 72,
+      "total": 72
+    }
+  },
+  "passed": 226,
+  "native_captures": [
+    "runtime/shine_0.png",
+    "runtime/shine_16.png",
+    "runtime/shine_30.png",
+    "runtime/idle_scale.png",
+    "runtime/crouch_scale.png"
+  ]
+}

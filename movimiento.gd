@@ -176,6 +176,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_WALK: 1.0,
 	ANIMATION_JUMP: 0.65,
 	ANIMATION_JUMP_SQUAT: 0.556,
+	ANIMATION_CROUCH: 0.556,
 	ANIMATION_SPIN: 0.3,
 	ANIMATION_UPPERCUT: 0.39,
 	ANIMATION_WALL_SLIDE: 0.38,
@@ -1144,7 +1145,7 @@ func _update_character_animation() -> void:
 	elif heavy_landing_pose_timer > 0.0:
 		# Al aterrizar el heavy aéreo, la bestia cierra la mordida un instante.
 		next_animation = ANIMATION_HEAVY_LANDING
-	elif Input.is_action_pressed("move_down") and is_on_floor():
+	elif is_crouching():
 		next_animation = ANIMATION_CROUCH
 	elif backflip_run_direction != 0:
 		next_animation = ANIMATION_SPRINT_BRAKE
@@ -1168,8 +1169,6 @@ func _update_character_animation() -> void:
 			brake_recover_timer = BRAKE_RECOVER_TIME
 		if brake_recover_timer > 0.0:
 			next_animation = ANIMATION_BRAKE_RECOVER
-		elif Input.is_action_pressed("move_down"):
-			next_animation = ANIMATION_CROUCH
 		elif proud_active:
 			if proud_roar_timer > 0.0:
 				next_animation = ANIMATION_PROUD_ROAR
@@ -1517,6 +1516,14 @@ func _consume_jump_buffer() -> void:
 		jump_cut_available = true
 	animated_sprite.play(ANIMATION_JUMP)
 
+func is_crouching() -> bool:
+	return Input.is_action_pressed("move_down") and is_on_floor() and not dead \
+		and not _uses_sprint_movement() and not Input.is_action_pressed("dash") and not _is_braking() \
+		and backflip_run_direction == 0 and dash_timer <= 0.0 and not _is_attack_active() \
+		and not _blocks_actions() and hurt_lock_timer <= 0.0 and execution_core == null \
+		and execution_ground_exit_timer <= 0.0 and heavy_landing_pose_timer <= 0.0 and jump_squat_timer <= 0.0 \
+		and velocity.y >= 0.0 and not wrath.controls_movement()
+
 func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	if backflip_run_direction != 0:
 		velocity.x = move_toward(velocity.x, 0.0, sprint_brake_deceleration * delta)
@@ -1526,6 +1533,9 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	if hurt_lock_timer > 0.0:
 		# Tras recibir daño el retroceso manda y solo se frena con la fricción del aire.
 		velocity.x = move_toward(velocity.x, 0.0, air_friction * delta)
+		return
+	if is_crouching():
+		velocity.x = 0.0
 		return
 
 	var control_multiplier: float = 1.0
@@ -2528,19 +2538,13 @@ func _update_roar_aura() -> void:
 		roar_aura_spin = 0.0
 		return
 	var delta: float = get_physics_process_delta_time()
-	if roar_explosive_timer > 0.0:
-		# Frames explosivos: aparece al instante, derecho y a tamaño completo, con un destello.
-		var progress: float = 1.0 - roar_explosive_timer / roar_explosive_duration
-		roar_aura.scale = Vector2.ONE
-		# Algo transparente para que el sprite no se vea plano (con el destello de brillo al aparecer).
-		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.8).lerp(Color(1.3, 1.2, 1.05, 0.8), 1.0 - progress)
-		roar_aura_spin = 0.0
-	else:
-		# Aura latente (manteniendo): empieza a girar despacio y pulsa; solo devuelve proyectiles.
-		var pulse: float = sin(Time.get_ticks_msec() / 110.0)
-		roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse)
-		roar_aura.modulate = Color(1.0, 1.0, 1.0, 0.6 + 0.1 * pulse)
-		roar_aura_spin += 0.9 * delta
+	# Los hexágonos cubren toda la ventana de parry; después se funden con el sello.
+	var formation := smoothstep(roar_explosive_duration, roar_explosive_duration + 0.12, roar_elapsed)
+	roar_aura.set_formation(formation)
+	var pulse: float = sin(Time.get_ticks_msec() / 110.0)
+	roar_aura.scale = Vector2.ONE * (1.0 + 0.035 * pulse * formation)
+	roar_aura.modulate = Color(1.0, 1.0, 1.0, lerpf(1.0, 0.43 + 0.05 * pulse, formation))
+	roar_aura_spin += 0.9 * delta * formation
 	roar_aura.rotation = roar_aura_spin
 
 func _get_sprint_start_direction(move_input: float) -> int:

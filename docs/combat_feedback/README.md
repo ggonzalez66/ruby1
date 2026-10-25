@@ -12,10 +12,14 @@ Select (R en teclado) activa la pose orgullosa estando quieto en el suelo. Se ma
 
 Ready muestra 0.00 y cuenta hasta 1.00 en un segundo real. Durante ese segundo el mundo está detenido; el reloj de la run empieza con GO. Se conservan los sonidos de Ready y GO y se añade el pulso intermedio a 0,50 s.
 
-El shine recupera su Metatrón anterior: aparece completo de inmediato, derecho, a tamaño normal, con opacidad 0,8 y un brillo inicial. Después del parry gira lentamente, pulsa y mantiene su opacidad original entre 0,5 y 0,7. Se conservan las ondas del rugido y el destello al conectar un parry. El radio del parry, sus 0,16 s, i-frames, empuje y bloqueo no se modifican.
+El shine empieza con un hexágono dorado sólido de 16 px de alto al centro y un segundo hexágono dorado de contorno alrededor de Viridy. Los lados del contorno rodean el radio circular real del parry, sin alterar sus colisiones. Ambos permanecen completos durante los 0,16 s del parry; después se funden durante 0,12 s con el Metatrón giratorio, de opacidad aproximada 0,43. Se conservan las ondas del rugido, el destello al conectar un parry, i-frames, empuje y bloqueo.
+
+El agachado usa la escala de su pose original de salto, con los pies apoyados al mismo nivel. Abajo solo permite agacharse estando en el suelo, quieto o caminando; bloquea el desplazamiento horizontal hasta soltarlo o iniciar otra acción. Corrida, frenada rápida, dash, ataques y estados especiales conservan su movimiento y presentación. Saltar cancela el agachado. Su collider original no cambia, y Wrath solo se carga desde este agachado válido.
 
 ```bash
 RUBY1_SKIP_COUNTDOWN=1 godot --path . --rendering-method gl_compatibility --audio-driver Dummy -s res://tools/art/capture_combat_feedback.gd
 ```
 
 `validation.json` recoge los resultados de integración. La nueva suite `test_combat_feedback.gd` prueba también golpes reales de ambos giros, coincidencia entre dibujo y segmentos de parry, dirección fijada, taunt sin reinicio, reinicios de pausa y migración de controles. Las suites históricas de velocidad y presentación se ajustaron a los requisitos nuevos. Las capturas y pruebas quedan excluidas de los ejecutables.
+
+`hex_crouch_validation.json` registra las 226 comprobaciones de la revisión de hexágonos y agachado: movimiento, Wrath, presentación del combate, shine/bloqueo y combos. Las capturas de `idle_scale` y `crouch_scale` comparan ambas poses con la misma cámara; `shine_0`, `shine_16` y `shine_30` muestran la transición nueva.

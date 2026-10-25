@@ -54,9 +54,7 @@ func tick(delta: float) -> void:
 		cancel()
 		return
 	if state in [State.IDLE, State.CHARGING]:
-		var can_charge: bool = player.is_on_floor() and Input.is_action_pressed("move_down") and Ferocity.rank == 6 \
-			and player.execution_core == null and not player._is_attack_active() and player.dash_timer <= 0.0 \
-			and not player._blocks_actions() and player.hurt_lock_timer <= 0.0
+		var can_charge: bool = player.is_crouching() and Ferocity.rank == 6
 		if can_charge:
 			if state != State.CHARGING:
 				Sfx.start_loop("wrath_charge")
@@ -145,8 +143,9 @@ func begin_aim() -> bool:
 	state = State.AIM
 	elapsed = 0.0
 	landed = player.is_on_floor()
-	player.animated_sprite.play(player.ANIMATION_CROUCH)
-	player._align_character_animation(player.ANIMATION_CROUCH)
+	var pose: StringName = player.ANIMATION_CROUCH if landed else player.ANIMATION_AERIAL_STALL
+	player.animated_sprite.play(pose)
+	player._align_character_animation(pose)
 	Sfx.play("wrath_aim")
 	return true
 

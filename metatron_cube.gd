@@ -14,6 +14,25 @@ extends Node2D
 # El cubo del sprite ocupa este ancho relativo al diámetro (el resto son destellos alrededor).
 @export var texture_fit := 1.15
 var wear_material: ShaderMaterial
+var formation := 1.0
+
+func set_formation(amount: float) -> void:
+	var value := clampf(amount, 0.0, 1.0)
+	if not is_equal_approx(value, formation):
+		formation = value
+		queue_redraw()
+
+func hexagon(radius: float) -> PackedVector2Array:
+	var points := PackedVector2Array()
+	for index in range(6):
+		points.append(Vector2.from_angle(-PI * 0.5 + TAU * index / 6.0) * radius)
+	return points
+
+func parry_outline() -> PackedVector2Array:
+	# Sus lados rodean el radio circular real del parry sin cambiar la detección.
+	var points := hexagon(outer_radius / cos(PI / 6.0))
+	points.append(points[0])
+	return points
 
 func _ready() -> void:
 	queue_redraw()
@@ -45,10 +64,14 @@ func get_centers() -> PackedVector2Array:
 
 func _draw() -> void:
 	if texture:
+		if formation < 1.0:
+			var gold := Color(1.0, 0.75, 0.25, 1.0 - formation)
+			draw_colored_polygon(hexagon(8.0), gold)
+			draw_polyline(parry_outline(), gold, 1.5, true)
 		var width: float = outer_radius * 2.0 * texture_fit
 		var size := Vector2(width, width * texture.get_height() / texture.get_width())
 		# El cubo del sprite está un poco por encima del centro de la imagen.
-		draw_texture_rect(texture, Rect2(-size * 0.5 - Vector2(0, size.y * 0.02), size), false)
+		draw_texture_rect(texture, Rect2(-size * 0.5 - Vector2(0, size.y * 0.02), size), false, Color(1.0, 1.0, 1.0, formation))
 		return
 	var spacing: float = outer_radius / 2.5
 	var circle_radius: float = spacing * 0.5

@@ -98,16 +98,24 @@ func _run() -> void:
 	player.position = Vector2(2300, -2)
 	await frames(5)
 
-	print("== Metatrón inmediato sin cambiar el parry")
+	print("== Hexágonos de parry y transición al Metatrón")
 	player._start_roar()
 	player._update_roar_aura()
 	var center: Vector2 = player.get_roar_center()
-	check(player.roar_aura.visible and player.roar_aura.scale == Vector2.ONE and player.roar_aura.rotation == 0.0 and is_equal_approx(player.roar_aura.modulate.a, 0.8) and player._is_roar_invincible(), "el Metatrón aparece completo, derecho y con brillo durante el parry")
-	check(player.parry_reaches(center + Vector2(player.roar_radius - 1.0, -3), center + Vector2(player.roar_radius - 1.0, 3)), "el Metatrón mantiene el radio completo del parry")
+	check(player.roar_aura.visible and player.roar_aura.formation == 0.0 and player.roar_aura.rotation == 0.0 and player._is_roar_invincible(), "el inicio muestra los hexágonos con el parry activo")
+	check(player.parry_reaches(center + Vector2(player.roar_radius - 1.0, -3), center + Vector2(player.roar_radius - 1.0, 3)), "el contorno conserva el radio real del parry")
+	var covered := true
+	var parry_hexagon: PackedVector2Array = player.roar_aura.parry_outline()
+	for angle in range(36):
+		covered = covered and Geometry2D.is_point_in_polygon(Vector2.from_angle(TAU * angle / 36.0) * (player.roar_radius - 0.01), parry_hexagon)
+	check(covered and parry_hexagon.size() == 7, "el hexágono de contorno rodea toda la cobertura circular")
+	player.roar_elapsed = player.roar_explosive_duration - 0.001
+	player._update_roar_aura()
+	check(player.roar_aura.formation == 0.0, "los hexágonos permanecen completos durante toda la ventana de parry")
 	player.roar_elapsed = 0.30
 	player.roar_explosive_timer = 0.0
 	player._update_roar_aura()
-	check(player.roar_aura.rotation > 0.0 and player.roar_aura.modulate.a >= 0.5 and player.roar_aura.modulate.a <= 0.7 and not player._is_roar_invincible(), "al mantenerlo gira con su opacidad original y no extiende los i-frames")
+	check(player.roar_aura.formation == 1.0 and player.roar_aura.rotation > 0.0 and player.roar_aura.modulate.a < 0.5 and not player._is_roar_invincible(), "después aparece el Metatrón translúcido y giratorio sin extender i-frames")
 	player._end_roar()
 
 	print("== Select: taunt, no reinicio")

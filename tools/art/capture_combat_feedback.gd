@@ -47,6 +47,13 @@ func _run() -> void:
 	player._cancel_all_states()
 	player.facing = 1
 	player._update_facing_visual()
+	if shine_only:
+		player._update_character_animation()
+		await capture("idle_scale")
+		Input.action_press("move_down")
+		player._update_character_animation()
+		await capture("crouch_scale")
+		Input.action_release("move_down")
 	player._start_roar()
 	var previous_time := 0.0
 	for elapsed in [0.0, 0.16, 0.30]:
