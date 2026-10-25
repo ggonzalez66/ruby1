@@ -163,7 +163,7 @@ func _run() -> void:
 	await frames(1)
 	check(knife.sprite.texture.resource_path.ends_with("viridy_spirit_spear_v1.png") and knife.sprite.hframes * knife.sprite.vframes == 4, "usa el sprite nuevo")
 	var length: float = knife.sprite.texture.get_width() * 0.5 * knife.VISUAL_SCALE
-	check(length >= 52.0 and length <= 80.0, "fuego de tamaño comparable al proyectil anterior (%.0f px)" % length)
+	check(is_equal_approx(length, 153.6), "lanza del doble de tamaño (%.0f px)" % length)
 	var target: Node2D = load("res://training_dummy.tscn").instantiate()
 	target.aerial = true
 	target.max_health = 99

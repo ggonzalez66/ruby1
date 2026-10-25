@@ -63,7 +63,8 @@ func _run() -> void:
 	await capture("embedded")
 	for tick in range(12):
 		spear._physics_process(0.5)
-		spear.mark_effect._process(0.5)
+		if is_instance_valid(spear.mark_effect):
+			spear.mark_effect._process(0.5)
 	await capture("burn")
 	spear.recall()
 	spear._physics_process(0.02)

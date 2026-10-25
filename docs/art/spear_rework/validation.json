@@ -1,0 +1,81 @@
+{
+  "date": "2026-10-25",
+  "godot": "4.2.2.stable.official.15073afe3",
+  "suites": [
+    {
+      "suite": "test_spirit_spear.gd",
+      "passed": 24,
+      "checks": 24,
+      "script_errors": false,
+      "log": "/tmp/ruby1_test_spirit_spear.log",
+      "shutdown_resource_warning": true
+    },
+    {
+      "suite": "test_spear_return.gd",
+      "passed": 12,
+      "checks": 12,
+      "script_errors": false,
+      "log": "/tmp/ruby1_test_spear_return.log",
+      "shutdown_resource_warning": true
+    },
+    {
+      "suite": "test_jade_soul_pull.gd",
+      "passed": 16,
+      "checks": 16,
+      "script_errors": false,
+      "log": "/tmp/ruby1_test_jade_soul_pull.log",
+      "shutdown_resource_warning": false
+    },
+    {
+      "suite": "test_feedback_v2.gd",
+      "passed": 26,
+      "checks": 26,
+      "script_errors": false,
+      "log": "/tmp/ruby1_test_feedback_v2.log",
+      "shutdown_resource_warning": true
+    },
+    {
+      "suite": "test_sprites.gd",
+      "passed": 219,
+      "checks": 219,
+      "script_errors": false,
+      "log": "/tmp/ruby1_test_sprites.log",
+      "shutdown_resource_warning": true
+    },
+    {
+      "suite": "test_shine_shield.gd",
+      "passed": 36,
+      "checks": 36,
+      "script_errors": false,
+      "log": "/tmp/ruby1_test_shine_shield.log",
+      "shutdown_resource_warning": true
+    },
+    {
+      "suite": "test_art_refresh.gd",
+      "passed": 11,
+      "checks": 11,
+      "script_errors": false,
+      "log": "/tmp/ruby1_test_art_refresh.log",
+      "shutdown_resource_warning": true
+    }
+  ],
+  "passed": 344,
+  "checks": 344,
+  "visual": {
+    "renderer": "OpenGL Compatibility / Mesa llvmpipe",
+    "captures_reviewed": [
+      "flight_right",
+      "flight_left",
+      "embedded_motes",
+      "embedded_expired",
+      "return_multi",
+      "embedded_ground"
+    ]
+  },
+  "baseline_check": {
+    "method": "HEAD con archivos y test originales en directorio temporal aislado",
+    "result": "25/25 OK",
+    "shutdown_resource_warning": true,
+    "log": "/tmp/ruby1_baseline_spirit.log"
+  }
+}

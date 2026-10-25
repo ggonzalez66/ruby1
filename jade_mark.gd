@@ -1,13 +1,12 @@
 extends Node2D
 
-const FIRE := preload("res://jade_fire_visual.gd")
+const MOTES := preload("res://mane_emitter.gd")
 const GLOW := preload("res://shaders/charge_glow.gdshader")
 var target: Node2D
 var tint: ShaderMaterial
 var originals: Array = []
-var flames: Array[Sprite2D] = []
-var anchors: Array[Vector2] = []
-var clock := 0.0
+var motes: CPUParticles2D
+var emission_center := Vector2.ZERO
 
 func _ready() -> void:
 	tint = ShaderMaterial.new()
@@ -36,16 +35,14 @@ func _ready() -> void:
 		elif collision.shape is CircleShape2D:
 			var radius: float = collision.shape.radius
 			rect = Rect2(collision.position - Vector2.ONE * radius, Vector2.ONE * radius * 2.0)
-	for index in range(7):
-		anchors.append(rect.position + rect.size * Vector2([0.25, 0.75, 0.15, 0.85, 0.4, 0.7, 0.3][index], 0.15 + index * 0.12))
-		var flame := Sprite2D.new()
-		flame.texture = FIRE.TEXTURE
-		flame.hframes = 2
-		flame.vframes = 2
-		flame.z_index = 5
-		flame.modulate.a = 0.72
-		add_child(flame)
-		flames.append(flame)
+	# El mismo emisor de motas de la melena, repartido por el cuerpo y siempre verde jade.
+	motes = MOTES.new()
+	motes.set_style_color(Color(0.12, 0.85, 0.38))
+	motes.amount = 38
+	motes.z_index = 5
+	emission_center = rect.get_center()
+	motes.emission_rect_extents = rect.size * Vector2(0.4, 0.45) * target.global_scale.abs()
+	add_child(motes)
 	_process(0.0)
 
 func _tint(item: Node) -> void:
@@ -54,16 +51,11 @@ func _tint(item: Node) -> void:
 		item.use_parent_material = false
 		item.material = tint
 
-func _process(delta: float) -> void:
+func _process(_delta: float) -> void:
 	if not is_instance_valid(target):
 		return
-	clock += delta
-	for index in range(flames.size()):
-		var flame := flames[index]
-		flame.global_position = target.to_global(anchors[index])
-		flame.frame = (int(clock * 18.0) + index) % 4
-		flame.scale = Vector2(0.032, 0.025) * (1.0 + 0.15 * sin(clock * 21.0 + index))
-		flame.global_rotation = -PI * 0.5 + 0.12 * sin(clock * 12.0 + index)
+	motes.global_position = target.to_global(emission_center)
+	motes.global_rotation = 0.0
 
 func _exit_tree() -> void:
 	for saved in originals:

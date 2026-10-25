@@ -1,0 +1,136 @@
+{
+  "date": "2026-10-25",
+  "linux": {
+    "method": "Ejecutable Linux exportado, --headless --audio-driver Dummy --quit-after 120, XDG_DATA_HOME temporal",
+    "scenes": {
+      "main": {
+        "exit_code": 0,
+        "frames": 120,
+        "startup_passed": true,
+        "unexpected_errors": [],
+        "shutdown_resource_warning": true
+      },
+      "stage2": {
+        "exit_code": 0,
+        "frames": 120,
+        "startup_passed": true,
+        "unexpected_errors": [],
+        "shutdown_resource_warning": false
+      },
+      "stage3": {
+        "exit_code": 0,
+        "frames": 120,
+        "startup_passed": true,
+        "unexpected_errors": [],
+        "shutdown_resource_warning": true
+      },
+      "stage4": {
+        "exit_code": 0,
+        "frames": 120,
+        "startup_passed": true,
+        "unexpected_errors": [],
+        "shutdown_resource_warning": true
+      },
+      "gauntlet": {
+        "exit_code": 0,
+        "frames": 120,
+        "startup_passed": true,
+        "unexpected_errors": [],
+        "shutdown_resource_warning": true
+      },
+      "sky_stairs": {
+        "exit_code": 0,
+        "frames": 120,
+        "startup_passed": true,
+        "unexpected_errors": [],
+        "shutdown_resource_warning": true
+      }
+    }
+  },
+  "windows": {
+    "method": "Ejecutable Windows exportado, copia temporal local, ejecución nativa mediante PowerShell/.NET, OpenGL Compatibility, APPDATA temporal",
+    "scenes": {
+      "main": {
+        "exit_code": 1,
+        "frames_requested": 120,
+        "renderer_initialized": true,
+        "unexpected_errors": [
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true."
+        ],
+        "shutdown_resource_warning": true
+      },
+      "stage2": {
+        "exit_code": 1,
+        "frames_requested": 120,
+        "renderer_initialized": true,
+        "unexpected_errors": [
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true."
+        ],
+        "shutdown_resource_warning": false
+      },
+      "stage3": {
+        "exit_code": 1,
+        "frames_requested": 120,
+        "renderer_initialized": true,
+        "unexpected_errors": [
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true."
+        ],
+        "shutdown_resource_warning": false
+      },
+      "stage4": {
+        "exit_code": 1,
+        "frames_requested": 120,
+        "renderer_initialized": true,
+        "unexpected_errors": [
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true."
+        ],
+        "shutdown_resource_warning": true
+      },
+      "gauntlet": {
+        "exit_code": 1,
+        "frames_requested": 120,
+        "renderer_initialized": true,
+        "unexpected_errors": [
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true."
+        ],
+        "shutdown_resource_warning": false
+      },
+      "sky_stairs": {
+        "exit_code": 1,
+        "frames_requested": 120,
+        "renderer_initialized": true,
+        "unexpected_errors": [
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true.",
+          "ERROR: Condition \"f.is_null()\" is true."
+        ],
+        "shutdown_resource_warning": true
+      }
+    },
+    "startup_verified_cleanly": false,
+    "limitation": "Los seis intentos inicializan OpenGL, pero devuelven código 1 y errores de escritura de caché de shaders. La exportación de HEAD reproduce el mismo resultado en main. No se presenta como una prueba de arranque limpia ni de gameplay."
+  },
+  "windows_baseline_HEAD": {
+    "main": {
+      "exit_code": 1,
+      "frames_requested": 120,
+      "renderer_initialized": true,
+      "unexpected_errors": [
+        "ERROR: Condition \"f.is_null()\" is true.",
+        "ERROR: Condition \"f.is_null()\" is true.",
+        "ERROR: Condition \"f.is_null()\" is true."
+      ],
+      "shutdown_resource_warning": true
+    }
+  }
+}

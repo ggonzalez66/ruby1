@@ -76,8 +76,12 @@ func _process(delta: float) -> void:
 	if is_instance_valid(tracked_player):
 		var cooldown: float = tracked_player.jade_fire_cooldown_timer
 		var fire: Node2D = tracked_player.thrown_knife
-		var marked: bool = is_instance_valid(fire) and fire.state in [fire.State.MARKED, fire.State.SOUL_PULL]
-		jade_status.text = "%.1f s" % cooldown if tracked_player.has_knife and cooldown > 0.0 else ("MARCA" if marked else "")
+		if tracked_player.has_knife:
+			jade_status.text = "%.1f s" % cooldown if cooldown > 0.0 else ""
+		elif is_instance_valid(fire):
+			jade_status.text = "VUELVE" if fire.is_returning() else ("CLAVADA" if fire.state in [fire.State.MARKED, fire.State.STUCK_WORLD] else "")
+		else:
+			jade_status.text = ""
 		if tracked_player.has_knife and cooldown > 0.0:
 			knife_icon.modulate.a = 0.4
 		elif tracked_player.has_knife:

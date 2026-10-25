@@ -1,18 +1,19 @@
 extends Node2D
 
 # Lanza espiritual jade: una marca activa, con quemadura periódica no letal.
-# Recall conserva soul pull o ejecución aérea si el enemigo está open.
-# Al impactar terreno explota y deja una llama visual temporal, sin clavarse ni rebotar.
+# Recall devuelve la lanza y atrae a cada enemigo atravesado; conserva la ejecución si está open.
+# Se clava también en el terreno hasta que se llama de vuelta.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
 const FIRE_VISUAL := preload("res://jade_fire_visual.gd")
 const JADE_MARK := preload("res://jade_mark.gd")
-const PULL_DURATION := 0.10
+const RETURN_SPEED := 1800.0
+const BURN_DURATION := 2.0
 const KNIFE_TEXTURE: Texture2D = preload("res://spirit_spear_visual.gd").TEXTURE
-# La llama apunta hacia la derecha y se orienta con la trayectoria.
+# La punta mira hacia la derecha y se orienta con la trayectoria.
 const TIP_ANGLE := 0.0
-# Tamaño comparable al proyectil anterior; se conserva la hurtbox de 52 × 18.
-const VISUAL_SCALE := 0.10
+# Lanza al doble de tamaño visual; conserva la hurtbox de 52 × 18.
+const VISUAL_SCALE := 0.20
 const TRAIL_LENGTH := 9
 
 const GRAVITY := 1100.0
@@ -30,7 +31,7 @@ const HOSTILE_DAMAGE := 10
 const HOSTILE_TIME := 2.5
 const RIPOSTE_COLOR := Color(1.0, 0.12, 0.08)
 
-enum State { FLYING, MARKED, SOUL_PULL, HOSTILE }
+enum State { FLYING, MARKED, RETURNING, HOSTILE, STUCK_WORLD }
 
 var state := State.FLYING
 var velocity := Vector2.ZERO
@@ -56,12 +57,12 @@ const HIGHLIGHT_COLOR := Color(1.0, 0.25, 0.2)
 var highlight_timer := 0.0
 var flame_time := 0.0
 var life := 4.0
-var pull_left := 0.0
 var released := false
 var mark_effect: Node2D
-@export var burn_tick_interval := 0.5
+@export var burn_tick_interval := 1.0
 @export var burn_tick_damage := 1
-var burn_left := 0.5
+var burn_left := 1.0
+var burn_duration_left := BURN_DURATION
 var embedded_angle := 0.0
 
 func _ready() -> void:
@@ -94,33 +95,79 @@ func launch(owner_player: Node2D, start: Vector2, initial_velocity: Vector2) -> 
 	_point_along(velocity)
 
 func is_returning() -> bool:
-	return false
+	return state == State.RETURNING
 
 func recall() -> void:
-	# Si un enemigo lo devolvió, no se puede llamar: hay que esquivarlo o shinearlo.
-	if state == State.HOSTILE:
+	if state in [State.HOSTILE, State.RETURNING] or released:
 		return
-	if state == State.SOUL_PULL or released:
+	if not is_instance_valid(player):
+		_release()
 		return
 	if state == State.MARKED and _is_target_alive(target):
 		if player.try_soul_execution(target):
 			_release()
 			return
-		state = State.SOUL_PULL
-		sprite.hide()
-		pull_left = PULL_DURATION
-		var ray := PhysicsRayQueryParameters2D.create(global_position, player.global_position + Vector2(0, -14), WORLD_MASK)
-		if get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
-			if target.has_method("pull_towards"):
-				target.pull_towards(player.global_position, PULL_STRENGTH)
-			elif target.has_method("on_shine_hit"):
-				target.on_shine_hit(int(signf(player.global_position.x - target.global_position.x)), PULL_STRENGTH * 5.0)
-		Ferocity.add("soul_pull", 8.0, "SOUL PULL")
-		Sfx.play("soul_snap")
-		Fx.impact(get_parent(), global_position, [Color(0.05, 0.25, 0.12), FIRE_VISUAL.COLOR, Color(0.85, 1.0, 0.8)], 0.7)
+	state = State.RETURNING
+	_clear_mark()
+	target = null
+	recall_hits.clear()
+	rotation = 0.0
+	sprite.position = Vector2.ZERO
+	sprite.rotation = 0.0
+	sprite.show()
+	life = 4.0
+	Sfx.play("soul_snap")
+
+func _clear_mark() -> void:
+	if is_instance_valid(mark_effect):
+		mark_effect.queue_free()
+	mark_effect = null
+
+func _return_to_player(delta: float) -> void:
+	if not is_instance_valid(player) or player.dead:
+		_release()
 		return
-	Fx.jade_splash(get_parent(), global_position, Vector2.UP, 0.35)
-	_release()
+	var goal := player.global_position + Vector2(0, -16)
+	var from := global_position
+	var to := from.move_toward(goal, RETURN_SPEED * delta)
+	velocity = (goal - from).normalized() * RETURN_SPEED
+	_point_along(velocity)
+	var wall := get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(from, to, WORLD_MASK))
+	if not wall.is_empty():
+		to = wall.position
+	# Barre todo el trayecto, también con velocidades altas y varios enemigos por frame.
+	var rect := RectangleShape2D.new()
+	rect.size = Vector2(from.distance_to(to) + HIT_LENGTH, HIT_WIDTH)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = rect
+	query.transform = Transform2D((to - from).angle(), (from + to) * 0.5)
+	query.collision_mask = ENEMY_MASK
+	query.collide_with_areas = true
+	query.collide_with_bodies = false
+	var excluded: Array[RID] = []
+	while true:
+		query.exclude = excluded
+		var hits := get_world_2d().direct_space_state.intersect_shape(query, 32)
+		if hits.is_empty():
+			break
+		for hit in hits:
+			excluded.append(hit.rid)
+			var enemy: Node2D = hit.collider
+			if enemy in recall_hits or not enemy.has_method("take_hit") or not _is_target_alive(enemy):
+				continue
+			var ray := PhysicsRayQueryParameters2D.create(from, _target_center(enemy), WORLD_MASK)
+			if not get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
+				continue
+			recall_hits.append(enemy)
+			if enemy.has_method("pull_towards"):
+				enemy.pull_towards(player.global_position, PULL_STRENGTH)
+			elif enemy.has_method("on_shine_hit"):
+				enemy.on_shine_hit(int(signf(player.global_position.x - enemy.global_position.x)), PULL_STRENGTH * 5.0)
+			Ferocity.add("soul_pull", 8.0, "SOUL PULL")
+			Fx.impact(get_parent(), _target_center(enemy), [FIRE_VISUAL.COLOR.darkened(0.6), FIRE_VISUAL.COLOR, Color(0.85, 1.0, 0.8)], 0.5)
+	global_position = to
+	if not wall.is_empty() or to.is_equal_approx(goal):
+		_release()
 
 func _release() -> void:
 	if released:
@@ -139,17 +186,6 @@ func _process(delta: float) -> void:
 		queue_redraw()
 
 func _draw() -> void:
-	if state in [State.MARKED, State.SOUL_PULL]:
-		if state == State.SOUL_PULL and is_instance_valid(player):
-			var goal := to_local(player.global_position + Vector2(0, -20))
-			var side := goal.orthogonal().normalized()
-			var points := PackedVector2Array()
-			for index in range(9):
-				var t := index / 8.0
-				points.append(goal * t + side * sin(flame_time * 150.0 + index * 19.0) * 7.0 * sin(t * PI))
-			var fade := clampf(pull_left / PULL_DURATION, 0.0, 1.0)
-			draw_polyline(points, Color(0.2, 0.9, 0.48, 0.32 * fade), 5.0, true)
-			draw_polyline(points, Color(0.8, 1.0, 0.85, 0.75 * fade), 1.4, true)
 	if highlight_timer <= 0.0:
 		return
 	# Anillo que late y se cierra sobre el cuchillo (sin girar con él).
@@ -167,19 +203,15 @@ func _physics_process(delta: float) -> void:
 	sprite.frame = int(flame_time * 14.0) % 4
 	_update_trail()
 	_update_look()
-	if state in [State.MARKED, State.SOUL_PULL]:
+	if state == State.STUCK_WORLD:
+		return
+	if state == State.MARKED:
 		rotation = 0.0
 		if not _is_target_alive(target):
 			_release()
 			return
 		global_position = _target_center(target)
-		if state == State.MARKED:
-			_update_burn(delta)
-		if state == State.SOUL_PULL:
-			pull_left -= delta
-			if pull_left <= 0.0:
-				_release()
-		queue_redraw()
+		_update_burn(delta)
 		return
 	life -= delta
 	if life <= 0.0:
@@ -190,6 +222,8 @@ func _physics_process(delta: float) -> void:
 			_fly(delta)
 		State.HOSTILE:
 			_fly_hostile(delta)
+		State.RETURNING:
+			_return_to_player(delta)
 
 func _fly(delta: float) -> void:
 	if straight_timer > 0.0:
@@ -202,9 +236,7 @@ func _fly(delta: float) -> void:
 	var hit := get_world_2d().direct_space_state.intersect_ray(query)
 	if not hit.is_empty():
 		global_position = hit.position + hit.normal * 1.0
-		Fx.jade_splash(get_parent(), hit.position + hit.normal * 3.0, hit.normal)
-		Fx.impact(get_parent(), hit.position, [FIRE_VISUAL.COLOR.darkened(0.6), FIRE_VISUAL.COLOR, Color(0.8, 1.0, 0.7)], 0.5)
-		_release()
+		_stick_in_world()
 		return
 
 	global_position = to
@@ -216,15 +248,20 @@ func _fly(delta: float) -> void:
 			_stick_in_enemy(enemy)
 
 func _stick_in_world() -> void:
-	Fx.jade_splash(get_parent(), global_position, Vector2.UP)
-	_release()
+	state = State.STUCK_WORLD
+	embedded_angle = velocity.angle()
+	rotation = 0.0
+	sprite.rotation = embedded_angle
+	sprite.position = -Vector2.from_angle(embedded_angle) * 40.0
+	sprite.show()
+	trail.clear_points()
+	Sfx.play("knife_hit")
 
 func _stick_in_enemy(enemy: Node2D) -> void:
 	# Algunos enemigos lo shinean de vuelta en vez de dejar que se clave.
 	if enemy.has_method("try_shine") and enemy.try_shine(self):
 		_enemy_shine(enemy)
 		return
-	var direction: int = 1 if velocity.x >= 0.0 else -1
 	Ferocity.add("knife_mark", 8.0, "LANZA JADE")
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
@@ -238,7 +275,8 @@ func _stick_in_enemy(enemy: Node2D) -> void:
 	target_offset = enemy.to_local(global_position)
 	embedded_angle = velocity.angle()
 	sprite.rotation = embedded_angle
-	sprite.position = -Vector2.from_angle(embedded_angle) * 20.0
+	sprite.position = -Vector2.from_angle(embedded_angle) * 40.0
+	burn_duration_left = BURN_DURATION
 	burn_left = maxf(burn_tick_interval, 0.01)
 	rotation = 0.0
 	global_position = _target_center(target)
@@ -247,16 +285,21 @@ func _stick_in_enemy(enemy: Node2D) -> void:
 	add_child(mark_effect)
 
 func _update_burn(delta: float) -> void:
+	if burn_duration_left <= 0.0:
+		return
+	var active_delta := minf(delta, burn_duration_left)
+	burn_duration_left = maxf(burn_duration_left - delta, 0.0)
 	var core: Node2D = target.get_node_or_null("RubyCore")
-	if core == null:
-		return
-	if core.locked or core.final_open:
-		burn_left = maxf(burn_tick_interval, 0.01)
-		return
-	burn_left -= delta
-	while burn_left <= 0.0:
-		burn_left += maxf(burn_tick_interval, 0.01)
-		core.apply_spirit_burn(burn_tick_damage)
+	if core != null:
+		if core.locked or core.final_open:
+			burn_left = maxf(burn_tick_interval, 0.01)
+		else:
+			burn_left -= active_delta
+			while burn_left <= 0.00001:
+				burn_left += maxf(burn_tick_interval, 0.01)
+				core.apply_spirit_burn(burn_tick_damage)
+	if burn_duration_left <= 0.0:
+		_clear_mark()
 
 func _aura_reaches_segment(from: Vector2, to: Vector2) -> bool:
 	if not is_instance_valid(player) or not player.is_roar_aura_active():
@@ -380,7 +423,7 @@ func _is_target_alive(node: Object) -> bool:
 	return is_instance_valid(node) and node.visible and node.get("monitorable") != false
 
 func _update_trail() -> void:
-	var moving: bool = state in [State.FLYING, State.HOSTILE]
+	var moving: bool = state in [State.FLYING, State.HOSTILE, State.RETURNING]
 	if moving:
 		trail.add_point(global_position)
 		while trail.get_point_count() > TRAIL_LENGTH:
