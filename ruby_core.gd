@@ -7,6 +7,7 @@ const NORMAL_OPEN_TIME := 2.0
 const POSTURE_MAX := 100.0
 const POSTURE_HIT := POSTURE_MAX / 3.0
 const BOSS_OPEN_TIME := 2.5
+const BOSS_RECOVERY_RATIO := 0.20
 const BLAST_RADIUS := 125.0
 const BLAST_DAMAGE := 1
 const BLAST_PUSH := 450.0
@@ -95,7 +96,7 @@ func register_parry(token: int = -1) -> bool:
 func enter_final_open() -> void:
 	final_open = true
 	posture = 0.0
-	open_time = 0.0
+	open_time = BOSS_OPEN_TIME
 	enemy._on_posture_broken()
 	Fx.text(enemy.get_parent(), global_position + Vector2(0, -100), "¡ROMPE EL RUBY!", RED.lightened(0.3))
 
@@ -171,11 +172,12 @@ func complete(by: Node) -> bool:
 		if not final_open:
 			enemy._on_reset()
 		Stats.add("ruby_criticals")
-		Sfx.play("guard_break", -2.0, 1.65)
-		Fx.ruby_critical(enemy.get_parent(), center, RED)
+		_impact_feedback(center)
 		_essence(by, center)
 		return false
 	broken = true
+	final_open = false
+	open_time = 0.0
 	hide()
 	enemy.current_health = 0
 	enemy._update_health_bar()
@@ -198,6 +200,10 @@ func _physics_process(delta: float) -> void:
 	if open_time > 0.0 and not locked:
 		open_time = maxf(open_time - delta, 0.0)
 		if open_time == 0.0 and boss:
+			if final_open:
+				final_open = false
+				enemy.current_health = maxi(1, ceili(enemy.max_health * BOSS_RECOVERY_RATIO))
+				enemy._update_health_bar()
 			posture = POSTURE_MAX
 			parried_attacks.clear()
 			enemy._on_reset()
@@ -277,10 +283,13 @@ func _essence(by: Node2D, center: Vector2) -> void:
 		tween.tween_property(mote, "global_position", by.global_position + Vector2(0, -26), 0.18 + index * 0.025)
 		tween.tween_callback(mote.queue_free)
 
-func _blast(center: Vector2) -> void:
+func _impact_feedback(center: Vector2) -> void:
 	Sfx.play("guard_break", 1.0, 1.25)
 	Fx.shatter(enemy.get_parent(), center, RED, BLAST_RADIUS)
 	Fx.puff(enemy.get_parent(), center, RED)
+
+func _blast(center: Vector2) -> void:
+	_impact_feedback(center)
 	for target in get_tree().get_nodes_in_group(&"ruby_enemies"):
 		if target == enemy or not is_instance_valid(target) or not target.visible:
 			continue

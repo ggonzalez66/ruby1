@@ -16,8 +16,8 @@
     "total": 36
   },
   "executions": {
-    "passed": 113,
-    "total": 113
+    "passed": 121,
+    "total": 121
   },
   "speedrun": {
     "passed": 59,
@@ -52,11 +52,19 @@
     "total": 35
   },
   "gauntlet_safety": {
-    "passed": 31,
-    "total": 31
+    "passed": 29,
+    "total": 29
   },
   "wrath_nature": {
     "passed": 51,
     "total": 51
+  },
+  "combat_revision": {
+    "passed": 27,
+    "total": 27
+  },
+  "jade_soul_pull": {
+    "passed": 14,
+    "total": 14
   }
 }

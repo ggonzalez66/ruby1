@@ -1,0 +1,48 @@
+{
+  "scope": "Crítico, recuperación de jefes, ejecución universal y combo en carrera, 2026-10-24",
+  "checks": {
+    "executions": {
+      "passed": 121,
+      "total": 121
+    },
+    "combat_revision": {
+      "passed": 27,
+      "total": 27
+    },
+    "combos": {
+      "passed": 72,
+      "total": 72
+    },
+    "wrath_nature": {
+      "passed": 51,
+      "total": 51
+    },
+    "jade_soul_pull": {
+      "passed": 14,
+      "total": 14
+    },
+    "movement_polish": {
+      "passed": 25,
+      "total": 25
+    },
+    "combat_feedback": {
+      "passed": 42,
+      "total": 42
+    },
+    "shine_shield": {
+      "passed": 36,
+      "total": 36
+    },
+    "gauntlet_safety": {
+      "passed": 29,
+      "total": 29
+    }
+  },
+  "passed": 417,
+  "native_captures": [
+    "runtime/execution_ground_capture.png",
+    "runtime/critical_impact.png",
+    "runtime/critical_intact.png",
+    "runtime/execution_impact.png"
+  ]
+}

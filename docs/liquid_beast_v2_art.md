@@ -10,7 +10,7 @@ Nuevos recursos del juego:
 
 Ambas hojas tienen 1254 × 1254 px y celdas de 627 px. La cabeza v2 se recorta a 588 px de alto en la fila abierta y 446 px en la fila cerrada. El giro usa las celdas completas para mantener un pivote fijo, con un canvas de 100 px en juego. Los recortes y la rotación se aplican mediante AtlasTexture y AnimatedSprite2D; los PNG generados no se modifican.
 
-La variante alargada se usa en el heavy terrestre y aéreo y en la captura terrestre. El giro compacto rota sobre su centro: durante la ejecución aérea ese centro se coloca en el Ruby. El sprite no orbita alrededor de la boca de la cabeza alargada. El screw conserva las brasas y las llamas de estilo; los frontflips normales mantienen su animación original. Daño, colisiones, duración de captura y rebotes se conservan.
+La variante alargada se usa en el heavy terrestre y aéreo y en la recuperación del heavy terrestre; todas las capturas del Ruby usan ahora el giro compacto. El giro compacto rota sobre su centro: durante la ejecución aérea ese centro se coloca en el Ruby. El sprite no orbita alrededor de la boca de la cabeza alargada. El screw conserva las brasas y las llamas de estilo; los frontflips normales mantienen su animación original. Daño, colisiones, duración de captura y rebotes se conservan.
 
 ## Prompt de la cabeza v2
 

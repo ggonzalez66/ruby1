@@ -4,11 +4,8 @@ extends CharacterBody2D
 @export var execution_heal := 12
 @export var critical_heal := 8
 @export var boss_execution_heal := 25
-@export var execution_ground_exit_duration := 0.16
-@export var execution_ground_exit_speed := 520.0
 @export var execution_apex_flip_duration := 0.22
 @export var execution_air_exit_boost := 180.0
-@export var execution_ground_blend_duration := 0.10
 @export var uppercut_flip_lead_time := 0.18
 @export var uppercut_flip_duration := 0.24
 
@@ -16,19 +13,11 @@ var execution_core: Node2D
 var execution_started := false
 var execution_previous_z := 0
 var execution_elapsed := 0.0
-var execution_aerial := false
 var execution_direction := 1
 var execution_keep_sprint := false
-var execution_speed := 0.0
 var execution_bonus := 0.0
 var execution_trajectory := 0
-var execution_jump_buffered := false
-var execution_action := &""
-var execution_ground_exit_timer := 0.0
-var execution_ground_blend: Sprite2D
-var execution_ground_blend_timer := 0.0
 var execution_air_boost_active := false
-var execution_ground_exit_initial_speed := 0.0
 var heavy_morph_recovery_timer := 0.0
 enum ExecutionAirExit { NONE, LAUNCH, APEX_FLIP, UPPERCUT_RISE, UPPERCUT_FLIP, BOUNCE_FLIP }
 var execution_air_exit := ExecutionAirExit.NONE
@@ -782,8 +771,6 @@ func _physics_process(delta: float) -> void:
 		_apply_wallride(delta)
 	elif wall_cling_timer > 0.0:
 		_apply_running_wall_cling_movement(delta)
-	elif execution_ground_exit_timer > 0.0 and is_on_floor():
-		_apply_execution_ground_exit(move_input)
 	elif _uses_sprint_movement():
 		_apply_sprint_movement(move_input, delta)
 	else:
@@ -1109,8 +1096,6 @@ func _update_character_animation() -> void:
 		next_animation = ANIMATION_KNIFE_THROW
 	elif _is_attack_active():
 		next_animation = ANIMATION_CHARGE
-	elif execution_ground_exit_timer > 0.0 and is_on_floor():
-		next_animation = ANIMATION_LIQUID_LAUNCH
 	elif heavy_morph_recovery_timer > 0.0 and is_on_floor():
 		next_animation = ANIMATION_RUBY_CHEW
 	elif backflip_active:
@@ -1179,9 +1164,6 @@ func _update_character_animation() -> void:
 		else:
 			next_animation = ANIMATION_IDLE
 
-	var leaving_ground_beast := animated_sprite.animation in [ANIMATION_LIQUID_LAUNCH, ANIMATION_RUBY_CHEW] and execution_ground_exit_timer <= 0.0 and is_on_floor() and next_animation in [ANIMATION_SPRINT, ANIMATION_WALK, ANIMATION_SPRINT_BRAKE]
-	if leaving_ground_beast and not is_instance_valid(execution_ground_blend):
-		_begin_execution_ground_blend()
 	if animated_sprite.animation != next_animation:
 		_play_animation_sfx(next_animation)
 		animated_sprite.play(next_animation)
@@ -1204,8 +1186,6 @@ func _update_character_animation() -> void:
 	elif knife_scrape.active:
 		knife_scrape.end()
 	shadow.visible = is_on_floor()
-	if is_instance_valid(execution_ground_blend) and next_animation not in [ANIMATION_SPRINT, ANIMATION_WALK, ANIMATION_SPRINT_BRAKE]:
-		_clear_execution_ground_blend()
 
 func _sync_action_sprite(animation_name: StringName) -> void:
 	# El reloj de combate manda: más dibujos no añaden startup, recovery ni bloqueos de input.
@@ -1233,23 +1213,6 @@ func _sync_action_sprite(animation_name: StringName) -> void:
 		index = 0 if progress < 0.12 else (1 if progress < 0.42 else (2 if progress < 0.72 else 3))
 	animated_sprite.pause()
 	animated_sprite.set_frame_and_progress(index, 0.0)
-
-func _begin_execution_ground_blend() -> void:
-	execution_ground_blend = Sprite2D.new()
-	execution_ground_blend.texture = animated_sprite.sprite_frames.get_frame_texture(animated_sprite.animation, animated_sprite.frame)
-	execution_ground_blend.transform = animated_sprite.transform
-	execution_ground_blend.flip_h = animated_sprite.flip_h
-	execution_ground_blend.material = charge_glow_material.duplicate()
-	add_child(execution_ground_blend)
-	execution_ground_blend_timer = maxf(execution_ground_blend_duration, 0.01)
-	animated_sprite.self_modulate.a = 0.0
-
-func _clear_execution_ground_blend() -> void:
-	if is_instance_valid(execution_ground_blend):
-		execution_ground_blend.queue_free()
-	execution_ground_blend = null
-	execution_ground_blend_timer = 0.0
-	animated_sprite.self_modulate.a = 1.0
 
 func uses_jade_palette(texture: Texture2D) -> bool:
 	return texture is AtlasTexture and texture.atlas in JADE_SHEETS
@@ -1375,18 +1338,8 @@ func arcade_frame_layout(animation_name: StringName, texture: Texture2D) -> Tran
 func _update_timers(delta: float) -> void:
 	jade_fire_cooldown_timer = maxf(jade_fire_cooldown_timer - delta, 0.0)
 	heavy_morph_recovery_timer = maxf(heavy_morph_recovery_timer - delta, 0.0)
-	if is_instance_valid(execution_ground_blend):
-		execution_ground_blend_timer = maxf(execution_ground_blend_timer - delta, 0.0)
-		var blend := 1.0 - execution_ground_blend_timer / maxf(execution_ground_blend_duration, 0.01)
-		animated_sprite.self_modulate.a = blend
-		execution_ground_blend.modulate.a = 1.0 - blend
-		if execution_ground_blend_timer <= 0.0:
-			_clear_execution_ground_blend()
-	execution_ground_exit_timer = maxf(execution_ground_exit_timer - delta, 0.0)
 	if not frontflip_active:
 		execution_air_exit = ExecutionAirExit.NONE
-	if not is_on_floor():
-		execution_ground_exit_timer = 0.0
 	coyote_timer = max(coyote_timer - delta, 0.0)
 	jump_buffer_timer = max(jump_buffer_timer - delta, 0.0)
 	attack_cooldown_timer = max(attack_cooldown_timer - delta, 0.0)
@@ -1521,7 +1474,7 @@ func is_crouching() -> bool:
 		and not _uses_sprint_movement() and not Input.is_action_pressed("dash") and not _is_braking() \
 		and backflip_run_direction == 0 and dash_timer <= 0.0 and not _is_attack_active() \
 		and not _blocks_actions() and hurt_lock_timer <= 0.0 and execution_core == null \
-		and execution_ground_exit_timer <= 0.0 and heavy_landing_pose_timer <= 0.0 and jump_squat_timer <= 0.0 \
+		and heavy_landing_pose_timer <= 0.0 and jump_squat_timer <= 0.0 \
 		and velocity.y >= 0.0 and not wrath.controls_movement()
 
 func _apply_horizontal_movement(move_input: float, delta: float) -> void:
@@ -1555,8 +1508,6 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 func _try_start_sprint_jump(move_input: float) -> bool:
 	if not is_sprinting or (not is_on_floor() and coyote_timer <= 0.0) or _is_attack_active() or dash_timer > 0.0:
 		return false
-	execution_ground_exit_timer = 0.0
-	_clear_execution_ground_blend()
 
 	var input_direction := int(sign(move_input))
 	jump_buffer_timer = 0.0
@@ -1571,8 +1522,6 @@ func _try_start_sprint_jump(move_input: float) -> bool:
 	return true
 
 func _start_long_jump_squat() -> void:
-	execution_ground_exit_timer = 0.0
-	_clear_execution_ground_blend()
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0
 	long_jump_squat_timer = long_jump_squat_duration
@@ -1586,8 +1535,6 @@ func _start_long_jump_squat() -> void:
 		_launch_long_jump()
 
 func _launch_long_jump() -> void:
-	execution_ground_exit_timer = 0.0
-	_clear_execution_ground_blend()
 	jump_origin_y = global_position.y
 	long_jump_active = true
 	long_jump_chain_timer = 0.0
@@ -1623,8 +1570,6 @@ func _try_start_long_jump_chain(move_input: float) -> bool:
 	return true
 
 func _start_backflip() -> void:
-	execution_ground_exit_timer = 0.0
-	_clear_execution_ground_blend()
 	backflip_run_direction = 0
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0
@@ -1812,9 +1757,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡IMPARABLE!", Ferocity.rank_info()["color"])
 		return
 	hurt_lock_timer = hurt_control_lock_time
-	_clear_execution_ground_blend()
 	execution_air_boost_active = false
-	execution_ground_exit_timer = 0.0
 	execution_air_exit = ExecutionAirExit.NONE
 	# Interrumpe cualquier estado de movimiento o ataque y empuja lejos del origen del daño.
 	_stop_sprint()
@@ -1914,9 +1857,7 @@ func _update_death(delta: float) -> void:
 
 func _cancel_all_states() -> void:
 	heavy_morph_recovery_timer = 0.0
-	_clear_execution_ground_blend()
 	execution_air_boost_active = false
-	execution_ground_exit_timer = 0.0
 	execution_air_exit = ExecutionAirExit.NONE
 	_end_roar()
 	_stop_sprint()
@@ -2726,20 +2667,6 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 	velocity.x = sprint_direction * (long_jump_horizontal_speed + bunnyhop_bonus) if long_jump_chain_timer > 0.0 and bunnyhop_bonus > 0.0 else sprint_direction * sprint_speed
 	velocity.y = 0.0
 
-func _apply_execution_ground_exit(move_input: float) -> void:
-	var target_speed := max_speed if move_input != 0.0 else 0.0
-	if is_sprinting:
-		target_speed = long_jump_horizontal_speed + bunnyhop_bonus if long_jump_chain_timer > 0.0 and bunnyhop_bonus > 0.0 else sprint_speed
-	var progress := 1.0 - execution_ground_exit_timer / maxf(execution_ground_exit_duration, 0.01)
-	velocity.x = execution_direction * lerpf(execution_ground_exit_initial_speed, target_speed, smoothstep(0.0, 1.0, progress))
-	velocity.y = 0.0
-	# Salto anticipado: la presentación de salida no bloquea la cadena.
-	if jump_buffer_timer > 0.0:
-		if is_sprinting:
-			_try_start_sprint_jump(move_input)
-		else:
-			_consume_jump_buffer()
-
 func _consume_sprint_air_jump() -> void:
 	if jump_buffer_timer <= 0.0 or air_jumps_remaining <= 0 or _is_attack_active():
 		return
@@ -2890,15 +2817,15 @@ func _on_attack_input() -> void:
 	if dash_timer > 0.0:
 		attack_buffered = true
 		return
-	if _can_running_attack():
-		_start_running_attack()
-		return
 	if attack_mode == ATTACK_SLASH:
 		# Pulsado durante un golpe del combo: el siguiente sale en cuanto termine este.
 		if light_combo_step < 3:
 			light_combo_queued = true
 		return
 	var combo_open: bool = light_combo_window_timer > 0.0 and light_combo_step < 3
+	if _can_running_attack() and running_attack_cooldown_timer <= 0.0 and not combo_open:
+		_start_running_attack()
+		return
 	if _is_attack_active() or (attack_cooldown_timer > 0.0 and not combo_open):
 		return
 	_start_attack()
@@ -3285,8 +3212,6 @@ func _set_attack_active(active: bool) -> void:
 	hitbox_shape.disabled = not active
 	if active:
 		execution_air_boost_active = false
-		_clear_execution_ground_blend()
-		execution_ground_exit_timer = 0.0
 		execution_air_exit = ExecutionAirExit.NONE
 		frontflip_active = false
 		wall_embedded = false
@@ -3781,8 +3706,6 @@ func _start_dash() -> void:
 	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
 		return
 	execution_air_boost_active = false
-	_clear_execution_ground_blend()
-	execution_ground_exit_timer = 0.0
 	execution_air_exit = ExecutionAirExit.NONE
 	block_stun_timer = 0.0
 
@@ -4192,15 +4115,10 @@ func _queue_execution(core: Node2D) -> void:
 	execution_previous_z = z_index
 	execution_started = false
 	execution_elapsed = 0.0
-	# El uppercut captura ascendiendo y usa la salida aérea, aunque haya partido desde el suelo.
-	execution_aerial = attack_mode != ATTACK_HEAVY_GROUND
 	execution_direction = facing
 	execution_keep_sprint = is_sprinting or long_jump_active or Input.is_action_pressed("dash")
-	execution_speed = absf(velocity.x)
 	execution_bonus = bunnyhop_bonus
-	execution_trajectory = HEAVY_ARC if attack_mode == ATTACK_UPPERCUT else heavy_trajectory
-	execution_jump_buffered = false
-	execution_action = &""
+	execution_trajectory = HEAVY_ARC if attack_mode in [ATTACK_UPPERCUT, ATTACK_HEAVY_GROUND] else heavy_trajectory
 	# La colisión puede estar emitiendo area_entered: modificar hitboxes se hace después.
 	_begin_execution.call_deferred()
 
@@ -4211,14 +4129,17 @@ func _begin_execution() -> void:
 	_cancel_all_states()
 	_cancel_attack_for_chain()
 	z_index = 12
+	# La captura consume su instante; los inputs anteriores o durante ella no se guardan.
 	combo_buffer = &""
+	combo_buffer_timer = 0.0
+	jump_buffer_timer = 0.0
+	dash_jump_buffered = false
+	attack_buffered = false
 	velocity = Vector2.ZERO
-	if execution_aerial:
-		# La física detiene el acercamiento si hay suelo o una pared, evitando atravesarlos.
-		var target: Vector2 = execution_core.global_position + Vector2(0, 30)
-		move_and_collide(target - global_position)
-	# En aire se enrolla sobre sí misma; en suelo mantiene las fauces cerradas sobre el Ruby.
-	animated_sprite.play(ANIMATION_RUBY_SPIN if execution_aerial else ANIMATION_RUBY_CHEW)
+	# Todas las capturas usan el ouroboros junto al núcleo, respetando el terreno.
+	var target: Vector2 = execution_core.global_position + Vector2(0, 30)
+	move_and_collide(target - global_position)
+	animated_sprite.play(ANIMATION_RUBY_SPIN)
 	_align_character_animation(animated_sprite.animation)
 	animated_sprite.flip_h = execution_direction < 0
 	animated_sprite.rotation = 0.0
@@ -4233,31 +4154,18 @@ func _update_execution(delta: float) -> void:
 	if not execution_started:
 		return
 	execution_elapsed += delta
-	if Input.is_action_just_pressed("jump"):
-		execution_jump_buffered = true
-	if Input.is_action_just_pressed("attack"):
-		execution_action = &"attack"
-	if Input.is_action_just_pressed("heavy_attack"):
-		execution_action = &"uppercut" if Input.is_action_pressed("move_up") else &"heavy"
 	velocity = Vector2.ZERO
 	var progress := clampf(execution_elapsed / maxf(execution_duration, 0.01), 0.0, 1.0)
-	if execution_aerial:
-		animated_sprite.rotation = execution_direction * TAU * smoothstep(0.0, 1.0, progress)
+	animated_sprite.rotation = execution_direction * TAU * smoothstep(0.0, 1.0, progress)
 	_align_execution_beast()
 	mane_emitter.follow(animated_sprite, execution_direction, not dead, Ferocity.style_color())
-	# El contador mide el tiempo que realmente pasa en el aire, también durante el flip.
-	Ferocity.update_airtime(delta, not execution_aerial, false)
+	Ferocity.update_airtime(delta, false, false)
 	if progress >= 1.0:
 		_finish_execution()
 
 func _align_execution_beast() -> void:
-	if execution_aerial:
-		# El centro permanece en el núcleo; gira sobre sí misma en vez de orbitar con la cabeza larga.
-		animated_sprite.position = to_local(execution_core.global_position)
-		return
-	var mouth := LIQUID_BEAST_MOUTH * LIQUID_BEAST_CANVAS_SIZE
-	mouth.x *= execution_direction
-	animated_sprite.position = to_local(execution_core.global_position) - mouth.rotated(animated_sprite.rotation)
+	# El centro permanece en el núcleo, sin orbitar con la cabeza larga.
+	animated_sprite.position = to_local(execution_core.global_position)
 
 func _finish_execution() -> void:
 	var core := execution_core
@@ -4276,41 +4184,24 @@ func _finish_execution() -> void:
 	facing = execution_direction
 	bunnyhop_bonus = execution_bonus
 	var keep_running := execution_keep_sprint or Input.is_action_pressed("dash")
-	if execution_aerial:
-		# La captura ya pagó su tiempo: no se arrastran recuperaciones al rebote libre.
-		running_attack_cooldown_timer = 0.0
-		dash_cooldown_timer = 0.0
-		uppercut_pose_timer = 0.0
-		coyote_timer = 0.0
-		attack_mode = ATTACK_HEAVY
-		heavy_trajectory = execution_trajectory
-		_bounce_out_of_heavy_attack(true)
-		execution_air_exit = ExecutionAirExit.BOUNCE_FLIP
-		if keep_running:
-			_start_sprint(execution_direction)
-			# Impulso intermedio fijo: impactante, sin heredar la velocidad extrema del heavy.
-			execution_air_boost_active = true
-			velocity.x = execution_direction * (sprint_speed + execution_air_exit_boost)
-			execution_air_exit = ExecutionAirExit.LAUNCH
-	else:
-		if keep_running:
-			_start_sprint(execution_direction)
-			bunnyhop_bonus = maxf(execution_bonus, execution_speed - long_jump_horizontal_speed)
-			long_jump_chain_timer = long_jump_chain_window
-			velocity.x = execution_direction * maxf(execution_speed, sprint_speed)
-		else:
-			velocity.x = execution_direction * minf(execution_speed, max_speed)
-		velocity.x = execution_direction * maxf(absf(velocity.x), execution_ground_exit_speed)
-		execution_ground_exit_initial_speed = absf(velocity.x)
-		execution_ground_exit_timer = execution_ground_exit_duration
-	# El input dado durante el breve instante puede enlazar al salir de la ejecución.
-	if execution_jump_buffered:
-		jump_buffer_timer = jump_buffer_time
-	if execution_action != &"":
-		combo_buffer = execution_action
-		combo_buffer_timer = COMBO_BUFFER_TIME
-	execution_action = &""
-	execution_jump_buffered = false
+	running_attack_cooldown_timer = 0.0
+	dash_cooldown_timer = 0.0
+	uppercut_pose_timer = 0.0
+	coyote_timer = 0.0
+	jump_buffer_timer = 0.0
+	combo_buffer = &""
+	combo_buffer_timer = 0.0
+	attack_mode = ATTACK_HEAVY
+	heavy_trajectory = execution_trajectory
+	_bounce_out_of_heavy_attack(true)
+	execution_air_exit = ExecutionAirExit.BOUNCE_FLIP
+	if keep_running:
+		_start_sprint(execution_direction)
+		execution_air_boost_active = true
+		velocity.x = execution_direction * (sprint_speed + execution_air_exit_boost)
+		execution_air_exit = ExecutionAirExit.LAUNCH
+	# Despegar aquí actualiza is_on_floor: la corrida no puede anular el rebote al tick siguiente.
+	move_and_slide()
 	_update_facing_visual()
 	_update_character_animation()
 
@@ -4324,9 +4215,6 @@ func _interrupt_execution_air_exit() -> void:
 		# Solo cancela la presentación. El salto o ataque conserva sus reglas y recursos normales.
 		frontflip_active = false
 		execution_air_exit = ExecutionAirExit.NONE
-		if jump_buffer_timer > 0.0 and not Input.is_action_just_pressed("jump"):
-			# El salto guardado durante la captura también sale desde el lanzamiento en carrera.
-			_try_start_frontflip(Input.get_axis("move_left", "move_right"))
 
 func _update_execution_air_exit() -> void:
 	if not frontflip_active or _is_attack_active() or roar_active or dash_timer > 0.0:
@@ -4354,7 +4242,6 @@ func _update_execution_air_exit() -> void:
 			execution_air_exit = ExecutionAirExit.NONE
 
 func _cancel_execution() -> void:
-	execution_ground_exit_timer = 0.0
 	execution_air_exit = ExecutionAirExit.NONE
 	if execution_started:
 		z_index = execution_previous_z
@@ -4363,7 +4250,5 @@ func _cancel_execution() -> void:
 	execution_core = null
 	execution_started = false
 	execution_elapsed = 0.0
-	execution_action = &""
-	execution_jump_buffered = false
 	if is_instance_valid(animated_sprite):
 		animated_sprite.rotation = 0.0

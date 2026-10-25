@@ -8,7 +8,7 @@ Las hojas nuevas de caminar, correr, bestia líquida, ouroboros, dash y aterriza
 
 La salida aérea en carrera usa 740 unidades/s (`sprint_speed` 560 + `execution_air_exit_boost` 180) como punto intermedio. El extra no procede de la velocidad extrema del heavy ni modifica el rebote ordinario. Al aterrizar o iniciar otro ataque se cierra ese impulso de salida. Saltar o lanzar fuego permite continuar con el movimiento habitual.
 
-La ejecución terrestre conserva el mascado cerrado durante la captura. Tras romper el Ruby usa `liquid_launch` con boca abierta durante 0,16 s; al volver a la corrida hay un fundido local de 0,10 s entre la bestia y el cuerpo normal. El deslizamiento ajusta su velocidad gradualmente hacia el movimiento de salida. Saltos, ataques y dash pueden interrumpirlo; el reinicio y el daño limpian el fundido.
+Las ejecuciones iniciadas desde el suelo usan ahora el mismo ouroboros y rebote que las aéreas. La salida alargada con boca abierta se conserva para la carrera, en el aire; ya no se realiza el deslizamiento o fundido terrestre ni se guardan acciones pulsadas durante la captura.
 
 ## Prompt exacto
 

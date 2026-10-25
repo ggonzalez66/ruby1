@@ -23,6 +23,8 @@ func _run() -> void:
 	player.position = Vector2(2300, -2)
 	for i in range(4):
 		await physics_frame
+	for collider in current_scene.find_children("*", "CollisionObject2D", true, false):
+		collider.disable_mode = CollisionObject2D.DISABLE_MODE_KEEP_ACTIVE
 	current_scene.process_mode = Node.PROCESS_MODE_DISABLED
 	var camera := root.get_camera_2d()
 	camera.position_smoothing_enabled = false
@@ -31,6 +33,11 @@ func _run() -> void:
 	camera.rotation = 0.0
 	camera.zoom = Vector2(2, 2)
 	DirAccess.make_dir_recursive_absolute(DIRECTORY)
+	if "--execution-only" in OS.get_cmdline_user_args():
+		await capture_executions(player)
+		root.get_node("RunSession")._clear_run()
+		quit()
+		return
 	var shine_only := "--shine-only" in OS.get_cmdline_user_args()
 	for facing in ([] if shine_only else [1, -1]):
 		for hit in [1, 2, 3]:
@@ -117,3 +124,52 @@ func _run() -> void:
 	await capture("go")
 	session._clear_run()
 	quit()
+
+func capture_executions(player: CharacterBody2D) -> void:
+	var view := root.get_camera_2d()
+	view.zoom = Vector2(1.7, 1.7)
+	for actor in get_nodes_in_group(&"ruby_enemies"):
+		actor.hide()
+	# Otro guardián vivo evita la pantalla de victoria durante la comparación visual.
+	var spare: Area2D = load("res://boss_heavy.gd").new()
+	spare.position = Vector2(3000, -2)
+	current_scene.add_child(spare)
+	spare.hide()
+	var boss: Area2D = load("res://boss_heavy.gd").new()
+	boss.position = Vector2(2350, -2)
+	boss.disable_mode = CollisionObject2D.DISABLE_MODE_KEEP_ACTIVE
+	current_scene.add_child(boss)
+	await physics_frame
+	boss.ruby_core.register_parry(1)
+	boss.ruby_core.register_parry(2)
+	boss.ruby_core.register_parry(3)
+	for tween in get_processed_tweens():
+		tween.custom_step(1.0)
+	player.position = Vector2(2300, -2)
+	player._start_sprint(1)
+	player.attack_mode = player.ATTACK_HEAVY_GROUND
+	player.attack_targets_hit.clear()
+	player._hit_area(boss)
+	await process_frame
+	player._update_execution(0.15)
+	view.global_position = Vector2(2350, -80)
+	await capture("execution_ground_capture")
+	player._update_execution(0.24)
+	view.global_position = Vector2(2350, -80)
+	await capture("critical_impact")
+	for tween in get_processed_tweens():
+		tween.custom_step(0.8)
+	view.global_position = Vector2(2350, -80)
+	await capture("critical_intact")
+	boss.take_hit(player.position, 1, 999)
+	for tween in get_processed_tweens():
+		tween.custom_step(1.0)
+	player.position = Vector2(2300, -2)
+	player._start_sprint(1)
+	player.attack_mode = player.ATTACK_HEAVY_GROUND
+	player.attack_targets_hit.clear()
+	player._hit_area(boss)
+	await process_frame
+	player._update_execution(0.39)
+	view.global_position = Vector2(2350, -80)
+	await capture("execution_impact")

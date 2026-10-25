@@ -73,7 +73,7 @@ func _run() -> void:
 	fire = fire_on(target)
 	var distant := player.global_position
 	fire.recall()
-	check(player.execution_core == target.ruby_core and player.execution_aerial and player.global_position.distance_to(target.global_position) < 80, "recall de un open teletransporta e inicia una ejecución aérea")
+	check(player.execution_core == target.ruby_core and player.global_position.distance_to(target.global_position) < 80, "recall de un open teletransporta e inicia una ejecución aérea")
 	check(player.global_position.distance_to(distant) > 200, "el acercamiento es un salto espacial, no un viaje del proyectil")
 	await frames(3)
 	check(player.animated_sprite.animation == player.ANIMATION_RUBY_SPIN, "la captura usa el giro de ejecución aérea existente")

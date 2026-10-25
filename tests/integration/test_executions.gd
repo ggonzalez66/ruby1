@@ -146,35 +146,31 @@ func _run() -> void:
 	player.take_damage(99, Vector2.ZERO)
 	check(player.current_health == 40, "Viridy es invulnerable durante la ejecución")
 	await frames(2)
-	var capture_frame: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(player.ANIMATION_RUBY_CHEW, 0)
-	check(player.animated_sprite.animation == player.ANIMATION_RUBY_CHEW and capture_frame.atlas == player.LIQUID_BEAST_SHEET and capture_frame.region.position.x >= 768 * 2, "captura terrestre usa las fauces cerradas de la bestia líquida")
-	var first_chew_frame: int = player.animated_sprite.frame
-	for tick in range(90):
+	var capture_frame: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(player.ANIMATION_RUBY_SPIN, 0)
+	check(player.animated_sprite.animation == player.ANIMATION_RUBY_SPIN and capture_frame.atlas == player.LIQUID_SPIN_SHEET, "un heavy terrestre captura con el mismo ouroboros que el aéreo")
+	var ground_spin_angle: float = player.animated_sprite.rotation
+	for tick in range(40):
 		await frames(1)
-		if player.animated_sprite.frame != first_chew_frame or player.execution_core == null:
+		if absf(player.animated_sprite.rotation - ground_spin_angle) > 0.1:
 			break
-	check(player.animated_sprite.frame != first_chew_frame, "la bestia masca durante la captura")
-	var mouth: Vector2 = player.LIQUID_BEAST_MOUTH * capture_frame.get_width()
-	mouth.x *= player.execution_direction
-	check(player.animated_sprite.to_global(mouth).distance_to(victim.ruby_core.global_position) < 0.5, "la boca se alinea con el Ruby sin mover la colisión de Viridy")
+	check(absf(player.animated_sprite.rotation - ground_spin_angle) > 0.1 and player.animated_sprite.global_position.distance_to(victim.ruby_core.global_position) < 0.5, "gira sobre el Ruby sin una fase de mascado terrestre")
 	Input.action_press("heavy_attack")
-	await frames(1)
+	await frames(2)
 	Input.action_release("heavy_attack")
 	await wait_execution()
 	check(not victim.visible and victim.ruby_core.broken and player.current_health == 52, "rompe Ruby, mata y cura una sola vez")
 	check(neighbor.current_health == neighbor.max_health - 1 and neighbor.knock_velocity > 250, "explosión daña poco y empuja hacia fuera")
 	check(not paused, "la ejecución no pausa el mundo")
-	check(player.is_sprinting and player.velocity.x >= 860.0, "la ejecución terrestre devuelve la velocidad de carrera")
+	check(player.is_sprinting and is_equal_approx(player.velocity.x, player.sprint_speed + player.execution_air_exit_boost) and player.velocity.y < 0, "el heavy terrestre ahora entrega el lanzamiento aéreo con impulso intermedio")
 	await frames(2)
-	check(player.attack_mode == player.ATTACK_HEAVY_GROUND, "un heavy pulsado durante la ejecución puede salir inmediatamente después")
-	check(player.execution_ground_exit_timer == 0.0, "el ataque encadenado cancela la salida terrestre sin esperar")
+	check(player.attack_mode == player.ATTACK_NONE and player.combo_buffer == &"", "un heavy pulsado durante la captura no se ejecuta al terminar")
 	await clean()
 	victim = make_enemy("chaser_dummy", Vector2(70, 0))
 	victim.take_hit(Vector2.ZERO, 1, 999)
 	check(not victim.visible and player.execution_core == null, "un golpe ordinario letal puede matar sin ejecutar")
 	await clean()
 
-	print("== Impulso terrestre transformado y colisiones")
+	print("== Salida universal desde suelo y colisiones")
 	for direction in [-1, 1]:
 		player.facing = direction
 		victim = make_enemy("chaser_dummy", Vector2(direction * 25, 0), 20)
@@ -183,59 +179,41 @@ func _run() -> void:
 		wall.collision_layer = 2
 		var wall_shape := CollisionShape2D.new()
 		var wall_rect := RectangleShape2D.new()
-		wall_rect.size = Vector2(20, 200)
+		wall_rect.size = Vector2(20, 300)
 		wall_shape.shape = wall_rect
-		wall.position = Vector2(direction * 65, -100)
+		wall.position = Vector2(direction * 65, -150)
 		wall.add_child(wall_shape)
 		arena.add_child(wall)
 		hit(victim, player.ATTACK_HEAVY_GROUND)
 		await wait_execution()
-		var exit_start: Vector2 = player.position
-		check(player.execution_ground_exit_timer > 0.0 and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH and player.velocity.x * direction >= player.execution_ground_exit_speed, "al explotar sale transformado hacia %d incluso sin correr" % direction)
-		await frames(4)
-		check((player.position.x - exit_start.x) * direction > 10.0 and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "avanza físicamente mientras conserva la bestia")
-		await frames(16)
-		check(player.position.x * direction < 55.0 and player.execution_ground_exit_timer == 0.0 and player.animated_sprite.animation != player.ANIMATION_LIQUID_LAUNCH, "el avance respeta la pared y la forma termina")
+		check(player.velocity.y < 0 and player.frontflip_active and player.animated_sprite.animation == player.ANIMATION_FRONTFLIP, "sin carrera sale rebotando con flip normal, lado %d" % direction)
+		await frames(8)
+		check(player.position.y < -20 and player.position.x * direction < 55.0, "el rebote despega y respeta la pared")
 		wall.queue_free()
 		await clean()
-
-	print("== Salida terrestre abierta y transición libre a carrera")
-	Input.action_press("dash")
-	player._start_sprint(1)
-	player.velocity.x = player.sprint_speed
-	victim = make_enemy("chaser_dummy", Vector2(45, 0), 20)
-	victim.current_health = 1
-	hit(victim, player.ATTACK_HEAVY_GROUND)
-	await wait_execution()
-	check(player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "al romper el Ruby terrestre abre las fauces")
-	var saw_blend := false
-	var kept_running := true
-	for tick in range(22):
-		await frames(1)
-		saw_blend = saw_blend or (is_instance_valid(player.execution_ground_blend) and player.animated_sprite.self_modulate.a < 1.0)
-		kept_running = kept_running and player.velocity.x >= player.sprint_speed - 1.0
-	check(saw_blend and kept_running and player.animated_sprite.animation == player.ANIMATION_SPRINT and is_equal_approx(player.animated_sprite.self_modulate.a, 1.0), "la bestia se funde con la corrida manteniendo el movimiento y vuelve a opacidad completa")
-	await clean()
 	Input.action_press("dash")
 	player._start_sprint(1)
 	victim = make_enemy("chaser_dummy", Vector2(45, 0), 20)
 	victim.current_health = 1
 	hit(victim, player.ATTACK_HEAVY_GROUND)
 	await wait_execution()
-	Input.action_press("jump")
-	await frames(6)
-	Input.action_release("jump")
-	check(player.velocity.y < 0.0 and player.execution_ground_exit_timer == 0.0, "saltar cancela la salida terrestre sin esperar la transición")
+	check(not player.is_on_floor() and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "en carrera la ejecución desde suelo despega como bestia alargada")
+	await frames(4)
+	check(player.position.y < -20 and player.velocity.y < 0 and player.execution_air_boost_active, "la corrida no anula el impulso vertical al tick siguiente")
+	Input.action_press("attack")
+	await frames(2)
+	Input.action_release("attack")
+	check(player.attack_mode == player.ATTACK_LIGHT_CHARGED_AIR and player.execution_air_exit == player.ExecutionAirExit.NONE, "una acción nueva después de salir interrumpe la animación libremente")
 	await clean()
 
-	print("== Uppercut líquido y apertura previa")
+	print("== Uppercut y apertura previa")
 	victim = make_enemy("chaser_dummy", Vector2(60, 0), 20)
 	victim.current_health = 7
 	hit(victim, player.ATTACK_UPPERCUT)
 	check(victim.current_health == 4 and victim.ruby_core.is_open() and player.execution_core == null, "el uppercut que abre por poca vida todavía hace daño ordinario")
 	player._cancel_attack_for_chain()
 	hit(victim, player.ATTACK_UPPERCUT)
-	check(player.execution_core == victim.ruby_core and player.execution_aerial and victim.current_health == 4, "el siguiente uppercut captura sin daño ordinario ni lanzamiento extra")
+	check(player.execution_core == victim.ruby_core and victim.current_health == 4, "el siguiente uppercut captura sin daño ordinario ni lanzamiento extra")
 	await wait_execution()
 	check(not victim.visible and player.frontflip_active and player.animated_sprite.animation == player.ANIMATION_FRONTFLIP, "sin carrera el uppercut ejecuta y sale con el flip normal")
 	await clean()
@@ -329,7 +307,7 @@ func _run() -> void:
 	await prepare_air_exit(true, false, true)
 	var buffered_jumps_before: int = player.air_jumps_remaining
 	await frames(2)
-	check(player.air_jumps_remaining == buffered_jumps_before - 1 and player.execution_air_exit == player.ExecutionAirExit.NONE, "el salto guardado durante la captura sale sin esperar el flip del rebote")
+	check(player.air_jumps_remaining == buffered_jumps_before and player.execution_air_exit == player.ExecutionAirExit.LAUNCH and player.jump_buffer_timer == 0, "un salto pulsado durante la captura se descarta al salir")
 	await clean()
 
 	print("== Postura determinista, crítico y remate de los tres jefes")
@@ -363,9 +341,18 @@ func _run() -> void:
 		check(boss.current_health == 0 and boss.ruby_core.final_open and not boss.is_defeated(), "un crítico a cero exige otro heavy")
 		hit(boss, player.ATTACK_SLASH)
 		check(not boss.is_defeated(), "un ligero no remata al jefe a cero")
+		boss.ruby_core._physics_process(boss.ruby_core.BOSS_OPEN_TIME + 0.01)
+		check(boss.current_health == 20 and not boss.ruby_core.final_open and not boss.ruby_core.is_open() and boss.ruby_core.posture == 100, "perder el remate a cero restaura el 20 % de vida y toda la postura")
+		boss.take_hit(player.position, 1, 999)
+		check(boss.ruby_core.final_open and boss.ruby_core.open_time > 0.0, "volver a cero abre otra ventana limitada de remate")
 		hit(boss, player.ATTACK_UPPERCUT)
+		await frames(2)
+		boss.ruby_core._physics_process(10.0)
+		check(boss.current_health == 0 and boss.ruby_core.locked, "reclamar el Ruby a tiempo impide que el jefe se recupere durante la captura")
 		await wait_execution()
 		check(boss.is_defeated() and boss.ruby_core.broken, "un uppercut remata al jefe y rompe el cristal definitivamente")
+		boss.ruby_core._physics_process(10.0)
+		check(boss.current_health == 0 and boss.is_defeated(), "el jefe ejecutado no regenera vida después de morir")
 		boss.reset_dummy()
 		check(not boss.ruby_core.final_open and not boss.ruby_core.broken and boss.ruby_core.posture == 100.0 and boss.current_health == 100, "reiniciar limpia núcleo, vida y postura")
 		await clean()

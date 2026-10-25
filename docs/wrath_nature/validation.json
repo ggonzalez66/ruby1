@@ -8,8 +8,8 @@
     "total": 72
   },
   "executions": {
-    "passed": 113,
-    "total": 113
+    "passed": 121,
+    "total": 121
   },
   "regression": {
     "passed": 16,
@@ -82,5 +82,9 @@
   "tools_sound_tuning": {
     "passed": 13,
     "total": 13
+  },
+  "combat_revision": {
+    "passed": 27,
+    "total": 27
   }
 }
