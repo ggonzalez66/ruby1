@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-26",
+  "godot": "4.2.2.stable.official.15073afe3",
+  "suites": [
+    {
+      "suite": "test_level_testing.gd",
+      "passed": 25,
+      "checks": 25,
+      "exit_code": 0,
+      "script_errors": false,
+      "shutdown_resource_warning": true
+    },
+    {
+      "suite": "test_combat_modes.gd",
+      "passed": 64,
+      "checks": 64,
+      "exit_code": 0,
+      "script_errors": false,
+      "shutdown_resource_warning": true
+    },
+    {
+      "suite": "test_ajustes.gd",
+      "passed": 13,
+      "checks": 13,
+      "exit_code": 0,
+      "script_errors": false,
+      "shutdown_resource_warning": false
+    }
+  ],
+  "passed": 102,
+  "checks": 102,
+  "visual": {
+    "renderer": "OpenGL Compatibility / Mesa llvmpipe",
+    "exit_code": 0,
+    "captures": [
+      "main_menu",
+      "level_testing",
+      "spawn",
+      "mother_tree",
+      "lagoon",
+      "west_trails",
+      "canopy",
+      "pause"
+    ],
+    "script_errors": false
+  },
+  "limits": [
+    "Escena de exploración, sin progresión de runs ni acceso a otra etapa.",
+    "Agua visual atravesable con fondo sólido; sin mecánica de natación.",
+    "Avisos de recursos al cerrar Godot presentes también en revisiones anteriores."
+  ],
+  "exported_builds": {
+    "manifest": "builds.json",
+    "verification": "native_smoke.json",
+    "passed": 50,
+    "checks": 50,
+    "platforms": [
+      "windows",
+      "linux"
+    ]
+  }
+}

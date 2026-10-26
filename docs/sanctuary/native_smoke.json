@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-26",
+  "godot": "4.2.2.stable.official.15073afe3",
+  "suite": "tests/integration/test_level_testing.gd",
+  "scope": "La suite se carga como archivo externo; escenas, scripts, shaders y recursos del juego se cargan desde el PCK embebido del ejecutable exportado. Los directorios de trabajo y datos son temporales.",
+  "platforms": {
+    "windows": {
+      "exit_code": 0,
+      "passed": true,
+      "checks": 25,
+      "renderer_initialized": true,
+      "shutdown_resource_warning": true,
+      "method": "Suite externa contra el PCK embebido, Windows nativo, copia y datos temporales, OpenGL Compatibility"
+    },
+    "linux": {
+      "exit_code": 0,
+      "passed": true,
+      "checks": 25,
+      "shutdown_resource_warning": false,
+      "method": "Suite externa contra el PCK embebido, directorio de trabajo y datos temporales"
+    }
+  },
+  "passed": 50,
+  "checks": 50,
+  "limitation": "Windows conserva un aviso de objetos/recursos al cerrar Godot. Las dos suites terminan con código 0 y sin errores de script. Esta validación no constituye una prueba completa de todos los modos antiguos."
+}

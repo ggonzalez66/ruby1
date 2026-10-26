@@ -262,7 +262,7 @@ func _run() -> void:
 	change_scene_to_file("res://main_menu.tscn")
 	await frames(10)
 	var labels: Array = current_scene.first_button.get_parent().get_children().map(func(b): return b.text)
-	check(labels == ["Subir Torre", "Entrar al Gauntlet", "Escalera al Cielo", "Mejores tiempos", "Opciones", "Salir"], "menú: %s" % [labels])
+	check(labels == ["Subir Torre", "Entrar al Gauntlet", "Escalera al Cielo", "Level Testing", "Mejores tiempos", "Opciones", "Salir"], "menú: %s" % [labels])
 	check(current_scene.runner_material != null and F.RANKS[current_scene.RUN_RANK]["letter"] == "SSS", "el corredor usa el color de SSS")
 
 	print("== Gauntlet por oleadas")

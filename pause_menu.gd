@@ -27,6 +27,7 @@ enum Device { KEYBOARD, JOYPAD }
 # de las opciones se cierra (señal closed).
 signal closed
 @export var menu_mode := false
+@export var testing_mode := false
 
 # Acciones que se pueden remapear, en el orden en que aparecen.
 const REMAP_ACTIONS := [
@@ -194,6 +195,11 @@ func _go_to_main_menu() -> void:
 	TimeControl.set_slow_motion(false)
 	get_tree().change_scene_to_file(MAIN_MENU)
 
+func _go_to_level_testing() -> void:
+	get_tree().paused = false
+	TimeControl.set_slow_motion(false)
+	get_tree().change_scene_to_file("res://level_testing.tscn")
+
 func _show_main_page() -> void:
 	if menu_mode:
 		_stop_waiting()
@@ -205,7 +211,7 @@ func _show_main_page() -> void:
 	main_page.visible = true
 	var player := get_tree().get_first_node_in_group(&"player")
 	checkpoint_button.visible = is_instance_valid(player) and player.respawn_enabled
-	restart_stage_button.visible = get_tree().current_scene != null and get_tree().current_scene.scene_file_path in RunSession.MODES
+	restart_stage_button.visible = testing_mode or (get_tree().current_scene != null and get_tree().current_scene.scene_file_path in RunSession.MODES)
 	resume_button.grab_focus()
 
 func _show_options_page() -> void:
@@ -279,6 +285,8 @@ func _build() -> void:
 	restart_stage_button = _button("Reiniciar Etapa", _restart_stage)
 	main_page.add_child(restart_stage_button)
 	main_page.add_child(_button("Opciones", _show_options_page))
+	if testing_mode:
+		main_page.add_child(_button("Level Testing", _go_to_level_testing))
 	main_page.add_child(_button("Menú principal", _go_to_main_menu))
 
 	# Página de opciones.

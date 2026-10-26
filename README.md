@@ -2,11 +2,18 @@
 
 Juego de acción y plataformas 2D para Godot 4.2.2. Abrir `project.godot` o ejecutar `godot --path .`.
 
+## Visión del juego e historia
+
+Ruby1 se desarrollará como un **roguelike de acción y plataformas 2D**, con combate frenético, movilidad, medidor de estilo y expediciones desde el santuario del Árbol Madre hasta la Ciudad Negra. Cada run ofrece rutas por un mapa hexagonal, armas, mejoras, encuentros y territorios variables. Su desenlace permite conservar el poder del León Rojo o arriesgar el regreso al origen para devolverle la vida a la naturaleza.
+
+La [visión del juego, historia completa, estructura de una run y dos finales](docs/vision_del_juego.md) recoge las decisiones narrativas y de diseño. Describe el juego objetivo; los modos y sistemas documentados a continuación corresponden al prototipo actual.
+
 ## Modos
 
 - **Subir Torre:** cuatro etapas; la última termina en la cámara elevada del Ruby, accesible por una chimenea con espinas alternadas.
 - **Gauntlet:** oleadas de enemigos y guardianes, con 2 segundos de preparación al aparecer. El portal de terminar pide confirmación; «Seguir jugando» tiene el foco por defecto y el reloj se pausa mientras decides.
 - **Escalera al Cielo:** recorrido de plataformas y rebotes.
+- **Level Testing:** selector de las etapas en desarrollo para el roguelike. Su primera escena es el **Santuario**, con el Árbol Madre, una laguna y rutas entre raíces, rocas y ramas para explorar la movilidad. Desde Pausa se puede reiniciar o volver al selector. [Diseño, capturas y validación](docs/sanctuary/README.md).
 
 Cada escenario empieza con **Ready 0.00**, avanza hasta **1.00** en un segundo y muestra **GO!**, con sonidos de preparación, pulso intermedio y salida. El mundo permanece detenido durante esa preparación; el cronómetro empieza con GO y excluye las pausas. Los tiempos de etapa usan segundos reales de juego activo, también con cámara lenta o hitstop.
 

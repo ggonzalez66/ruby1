@@ -1,13 +1,14 @@
 extends Node2D
 
 # Menú principal: Subir Torre (la partida de cuatro etapas), Entrar al Gauntlet (oleadas y guardianes),
-# Escalera al Cielo (plataformeo puro hasta fundirse con el sol), Opciones (las mismas del menú de
+# Escalera al Cielo (plataformeo puro hasta fundirse con el sol), Level Testing, Opciones (las mismas del menú de
 # pausa) y Salir. De fondo, Rengar corre sin fin por la jungla con el efecto de rango SSS (brillo de
 # imparable y afterimages del color del rango).
 
 const TOWER_SCENE := "res://main.tscn"
 const GAUNTLET_SCENE := "res://gauntlet.tscn"
 const SKY_SCENE := "res://sky_stairs.tscn"
+const TESTING_SCENE := "res://level_testing.tscn"
 const JUNGLE_SCRIPT := preload("res://jungle_background.gd")
 const PAUSE_MENU_SCRIPT := preload("res://pause_menu.gd")
 const PLATFORM_SCRIPT := preload("res://platform.gd")
@@ -251,6 +252,7 @@ func _build() -> void:
 	buttons.add_child(first_button)
 	buttons.add_child(_button("Entrar al Gauntlet", _start.bind(GAUNTLET_SCENE)))
 	buttons.add_child(_button("Escalera al Cielo", _start.bind(SKY_SCENE)))
+	buttons.add_child(_button("Level Testing", _start.bind(TESTING_SCENE)))
 	buttons.add_child(_button("Mejores tiempos", RunSession.show_records))
 	buttons.add_child(_button("Opciones", _open_options))
 	buttons.add_child(_button("Salir", _quit))
