@@ -169,6 +169,7 @@ func _run() -> void:
 	session._close_records()
 	session.begin_run(player, false)
 	session.elapsed = 0.5
+	player.liquid_beast = true
 	for boss in level.get_node("BossSpawner").bosses:
 		boss.take_hit(Vector2.ZERO, 1, 9999)
 		boss.ruby_core.claim(get_first_node_in_group(&"player"))
@@ -183,7 +184,10 @@ func _run() -> void:
 		change_scene_to_file(scene)
 		await frames(6)
 		player = current_scene.get_node("Playerr")
-		check(session.player == player and session.running, "el escenario inicia su sesión automáticamente")
+		if scene == "res://gauntlet.tscn":
+			check(not session.running, "gauntlet espera el portal antes del cronómetro")
+		else:
+			check(session.player == player and session.running, "el escenario inicia su sesión automáticamente")
 		session.begin_run(player, true)
 		var frozen := player.position
 		check(paused and session.ready_label.text == "Ready" and session.countdown_label.text == "0.00", "%s empieza en Ready 0.00" % scene.get_file())

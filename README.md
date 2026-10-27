@@ -4,7 +4,7 @@ Juego de acción y plataformas 2D para Godot 4.2.2. Abrir `project.godot` o ejec
 
 ## Visión del juego e historia
 
-Ruby1 se desarrollará como un **roguelike de acción y plataformas 2D**, con combate frenético, movilidad, medidor de estilo y expediciones desde el santuario del Árbol Madre hasta la Ciudad Negra. Cada run ofrece rutas por un mapa hexagonal, armas, mejoras, encuentros y territorios variables. Su desenlace permite conservar el poder del León Rojo o arriesgar el regreso al origen para devolverle la vida a la naturaleza.
+Ruby1 se desarrollará como un **roguelite de acción y plataformas 2D**, con combate frenético, movilidad, medidor de estilo y expediciones desde el santuario del Árbol Madre hasta la Ciudad Negra. Cada run ofrece rutas por un mapa hexagonal, armas, mejoras, encuentros y territorios variables. Su desenlace permite conservar el poder del León Rojo o arriesgar el regreso al origen para devolverle la vida a la naturaleza.
 
 La [visión del juego, historia completa, estructura de una run y dos finales](docs/vision_del_juego.md) recoge las decisiones narrativas y de diseño. Describe el juego objetivo; los modos y sistemas documentados a continuación corresponden al prototipo actual.
 
@@ -15,7 +15,7 @@ La [visión del juego, historia completa, estructura de una run y dos finales](d
 - **Escalera al Cielo:** recorrido de plataformas y rebotes.
 - **Level Testing:** selector de las etapas en desarrollo para el roguelike. Su primera escena es el **Santuario**, con el Árbol Madre, una laguna y rutas entre raíces, rocas y ramas para explorar la movilidad. Desde Pausa se puede reiniciar o volver al selector. [Diseño, capturas y validación](docs/sanctuary/README.md).
 
-Cada escenario empieza con **Ready 0.00**, avanza hasta **1.00** en un segundo y muestra **GO!**, con sonidos de preparación, pulso intermedio y salida. El mundo permanece detenido durante esa preparación; el cronómetro empieza con GO y excluye las pausas. Los tiempos de etapa usan segundos reales de juego activo, también con cámara lenta o hitstop.
+Los escenarios de combate empiezan con **Ready 0.00** (en Gauntlet, después del portal de selección), avanza hasta **1.00** en un segundo y muestra **GO!**, con sonidos de preparación, pulso intermedio y salida. El mundo permanece detenido durante esa preparación; el cronómetro empieza con GO y excluye las pausas. Los tiempos de etapa usan segundos reales de juego activo, también con cámara lenta o hitstop.
 
 ## Movimiento y estilo
 
@@ -27,22 +27,24 @@ Select en el mando (R en teclado) activa el taunt de la pose orgullosa estando q
 
 ## Ejecuciones Ruby
 
-Todos los enemigos mecánicos llevan un rombo Ruby rojo dentro del cuerpo. El rojo claro dentro del Ruby indica la vida restante sobre un fondo oscuro; el contorno amarillo de los guardianes indica la postura restante. Se conserva el borde negro. Un halo exterior destella cuando está **open**. El heavy de suelo, el heavy aéreo y el uppercut ejecutan, y el enemigo debe estar open antes del impacto: el golpe que lo deja con poca vida no ejecuta automáticamente. Los golpes ordinarios pueden seguir matando a los enemigos normales.
+Todos los enemigos mecánicos llevan un rombo Ruby rojo dentro del cuerpo. El rojo claro dentro del Ruby indica la vida restante sobre un fondo oscuro; el contorno amarillo de los guardianes indica la postura restante. Se conserva el borde negro. Un halo exterior destella cuando está **open**. Solo Liquid Beast ejecuta mediante heavy o dive, sobre un enemigo que ya estuviera OPEN o DYING antes del impacto. El uppercut es un ataque común y no ejecuta.
 
-- **Normales:** un parry los inmoviliza y abre durante 2 segundos; al 30 % de vida o menos permanecen open, pero siguen atacando. Los voladores también pueden ejecutarse y dan un último rebote. El sol no lleva este sistema.
+- **Normales:** un parry los inmoviliza y abre durante 2 segundos. A cero de vida entran en DYING durante 4 segundos antes de que explote su Ruby; tener poca vida no los abre. Los voladores también pueden ejecutarse y dan un último rebote. El sol no lleva este sistema.
 - **Guardianes:** la postura empieza en 100 y cada parry de un ataque distinto le quita un tercio, sin RNG. Las devoluciones perfectas cuentan para el tirador original; una ráfaga o un giro no se contabilizan varias veces. Romper postura abre una ventana de 2,5 segundos. Aprovecharla o perderla reinicia la postura.
 - **Crítico:** contra un guardián open, el heavy daña el 22 % de su vida máxima y agrieta el Ruby sin romperlo. Un destello, una onda partida y chorros de esencia roja marcan el impacto, con un sonido más agudo que la rotura final. Si llega a cero, queda inmóvil y open hasta recibir otro heavy. La derrota, los portales y el cronómetro esperan a esa ejecución final.
-- **Mordida pesada:** Viridy se transforma en una cabeza leonina líquida verde con las fauces abiertas. En aire se orienta según la caída; el uppercut recupera su pose original de puñetazo ascendente y también puede capturar un Ruby open, incluso sin el proyectil disponible. Conserva los daños, tiempos y trayectorias ordinarios. Al aterrizar el heavy cierra la mordida y conserva el deslizamiento con su estela de energía.
-- **Captura:** dura 0,38 segundos; Viridy es invulnerable, pero el mundo sigue activo. En suelo la bestia alargada cierra las fauces y masca el Ruby alternando dos frames, con la boca alineada al núcleo. Al liberarlo avanza con las fauces abiertas durante 0,16 s y se funde con la corrida durante 0,10 s, sin bloquear acciones. En aire se enrolla como un ouroboros que casi se muerde la cola, independiente del screw attack, y gira sobre su propio centro en el Ruby. Sin carrera sale con el flip normal. En carrera sale hacia delante como bestia alargada, hace un flip normal en el punto más alto (con una pausa vertical de 0,22 s) y cae en aerial stall, recuperando el salto aéreo y conservando la carrera con un impulso intermedio de 740 unidades/s (560 de carrera + 180 extra), sin añadir la velocidad extrema del heavy. Se puede anticipar el siguiente ataque o salto durante la captura. Desde que explota el Ruby, los ataques, el salto disponible, el dash, el rugido y el lanzamiento del fuego pueden interrumpir la salida y el flip; no hace falta esperar a que termine la animación.
+- **Liquid Beast:** B/Q alterna la forma indefinidamente, con un cooldown de 0,45 s entre cambios. Ligero mantenido produce aliento jade. Heavy terrestre y aéreo conservan la mordida; Aim queda inactivo. Conserva dash, carrera y parry.
+- **Captura:** dura 0,38 segundos; Viridy es invulnerable, pero el mundo sigue activo. La bestia gira como un ouroboros sobre el núcleo. La salida conserva el rebote, salto aéreo y las reglas de carrera existentes. Los inputs pulsados durante la captura se descartan; después, las acciones disponibles pueden interrumpir la salida visual.
 - **Energía:** una ejecución normal cura 12, un crítico cura 8 y el remate de un guardián cura 25. Es la fuente de curación del combate: ni el riposte ni los ataques fuertes SS curan por conectar. Romper un Ruby causa una explosión de radio 125 que daña 1 y empuja a los enemigos cercanos, respetando las paredes.
 
 Los tiempos, impulso de salida y curaciones se ajustan con las propiedades `execution_*`, `critical_heal` y `boss_execution_heal` en `movimiento.gd`; las reglas del núcleo están en `ruby_core.gd`. Las hojas anteriores se conservan. `viridy_liquid_beast_v2.png` incluye las poses abiertas y cerradas; `viridy_liquid_ouroboros.png` contiene las cuatro fases del giro actual. Su procedencia y prompts están en `docs/liquid_beast_art.md`, `docs/liquid_beast_v2_art.md` y `docs/liquid_ouroboros_art.md`.
 
-## Lanza espiritual jade y paleta
+## Armas, Aim y paleta
 
-Viridy lanza una jabalina de fuego espiritual jade con cuatro poses nuevas. Conserva las velocidades, gravedad, tiempo de vuelo y cooldown del proyectil anterior. Al impactar queda clavada y enciende el cuerpo: aplica 1 de daño cada 0,5 s, sin bajar de 1 de vida ni interrumpir ataques. Una segunda pulsación consume la lanza y hace Soul pull con el tether eléctrico habitual, sin daño adicional. Si ese enemigo ya está open, Viridy se teletransporta a un destino libre junto al núcleo y hace una ejecución aérea con el rebote habitual. El terreno disipa el proyectil y deja una llama visual que desaparece sola. El cooldown de lanzamiento es 1 s y el HUD muestra su disponibilidad. Tener el fuego fuera ya no impide los ataques fuertes.
+Viridy comienza desarmado. En el santuario y en la preparación del gauntlet se elige arma pulsando arriba junto a los pedestales. Espada, hacha de guerra, martillo y lanza/guja tienen cadenas y hitboxes propias; Unarmed conserva los tres ligeros originales y añade dos patadas.
 
-Las hojas recientes reciben una corrección selectiva al jade original, conservando ojos blancos, dientes y armadura. El uppercut sigue respetando plataformas y paredes. [Arte histórico del fuego jade](docs/jade_fire_art.md) y [mecánica actual](docs/wrath_nature/README.md).
+Mantener LT/clic central activa Aim. Con stick derecho/ratón se apunta, y con ligero se lanza o recupera el arma. Se puede caminar, pero no correr. Mientras el arma está fuera se usa Unarmed. El regreso golpea y atrae a los enemigos atravesados con daño decreciente; no ejecuta. El arma queda visible al clavarse, conserva la marca jade y una quemadura no letal de hasta 2 segundos.
+
+[Controles, balance y pruebas del combate roguelite](docs/roguelite_combat/README.md). Las hojas anteriores y la documentación de sus iteraciones artísticas se conservan como historial.
 
 ## Wrath of Nature
 
@@ -50,7 +52,7 @@ En SSS, mantener abajo en el suelo durante **1 s** carga Wrath of Nature. Agacha
 
 Al completar la carga se consume toda la ferocidad. El indicador muestra **Wrath of Nature**, aparece el aura roja y hay **4 s** para usar heavy más una dirección. La preparación es imparable y destruye proyectiles, pero permite recibir daño. Si caduca, no devuelve ferocidad.
 
-El heavy con dirección lanza una bestia de fuego jade mayor en una de **8 direcciones**, sin steering, a 1850 unidades/s. Atraviesa enemigos y guardianes incluso con vida, les roba el Ruby y los deja en stasis. Se detiene en paredes, techo o suelo, con límites adicionales de 4800 unidades y 3 s. Retrocede unos 11 px al chocar, cierra las fauces, rompe los Rubies en su boca y absorbe su energía: las víctimas mueren en ese momento. El sol queda fuera de este sistema.
+En Liquid Beast, el heavy con dirección lanza una bestia de fuego jade mayor en una de **8 direcciones**, sin steering, a 1850 unidades/s. Atraviesa enemigos y guardianes incluso con vida, les roba el Ruby y los deja en stasis. Se detiene en paredes, techo o suelo, con límites adicionales de 4800 unidades y 3 s. Retrocede unos 11 px al chocar, cierra las fauces, rompe los Rubies en su boca y absorbe su energía: las víctimas mueren en ese momento. El sol queda fuera de este sistema.
 
 El avance deja fuego jade y afterimages SSS. Toda la secuencia desde el lanzamiento hasta terminar su recuperación de 0,18 s es invulnerable. Después vuelve a Viridy con ferocidad cero. [Galería, parámetros, arte OpenAI + SDXL y pruebas](docs/wrath_nature/README.md).
 
@@ -80,6 +82,8 @@ La corrección del braceo y sus prompts están en [carrera con brazos alternados
 
 ## Combate y presentación
 
-Los tres golpes ligeros dibujan sus slashes delante de Viridy; el remate refleja horizontalmente su media luna. El Guardián Pesado alterna el súper giro vertical con una variante horizontal con perspectiva; ambos avanzan a 65 px/s en la dirección fijada durante el aviso, sin corregirla al cruzarse con el jugador.
+Los tres primeros golpes ligeros de Unarmed dibujan sus slashes delante de Viridy; el remate refleja horizontalmente su media luna. El Guardián Pesado alterna el súper giro vertical con una variante horizontal con perspectiva; ambos avanzan a 65 px/s en la dirección fijada durante el aviso, sin corregirla al cruzarse con el jugador.
 
 El shine empieza con un cubo dorado pequeño. Entre 0,08 y 0,24 s aparece el Metatrón completo con menor opacidad y giro. La presentación no modifica el radio, la ventana de parry, los i-frames ni el bloqueo. [Capturas y validación](docs/combat_feedback/README.md).
+
+La [base de combate roguelite](docs/roguelite_combat/README.md) incorpora cinco movesets, selección de armas, Aim y Liquid Beast persistente. Incluye controles y reglas OPEN/DYING actualizados.

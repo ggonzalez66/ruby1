@@ -38,6 +38,7 @@ func _run() -> void:
 	player = load("res://playerr.tscn").instantiate()
 	player.position = Vector2(0, -2)
 	arena.add_child(player)
+	player.weapons.equip(&"glaive")
 	var target: Node2D = load("res://training_dummy.tscn").instantiate()
 	target.position = Vector2(400, -2)
 	target.max_health = 100
@@ -51,14 +52,14 @@ func _run() -> void:
 	check(target.current_health == 100 and fire.sprite.visible and not player.has_knife, "la lanza queda visible y el impacto no añade daño instantáneo")
 	player.attack_cooldown_timer = 0
 	player._start_heavy_attack(false)
-	check(player.attack_mode == player.ATTACK_HEAVY_GROUND, "se puede hacer heavy aunque el fuego esté marcado")
+	check(player.weapons.active and player.weapons.heavy, "se puede hacer heavy aunque el fuego esté marcado")
 	player._cancel_all_states()
 	player.velocity = Vector2.ZERO
 	var before: Vector2 = target.position
 	player._on_knife_input(0)
 	check(fire.state == fire.State.RETURNING and fire.sprite.visible, "recall devuelve físicamente la lanza visible")
 	await frames(21)
-	check(target.position.x < before.x and target.current_health == 100 and player.has_knife, "soul pull acerca al objetivo sin daño y libera el lanzamiento")
+	check(target.position.x < before.x and target.current_health < 100 and player.has_knife, "soul pull acerca al objetivo con daño y libera el lanzamiento")
 	player._on_knife_input(0)
 	check(player.has_knife and not is_instance_valid(player.thrown_knife), "el cooldown evita volver a lanzar inmediatamente")
 	await frames(8)
@@ -67,22 +68,16 @@ func _run() -> void:
 	player._respawn_player()
 	await frames(4)
 
-	print("== Teleejecución en un objetivo open")
+	print("== Recall no ejecuta: la captura pertenece a Liquid Beast")
 	target.current_health = 20
+	target.ruby_core.register_parry()
 	player.current_health = 40
 	fire = fire_on(target)
 	var distant := player.global_position
 	fire.recall()
-	check(player.execution_core == target.ruby_core and player.global_position.distance_to(target.global_position) < 80, "recall de un open teletransporta e inicia una ejecución aérea")
-	check(player.global_position.distance_to(distant) > 200, "el acercamiento es un salto espacial, no un viaje del proyectil")
-	await frames(3)
-	check(player.animated_sprite.animation == player.ANIMATION_RUBY_SPIN, "la captura usa el giro de ejecución aérea existente")
-	for tick in range(60):
-		await frames(1)
-		if player.execution_core == null:
-			break
-	check(target.current_health == 0 and not target.visible and player.current_health > 40, "rompe el Ruby y solo entonces cura al jugador")
-	check(player.execution_core == null and player.velocity.y < 0, "la ejecución termina con el rebote encadenable")
+	check(player.execution_core == null and player.global_position == distant, "recall no teletransporta ni inicia ejecución")
+	await frames(30)
+	check(target.visible and target.current_health < 20 and player.current_health == 40, "recall daña un OPEN sin ejecutarlo ni curar")
 	player._respawn_player()
 	await frames(4)
 

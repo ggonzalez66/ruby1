@@ -24,6 +24,8 @@ func _run() -> void:
 	change_scene_to_file("res://gauntlet.tscn")
 	await frames(12)
 	var director: Node = get_first_node_in_group(&"gauntlet_director")
+	director._begin_gauntlet()
+	await frames(3)
 	var player: CharacterBody2D = get_first_node_in_group(&"player")
 	player.set_physics_process(false)
 	director.round_number = 3

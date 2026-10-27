@@ -285,7 +285,7 @@ func _update_launch(delta: float) -> void:
 		state_timer = 0.3
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
-	if ruby_core != null and ruby_core.locked:
+	if ruby_core != null and (ruby_core.locked or ruby_core.dying):
 		return
 	if state == State.DEAD:
 		return
@@ -294,7 +294,7 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 	knock_velocity = direction * 180.0
 	_update_health_bar()
 	if current_health == 0:
-		_die()
+		ruby_core.enter_dying()
 		return
 	Sfx.play("enemy_hurt", 0.0, 1.35)
 	# Golpearlo mientras avisa o en plena picada lo saca de su ataque.
@@ -380,3 +380,10 @@ func _poly(points: Array, color: Color) -> Polygon2D:
 	poly.polygon = PackedVector2Array(points)
 	poly.color = color
 	return poly
+
+func on_weapon_stagger() -> void:
+	if state == State.DEAD:
+		return
+	state = State.STAGGER
+	state_timer = 0.0
+	warning_label.hide()

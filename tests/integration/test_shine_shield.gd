@@ -181,12 +181,13 @@ func _run() -> void:
 	var tries := 0
 	for distance in [180.0, 223.0, 260.0, 297.0, 335.0, 371.0, 410.0, 455.0]:
 		await reset()
+		player.weapons.equip(&"glaive")
 		var target: Node2D = load("res://training_dummy.tscn").instantiate()
 		target.max_health = 999
 		target.position = GROUND + Vector2(distance, 2)
 		level.add_child(target)
 		await frames(2)
-		await tap("throw_knife")
+		player._on_knife_input(0)
 		await frames(30)
 		var knife: Node2D = player.thrown_knife
 		if knife == null or knife.state != knife.State.MARKED:
@@ -195,12 +196,12 @@ func _run() -> void:
 		tries += 1
 		Input.action_press("roar")
 		await frames(16)
-		await tap("throw_knife")
+		player._on_knife_input(0)
 		for i in range(60):
 			await frames(1)
 			if not is_instance_valid(knife):
 				break
-		if not is_instance_valid(knife) and player.has_knife and target.current_health == 999:
+		if not is_instance_valid(knife) and player.has_knife and target.current_health < 999:
 			bounced += 1
 		release_all()
 		target.queue_free()
@@ -208,7 +209,7 @@ func _run() -> void:
 		if is_instance_valid(player.thrown_knife):
 			player.thrown_knife.queue_free()
 			player.on_knife_caught()
-	check(tries >= 6 and bounced == tries, "soul pull sin daño en %d de %d recalls" % [bounced, tries])
+	check(tries >= 6 and bounced == tries, "soul pull con daño en %d de %d recalls" % [bounced, tries])
 
 	print("== Shine enemigo")
 	await reset()
@@ -287,6 +288,7 @@ func _run() -> void:
 	await frames(40)
 	await reset()
 	F._set_points(650.0)
+	player.liquid_beast = true
 	var ground_shot := shoot_at_player(GROUND + Vector2(70, -16), null)
 	await tap("heavy_attack")
 	await frames(3)

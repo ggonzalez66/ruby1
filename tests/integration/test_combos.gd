@@ -214,6 +214,7 @@ func _run() -> void:
 	var victim := make_chaser(GROUND + Vector2(60, 0))
 	await frames(2)
 	var victim_health: int = victim.current_health
+	player.liquid_beast = true
 	Input.action_press("heavy_attack")
 	await frames(2)
 	Input.action_release("heavy_attack")

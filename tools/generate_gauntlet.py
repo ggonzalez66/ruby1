@@ -31,7 +31,7 @@ floor_title("TitleGauntlet", 140, -460, "GAUNTLET · OLEADAS")
 
 # ---------------------------------------------------------------- Inicio
 checkpoint("CheckpointStart", 120, 0)
-sign("SignGauntlet", 360, 0, "Gauntlet", "Por oleadas: acaba con todos los enemigos y después con el guardián (a veces salen los tres).\nAl ganar, el portal de la derecha sigue a la siguiente ronda y el de la izquierda termina.", 380)
+sign("SignGauntlet", 60, 0, "Gauntlet", "Elige un arma suspendida con {move_up}. El portal azul inicia el reloj y la primera oleada.\nAcaba con los enemigos y después con el guardián.\nAl ganar, el portal de la derecha sigue a la siguiente ronda y el de la izquierda termina.", 380)
 
 # ---------------------------------------------------------------- Arena
 # Plataformas a dos alturas: las bajas se alcanzan con un salto (y agarre), las altas desde ellas.

@@ -1,4 +1,4 @@
-# Ruby1: visión del juego, historia y estructura roguelike
+# Ruby1: visión del juego, historia y estructura roguelite
 
 Este documento recoge la visión definida por el creador del juego. Establece el género, el mundo, la historia completa, el significado de una run y sus dos finales. Describe el diseño objetivo de Ruby1; no implica que todos estos sistemas estén implementados en el prototipo.
 
@@ -6,7 +6,7 @@ Las cuestiones que todavía necesitan una decisión se enumeran al final. Las pr
 
 ## 1. Tipo de juego
 
-Ruby1 será un **roguelike de acción y plataformas 2D para un jugador**, centrado en el combate frenético, la movilidad, el dominio de sus mecánicas y la construcción de capacidades durante cada run.
+Ruby1 será un **roguelite de acción y plataformas 2D para un jugador**, centrado en el combate frenético, la movilidad, el dominio de sus mecánicas y la construcción de capacidades durante cada run.
 
 El jugador controla a Viridy, un espíritu de la naturaleza con forma de león verde alquímico. Parte del santuario del Árbol Madre y elige cómo avanzar por un mapa de territorios hexagonales hacia la Ciudad Negra. Las rutas, los encuentros, las armas, las mejoras y las combinaciones de enemigos permiten que cada expedición sea diferente.
 
@@ -222,8 +222,19 @@ Estas referencias orientan aspectos concretos del proyecto; no establecen que Ru
 - Qué recursos, desbloqueos, mejoras y registros se conservan entre runs, y cómo se utilizan los rubies que regresan al árbol.
 - Cómo se reconstruye Viridy y cómo funciona el santuario después de un fracaso posterior a la muerte del Árbol Madre. Tampoco está fijado si ese acontecimiento persiste entre intentos o se repite dentro de cada run.
 - Si el mapa de regreso conserva exactamente la topología de la ida y cómo cambian sus territorios. Esa continuidad fue propuesta en la conversación, pero todavía no se ha fijado como regla.
-- Cómo se eligen y cambian las armas, y qué habilidades obtenidas de jefes pertenecen solo al intento o se desbloquean de manera permanente.
+- Qué armas, mejoras y habilidades de jefes pertenecen solo al intento o se desbloquean de manera permanente. La selección inicial de prueba ya utiliza pedestales en el santuario.
 - Cómo se obtienen, invocan y limitan las ayudas de las bestias naturales.
 - Cómo funciona el catálogo numerado de rubies y qué significa cada número.
 - Las reglas de muerte, checkpoints o reinicio en el tramo final y durante el regreso. La exigencia del desenlace está definida; el sistema concreto de recuperación no.
 - Cómo se registran los finales y sus tiempos, y qué continúa o se desbloquea después de completar cualquiera de ellos.
+
+
+## Base jugable del combate roguelite
+
+Viridy comienza desarmado. En el santuario se puede elegir entre espada, hacha de guerra, martillo y lanza/guja, pulsando arriba junto a un arma suspendida. Cada arma define cadenas de ligeros y pesados; uppercut, dash attack, screw y heavy aéreo son acciones compartidas. La base de daño, velocidad de ataque y vida puede servir para futuras mejoras.
+
+Liquid Beast pasa a ser una transformación voluntaria sin duración máxima: conserva movilidad y parry, tiene aliento jade continuo como ligero y ejecuta mediante sus heavies. Solo esta forma puede ejecutar. OPEN por parry dura dos segundos; los enemigos pequeños a cero de vida entran en DYING durante cuatro segundos antes de que explote su ruby.
+
+Aim permite apuntar y lanzar el arma equipada. Mientras está fuera de la mano se usa Unarmed; el recall devuelve el arma, daña y atrae a los enemigos atravesados con daño decreciente. Las armas de fuego quedan para una etapa posterior.
+
+El gauntlet ofrece una selección de armas antes de comenzar: el portal azul inicia la prueba. Las reglas implementadas, los controles y el balance inicial están en [Base de combate roguelite](roguelite_combat/README.md). Esta base no define aún qué mejoras persistirán entre runs.

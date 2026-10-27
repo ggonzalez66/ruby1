@@ -455,7 +455,11 @@ var light_combo_step := 0
 var light_combo_window_timer := 0.0
 var light_combo_queued := false
 var jump_cut_available := false
-var has_knife := true
+var has_knife := false
+var liquid_beast := false
+var weapons: Node2D
+@export var damage_multiplier := 1.0
+@export var attack_speed_multiplier := 1.0
 var thrown_knife: Node2D
 var knife_missing_cue: Node2D
 var knife_throw_pose_timer := 0.0
@@ -602,6 +606,9 @@ func _ready() -> void:
 	wrath = WRATH_SCRIPT.new()
 	wrath.name = "WrathOfNature"
 	add_child(wrath)
+	weapons = preload("res://weapon_combat.gd").new()
+	weapons.name = "WeaponCombat"
+	add_child(weapons)
 	knife_scrape = KNIFE_SCRAPE_SCRIPT.new()
 	add_child(knife_scrape)
 	air_jumps_remaining = max_air_jumps
@@ -652,6 +659,7 @@ func _physics_process(delta: float) -> void:
 	var was_on_floor: bool = is_on_floor()
 	_update_wall_state()
 	_update_timers(delta)
+	weapons.tick(delta)
 	var move_input: float = Input.get_axis("move_left", "move_right")
 	_interrupt_execution_air_exit()
 
@@ -665,7 +673,7 @@ func _physics_process(delta: float) -> void:
 	if Input.is_action_just_pressed("toggle_hitbox_visuals"):
 		toggle_hitbox_debug()
 
-	if Input.is_action_just_pressed("heavy_attack") and wrath.begin_aim():
+	if liquid_beast and Input.is_action_just_pressed("heavy_attack") and wrath.begin_aim():
 		return
 
 	if Input.is_action_just_pressed("roar"):
@@ -699,12 +707,16 @@ func _physics_process(delta: float) -> void:
 				dash_jump_buffered = true
 
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
-		if _in_uppercut_chain():
+		if weapons.aim:
+			_on_knife_input(move_input)
+		elif liquid_beast:
+			pass
+		elif _in_uppercut_chain():
 			_request_combat_action(&"attack")
 		else:
 			_on_attack_input()
 
-	if Input.is_action_just_pressed("heavy_attack"):
+	if Input.is_action_just_pressed("heavy_attack") and not weapons.aim:
 		# Tras un parry, el pesado cancela el rugido para contraatacar al instante.
 		if roar_active and riposte_timer > 0.0:
 			_end_roar()
@@ -714,10 +726,7 @@ func _physics_process(delta: float) -> void:
 	if combo_buffer != &"" and not _blocks_actions() and _try_combat_action(combo_buffer):
 		combo_buffer = &""
 
-	if Input.is_action_just_pressed("throw_knife") and not stunned:
-		_on_knife_input(move_input)
-
-	if Input.is_action_just_pressed("dash"):
+	if Input.is_action_just_pressed("dash") and not weapons.aim:
 		if roar_active and dash_cooldown_timer <= 0.0:
 			# El bloqueo del rugido se cancela con salto o con dash.
 			_end_roar()
@@ -746,7 +755,9 @@ func _physics_process(delta: float) -> void:
 				_resume_roar_momentum()
 	_update_roar_aura()
 
-	if mantle_active:
+	if weapons.active:
+		weapons.apply_movement(delta, move_input)
+	elif mantle_active:
 		_apply_mantle(delta)
 	elif block_stun_timer > 0.0 and dash_timer <= 0.0:
 		_apply_block_stun_movement(delta)
@@ -828,7 +839,7 @@ func _physics_process(delta: float) -> void:
 			_land_long_jump(move_input)
 		if backflip_active:
 			_land_backflip(move_input)
-		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0 and not roar_active and not mantle_active:
+		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0 and not roar_active and not mantle_active and not weapons.aim:
 			if not is_sprinting:
 				_start_sprint(_get_sprint_start_direction(move_input))
 		elif not Input.is_action_pressed("dash"):
@@ -1165,6 +1176,10 @@ func _update_character_animation() -> void:
 		else:
 			next_animation = ANIMATION_IDLE
 
+	if liquid_beast and not dead:
+		next_animation = ANIMATION_HEAVY_AERIAL if attack_mode != ATTACK_HEAVY_GROUND else ANIMATION_GROUND_HEAVY
+	elif weapons.active:
+		next_animation = [ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER][mini(weapons.step, 2)]
 	if animated_sprite.animation != next_animation:
 		_play_animation_sfx(next_animation)
 		animated_sprite.play(next_animation)
@@ -1209,6 +1224,9 @@ func _sync_action_sprite(animation_name: StringName) -> void:
 			remaining = hurt_lock_timer
 		_:
 			return
+	if weapons != null and weapons.active:
+		duration = weapons.duration
+		remaining = duration - weapons.elapsed
 	var progress := clampf(1.0 - remaining / maxf(duration, 0.001), 0.0, 1.0)
 	var count := animated_sprite.sprite_frames.get_frame_count(animation_name)
 	var index := mini(int(progress * count), count - 1)
@@ -1297,6 +1315,8 @@ func _update_character_orientation(animation_name: StringName) -> void:
 		# El frame del salto de pared sale desde una pared a la izquierda, en dirección contraria.
 		animated_sprite.flip_h = wall_visual_direction < 0
 		return
+	if liquid_beast and attack_mode != ATTACK_HEAVY:
+		animated_sprite.rotation = 0.0
 	animated_sprite.flip_h = facing < 0
 
 func _on_character_frame_changed() -> void:
@@ -1752,7 +1772,7 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 
 	invulnerability_timer = hurt_invulnerability_time
 	_camera_kick(0.6)
-	if (wrath != null and wrath.is_ready()) or Ferocity.player_hit():
+	if weapons.super_armor() or (wrath != null and wrath.is_ready()) or Ferocity.player_hit():
 		# Imparable: pierde vida y estilo, pero sigue con lo que estaba haciendo.
 		Fx.impact(get_parent(), global_position + Vector2(0, -14), Fx.ROAR, 1.2)
 		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡IMPARABLE!", Ferocity.rank_info()["color"])
@@ -1812,6 +1832,7 @@ func begin_merge() -> void:
 # ---------- Muerte
 
 func _start_death(source_position: Vector2, amount: int) -> void:
+	weapons.cancel()
 	wrath.cancel()
 	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
 	dead = true
@@ -1857,6 +1878,8 @@ func _update_death(delta: float) -> void:
 		animated_sprite.rotation += death_spin * delta
 
 func _cancel_all_states() -> void:
+	if weapons != null:
+		weapons.cancel()
 	heavy_morph_recovery_timer = 0.0
 	execution_air_boost_active = false
 	execution_air_exit = ExecutionAirExit.NONE
@@ -1953,7 +1976,7 @@ func _update_riposte_visual() -> void:
 		charge_glow_material.set_shader_parameter("glow_amount", 0.0)
 
 func _spawn_hit_feedback(area: Node2D) -> void:
-	var heavy: bool = attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND
+	var heavy: bool = attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND or (weapons.active and weapons.heavy)
 	var finisher: bool = attack_mode == ATTACK_SLASH and light_combo_step == 3
 	var point: Vector2 = _get_target_center(area).lerp(global_position + Vector2(0.0, -14.0), 0.35)
 	# El riposte vale con el heavy y con el dash attack (estocada y giro).
@@ -2020,6 +2043,8 @@ func _get_target_center(target: Node2D) -> Vector2:
 # ---------- Lanza espiritual (nombres de input/señales conservados por compatibilidad)
 
 func _on_knife_input(move_input: float) -> void:
+	if liquid_beast:
+		return
 	if not has_knife:
 		# Segunda pulsación: recall.
 		if is_instance_valid(thrown_knife):
@@ -2032,12 +2057,16 @@ func _on_knife_input(move_input: float) -> void:
 		_end_roar()
 	if _blocks_actions() or wall_embedded or _is_attack_active() or dash_timer > 0.0 or hurt_lock_timer > 0.0:
 		return
+	if weapons.equipped == &"unarmed":
+		return
 	var knife := KNIFE_SCRIPT.new()
+	knife.weapon_id = weapons.equipped
+	knife.recall_damage = maxi(1, roundi(float(preload("res://weapon_catalog.gd").chain(weapons.equipped, true)[0].damage) * damage_multiplier))
 	# Riposte: el cuchillo consume la bonificación y sale potenciado (y a velocidad de carrera).
 	knife.empowered = riposte_timer > 0.0
 	riposte_timer = 0.0
 	get_parent().add_child(knife)
-	var throw_velocity := _get_knife_throw_velocity(move_input, knife.empowered)
+	var throw_velocity: Vector2 = weapons.aim_direction * 1300.0 if weapons.aim else _get_knife_throw_velocity(move_input, knife.empowered)
 	var side: float = sign(throw_velocity.x) if throw_velocity.x != 0.0 else float(facing)
 	knife.launch(self, global_position + Vector2(side * 12.0, -22.0), throw_velocity)
 	thrown_knife = knife
@@ -2049,10 +2078,10 @@ func _on_knife_input(move_input: float) -> void:
 	knife_changed.emit(false)
 
 func try_soul_execution(target: Node2D) -> bool:
-	if dead or execution_core != null or wrath.controls_movement():
+	if not liquid_beast or dead or execution_core != null or wrath.controls_movement():
 		return false
 	var core: Node2D = target.get_node_or_null("RubyCore")
-	if core == null or not core.is_open():
+	if core == null or not core.is_executable():
 		return false
 	# El salto espacial no atraviesa físicamente el recorrido, pero el destino debe caber en el mundo.
 	var destination := Vector2.ZERO
@@ -2111,9 +2140,9 @@ func on_knife_caught(knife: Node = null) -> void:
 	if knife != null and is_instance_valid(thrown_knife) and knife != thrown_knife:
 		return
 	Sfx.play("knife_catch")
-	has_knife = true
+	has_knife = weapons.equipped != &"unarmed"
 	thrown_knife = null
-	knife_changed.emit(true)
+	knife_changed.emit(has_knife)
 
 func _show_knife_missing() -> void:
 	# Aviso sobre Rengar (cuchillo tachado + flecha hacia él + tecla de recall), el cuchillo resaltado
@@ -2681,6 +2710,8 @@ func _consume_sprint_air_jump() -> void:
 	_perform_frontflip()
 
 func _start_sprint(direction: int) -> void:
+	if weapons != null and weapons.aim:
+		return
 	var target_direction := direction
 	if target_direction == 0:
 		target_direction = facing
@@ -2793,7 +2824,7 @@ func _try_combat_action(kind: StringName) -> bool:
 				attack_cooldown_timer = 0.0
 			var mode_before: int = attack_mode
 			_start_heavy_attack(false)
-			return attack_mode != mode_before and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND)
+			return weapons.active or (attack_mode != mode_before and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND))
 		&"attack":
 			if _in_uppercut_chain():
 				# Uppercut -> dash attack aéreo (y de ahí, saltando, el giro).
@@ -2814,6 +2845,11 @@ func _uppercut_can_be_cancelled() -> bool:
 	return attack_mode != ATTACK_UPPERCUT and uppercut_pose_timer <= 0.0
 
 func _on_attack_input() -> void:
+	if liquid_beast or weapons.aim:
+		return
+	if weapons.active or weapons.window > 0.0:
+		weapons.request(false)
+		return
 	# Sin carga: corriendo sale el ataque en carrera (estocada que avanza); si no, el combo ligero.
 	if dash_timer > 0.0:
 		attack_buffered = true
@@ -2856,31 +2892,7 @@ func _start_running_attack() -> void:
 		_start_light_charged_air_attack()
 
 func _start_attack() -> void:
-	# El combo ligero (zarpazos) también se puede hacer sin el cuchillo.
-	if _is_attack_active() or dash_timer > 0.0:
-		return
-
-	if light_combo_window_timer > 0.0 and light_combo_step > 0 and light_combo_step < 3:
-		light_combo_step += 1
-	else:
-		light_combo_step = 1
-	light_combo_window_timer = 0.0
-	light_combo_queued = false
-
-	attack_mode = ATTACK_SLASH
-	attack_targets_hit.clear()
-	Sfx.play("swing_light", 0.0, [1.0, 1.0, 1.12, 0.88][light_combo_step])
-	if light_combo_step == 3:
-		attack_timer = light_finisher_duration
-		attack_cooldown_timer = light_finisher_cooldown
-		claw_hitbox_shape.polygon = claw_finisher_polygon
-	else:
-		attack_timer = attack_duration
-		attack_cooldown_timer = attack_cooldown
-		claw_hitbox_shape.polygon = claw_hitbox_polygon
-	_set_attack_active(true)
-	_update_attack_animation()
-	_refresh_attack_hits()
+	weapons.request(false)
 
 func _get_light_hit_animation() -> StringName:
 	match light_combo_step:
@@ -2925,6 +2937,9 @@ func _start_ground_charged_attack() -> void:
 	_refresh_attack_hits()
 
 func _start_heavy_attack(allow_uppercut: bool = true) -> void:
+	if not liquid_beast and is_on_floor() and not (allow_uppercut and Input.is_action_pressed("move_up")):
+		weapons.request(true)
+		return
 	if allow_uppercut and Input.is_action_pressed("move_up"):
 		_try_heavy_uppercut()
 		return
@@ -3110,6 +3125,8 @@ func _start_wall_spin_attack() -> void:
 	_refresh_attack_hits()
 
 func _cancel_attack_for_chain() -> void:
+	if weapons != null:
+		weapons.cancel()
 	light_combo_step = 0
 	light_combo_window_timer = 0.0
 	light_combo_queued = false
@@ -3248,6 +3265,11 @@ func _update_hitbox_visual_visibility() -> void:
 		attack_effects.visible = attacking and not show_hitbox_debug
 
 func _update_attack_animation() -> void:
+	if weapons.active:
+		if weapons.current_weapon() == &"unarmed" and not weapons.heavy and weapons.step < 3:
+			attack_effects.visible = not show_hitbox_debug
+			_effect_claw_slash()
+		return
 	if not _is_attack_active():
 		return
 
@@ -3351,7 +3373,7 @@ func _update_attack_effects() -> void:
 			_effect_liquid_bite()
 
 func _effect_claw_slash() -> void:
-	var progress := clampf(1.0 - attack_timer / _get_light_attack_duration(), 0.0, 1.0)
+	var progress: float = clampf(weapons.elapsed / weapons.duration, 0.0, 1.0) if weapons.active else clampf(1.0 - attack_timer / _get_light_attack_duration(), 0.0, 1.0)
 	var finisher := light_combo_step == 3
 	_hide_effect_strokes(0)
 	claw_slash_sprite.visible = true
@@ -3650,21 +3672,21 @@ func _animate_uppercut_attack() -> void:
 	slash_outline.default_color = Color(1.0, 0.96, 0.72, 0.95)
 
 func _refresh_attack_hits() -> void:
-	if not _is_attack_active():
+	if not _is_attack_active() or not hitbox.monitoring:
 		return
 
 	for area in hitbox.get_overlapping_areas():
 		_hit_area(area)
 
 func _hit_area(area: Area2D) -> void:
-	if execution_core != null or not _is_attack_active():
+	if execution_core != null or not _is_attack_active() or weapons.active:
 		return
 
 	if area in attack_targets_hit:
 		return
 
 	attack_targets_hit.append(area)
-	if attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_UPPERCUT]:
+	if liquid_beast and attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND]:
 		var core: Node2D = area.get_node_or_null("RubyCore")
 		if core != null and core.claim(self):
 			_queue_execution(core)
@@ -4001,6 +4023,10 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	weapons.cancel()
+	weapons.aim = false
+	weapons.form_cooldown = 0.0
+	liquid_beast = false
 	wrath.cancel()
 	jade_fire_cooldown_timer = 0.0
 	_cancel_execution()
@@ -4048,8 +4074,8 @@ func _respawn_player() -> void:
 	if is_instance_valid(thrown_knife):
 		thrown_knife.queue_free()
 	thrown_knife = null
-	has_knife = true
-	knife_changed.emit(true)
+	has_knife = weapons.equipped != &"unarmed"
+	knife_changed.emit(has_knife)
 	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
 		projectile.queue_free()
 	hitstop_end_msec = 0

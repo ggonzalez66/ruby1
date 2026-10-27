@@ -1,0 +1,71 @@
+{
+  "verified_at_utc": "2026-10-27T13:27:48.911326+00:00",
+  "godot": "4.2.2.stable.official.15073afe3",
+  "scope": "Escenas cargadas desde el PCK embebido, fuera del proyecto y con datos temporales. 30 frames por escena; Windows usa un script externo que verifica la escena y cierra con quit(0).",
+  "platforms": {
+    "windows": {
+      "method": "Windows nativo, OpenGL Compatibility, NVIDIA RTX 3060 Ti",
+      "exit_code": 0,
+      "scenes": [
+        "main_menu",
+        "level_testing",
+        "sanctuary",
+        "main",
+        "stage2",
+        "stage3",
+        "stage4",
+        "gauntlet",
+        "sky_stairs"
+      ],
+      "level_testing_checks": 25,
+      "level_testing_exit_code": 0
+    },
+    "linux": {
+      "method": "Linux nativo headless",
+      "scenes": [
+        {
+          "scene": "main_menu",
+          "exit_code": 0
+        },
+        {
+          "scene": "level_testing",
+          "exit_code": 0
+        },
+        {
+          "scene": "sanctuary",
+          "exit_code": 0
+        },
+        {
+          "scene": "main",
+          "exit_code": 0
+        },
+        {
+          "scene": "stage2",
+          "exit_code": 0
+        },
+        {
+          "scene": "stage3",
+          "exit_code": 0
+        },
+        {
+          "scene": "stage4",
+          "exit_code": 0
+        },
+        {
+          "scene": "gauntlet",
+          "exit_code": 0
+        },
+        {
+          "scene": "sky_stairs",
+          "exit_code": 0
+        }
+      ]
+    }
+  },
+  "passed_scene_starts": 18,
+  "total_scene_starts": 18,
+  "notes": [
+    "Persisten avisos de objetos/recursos al cerrar algunas escenas; sin errores de script ni carga de recursos.",
+    "Windows con --quit-after cargó las escenas pero devolvió código 1, tanto headless como con ventana. Se verificó nuevamente con salida explícita quit(0): nueve escenas y suite del Santuario correctas."
+  ]
+}

@@ -69,6 +69,7 @@ func _ready() -> void:
 	pause_menu.testing_mode = true
 	add_child(pause_menu)
 	_build_ui()
+	_build_armory()
 	Music.play_game_music()
 
 func _physics_process(_delta: float) -> void:
@@ -281,4 +282,13 @@ func _build_ui() -> void:
 	InputHints.device_changed.connect(_refresh_hint)
 
 func _refresh_hint() -> void:
-	footer.text = "Explora a tu ritmo  ·  %s: pausa y menú" % InputHints.binding("pause")
+	footer.text = "Armas en la orilla oeste ← · Arriba: equipar · %s: pausa" % InputHints.binding("pause")
+
+func _build_armory() -> void:
+	# Orilla occidental: cinco pedestales con espacio para leer e interactuar.
+	var ids := preload("res://weapon_catalog.gd").IDS
+	for index in range(ids.size()):
+		var pickup := preload("res://weapon_pickup.gd").new()
+		pickup.weapon_id = ids[index]
+		pickup.position = Vector2(900 + index * 180, 0 if index > 1 else (-42 if index == 0 else -14))
+		add_child(pickup)

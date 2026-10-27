@@ -299,7 +299,7 @@ func _move_horizontally(amount: float, stop_at_ledges: bool) -> void:
 	global_position.x += amount
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
-	if ruby_core != null and ruby_core.locked:
+	if ruby_core != null and (ruby_core.locked or ruby_core.dying):
 		return
 	if state == State.DEAD:
 		return
@@ -315,7 +315,7 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 		state_timer = 0.3
 		warning_label.visible = false
 	if current_health == 0:
-		_die()
+		ruby_core.enter_dying()
 
 func on_shine_hit(direction: int, strength: float) -> void:
 	if ruby_core != null and ruby_core.locked:
@@ -373,3 +373,10 @@ func _poly(points: Array, color: Color) -> Polygon2D:
 	poly.polygon = PackedVector2Array(points)
 	poly.color = color
 	return poly
+
+func on_weapon_stagger() -> void:
+	if state == State.DEAD:
+		return
+	state = State.STAGGER
+	state_timer = 0.0
+	warning_label.hide()

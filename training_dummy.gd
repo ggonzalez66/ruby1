@@ -138,7 +138,7 @@ func _physics_process(delta: float) -> void:
 		_update_shooting(delta)
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
-	if ruby_core != null and ruby_core.locked:
+	if ruby_core != null and (ruby_core.locked or ruby_core.dying):
 		return
 	if current_health <= 0:
 		return
@@ -149,7 +149,7 @@ func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) ->
 	_update_health_bar()
 
 	if current_health == 0:
-		_die()
+		ruby_core.enter_dying()
 
 func launch_to(point: Vector2, rise_time: float, hang_time: float) -> void:
 	if ruby_core != null and ruby_core.locked:
@@ -343,3 +343,6 @@ func _update_health_bar() -> void:
 
 	health_fill.visible = current_health > 0
 	health_back.visible = current_health < max_health
+
+func on_weapon_stagger() -> void:
+	shoot_timer = maxf(shoot_timer, shoot_warning_time + 0.1)

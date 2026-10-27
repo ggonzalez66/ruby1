@@ -4,6 +4,8 @@ extends Node2D
 # solo Viridy puede reclamar un núcleo que YA estuviera open al conectar su heavy.
 const LOW_HEALTH_RATIO := 0.30
 const NORMAL_OPEN_TIME := 2.0
+const DYING_TIME := 4.0
+const MOTION := preload("res://enemy_launch_motion.gd")
 const POSTURE_MAX := 100.0
 const POSTURE_HIT := POSTURE_MAX / 3.0
 const BOSS_OPEN_TIME := 2.5
@@ -17,6 +19,9 @@ const RED := Color(1.0, 0.08, 0.15)
 var enemy: Node2D
 var boss := false
 var open_time := 0.0
+var dying := false
+var dying_left := 0.0
+var stagger_left := 0.0
 var posture := POSTURE_MAX
 var final_open := false
 var broken := false
@@ -44,6 +49,9 @@ func _ready() -> void:
 func reset_core() -> void:
 	_restore_stasis()
 	open_time = 0.0
+	dying = false
+	dying_left = 0.0
+	stagger_left = 0.0
 	spawn_grace_left = 0.0
 	posture = POSTURE_MAX
 	final_open = false
@@ -64,10 +72,10 @@ func is_open() -> bool:
 		return false
 	if boss:
 		return final_open or open_time > 0.0
-	return open_time > 0.0 or (enemy.current_health > 0 and enemy.current_health <= enemy.max_health * LOW_HEALTH_RATIO)
+	return open_time > 0.0
 
 func holds_actor() -> bool:
-	return locked or final_open or open_time > 0.0 or spawn_grace_left > 0.0
+	return locked or dying or final_open or open_time > 0.0 or stagger_left > 0.0 or spawn_grace_left > 0.0
 
 func apply_spirit_burn(damage: int) -> int:
 	# La quemadura no cuenta como golpe: no empuja, rompe guardia ni corta ataques.
@@ -82,7 +90,7 @@ func apply_spirit_burn(damage: int) -> int:
 	return applied
 
 func register_parry(token: int = -1) -> bool:
-	if not alive() or locked or final_open or open_time > 0.0:
+	if not alive() or locked or dying or final_open or open_time > 0.0:
 		return false
 	if not boss:
 		open_time = NORMAL_OPEN_TIME
@@ -113,8 +121,30 @@ func enter_final_open() -> void:
 	enemy._on_posture_broken()
 	Fx.text(enemy.get_parent(), global_position + Vector2(0, -100), "¡ROMPE EL RUBY!", RED.lightened(0.3))
 
+func is_executable() -> bool:
+	return alive() and not locked and (is_open() or dying)
+
+func enter_dying() -> void:
+	if boss or dying or broken:
+		return
+	dying = true
+	dying_left = DYING_TIME
+	open_time = 0.0
+	if enemy.get("warning_label") != null:
+		enemy.warning_label.hide()
+	Fx.text(enemy.get_parent(), global_position + Vector2(0, -35), "DYING", Color(1.0, 0.65, 0.3))
+
+func stagger(seconds: float) -> void:
+	if not alive() or locked or dying or final_open or open_time > 0.0 or seconds <= 0.0:
+		return
+	stagger_left = maxf(stagger_left, seconds * (0.35 if boss else 1.0))
+	if enemy.has_method("on_weapon_stagger"):
+		enemy.on_weapon_stagger()
+	if enemy.get("warning_label") != null:
+		enemy.warning_label.hide()
+
 func claim(by: Node) -> bool:
-	if not is_open():
+	if by.get("liquid_beast") != true or not is_executable():
 		return false
 	locked = true
 	z_index = 13
@@ -132,7 +162,7 @@ func release_claim(by: Node) -> void:
 		claimant = null
 
 func claim_wrath(by: Node) -> bool:
-	if not alive() or locked:
+	if by.get("liquid_beast") != true or not alive() or locked:
 		return false
 	locked = true
 	stolen = true
@@ -190,6 +220,8 @@ func complete(by: Node) -> bool:
 		_essence(by, center)
 		return false
 	broken = true
+	dying = false
+	dying_left = 0.0
 	final_open = false
 	open_time = 0.0
 	hide()
@@ -205,6 +237,20 @@ func complete(by: Node) -> bool:
 	return true
 
 func _physics_process(delta: float) -> void:
+	if dying and not locked and not broken:
+		dying_left = maxf(dying_left - delta, 0.0)
+		if dying_left <= 0.0:
+			dying = false
+			broken = true
+			hide()
+			var center := global_position
+			enemy._die()
+			_blast(center)
+	if stagger_left > 0.0:
+		stagger_left = maxf(stagger_left - delta, 0.0)
+		if not locked and not dying and open_time <= 0.0 and enemy.get("knock_velocity") != null and enemy.get("collision_shape") != null:
+			MOTION.move_to(enemy, enemy.collision_shape, enemy.global_position + Vector2(enemy.knock_velocity * delta, 0))
+			enemy.knock_velocity = move_toward(enemy.knock_velocity, 0.0, 900.0 * delta)
 	spawn_grace_left = maxf(spawn_grace_left - delta, 0.0)
 	clock += delta
 	if locked and (claimant == null or not is_instance_valid(claimant.get_ref())):
@@ -261,7 +307,7 @@ func posture_outline(radius: float, ratio: float) -> PackedVector2Array:
 func _draw() -> void:
 	if broken or stolen:
 		return
-	var exposed := is_open() or locked
+	var exposed := is_executable() or locked
 	var pulse := 0.5 + 0.5 * sin(clock * (18.0 if exposed else 4.0))
 	var radius := core_radius()
 	for layer in range(3):
@@ -283,6 +329,8 @@ func _draw() -> void:
 			draw_polyline(remaining, Color(1.0, 0.67, 0.15), 2.5, true)
 	if exposed:
 		draw_polyline(posture_outline(radius + 9.0 + pulse * 2.0, 1.0), Color(1.0, 0.35, 0.3, 0.45), 1.5, true)
+	if dying:
+		draw_arc(Vector2.ZERO, radius + 15, -PI * 0.5, -PI * 0.5 + TAU * dying_left / DYING_TIME, 32, Color(1.0, 0.7, 0.25), 3, true)
 	if cracks > 0 or final_open:
 		draw_polyline(PackedVector2Array([Vector2(1, -radius), Vector2(-2, -2), Vector2(3, 2), Vector2(-1, radius)]), Color(0.10, 0.0, 0.01), 2.0)
 

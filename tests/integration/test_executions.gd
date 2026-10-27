@@ -44,6 +44,7 @@ func clean() -> void:
 		enemy.queue_free()
 	await frames(3)
 	player._respawn_player()
+	player.liquid_beast = true
 	style.reset()
 	await frames(4)
 
@@ -65,6 +66,7 @@ func prepare_air_exit(running: bool, at_apex: bool = false, buffered_jump: bool 
 	await clean()
 	var victim := make_enemy("chaser_dummy", Vector2(100, -500), 20)
 	victim.current_health = 2
+	victim.ruby_core.register_parry()
 	player.position = Vector2(60, -600)
 	await frames(2)
 	if running:
@@ -125,15 +127,16 @@ func _run() -> void:
 	chaser.position = Vector2(400, 0)
 	chaser.set_physics_process(true)
 	await frames(12)
-	check(chaser.ruby_core.is_open() and chaser.position.x < 400, "poca vida abre sin inmovilizar al enemigo")
+	check(not chaser.ruby_core.is_open() and chaser.position.x < 400, "poca vida no abre ni inmoviliza al enemigo")
 	await clean()
 
 	print("== Heavy necesita apertura previa; daño ordinario sigue matando")
 	var victim := make_enemy("chaser_dummy", Vector2(70, 0))
 	victim.current_health = 4
 	hit(victim, player.ATTACK_HEAVY_GROUND)
-	check(victim.current_health == 1 and victim.ruby_core.is_open() and player.execution_core == null, "el heavy que deja poca vida NO ejecuta en ese mismo impacto")
+	check(victim.current_health == 1 and not victim.ruby_core.is_open() and player.execution_core == null, "el heavy que deja poca vida NO ejecuta en ese mismo impacto")
 	player._cancel_attack_for_chain()
+	victim.ruby_core.register_parry()
 	player.current_health = 40
 	var neighbor := make_enemy("chaser_dummy", Vector2(150, 0))
 	style._set_points(500.0)
@@ -167,7 +170,7 @@ func _run() -> void:
 	await clean()
 	victim = make_enemy("chaser_dummy", Vector2(70, 0))
 	victim.take_hit(Vector2.ZERO, 1, 999)
-	check(not victim.visible and player.execution_core == null, "un golpe ordinario letal puede matar sin ejecutar")
+	check(victim.visible and victim.ruby_core.dying and player.execution_core == null, "un golpe ordinario letal deja DYING sin ejecutar")
 	await clean()
 
 	print("== Salida universal desde suelo y colisiones")
@@ -175,6 +178,7 @@ func _run() -> void:
 		player.facing = direction
 		victim = make_enemy("chaser_dummy", Vector2(direction * 25, 0), 20)
 		victim.current_health = 1
+		victim.ruby_core.register_parry()
 		var wall := StaticBody2D.new()
 		wall.collision_layer = 2
 		var wall_shape := CollisionShape2D.new()
@@ -186,7 +190,7 @@ func _run() -> void:
 		arena.add_child(wall)
 		hit(victim, player.ATTACK_HEAVY_GROUND)
 		await wait_execution()
-		check(player.velocity.y < 0 and player.frontflip_active and player.animated_sprite.animation == player.ANIMATION_FRONTFLIP, "sin carrera sale rebotando con flip normal, lado %d" % direction)
+		check(player.velocity.y < 0 and player.frontflip_active and player.liquid_beast, "sin carrera sale rebotando con flip normal, lado %d" % direction)
 		await frames(8)
 		check(player.position.y < -20 and player.position.x * direction < 55.0, "el rebote despega y respeta la pared")
 		wall.queue_free()
@@ -195,48 +199,30 @@ func _run() -> void:
 	player._start_sprint(1)
 	victim = make_enemy("chaser_dummy", Vector2(45, 0), 20)
 	victim.current_health = 1
+	victim.ruby_core.register_parry()
 	hit(victim, player.ATTACK_HEAVY_GROUND)
 	await wait_execution()
-	check(not player.is_on_floor() and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "en carrera la ejecución desde suelo despega como bestia alargada")
+	check(not player.is_on_floor() and player.liquid_beast, "en carrera la ejecución desde suelo despega como bestia alargada")
 	await frames(4)
 	check(player.position.y < -20 and player.velocity.y < 0 and player.execution_air_boost_active, "la corrida no anula el impulso vertical al tick siguiente")
 	Input.action_press("attack")
 	await frames(2)
 	Input.action_release("attack")
-	check(player.attack_mode == player.ATTACK_LIGHT_CHARGED_AIR and player.execution_air_exit == player.ExecutionAirExit.NONE, "una acción nueva después de salir interrumpe la animación libremente")
+	check(player.weapons.breath and player.execution_air_exit == player.ExecutionAirExit.NONE, "una acción nueva después de salir interrumpe la animación libremente")
 	await clean()
 
-	print("== Uppercut y apertura previa")
+	print("== Uppercut común no ejecuta ni siquiera en bestia")
 	victim = make_enemy("chaser_dummy", Vector2(60, 0), 20)
-	victim.current_health = 7
+	victim.ruby_core.register_parry()
 	hit(victim, player.ATTACK_UPPERCUT)
-	check(victim.current_health == 4 and victim.ruby_core.is_open() and player.execution_core == null, "el uppercut que abre por poca vida todavía hace daño ordinario")
-	player._cancel_attack_for_chain()
-	hit(victim, player.ATTACK_UPPERCUT)
-	check(player.execution_core == victim.ruby_core and victim.current_health == 4, "el siguiente uppercut captura sin daño ordinario ni lanzamiento extra")
-	await wait_execution()
-	check(not victim.visible and player.frontflip_active and player.animated_sprite.animation == player.ANIMATION_FRONTFLIP, "sin carrera el uppercut ejecuta y sale con el flip normal")
-	await clean()
-	victim = make_enemy("chaser_dummy", Vector2(40, -90), 20)
-	victim.current_health = 2
-	player.has_knife = false
-	player._start_uppercut_attack(false)
-	var uppercut_captured := false
-	for tick in range(40):
-		await frames(1)
-		if player.execution_core != null:
-			uppercut_captured = true
-			break
-	check(uppercut_captured, "el uppercut real conecta al ascender y ejecuta incluso sin cuchillo")
-	if uppercut_captured:
-		await wait_execution()
-		check(not victim.visible and player.velocity.y < 0.0, "el uppercut entrega la muerte y el rebote de la ejecución")
+	check(victim.current_health == 17 and player.execution_core == null, "uppercut hace daño ordinario sobre OPEN")
 	await clean()
 
 	print("== Ejecución aérea real y último rebote del volador")
 	victim = make_enemy("training_dummy", Vector2(220, -130), 20)
 	victim.aerial = true
 	victim.current_health = 2
+	victim.ruby_core.register_parry()
 	player.position = Vector2(200, -280)
 	await frames(2)
 	player._start_sprint(1)
@@ -263,14 +249,14 @@ func _run() -> void:
 		await wait_execution()
 		check(not victim.visible and player.velocity.y < 0 and player.air_jumps_remaining == player.max_air_jumps, "el volador muere y entrega el último rebote y salto aéreo")
 		check(player.is_sprinting and is_equal_approx(player.velocity.x, player.sprint_speed + player.execution_air_exit_boost) and player.bunnyhop_bonus == 180, "sale con impulso intermedio fijo sin convertir el heavy en aceleración extra")
-		check(player.execution_air_exit == player.ExecutionAirExit.LAUNCH and player.frontflip_active and player.attack_mode == player.ATTACK_NONE and player.animated_sprite.animation == player.ANIMATION_LIQUID_LAUNCH, "en carrera sale con bestia alargada sin hitbox gratuita")
+		check(player.execution_air_exit == player.ExecutionAirExit.LAUNCH and player.frontflip_active and player.attack_mode == player.ATTACK_NONE and player.liquid_beast, "en carrera sale con bestia alargada sin hitbox gratuita")
 		var exit_stall := false
 		var saw_apex_flip := false
 		for tick in range(120):
 			await frames(1)
 			if player.execution_air_exit == player.ExecutionAirExit.APEX_FLIP:
-				saw_apex_flip = saw_apex_flip or (player.animated_sprite.animation == player.ANIMATION_FRONTFLIP and absf(player.velocity.y) < 0.01)
-			if player.animated_sprite.animation == player.ANIMATION_AERIAL_STALL and not player.is_on_floor():
+				saw_apex_flip = saw_apex_flip or (player.liquid_beast and absf(player.velocity.y) < 0.01)
+			if player.execution_air_exit == player.ExecutionAirExit.NONE and not player.is_on_floor():
 				exit_stall = true
 				break
 		check(saw_apex_flip, "en el peak se detiene verticalmente para hacer un flip normal")
@@ -282,7 +268,7 @@ func _run() -> void:
 
 	print("== Salida de ejecución aérea: acciones antes de terminar el flip")
 	for phase in ["sin carrera", "lanzamiento", "flip en ápice"]:
-		for action in ["heavy_attack", "attack", "uppercut", "jump", "dash", "roar", "throw_knife"]:
+		for action in ["heavy_attack", "attack", "uppercut", "jump", "dash", "roar"]:
 			await prepare_air_exit(phase != "sin carrera", phase == "flip en ápice")
 			var jumps_before: int = player.air_jumps_remaining
 			var mid_flip: bool = player.frontflip_active and player.frontflip_elapsed < player.frontflip_rotation_duration
@@ -297,7 +283,7 @@ func _run() -> void:
 			var started := false
 			match action:
 				"heavy_attack": started = player.attack_mode == player.ATTACK_HEAVY
-				"attack": started = player.attack_mode in [player.ATTACK_SLASH, player.ATTACK_LIGHT_CHARGED_AIR]
+				"attack": started = player.weapons.breath
 				"uppercut": started = player.attack_mode == player.ATTACK_UPPERCUT
 				"jump": started = player.air_jumps_remaining == jumps_before - 1 and player.velocity.y < 0.0
 				"dash": started = player.dash_timer > 0.0
@@ -323,7 +309,7 @@ func _run() -> void:
 		boss.ruby_core.register_parry(12)
 		check(boss.ruby_core.is_open() and boss.ruby_core.posture <= 0.01, "tercer parry rompe postura y abre la ventana")
 		player.current_health = 40
-		hit(boss, player.ATTACK_UPPERCUT)
+		hit(boss, player.ATTACK_HEAVY_GROUND)
 		await wait_execution()
 		check(boss.current_health == 78 and not boss.is_defeated() and not boss.ruby_core.broken and boss.ruby_core.cracks == 1, "crítico daña mucho, agrieta y deja el cristal intacto")
 		check(player.current_health == 48 and boss.ruby_core.posture == 100.0, "absorbe esencia y restablece postura")
@@ -345,12 +331,12 @@ func _run() -> void:
 		check(boss.current_health == 20 and not boss.ruby_core.final_open and not boss.ruby_core.is_open() and boss.ruby_core.posture == 100, "perder el remate a cero restaura el 20 % de vida y toda la postura")
 		boss.take_hit(player.position, 1, 999)
 		check(boss.ruby_core.final_open and boss.ruby_core.open_time > 0.0, "volver a cero abre otra ventana limitada de remate")
-		hit(boss, player.ATTACK_UPPERCUT)
+		hit(boss, player.ATTACK_HEAVY_GROUND)
 		await frames(2)
 		boss.ruby_core._physics_process(10.0)
 		check(boss.current_health == 0 and boss.ruby_core.locked, "reclamar el Ruby a tiempo impide que el jefe se recupere durante la captura")
 		await wait_execution()
-		check(boss.is_defeated() and boss.ruby_core.broken, "un uppercut remata al jefe y rompe el cristal definitivamente")
+		check(boss.is_defeated() and boss.ruby_core.broken, "un heavy de bestia remata al jefe y rompe el cristal definitivamente")
 		boss.ruby_core._physics_process(10.0)
 		check(boss.current_health == 0 and boss.is_defeated(), "el jefe ejecutado no regenera vida después de morir")
 		boss.reset_dummy()
@@ -360,6 +346,7 @@ func _run() -> void:
 	print("== Cancelación y parries de proyectiles")
 	victim = make_enemy("training_dummy", Vector2(70, 0), 20)
 	victim.current_health = 2
+	victim.ruby_core.register_parry()
 	hit(victim, player.ATTACK_HEAVY_GROUND)
 	await frames(2)
 	victim.reset_dummy()

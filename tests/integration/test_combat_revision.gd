@@ -49,14 +49,14 @@ func _run() -> void:
 		if not player._is_attack_active() and player.attack_cooldown_timer <= 0.0:
 			break
 	check(player.running_attack_cooldown_timer > 0.1, "el ataque normal se recupera antes del cooldown del dash attack")
-	for hit in [1, 2, 3]:
+	for hit in [1, 2, 3, 4, 5]:
 		await tap("attack")
 		if hit > 1:
 			for tick in range(30):
 				if player.light_combo_step == hit:
 					break
 				await frames(1)
-		check(player.attack_mode == player.ATTACK_SLASH and player.light_combo_step == hit, "durante el cooldown sale el hit %d del combo" % hit)
+		check(player.weapons.active and player.light_combo_step == hit, "durante el cooldown sale el hit %d del combo" % hit)
 		check(player.is_sprinting and player.velocity.x >= player.sprint_speed - 1, "el hit %d conserva la corrida" % hit)
 		if hit == 1:
 			# La recarga puede terminar durante el combo; el hit 2/3 no debe convertirse en un dash.
@@ -73,6 +73,7 @@ func _run() -> void:
 	print("== Capturas sin buffers de acción")
 	for action in ["jump", "attack", "heavy_attack", "dash", "roar", "throw_knife"]:
 		player._respawn_player()
+		player.liquid_beast = true
 		player.position = Vector2(0, -2)
 		await frames(5)
 		var enemy: Node2D = load("res://training_dummy.tscn").instantiate()
@@ -80,6 +81,7 @@ func _run() -> void:
 		enemy.max_health = 20
 		arena.add_child(enemy)
 		enemy.current_health = 1
+		enemy.ruby_core.register_parry()
 		enemy.set_physics_process(false)
 		player.attack_mode = player.ATTACK_HEAVY_GROUND
 		player.attack_targets_hit.clear()
@@ -92,10 +94,11 @@ func _run() -> void:
 			if player.execution_core == null:
 				break
 		await frames(2)
-		check(player.attack_mode == player.ATTACK_NONE and player.jump_buffer_timer == 0.0 and player.combo_buffer == &"" and player.dash_timer <= 0.0 and not player.roar_active and player.has_knife and player.air_jumps_remaining == player.max_air_jumps, "%s durante captura se descarta al terminar" % action)
+		check(player.attack_mode == player.ATTACK_NONE and player.jump_buffer_timer == 0.0 and player.combo_buffer == &"" and player.dash_timer <= 0.0 and not player.roar_active and not player.has_knife and player.air_jumps_remaining == player.max_air_jumps, "%s durante captura se descarta al terminar" % action)
 		enemy.queue_free()
 	print("== Impacto común de crítico y remate, sin romper antes el núcleo")
 	player._respawn_player()
+	player.liquid_beast = true
 	var boss: Area2D = load("res://boss_heavy.gd").new()
 	boss.position = Vector2(400, -2)
 	boss.max_health = 105

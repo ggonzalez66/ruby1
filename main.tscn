@@ -631,9 +631,8 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnife" type="Node2D" parent="."]
 position = Vector2(820, -2200)
 script = ExtResource("14_sign")
-text = "{throw_knife} lanza fuego jade sin daño y marca a un enemigo.
-Pulsa otra vez para atraerlo; si está open, te teletransportas para ejecutarlo. Tiene cooldown."
-title = "Fuego jade"
+text = "Con un arma equipada, mantén {throw_knife} para apuntar y pulsa {attack} para lanzarla o recuperarla.\nElige tu arma en el Santuario o antes del Gauntlet."
+title = "Armas y Aim"
 panel_width = 320
 
 [node name="DummyKnifeTarget" parent="." instance=ExtResource("2_dummy")]
@@ -643,7 +642,7 @@ max_health = 8
 [node name="SignKnifeAim" type="Node2D" parent="."]
 position = Vector2(2000, -2200)
 script = ExtResource("14_sign")
-text = "Mantén {move_up} al lanzar para tirar hacia arriba, o en diagonal si además te mueves."
+text = "Durante Aim usa el stick derecho o el ratón. Puedes caminar, pero no correr.\nMientras tu arma está fuera utilizas el combo desarmado."
 title = "Apuntar"
 panel_width = 320
 
@@ -655,8 +654,7 @@ max_health = 6
 [node name="SignKnifePull" type="Node2D" parent="."]
 position = Vector2(2600, -2200)
 script = ExtResource("14_sign")
-text = "Marca con fuego jade y pulsa otra vez para hacer Soul pull, sin daño.
-Baja al dummy de la plataforma alta: la caída lo destruye."
+text = "El arma que regresa golpea y atrae a todos los enemigos atravesados.\nEl primero recibe daño completo; los siguientes, cada vez menos."
 title = "Atraer"
 panel_width = 340
 
@@ -781,8 +779,8 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnifeChaser" type="Node2D" parent="."]
 position = Vector2(6950, -2200)
 script = ExtResource("14_sign")
-text = "Marca al perseguidor con fuego jade y usa Soul pull para atraerlo. Si está open, lo ejecutarás al instante."
-title = "Fuego jade y perseguidores"
+text = "{transform} alterna Liquid Beast. Solo sus heavies ejecutan enemigos OPEN o DYING.\nMantén {attack} para exhalar fuego jade."
+title = "Liquid Beast"
 panel_width = 340
 
 [node name="ChaserF3A" type="Area2D" parent="."]
@@ -904,9 +902,8 @@ shoot_direction = Vector2(1, 0.35)
 [node name="SignShineKnife" type="Node2D" parent="."]
 position = Vector2(7700, -3300)
 script = ExtResource("14_sign")
-text = "Ruge mientras el fuego jade vuelve hacia ti: sale disparado otra vez contra el enemigo en que estaba anclado.
-Encadénalo: recupera, ruge, recupera..."
-title = "Shine jade"
+text = "{roar} conserva el parry en ambas formas. Los enemigos pequeños quedan OPEN durante 2 segundos.\nA cero de vida quedan DYING durante 4 segundos."
+title = "Parry y forma"
 panel_width = 340
 
 [node name="SignParry" type="Node2D" parent="."]

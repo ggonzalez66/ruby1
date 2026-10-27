@@ -87,6 +87,7 @@ func _run() -> void:
 
 	print("== Captura en stasis y rotura conjunta contra pared")
 	player._respawn_player()
+	player.liquid_beast = true
 	player.current_health = 40
 	var first := dummy(Vector2(120, -2))
 	var second := dummy(Vector2(250, -2))

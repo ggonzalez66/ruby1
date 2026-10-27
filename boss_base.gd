@@ -318,3 +318,8 @@ func _poly(points: Array, color: Color) -> Polygon2D:
 	poly.polygon = PackedVector2Array(points)
 	poly.color = color
 	return poly
+
+func on_weapon_stagger() -> void:
+	_on_posture_broken()
+	# La duración la lleva RubyCore; esto no abre el núcleo ni reduce postura.
+	set("state_timer", 0.0)

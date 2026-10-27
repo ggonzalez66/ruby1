@@ -14,7 +14,7 @@ class RecallTarget extends Area2D:
 		shape.shape.size = Vector2(12, 24)
 		add_child(shape)
 
-	func take_hit() -> void:
+	func take_hit(_source: Vector2, _direction: int, _damage: int) -> void:
 		hits += 1
 
 	func pull_towards(point: Vector2, _strength: float) -> void:
@@ -58,6 +58,7 @@ func _run() -> void:
 	root.add_child(arena)
 	player = load("res://playerr.tscn").instantiate()
 	arena.add_child(player)
+	player.weapons.equip(&"glaive")
 	player.set_physics_process(false)
 	await frames(2)
 	print("== Regreso barrido, multiblanco y ambos lados")
@@ -72,7 +73,7 @@ func _run() -> void:
 		spear.recall()
 		check(spear.is_returning() and spear.sprite.visible and not player.has_knife, "lado %d: recall en vuelo inicia un único regreso visible" % side)
 		spear._physics_process(0.43)
-		check(enemies.all(func(e): return e.pulls == 1 and e.pull_direction == -side and e.hits == 0), "lado %d: atraviesa y atrae 40 enemigos en un frame sin daño instantáneo" % side)
+		check(enemies.all(func(e): return e.pulls == 1 and e.pull_direction == -side and e.hits == 1), "lado %d: atraviesa y atrae 40 enemigos en un frame con un impacto por enemigo" % side)
 		check(outside.pulls == 0, "lado %d: no atrae enemigos fuera del trayecto" % side)
 		spear._physics_process(0.001)
 		check(enemies.all(func(e): return e.pulls == 1), "lado %d: el solapamiento de frames no repite la atracción" % side)

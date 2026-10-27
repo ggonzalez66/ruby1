@@ -113,7 +113,7 @@ func _run() -> void:
 	hawk.on_deflected(player)
 	check(hawk.state == hawk.State.STAGGER and hawk.dive_hit_done, "el rugido desvía la picada")
 	hawk.take_hit(Vector2.ZERO, 1, 999)
-	check(not hawk.visible and hawk.state == hawk.State.DEAD, "muere")
+	check(hawk.visible and hawk.ruby_core.dying, "entra en dying antes de explotar")
 	hawk.reset_dummy()
 	check(hawk.visible and hawk.current_health == hawk.max_health and hawk.state == hawk.State.PATROL, "y reaparece con reset_dummy")
 	hawk.queue_free()
@@ -151,7 +151,7 @@ func _run() -> void:
 	await frames(30)
 	check(shield.facing == 1, "luego se gira")
 	shield.take_hit(Vector2.ZERO, 1, 999)
-	check(not shield.visible, "muere")
+	check(shield.ruby_core.dying and shield.visible, "entra en dying")
 	shield.queue_free()
 
 	print("== Tiradores voladores")

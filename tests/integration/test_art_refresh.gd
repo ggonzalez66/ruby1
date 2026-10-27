@@ -59,7 +59,7 @@ func _run() -> void:
 	player.attack_cooldown_timer = 0.0
 	player._start_attack()
 	await frames(1)
-	check(player.attack_mode == player.ATTACK_SLASH and player.animated_sprite.animation == &"light_hit", "otro ataque reemplaza la forma líquida sin esperar al dibujo")
+	check(player.weapons.active and player.animated_sprite.animation == &"light_hit", "otro ataque reemplaza la forma líquida sin esperar al dibujo")
 	await frames(20)
 	check(not player.afterimage_container.get_children().any(func(n): return n.name == "HeavyBodyRemnant"), "el remanente se elimina tras desvanecerse")
 

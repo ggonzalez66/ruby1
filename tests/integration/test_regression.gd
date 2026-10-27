@@ -42,6 +42,7 @@ func load_level(path: String) -> void:
 	root.add_child(level)
 	await frames(10)
 	player = get_first_node_in_group(&"player")
+	player.weapons.equip(&"glaive")
 
 func reset(at: Vector2 = GROUND) -> void:
 	release_all()
@@ -76,7 +77,7 @@ func _run() -> void:
 	print("== Ataques")
 	await reset()
 	await tap("attack")
-	check(player.attack_mode == player.ATTACK_SLASH, "ataque ligero al pulsar")
+	check(player.weapons.active, "ataque ligero al pulsar")
 	await frames(30)
 	await reset()
 	Input.action_press("dash")
@@ -111,12 +112,12 @@ func _run() -> void:
 	release_all()
 	check(shot.reflected and player.riposte_timer > 0.0, "devolver abre el riposte")
 	player.current_health = 50
-	await tap("throw_knife")
+	player._on_knife_input(0)
 	await frames(1)
 	var knife: Node2D = player.thrown_knife
 	check(knife != null and knife.empowered, "el cuchillo sale potenciado")
 	await frames(40)
-	await tap("throw_knife")
+	player._on_knife_input(0)
 	check(player.current_health == 50, "sacar el cuchillo de riposte no cura: la energía procede del Ruby (%d)" % player.current_health)
 	await frames(60)
 	target.queue_free()
@@ -143,7 +144,7 @@ func _run() -> void:
 	await reset(Vector2(1000, -2))
 	player.current_health = 100
 	player.invulnerability_timer = 0.0
-	await tap("throw_knife")
+	player._on_knife_input(0)
 	var hostile := false
 	for i in range(80):
 		await frames(1)

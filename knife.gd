@@ -1,7 +1,7 @@
 extends Node2D
 
-# Lanza espiritual jade: una marca activa, con quemadura periódica no letal.
-# Recall devuelve la lanza y atrae a cada enemigo atravesado; conserva la ejecución si está open.
+# Arma arrojada: conserva su identidad y una marca con quemadura no letal.
+# Recall daña en orden de contacto con caída del 30 % y atrae cada enemigo una vez.
 # Se clava también en el terreno hasta que se llama de vuelta.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
@@ -9,11 +9,10 @@ const FIRE_VISUAL := preload("res://jade_fire_visual.gd")
 const JADE_MARK := preload("res://jade_mark.gd")
 const RETURN_SPEED := 1800.0
 const BURN_DURATION := 2.0
-const KNIFE_TEXTURE: Texture2D = preload("res://spirit_spear_visual.gd").TEXTURE
 # La punta mira hacia la derecha y se orienta con la trayectoria.
 const TIP_ANGLE := 0.0
-# Lanza al doble de tamaño visual; conserva la hurtbox de 52 × 18.
-const VISUAL_SCALE := 0.20
+# Las cuatro armas comparten lienzo de 176 × 80; hitbox de vuelo 52 × 18.
+const VISUAL_SCALE := 0.85
 const TRAIL_LENGTH := 9
 
 const GRAVITY := 1100.0
@@ -41,7 +40,9 @@ var target_offset := Vector2.ZERO
 var recall_hits: Array = []
 var sprite: Sprite2D
 var trail: Line2D
-# El riposte conserva la apariencia potenciada; la marca y el recall no hacen daño.
+# El riposte conserva la apariencia potenciada. El daño del recall lo define el arma.
+var weapon_id: StringName = &"glaive"
+var recall_damage := 4
 var empowered := false
 var hit_any := false
 # Veces que se ha shineado (Rengar o enemigos) y cuántas fueron de Rengar (para el "SHINE KNIFE xN").
@@ -81,9 +82,7 @@ func _ready() -> void:
 	trail.width_curve = width_curve
 	add_child(trail)
 	sprite = Sprite2D.new()
-	sprite.texture = KNIFE_TEXTURE
-	sprite.hframes = 2
-	sprite.vframes = 2
+	sprite.texture = preload("res://weapon_catalog.gd").texture(weapon_id)
 	sprite.scale = Vector2.ONE * VISUAL_SCALE
 	add_child(sprite)
 
@@ -103,10 +102,6 @@ func recall() -> void:
 	if not is_instance_valid(player):
 		_release()
 		return
-	if state == State.MARKED and _is_target_alive(target):
-		if player.try_soul_execution(target):
-			_release()
-			return
 	state = State.RETURNING
 	_clear_mark()
 	target = null
@@ -145,6 +140,7 @@ func _return_to_player(delta: float) -> void:
 	query.collide_with_areas = true
 	query.collide_with_bodies = false
 	var excluded: Array[RID] = []
+	var crossed: Array[Node2D] = []
 	while true:
 		query.exclude = excluded
 		var hits := get_world_2d().direct_space_state.intersect_shape(query, 32)
@@ -158,13 +154,20 @@ func _return_to_player(delta: float) -> void:
 			var ray := PhysicsRayQueryParameters2D.create(from, _target_center(enemy), WORLD_MASK)
 			if not get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
 				continue
-			recall_hits.append(enemy)
-			if enemy.has_method("pull_towards"):
-				enemy.pull_towards(player.global_position, PULL_STRENGTH)
-			elif enemy.has_method("on_shine_hit"):
-				enemy.on_shine_hit(int(signf(player.global_position.x - enemy.global_position.x)), PULL_STRENGTH * 5.0)
-			Ferocity.add("soul_pull", 8.0, "SOUL PULL")
-			Fx.impact(get_parent(), _target_center(enemy), [FIRE_VISUAL.COLOR.darkened(0.6), FIRE_VISUAL.COLOR, Color(0.85, 1.0, 0.8)], 0.5)
+			crossed.append(enemy)
+	# La física no promete ordenar intersect_shape: ordenar antes del daño decreciente.
+	crossed.sort_custom(func(a, b): return _target_center(a).distance_squared_to(from) < _target_center(b).distance_squared_to(from))
+	for enemy in crossed:
+		var damage := maxi(1, roundi(float(recall_damage) * pow(0.7, recall_hits.size())))
+		recall_hits.append(enemy)
+		var direction := 1 if player.global_position.x >= enemy.global_position.x else -1
+		enemy.take_hit(global_position, direction, damage)
+		if enemy.has_method("pull_towards"):
+			enemy.pull_towards(player.global_position, PULL_STRENGTH)
+		elif enemy.has_method("on_shine_hit"):
+			enemy.on_shine_hit(direction, PULL_STRENGTH * 5.0)
+		Ferocity.add("soul_pull", 8.0, "SOUL PULL")
+		Fx.impact(get_parent(), _target_center(enemy), [FIRE_VISUAL.COLOR.darkened(0.6), FIRE_VISUAL.COLOR, Color(0.85, 1.0, 0.8)], 0.5)
 	global_position = to
 	if not wall.is_empty() or to.is_equal_approx(goal):
 		_release()
@@ -200,7 +203,6 @@ func _draw() -> void:
 
 func _physics_process(delta: float) -> void:
 	flame_time += delta
-	sprite.frame = int(flame_time * 14.0) % 4
 	_update_trail()
 	_update_look()
 	if state == State.STUCK_WORLD:

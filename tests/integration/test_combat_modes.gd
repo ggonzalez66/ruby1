@@ -94,19 +94,19 @@ func _run() -> void:
 
 	print("== Combo sin cuchillo")
 	await reset()
-	await tap("throw_knife")
+	# Unarmed es ahora el equipamiento inicial.
 	await frames(5)
 	check(not player.has_knife, "sin cuchillo")
 	var steps := []
-	for i in range(3):
+	for i in range(5):
 		await tap("attack")
 		await frames(1)
 		steps.append(player.light_combo_step)
 		await frames(14)
-	check(steps == [1, 2, 3], "el combo de 3 golpes sale igual (%s)" % [steps])
+	check(steps == [1, 2, 3, 4, 5], "el combo de 5 golpes sale igual (%s)" % [steps])
 	check(not is_instance_valid(player.knife_missing_cue), "sin aviso de cuchillo para el combo")
 	await frames(30)
-	await tap("throw_knife")
+	# Unarmed es ahora el equipamiento inicial.
 	await frames(60)
 
 	print("== Perseguidores pegados: parry y bloqueo")
@@ -270,6 +270,9 @@ func _run() -> void:
 	await frames(15)
 	var director: Node = get_first_node_in_group(&"gauntlet_director")
 	spawner = current_scene.get_node("BossSpawner")
+	check(director.phase == director.Phase.PREPARATION, "empieza en selección de armas")
+	director._begin_gauntlet()
+	await frames(3)
 	check(director != null and director.phase == director.Phase.WAVE and spawner.bosses.is_empty(), "empieza con una oleada, sin guardián")
 	var first_wave: int = director.enemies.size()
 	check(first_wave >= 3, "oleada 1: %d enemigos" % first_wave)
@@ -280,10 +283,11 @@ func _run() -> void:
 		for enemy in director.enemies:
 			if is_instance_valid(enemy):
 				enemy.take_hit(Vector2.ZERO, 1, 999)
-		await frames(5)
+		await frames(245)
 		check(director.phase == director.Phase.BOSS_INTRO, "ronda %d: con todos muertos se prepara el guardián" % (round_index + 1))
 		await frames(170)
 		check(director.phase == director.Phase.BOSS and not spawner.bosses.is_empty(), "aparece el guardián (%d)" % spawner.bosses.size())
+		get_first_node_in_group(&"player").liquid_beast = true
 		for boss in spawner.bosses:
 			boss.take_hit(Vector2.ZERO, 1, 9999)
 			boss.ruby_core.claim(get_first_node_in_group(&"player"))

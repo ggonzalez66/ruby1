@@ -38,6 +38,7 @@ func _run() -> void:
 	player = load("res://playerr.tscn").instantiate()
 	player.position = Vector2(0, -2)
 	arena.add_child(player)
+	player.weapons.equip(&"glaive")
 	await frames(5)
 	print("== Quemadura no letal sin hitstun")
 	var enemy: Area2D = load("res://chaser_dummy.gd").new()
@@ -62,8 +63,11 @@ func _run() -> void:
 	check(enemy.current_health == 8 and spear.sprite.visible, "la quemadura expira y la lanza sigue clavada")
 	enemy.current_health = 1
 	check(enemy.ruby_core.apply_spirit_burn(500) == 0 and enemy.current_health == 1, "la quemadura nunca resuelve una baja")
-	spear.recall()
-	check(player.execution_core == enemy.ruby_core, "recall del enemigo quemado y open inicia la ejecución")
+	enemy.ruby_core.register_parry()
+	player.liquid_beast = true
+	player.attack_mode = player.ATTACK_HEAVY_GROUND
+	player._hit_area(enemy)
+	check(player.execution_core == enemy.ruby_core, "heavy de bestia captura al enemigo quemado y OPEN")
 	await frames(35)
 	check(enemy.current_health == 0 and not enemy.visible, "la ejecución sí termina la baja")
 	player._respawn_player()
@@ -85,6 +89,7 @@ func _run() -> void:
 	boss.current_health = 50
 	spear = mark(boss)
 	boss.ruby_core.open_time = 2.5
+	player.liquid_beast = true
 	boss.ruby_core.claim(player)
 	spear._physics_process(2.0)
 	check(boss.current_health == 50, "captura y crítico suspenden el DoT y consumen su duración")
@@ -107,7 +112,7 @@ func _run() -> void:
 	var before: int = boss.current_health
 	spear.recall()
 	spear._physics_process(0.2)
-	check(boss.current_health == before and spear.state == spear.State.RETURNING and spear.sprite.visible, "el recall devuelve la lanza visible sin un tick extra")
+	check(boss.current_health == before - spear.recall_damage and spear.state == spear.State.RETURNING and spear.sprite.visible, "el recall devuelve la lanza visible con daño de retorno y sin tick extra")
 	await frames(2)
 	spear._physics_process(1.0)
 	await frames(2)
@@ -120,14 +125,19 @@ func _run() -> void:
 	player.position = Vector2(0, -2)
 	await frames(3)
 	Input.action_press("throw_knife")
-	await frames(2)
+	await frames(1)
+	player.weapons.aim_direction = Vector2.RIGHT
+	Input.action_press("attack")
+	await frames(1)
+	Input.action_release("attack")
 	Input.action_release("throw_knife")
 	check(is_instance_valid(player.thrown_knife) and player.animated_sprite.animation == player.ANIMATION_KNIFE_THROW, "el input real reproduce el lanzamiento nuevo")
 	check(player.animated_sprite.sprite_frames.get_frame_count(player.ANIMATION_KNIFE_THROW) == 4, "la animación contiene cuatro poses nuevas")
-	check(player.thrown_knife.velocity.x == player.knife_throw_forward.x and player.thrown_knife.life > 3.9, "se conserva velocidad horizontal y tiempo de vuelo")
+	check(is_equal_approx(player.thrown_knife.velocity.length(), 1300.0) and player.thrown_knife.life > 3.9, "Aim lanza a 1300 px/s y conserva tiempo de vuelo")
+	await frames(1)
 	player.attack_cooldown_timer = 0.0
 	player._start_heavy_attack(false)
-	check(player.attack_mode == player.ATTACK_HEAVY_GROUND, "el lanzamiento no bloquea el heavy")
+	check(player.weapons.active and player.weapons.heavy, "el lanzamiento no bloquea el heavy desarmado")
 	player._respawn_player()
 	var session: Node = root.get_node("RunSession")
 	session.player = player

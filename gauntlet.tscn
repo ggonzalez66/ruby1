@@ -66,9 +66,10 @@ position = Vector2(120, 0)
 script = ExtResource("9_checkpoint")
 
 [node name="SignGauntlet" type="Node2D" parent="."]
-position = Vector2(360, 0)
+position = Vector2(60, 0)
 script = ExtResource("14_sign")
-text = "Por oleadas: acaba con todos los enemigos y después con el guardián (a veces salen los tres).
+text = "Elige un arma suspendida con {move_up}. El portal azul inicia el reloj y la primera oleada.
+Acaba con los enemigos y después con el guardián.
 Al ganar, el portal de la derecha sigue a la siguiente ronda y el de la izquierda termina."
 title = "Gauntlet"
 panel_width = 380

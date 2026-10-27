@@ -44,6 +44,9 @@ func attach_player(new_player: Node2D) -> void:
 	# Escenas instanciadas por herramientas o pruebas no inician una partida de la aplicación.
 	if scene != get_tree().current_scene or scene.scene_file_path not in MODES:
 		return
+	if scene.scene_file_path == "res://gauntlet.tscn":
+		_clear_run()
+		return
 	begin_run(new_player, OS.get_environment("RUBY1_SKIP_COUNTDOWN") != "1")
 
 func begin_run(new_player: Node2D, with_countdown: bool = true) -> void:

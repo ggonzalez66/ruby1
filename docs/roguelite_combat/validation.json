@@ -1,0 +1,217 @@
+{
+  "verified_at_utc": "2026-10-27T13:18:51.330714+00:00",
+  "engine": "Godot 4.2.2",
+  "integration": {
+    "suite_count": 26,
+    "passed": 1045,
+    "total": 1045,
+    "suites": [
+      {
+        "name": "test_weapon_interactions",
+        "passed": 17,
+        "total": 17,
+        "exit_code": 0
+      },
+      {
+        "name": "test_ajustes",
+        "passed": 13,
+        "total": 13,
+        "exit_code": 0
+      },
+      {
+        "name": "test_art_refresh",
+        "passed": 11,
+        "total": 11,
+        "exit_code": 0
+      },
+      {
+        "name": "test_combat_feedback",
+        "passed": 42,
+        "total": 42,
+        "exit_code": 0
+      },
+      {
+        "name": "test_combat_modes",
+        "passed": 65,
+        "total": 65,
+        "exit_code": 0
+      },
+      {
+        "name": "test_combat_revision",
+        "passed": 34,
+        "total": 34,
+        "exit_code": 0
+      },
+      {
+        "name": "test_combos",
+        "passed": 74,
+        "total": 74,
+        "exit_code": 0
+      },
+      {
+        "name": "test_enemigos",
+        "passed": 35,
+        "total": 35,
+        "exit_code": 0
+      },
+      {
+        "name": "test_executions",
+        "passed": 114,
+        "total": 114,
+        "exit_code": 0
+      },
+      {
+        "name": "test_feedback_v2",
+        "passed": 26,
+        "total": 26,
+        "exit_code": 0
+      },
+      {
+        "name": "test_gauntlet_safety",
+        "passed": 29,
+        "total": 29,
+        "exit_code": 0
+      },
+      {
+        "name": "test_jade_soul_pull",
+        "passed": 13,
+        "total": 13,
+        "exit_code": 0
+      },
+      {
+        "name": "test_level_testing",
+        "passed": 25,
+        "total": 25,
+        "exit_code": 0
+      },
+      {
+        "name": "test_movement_polish",
+        "passed": 25,
+        "total": 25,
+        "exit_code": 0
+      },
+      {
+        "name": "test_regression",
+        "passed": 16,
+        "total": 16,
+        "exit_code": 0
+      },
+      {
+        "name": "test_roguelite_combat",
+        "passed": 43,
+        "total": 43,
+        "exit_code": 0
+      },
+      {
+        "name": "test_sfx",
+        "passed": 20,
+        "total": 20,
+        "exit_code": 0
+      },
+      {
+        "name": "test_shine_shield",
+        "passed": 36,
+        "total": 36,
+        "exit_code": 0
+      },
+      {
+        "name": "test_sky_performance",
+        "passed": 8,
+        "total": 8,
+        "exit_code": 0
+      },
+      {
+        "name": "test_sky_records",
+        "passed": 14,
+        "total": 14,
+        "exit_code": 0
+      },
+      {
+        "name": "test_spear_return",
+        "passed": 12,
+        "total": 12,
+        "exit_code": 0
+      },
+      {
+        "name": "test_speedrun",
+        "passed": 59,
+        "total": 59,
+        "exit_code": 0
+      },
+      {
+        "name": "test_spirit_spear",
+        "passed": 24,
+        "total": 24,
+        "exit_code": 0
+      },
+      {
+        "name": "test_sprites",
+        "passed": 219,
+        "total": 219,
+        "exit_code": 0
+      },
+      {
+        "name": "test_uppercut_collision",
+        "passed": 12,
+        "total": 12,
+        "exit_code": 0
+      },
+      {
+        "name": "test_wrath_nature",
+        "passed": 59,
+        "total": 59,
+        "exit_code": 0
+      }
+    ]
+  },
+  "tools": {
+    "passed": 48,
+    "total": 48,
+    "suites": [
+      {
+        "name": "test_normalize_sheet",
+        "passed": 32,
+        "total": 32
+      },
+      {
+        "name": "test_sound_tuning",
+        "passed": 16,
+        "total": 16
+      }
+    ]
+  },
+  "total_checks": 1093,
+  "final_targeted_rerun": [
+    "test_roguelite_combat",
+    "test_weapon_interactions"
+  ],
+  "runtime_review": {
+    "renderer": "gl_compatibility (Mesa llvmpipe)",
+    "captures": [
+      "runtime/aim.png",
+      "runtime/axe.png",
+      "runtime/gauntlet_armory.png",
+      "runtime/glaive.png",
+      "runtime/hammer.png",
+      "runtime/liquid_beast.png",
+      "runtime/sanctuary_armory.png",
+      "runtime/sword.png"
+    ]
+  },
+  "test_isolation": {
+    "temporary_XDG_DATA_HOME": true,
+    "RUBY1_SKIP_COUNTDOWN": "1"
+  },
+  "notes": [
+    "Se mantienen avisos de limpieza al salir: ObjectDB instances leaked y Resources still in use. No se registraron SCRIPT ERROR en las suites de integración.",
+    "Sprites de armas integrados; poses corporales reutilizadas según el alcance solicitado."
+  ],
+  "release": {
+    "builds": "builds.json",
+    "smoke": "native_smoke.json",
+    "passed_scene_starts": 18,
+    "total_scene_starts": 18,
+    "windows_level_testing_passed": 25,
+    "windows_level_testing_total": 25
+  }
+}
