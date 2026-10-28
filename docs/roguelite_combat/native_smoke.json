@@ -1,7 +1,8 @@
 {
-  "verified_at_utc": "2026-10-28T14:09:35.385271+00:00",
+  "verified_at_utc": "2026-10-28T15:00:37.213919+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "scope": "Final exports loaded all nine scenes from embedded PCK outside project with temporary gameplay data; 30 physics frames per scene.",
+  "source_commit": "455443e",
+  "scope": "Regenerated exports from /home/ggonzalez66/godot_projects/ruby1. All nine scenes loaded from embedded PCK outside project with temporary gameplay data; 30 physics frames per scene.",
   "scenes": [
     "main_menu",
     "level_testing",
@@ -15,17 +16,47 @@
   ],
   "platforms": {
     "windows": {
-      "method": "Native Windows, OpenGL Compatibility, NVIDIA RTX 3060 Ti",
+      "method": "Native Windows, OpenGL Compatibility",
+      "exit_code": 0,
       "checks_passed": 9,
       "checks_total": 9,
-      "completion_marker": "EXPORT_SMOKE_OK 9/9"
+      "shutdown_resource_warning": true
     },
     "linux": {
       "method": "Native Linux, headless",
       "exit_code": 0,
       "checks_passed": 9,
-      "checks_total": 9
+      "checks_total": 9,
+      "shutdown_resource_warning": true
     }
   },
-  "windows_export_note": "Icon and version resources applied to a copied template with native rcedit; packaged with Godot. Repository presets restored unchanged."
+  "gameplay_tests": {
+    "passed": 94,
+    "total": 94,
+    "suites": [
+      {
+        "suite": "test_weapon_common",
+        "exit_code": 0,
+        "results": [
+          "RESULTADO: 27/27"
+        ]
+      },
+      {
+        "suite": "test_roguelite_combat",
+        "exit_code": 0,
+        "results": [
+          "RESULTADO: 43/43"
+        ]
+      },
+      {
+        "suite": "test_spirit_spear",
+        "exit_code": 0,
+        "results": [
+          "RESULTADO: 24/24 OK"
+        ]
+      }
+    ]
+  },
+  "export_note": "Both exporters completed savepack and wrote final binaries but remained running afterwards. Exporter processes were terminated after packaging; both resulting binaries passed native smoke tests with exit code 0.",
+  "shutdown_note": "Existing ObjectDB/resources-in-use warnings on shutdown; no script or resource-load errors."
 }
