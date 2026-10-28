@@ -57,7 +57,7 @@ func _names(action: String) -> Array:
 # Sustituye {acción} por el nombre de su tecla/botón, resaltado para un RichTextLabel.
 func format(text: String) -> String:
 	var result := text.replace("{move}", _chip(movement()))
-	for action in ["jump", "attack", "heavy_attack", "dash", "throw_knife", "transform", "roar", "move_up", "move_down", "taunt", "pause"]:
+	for action in ["jump", "attack", "heavy_attack", "dash", "throw_knife", "weapon_throw", "transform", "roar", "move_up", "move_down", "taunt", "pause"]:
 		result = result.replace("{%s}" % action, _chip(binding(action)))
 	return result
 

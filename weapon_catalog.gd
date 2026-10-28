@@ -45,3 +45,13 @@ static func chain(id: StringName, heavy: bool) -> Array:
 
 static func chargeable(id: StringName, heavy: bool, index: int) -> bool:
 	return heavy and index == 0 and id in [&"axe", &"hammer", &"glaive"]
+
+# Common actions: damage bonus per pulse, stagger seconds, and hitbox scale.
+# Heavy weapons slow timed actions; cancel rules remain shared.
+const COMMON := {
+	&"unarmed": {"speed": 1.0, "bonus": 0, "reach": 1.0, "stagger": 0.0, "pulses": 1},
+	&"sword": {"speed": 1.0, "bonus": 0, "reach": 1.0, "stagger": 0.1, "pulses": 2},
+	&"axe": {"speed": 0.8, "bonus": 2, "reach": 1.25, "stagger": 0.4, "pulses": 1},
+	&"hammer": {"speed": 0.65, "bonus": 4, "reach": 1.35, "stagger": 0.7, "pulses": 1},
+	&"glaive": {"speed": 1.0, "bonus": 0, "reach": 1.6, "stagger": 0.15, "pulses": 2},
+}

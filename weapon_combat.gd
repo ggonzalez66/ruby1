@@ -207,7 +207,7 @@ func cancel() -> void:
 		player.claw_slash_sprite.hide()
 
 func super_armor() -> bool:
-	return active and current_weapon() == &"hammer"
+	return (active or player.common_moves.enabled) and current_weapon() == &"hammer"
 
 func _targets(center: Vector2, size: Vector2, original_claw := false) -> Array:
 	var shapes: Array[Shape2D] = []
@@ -326,13 +326,20 @@ func _process(_delta: float) -> void:
 		elif charging:
 			angle = -1.8
 		weapon_sprite.rotation = angle * player.facing
+	if player.common_moves.enabled:
+		if player.attack_mode == player.ATTACK_SPIN:
+			weapon_sprite.rotation = player.hitbox.rotation * player.facing
+		elif player.attack_mode == player.ATTACK_UPPERCUT:
+			weapon_sprite.rotation = -1.2 * player.facing
+		elif player.attack_mode == player.ATTACK_HEAVY:
+			weapon_sprite.rotation = 1.2 * player.facing
 	var text := "LIQUID BEAST" if player.liquid_beast else str(Catalog.NAMES[id])
 	if is_instance_valid(player.thrown_knife):
 		text += " · arma fuera"
 	if charging:
 		text += " · Carga %d%%" % roundi(charge / CHARGE_TIME * 100)
 	if aim:
-		text += " · %s: %s" % [InputHints.binding("attack"), "Lanzar" if player.has_knife else "Recuperar"]
+		text += " · %s: %s" % [InputHints.binding("weapon_throw"), "Lanzar" if player.has_knife else "Recuperar"]
 	else:
 		text += " · %s: transformar" % InputHints.binding("transform")
 	status.text = text

@@ -127,9 +127,9 @@ func _run() -> void:
 	Input.action_press("throw_knife")
 	await frames(1)
 	player.weapons.aim_direction = Vector2.RIGHT
-	Input.action_press("attack")
+	Input.action_press("weapon_throw")
 	await frames(1)
-	Input.action_release("attack")
+	Input.action_release("weapon_throw")
 	Input.action_release("throw_knife")
 	check(is_instance_valid(player.thrown_knife) and player.animated_sprite.animation == player.ANIMATION_KNIFE_THROW, "el input real reproduce el lanzamiento nuevo")
 	check(player.animated_sprite.sprite_frames.get_frame_count(player.ANIMATION_KNIFE_THROW) == 4, "la animación contiene cuatro poses nuevas")

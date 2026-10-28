@@ -21,7 +21,7 @@ func frames(count: int) -> void:
 		await physics_frame
 
 func release() -> void:
-	for action in ["attack", "heavy_attack", "jump", "dash", "throw_knife", "roar", "transform", "move_up", "move_down", "move_left", "move_right"]:
+	for action in ["attack", "heavy_attack", "jump", "dash", "throw_knife", "weapon_throw", "roar", "transform", "move_up", "move_down", "move_left", "move_right"]:
 		Input.action_release(action)
 
 func tap(action: String) -> void:
@@ -139,7 +139,7 @@ func _run() -> void:
 	Input.action_press("move_right")
 	await frames(10)
 	check(player.weapons.aim and player.has_knife and not player.is_sprinting and absf(player.velocity.x) <= player.max_speed, "Mantener Aim permite caminar, impide correr y no lanza solo")
-	await tap("attack")
+	await tap("weapon_throw")
 	check(not player.has_knife and is_instance_valid(player.thrown_knife) and player.weapons.current_weapon() == &"unarmed", "Lanzar espada cambia temporalmente al moveset desarmado")
 	release()
 	await frames(10)
@@ -149,7 +149,7 @@ func _run() -> void:
 	player.attack_cooldown_timer = 0.0
 	Input.action_press("throw_knife")
 	await frames(2)
-	await tap("attack")
+	await tap("weapon_throw")
 	await frames(90)
 	check(player.has_knife and player.weapons.current_weapon() == &"sword", "Aim + ataque recupera el arma equipada")
 	# Estados y exclusividad de las ejecuciones.

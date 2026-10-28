@@ -311,16 +311,16 @@ func _run() -> void:
 	var rb_bound := false
 	for event in InputMap.action_get_events("slow_motion"):
 		rb_bound = rb_bound or (event is InputEventJoypadButton and event.button_index == JOY_BUTTON_RIGHT_SHOULDER)
-	check(rb_bound, "la acción slow_motion va en RB")
+	check(not rb_bound, "slow_motion no tiene RB asignado")
 	var pause_menu: Node = null
 	for node in level.find_children("*", "CanvasLayer", true, false):
 		if node.get_script() == load("res://pause_menu.gd"):
 			pause_menu = node
-	var rb := InputEventJoypadButton.new()
-	rb.button_index = JOY_BUTTON_RIGHT_SHOULDER
+	var rb := InputEventAction.new()
+	rb.action = "slow_motion"
 	rb.pressed = true
 	pause_menu._unhandled_input(rb)
-	check(TC.slow_motion and is_equal_approx(Engine.time_scale, TC.SLOW_SCALE), "RB activa la cámara lenta (×%.2f)" % Engine.time_scale)
+	check(TC.slow_motion and is_equal_approx(Engine.time_scale, TC.SLOW_SCALE), "La acción sin mapear activa la cámara lenta (×%.2f)" % Engine.time_scale)
 	check(pause_menu.slow_label.visible, "con su aviso en pantalla")
 	player._apply_hitstop(0.05)
 	check(Engine.time_scale < TC.SLOW_SCALE * 0.1, "un golpe sigue congelando un instante")
@@ -330,7 +330,7 @@ func _run() -> void:
 	await frames(2)
 	check(is_equal_approx(Engine.time_scale, TC.SLOW_SCALE), "reaparecer no la quita")
 	pause_menu._unhandled_input(rb)
-	check(not TC.slow_motion and is_equal_approx(Engine.time_scale, 1.0) and not pause_menu.slow_label.visible, "otro RB vuelve a velocidad normal y quita el aviso")
+	check(not TC.slow_motion and is_equal_approx(Engine.time_scale, 1.0) and not pause_menu.slow_label.visible, "La acción vuelve a velocidad normal y quita el aviso")
 
 	print("== El shine solo hace flotar una vez en el aire")
 	await reset(GROUND + Vector2(0, -400))

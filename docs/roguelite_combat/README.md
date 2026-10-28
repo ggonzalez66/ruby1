@@ -1,6 +1,6 @@
 # Base de combate roguelite
 
-Implementación inicial: Viridy empieza **desarmado**. Las armas cambian ligeros y heavies terrestres; uppercut, dash attack, screw y heavy aéreo conservan sus entradas y movimiento. Los ligeros también encadenan en el aire, con suspensión durante el string y un impulso al conectar.
+Implementación inicial: Viridy empieza **desarmado**. Las armas cambian ligeros y heavies terrestres, además de los perfiles de uppercut, dash attack, screw y heavy aéreo (ver abajo). Los ligeros también encadenan en el aire, con suspensión durante el string y un impulso al conectar.
 
 ## Controles
 
@@ -12,7 +12,7 @@ Implementación inicial: Viridy empieza **desarmado**. Las armas cambian ligeros
 | Uppercut | Arriba + Y | W / ↑ + clic derecho |
 | Aim | Mantener LT | Mantener clic central |
 | Apuntar en Aim | Stick derecho | Ratón |
-| Lanzar / recuperar arma | X mientras se mantiene LT | Clic izquierdo durante Aim |
+| Lanzar / recuperar arma | RB mientras se mantiene LT | Clic izquierdo durante Aim |
 | Liquid Beast | B | Q |
 | Parry / guardia | LB | Tab |
 | Dash / correr | RT | Shift |
@@ -69,4 +69,39 @@ La base del personaje expone `max_health`, `damage_multiplier` y `attack_speed_m
 
 ## Ejecutables
 
-Exportados con Godot 4.2.2 para Windows (`builds/windows/Ruby1.exe`) y Linux (`builds/linux/Ruby1.x86_64`). Tamaños y SHA-256 en `builds.json`. Ambos ejecutables arrancaron las nueve escenas de menú, Level Testing, Santuario y modos de juego desde su PCK embebido, con datos temporales: 18/18 arranques correctos, sin errores de scripts. Además, la suite del Santuario pasó 25/25 checks sobre el ejecutable nativo de Windows con OpenGL Compatibility. Detalle y avisos de cierre en `native_smoke.json`. Los binarios permanecen en `builds/`, ignorado por Git.
+Exportados con Godot 4.2.2 para Windows (`builds/windows/Ruby1.exe`) y Linux (`builds/linux/Ruby1.x86_64`). Tamaños y SHA-256 en `builds.json`. Ambos ejecutables arrancaron las nueve escenas de menú, Level Testing, Santuario y modos de juego desde su PCK embebido, con datos temporales: 18/18 arranques correctos, sin errores de scripts. Windows se comprobó con OpenGL Compatibility y Linux en modo headless. Detalle de esta exportación en `native_smoke.json`. Los binarios permanecen en `builds/`, ignorado por Git.
+
+## Acciones comunes por arma
+
+Dash attack, screw, uppercut y dive usan perfiles de `weapon_catalog.gd` (COMMON).
+Desarmado mantiene su base. Espada y guja conservan las trayectorias y agregan
+un segundo pulso de 1 de daño a dash, screw y uppercut; dive tiene +1 de daño
+y conserva el rebote. Cada pulso puede golpear una vez a cada objetivo.
+Guja escala el área a 1,6; espada conserva el área base.
+Hacha añade 2 de daño por impacto, área ×1,25 y 0,4 s de stagger;
+martillo añade 4, área ×1,35 y 0,7 s de stagger, con superarmadura.
+Hacha reproduce las acciones temporizadas a velocidad ×0,8 y martillo a ×0,65;
+sus cooldowns se alargan en la misma proporción. Las reglas de cancelación se conservan.
+
+El ataque pesado aéreo de hacha/martillo arrastra enemigos pequeños y no rebota.
+Al aterrizar hace una explosión de 6/10 de daño base, respectivamente, con
+0,8/1,4 s de stagger y cobertura horizontal de 260/340 px. Las paredes bloquean
+el daño. Cancelar, recibir una interrupción, cambiar arma, reaparecer o salir
+libera los objetivos. Los jefes reciben daño pero no se arrastran.
+Liquid Beast conserva sus ataques y ejecuciones propios.
+
+LT mantiene Aim; RB lanza/recupera en Aim. X queda para ataque ligero.
+Con ratón se mantiene clic central y se lanza con clic izquierdo.
+Cámara lenta queda sin asignación por defecto en el mando.
+Estos valores son un primer balance para probar, sin implementar aún procs.
+
+| Arma | Dash attack | Screw | Uppercut | Dive (contacto + aterrizaje) | Velocidad de acciones temporizadas |
+| --- | --- | --- | --- | --- | --- |
+| Desarmado | 3 | 2 | 3 | 2, rebota | 1 |
+| Espada | 3 + 1 | 2 + 1 | 3 + 1 | 3, rebota | 1 |
+| Hacha | 5 | 4 | 5 | 4 + AoE 6 | 0,8 |
+| Martillo | 7 | 6 | 7 | 6 + AoE 10 | 0,65 |
+| Guja | 3 + 1 | 2 + 1 | 3 + 1 | 3, rebota | 1 |
+
+Daños nominales sin Ferocity, riposte ni mejoras. Los pulsos adicionales solo
+conectan si el enemigo sigue dentro del área cuando ocurre el segundo impacto.

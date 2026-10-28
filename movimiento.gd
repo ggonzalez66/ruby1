@@ -457,6 +457,7 @@ var light_combo_queued := false
 var jump_cut_available := false
 var has_knife := false
 var liquid_beast := false
+var common_moves := preload("res://weapon_common_moves.gd").new()
 var weapons: Node2D
 @export var damage_multiplier := 1.0
 @export var attack_speed_multiplier := 1.0
@@ -606,6 +607,7 @@ func _ready() -> void:
 	wrath = WRATH_SCRIPT.new()
 	wrath.name = "WrathOfNature"
 	add_child(wrath)
+	common_moves.player = self
 	weapons = preload("res://weapon_combat.gd").new()
 	weapons.name = "WeaponCombat"
 	add_child(weapons)
@@ -706,9 +708,12 @@ func _physics_process(delta: float) -> void:
 				# Durante el dash el salto se guarda y sale al terminar (salto largo si sigue corriendo).
 				dash_jump_buffered = true
 
+	if weapons.aim and Input.is_action_just_pressed("weapon_throw") and not _blocks_actions():
+		_on_knife_input(move_input)
+
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
 		if weapons.aim:
-			_on_knife_input(move_input)
+			pass
 		elif liquid_beast:
 			pass
 		elif _in_uppercut_chain():
@@ -790,6 +795,7 @@ func _physics_process(delta: float) -> void:
 		_consume_jump_buffer()
 		_apply_horizontal_movement(move_input, delta)
 
+	common_moves.tick(delta)
 	_update_execution_air_exit()
 	_update_attack_animation()
 	_destroy_projectiles_with_attack()
@@ -799,6 +805,7 @@ func _physics_process(delta: float) -> void:
 	var fall_speed: float = velocity.y
 	move_and_slide()
 	_update_wall_state()
+	common_moves.carry()
 	_refresh_attack_hits()
 	if execution_core != null:
 		return
@@ -1402,7 +1409,7 @@ func _update_timers(delta: float) -> void:
 		frontflip_elapsed += delta
 
 	if attack_timer > 0.0:
-		attack_timer = max(attack_timer - delta, 0.0)
+		attack_timer = max(attack_timer - delta * common_moves.speed, 0.0)
 		if attack_timer == 0.0:
 			_end_attack()
 
@@ -1878,6 +1885,7 @@ func _update_death(delta: float) -> void:
 		animated_sprite.rotation += death_spin * delta
 
 func _cancel_all_states() -> void:
+	common_moves.clear()
 	if weapons != null:
 		weapons.cancel()
 	heavy_morph_recovery_timer = 0.0
@@ -2543,6 +2551,7 @@ func _attach_afterimage_container() -> void:
 	level.move_child(afterimage_container, get_index())
 
 func _exit_tree() -> void:
+	common_moves.clear()
 	if is_instance_valid(wrath):
 		wrath.cancel()
 	_cancel_execution()
@@ -3228,6 +3237,10 @@ func _update_impact_wave_visual() -> void:
 	impact_wave_right_outline.default_color = impact_wave_left_outline.default_color
 
 func _set_attack_active(active: bool) -> void:
+	if active:
+		common_moves.begin()
+	else:
+		common_moves.clear()
 	hitbox.monitoring = active
 	hitbox_shape.disabled = not active
 	if active:
@@ -3288,7 +3301,9 @@ func _update_attack_animation() -> void:
 			_animate_light_charged_air_attack()
 		ATTACK_UPPERCUT:
 			_animate_uppercut_attack()
+	common_moves.geometry()
 	_update_attack_effects()
+	attack_effects.scale = Vector2.ONE * common_moves.reach
 
 func _create_attack_effects() -> void:
 	attack_effects = Node2D.new()
@@ -3682,7 +3697,7 @@ func _hit_area(area: Area2D) -> void:
 	if execution_core != null or not _is_attack_active() or weapons.active:
 		return
 
-	if area in attack_targets_hit:
+	if area in attack_targets_hit or not common_moves.can_hit(area):
 		return
 
 	attack_targets_hit.append(area)
@@ -3698,7 +3713,8 @@ func _hit_area(area: Area2D) -> void:
 		return
 
 	if area.has_method("take_hit"):
-		area.take_hit(global_position, facing, int(round(_get_attack_damage() * Ferocity.damage_multiplier())))
+		area.take_hit(global_position, facing, int(round(common_moves.damage(_get_attack_damage()) * Ferocity.damage_multiplier())))
+		common_moves.on_hit(area)
 		var heavy_hit: bool = attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN, ATTACK_UPPERCUT]
 		Sfx.play("hit_heavy" if heavy_hit else "hit_light")
 		# Más estilo, más impacto: los perseguidores salen despedidos más lejos.
@@ -3716,7 +3732,8 @@ func _hit_area(area: Area2D) -> void:
 
 	if attack_mode == ATTACK_HEAVY:
 		# Diferido: puede venir de la señal de colisión, donde no se puede desactivar la hitbox.
-		_bounce_after_hit.call_deferred()
+		if not common_moves.ground_slam:
+			_bounce_after_hit.call_deferred()
 	elif attack_mode == ATTACK_SLASH and not is_on_floor():
 		_apply_light_hit_air_boost()
 
@@ -3970,6 +3987,7 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 func _land_heavy_attack_on_floor() -> void:
 	if attack_mode != ATTACK_HEAVY:
 		return
+	common_moves.impact()
 
 	_cancel_attack_for_chain()
 	velocity.x = facing * heavy_ground_impact_slide_speed

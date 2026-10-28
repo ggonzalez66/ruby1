@@ -1,6 +1,6 @@
 extends Node
 
-# Velocidad base del juego. Con la cámara lenta activada (RB por defecto, acción slow_motion) todo va a
+# Velocidad base del juego. Con la cámara lenta activada (sin botón de mando por defecto, acción slow_motion) todo va a
 # SLOW_SCALE; el hitstop y lo que antes devolvía la velocidad a 1.0 vuelven a esta base, así un golpe
 # no apaga la cámara lenta.
 
