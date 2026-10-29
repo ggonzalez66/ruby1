@@ -176,6 +176,50 @@ func _run() -> void:
 	wrath.cancel()
 	wrath.max_distance = 4800
 	wrath.max_rush_duration = 3.0
+	print("== Heavy en pleno avance frena y ejecuta ahí")
+	player.liquid_beast = true
+	player.position = Vector2(8000, -2)
+	var caught := dummy(Vector2(8150, -2))
+	caught.set_physics_process(false)
+	await frames(2)
+	style._set_points(650)
+	wrath.arm()
+	wrath.launch(Vector2.RIGHT)
+	for i in range(30):
+		wrath.tick(1.0 / 60.0)
+		if not wrath.captured.is_empty():
+			break
+	var braked_at := player.position.x
+	Input.action_press("heavy_attack")
+	wrath.tick(1.0 / 60.0)
+	Input.action_release("heavy_attack")
+	check(wrath.state == wrath.State.RECOIL and wrath.recoil.dot(Vector2.RIGHT) > 0.0, "heavy durante el avance frena deslizando hacia delante")
+	for i in range(60):
+		wrath.tick(1.0 / 60.0)
+		if wrath.state == wrath.State.IDLE:
+			break
+	check(caught.current_health == 0 and caught.ruby_core.broken and player.position.x < braked_at + 60.0, "frena ahí mismo y ejecuta los Rubies capturados")
+	await frames(6)
+	check(not sound.is_looping("wrath_rush"), "frenar apaga el sonido del avance")
+	print("== Desde el suelo no se apunta hacia abajo ni hacia atrás; en el aire sí")
+	var directions := {"move_right": Vector2.RIGHT, "move_left": Vector2.LEFT, "move_up": Vector2.UP, "move_down": Vector2.DOWN}
+	for entry in [[Vector2(1, 1), false], [Vector2.DOWN, false], [Vector2(-1, 1), false], [Vector2.LEFT, false], [Vector2(1, -1), true], [Vector2.UP, true], [Vector2(-1, -1), true], [Vector2.DOWN, true, true]]:
+		player.position = Vector2(9000, -2)
+		player.facing = 1
+		style._set_points(650)
+		wrath.arm()
+		wrath.begin_aim()
+		wrath.landed = entry.size() < 3
+		for action in directions:
+			var axis: Vector2 = directions[action]
+			if axis.dot(entry[0]) > 0.5:
+				Input.action_press(action)
+		wrath.tick(0.01)
+		for action in directions:
+			Input.action_release(action)
+		var taken: bool = wrath.direction.is_equal_approx(entry[0].normalized())
+		check(taken == entry[1], "%s %s: %s" % ["aire" if entry.size() >= 3 else "suelo", entry[0], "permitido" if entry[1] else "bloqueado"])
+		wrath.cancel()
 	player.position = Vector2(6000, -300)
 	player.set_physics_process(true)
 	style._set_points(650)

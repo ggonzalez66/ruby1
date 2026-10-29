@@ -186,11 +186,34 @@ func _run() -> void:
 	seen = await watch_modes(65)
 	check(player.ATTACK_HEAVY in seen, "y del uppercut, el heavy aéreo")
 
-	print("== Combo: uppercut -> dash attack -> giro -> heavy aéreo")
+	print("== Combo: uppercut -> ligero sin correr empieza el string de ligeros")
 	await reset()
 	await tap_up_heavy()
 	await frames(2)
 	check(player.attack_mode == player.ATTACK_UPPERCUT, "uppercut")
+	await tap("attack")
+	var string_started := false
+	var dash_attack_seen := false
+	for i in range(70):
+		await frames(1)
+		dash_attack_seen = dash_attack_seen or player.attack_mode == player.ATTACK_LIGHT_CHARGED_AIR
+		if player.weapons.active and not player.weapons.heavy:
+			string_started = true
+			break
+	check(string_started and not dash_attack_seen and player.weapons.step == 0, "del uppercut, un ligero sale como primer golpe del string")
+	await tap("attack")
+	for i in range(40):
+		await frames(1)
+		if player.weapons.step == 1:
+			break
+	check(player.weapons.step == 1 and player.attack_mode != player.ATTACK_LIGHT_CHARGED_AIR, "otro ligero sigue el string, no un dash attack")
+
+	print("== Combo: uppercut -> dash attack (con correr) -> giro -> heavy aéreo")
+	await reset()
+	await tap_up_heavy()
+	await frames(2)
+	check(player.attack_mode == player.ATTACK_UPPERCUT, "uppercut")
+	Input.action_press("dash")
 	await tap("attack")
 	var air_dash_attack := false
 	for i in range(70):
@@ -198,12 +221,14 @@ func _run() -> void:
 		if player.attack_mode == player.ATTACK_LIGHT_CHARGED_AIR:
 			air_dash_attack = true
 			break
-	check(air_dash_attack, "del uppercut sale el dash attack aéreo")
+	check(air_dash_attack, "manteniendo correr, del uppercut sale el dash attack aéreo")
 	await tap("jump")
 	check(player.attack_mode == player.ATTACK_SPIN, "saltando: el giro")
 	await tap("heavy_attack")
 	seen = await watch_modes(25)
 	check(player.ATTACK_HEAVY in seen, "y el heavy aéreo")
+	check(player.animated_sprite.animation == player.ANIMATION_DIVE, "el heavy aéreo de Viridy usa su pose de picada, no la bestia")
+	Input.action_release("dash")
 
 	print("== Heavy de suelo: mordida de bestia líquida")
 	await reset()

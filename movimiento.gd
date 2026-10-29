@@ -77,6 +77,8 @@ const BRAKE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/vir
 const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_brake_recover.png")
 const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
 const UPPERCUT_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
+# Provisional: la pose de picada de Viridy mientras no haya una hoja nueva del dive.
+const DIVE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_aerial.png")
 const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
 const JADE_SHEETS := [JAVELIN_THROW_SHEET, WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET, DASH_ATTACK_TEXTURE, GROUND_MORPH_SHEET, HEAVY_REMNANT_SHEET, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET, WRATH_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
@@ -112,6 +114,7 @@ const ANIMATION_WALL_SLIDE := &"wall_slide"
 const ANIMATION_WALL_JUMP := &"wall_jump"
 const ANIMATION_CHARGE := &"charge"
 const ANIMATION_HEAVY_AERIAL := &"heavy_aerial"
+const ANIMATION_DIVE := &"dive"
 const ANIMATION_FALL := &"fall"
 const ANIMATION_DASH := &"dash"
 const ANIMATION_LIGHT_HIT := &"light_hit"
@@ -174,6 +177,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_LONG_JUMP: 0.687,
 	ANIMATION_CHARGE: 1.0,
 	ANIMATION_HEAVY_AERIAL: 0.39,
+	ANIMATION_DIVE: 0.39,
 	ANIMATION_FALL: 0.65,
 	ANIMATION_DASH: 0.64,
 	ANIMATION_LIGHT_HIT: 1.0,
@@ -943,6 +947,7 @@ func _configure_character_animations() -> void:
 	var spin_cell := LIQUID_SPIN_SHEET.get_size() * 0.5
 	_add_grid_animation(frames, ANIMATION_RUBY_SPIN, LIQUID_SPIN_SHEET, spin_cell, spin_cell.y, [Vector2i(0, 0), Vector2i(1, 0), Vector2i(0, 1), Vector2i(1, 1)], 16.0, true)
 	_add_single_frame_animation(frames, ANIMATION_SPIN, FRONTFLIP_TEXTURE)
+	_add_single_frame_animation(frames, ANIMATION_DIVE, DIVE_TEXTURE)
 	_add_arcade_animation(frames, ANIMATION_HURT, HURT_SHEET, 3, 12.0, false)
 	# Enganchado a la pared (mira hacia una pared a la derecha; ver _update_character_orientation).
 	_add_single_frame_animation(frames, ANIMATION_WALL_SLIDE, CLING_WALL_TEXTURE)
@@ -1106,7 +1111,7 @@ func _update_character_animation() -> void:
 	elif attack_mode == ATTACK_UPPERCUT:
 		next_animation = ANIMATION_UPPERCUT
 	elif attack_mode == ATTACK_HEAVY:
-		next_animation = ANIMATION_HEAVY_AERIAL
+		next_animation = ANIMATION_DIVE
 	elif attack_mode == ATTACK_HEAVY_GROUND:
 		next_animation = ANIMATION_GROUND_HEAVY
 	elif attack_mode == ATTACK_SLASH:
@@ -1334,7 +1339,10 @@ func _update_character_orientation(animation_name: StringName) -> void:
 		# El frame del salto de pared sale desde una pared a la izquierda, en dirección contraria.
 		animated_sprite.flip_h = wall_visual_direction < 0
 		return
-	if liquid_beast and attack_mode != ATTACK_HEAVY:
+	if liquid_beast and attack_mode == ATTACK_UPPERCUT:
+		# La estela de la bestia mira hacia delante: en el uppercut se gira para subir con la cabeza arriba.
+		animated_sprite.rotation = -facing * PI * 0.45
+	elif liquid_beast and attack_mode != ATTACK_HEAVY:
 		animated_sprite.rotation = 0.0
 	animated_sprite.flip_h = facing < 0
 
@@ -1530,12 +1538,18 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	if is_crouching():
 		velocity.x = 0.0
 		return
+	if liquid_beast and beast_running:
+		# Como Viridy: mantener correr basta para seguir corriendo; el stick solo elige el lado.
+		if move_input != 0.0:
+			sprint_direction = 1 if move_input > 0.0 else -1
+		velocity.x = move_toward(velocity.x, sprint_direction * sprint_speed, (ground_acceleration if is_on_floor() else air_acceleration) * delta)
+		return
 
 	var control_multiplier: float = 1.0
 	if attack_mode == ATTACK_SLASH:
 		control_multiplier = attack_move_multiplier
 
-	var target_speed: float = move_input * (sprint_speed if liquid_beast and beast_running else max_speed) * control_multiplier
+	var target_speed: float = move_input * max_speed * control_multiplier
 
 	if move_input == 0.0:
 		var friction: float = ground_friction if is_on_floor() else air_friction
@@ -2760,6 +2774,8 @@ func _start_sprint(direction: int) -> void:
 	if weapons != null and weapons.aim:
 		return
 	if liquid_beast:
+		if not beast_running:
+			sprint_direction = 1 if (direction if direction != 0 else facing) > 0 else -1
 		beast_running = true
 		return
 	var target_direction := direction
@@ -2878,11 +2894,16 @@ func _try_combat_action(kind: StringName) -> bool:
 			return weapons.active or (attack_mode != mode_before and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND))
 		&"attack":
 			if _in_uppercut_chain():
-				# Uppercut -> dash attack aéreo (y de ahí, saltando, el giro).
 				if not _uppercut_can_be_cancelled():
 					return false
 				_cancel_attack_for_chain()
-				_start_light_charged_air_attack()
+				attack_cooldown_timer = 0.0
+				if Input.is_action_pressed("dash") and not liquid_beast:
+					# Uppercut -> dash attack aéreo solo manteniendo correr.
+					_start_light_charged_air_attack()
+					return true
+				# Uppercut -> string de ligeros.
+				_on_attack_input()
 				return true
 			_on_attack_input()
 			return true
@@ -3430,7 +3451,19 @@ func _update_attack_effects() -> void:
 		ATTACK_UPPERCUT:
 			_effect_uppercut()
 		ATTACK_HEAVY, ATTACK_HEAVY_GROUND:
-			_effect_liquid_bite()
+			if attack_mode == ATTACK_HEAVY and not liquid_beast:
+				_effect_dive()
+			else:
+				_effect_liquid_bite()
+
+func _effect_dive() -> void:
+	# Estelas de velocidad detrás del cuchillo en el color del rango.
+	var direction := Vector2(absf(velocity.x), maxf(velocity.y, 60.0)).normalized()
+	var side := direction.orthogonal()
+	var palette: Array[Color] = _style_fire_palette(Ferocity.style_color())
+	for index in range(3):
+		var start := Vector2(8, -22) + side * ((index - 1) * 11.0)
+		_set_effect_stroke(index, PackedVector2Array([start - direction * (72.0 - index * 14.0), start - direction * 10.0]), 4.0 - index, palette, 0.6)
 
 func _effect_claw_slash() -> void:
 	var progress: float = weapons.active_progress() if weapons.active else clampf(1.0 - attack_timer / _get_light_attack_duration(), 0.0, 1.0)

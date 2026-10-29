@@ -82,13 +82,18 @@ func tick(delta: float) -> void:
 			State.AIM:
 				var input_direction := Input.get_vector("move_left", "move_right", "move_up", "move_down")
 				if input_direction.length_squared() >= 0.01:
-					direction = Vector2(signf(input_direction.x), signf(input_direction.y)).normalized()
+					var candidate := Vector2(signf(input_direction.x), signf(input_direction.y)).normalized()
+					if not (landed and _blocked_on_ground(candidate)):
+						direction = candidate
 				player.velocity = Vector2.ZERO
 				Ferocity.special_progress = maxf(1.0 - elapsed / aim_duration, 0.0)
 				if elapsed >= aim_duration:
 					launch(direction)
 			State.RUSH:
-				_rush(delta)
+				if Input.is_action_just_pressed("heavy_attack"):
+					_brake()
+				else:
+					_rush(delta)
 			State.RECOIL:
 				player.velocity = recoil * (1.0 - clampf(elapsed / recoil_duration, 0.0, 1.0))
 				player.move_and_collide(player.velocity * delta)
@@ -206,6 +211,22 @@ func _rush(delta: float) -> void:
 		elapsed = 0.0
 		Sfx.play("wrath_impact")
 		player._camera_kick(0.55, 0.045)
+
+func _blocked_on_ground(candidate: Vector2) -> bool:
+	# Desde el suelo no se apunta hacia abajo (abajo-adelante, abajo, abajo-atrás) ni hacia atrás.
+	return candidate.y > 0.01 or (absf(candidate.y) < 0.01 and signf(candidate.x) == -player.facing)
+
+func _brake() -> void:
+	# Heavy durante el avance: frena deslizándose hacia delante y ejecuta ahí lo capturado.
+	Sfx.stop_loop("wrath_rush")
+	Sfx.play("skid")
+	Sfx.play("wrath_impact", -4.0, 0.85)
+	Fx.jade_burst(player.get_parent(), player.global_position + Vector2(0, -42), 0.8)
+	landed = player.test_move(player.global_transform, Vector2.DOWN * 4.0)
+	recoil = direction * 260.0
+	state = State.RECOIL
+	elapsed = 0.0
+	player._camera_kick(0.3, 0.03)
 
 func _capture_segment(from: Vector2, to: Vector2) -> void:
 	var shape := CapsuleShape2D.new()

@@ -5,7 +5,7 @@ extends Node2D
 const LOW_HEALTH_RATIO := 0.30
 const NORMAL_OPEN_TIME := 2.0
 const DYING_TIME := 4.0
-const DYING_HIT_TIME := 0.8
+const DYING_HIT_TIME := 1.4
 const MOTION := preload("res://enemy_launch_motion.gd")
 const POSTURE_MAX := 100.0
 const POSTURE_HIT := POSTURE_MAX / 3.0

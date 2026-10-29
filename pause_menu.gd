@@ -9,7 +9,7 @@ const MAIN_MENU := "res://main_menu.tscn"
 # Al cambiar el esquema por defecto se sube la versión: los controles guardados con una
 # versión anterior se ignoran (el volumen sí se conserva). Se migran las versiones 2 y 3:
 # Select pasa a taunt y, desde la 2, "Lanza jade / Soul pull" vuelve a LT.
-const INPUT_VERSION := 7
+const INPUT_VERSION := 8
 const MUSIC_BUS := &"Music"
 const SFX_BUS := &"SFX"
 
@@ -33,7 +33,7 @@ signal closed
 const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
-	["throw_knife", "Mantener Aim"], ["weapon_throw", "Lanzar / recuperar en Aim"], ["transform", "Liquid Beast (sin Aim)"], ["roar", "Parry / Guardia (Viridy)"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
+	["throw_knife", "Mantener Aim"], ["weapon_throw", "Lanzar / recuperar en Aim"], ["transform", "Liquid Beast"], ["roar", "Parry / Guardia (Viridy)"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
 	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).
@@ -593,7 +593,8 @@ func _load_settings() -> void:
 		var saved_version := int(config.get_value("input", "version", 1))
 		if saved_version == INPUT_VERSION:
 			_load_bindings(config)
-		elif saved_version == 6:
+		elif saved_version in [6, 7]:
+			# La transformación vuelve a B; RB queda para lanzar/recuperar en Aim.
 			_load_bindings(config)
 			_restore_joypad_default("transform")
 		elif saved_version == 5:

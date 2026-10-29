@@ -131,7 +131,22 @@ func _run() -> void:
 	var air_y: float = player.position.y
 	await tap("attack")
 	await frames(15)
-	check(player.position.y - air_y < 35.0 and not player.is_on_floor(), "El combo ligero mantiene aerial stall")
+	check(player.position.y - air_y > 35.0, "Sin golpear a nadie, el combo ligero aéreo no sostiene")
+	for i in range(8):
+		await tap("attack")
+		await frames(6)
+	check(player.is_on_floor() or player.position.y > air_y + 200.0, "Repetir ligeros en el vacío no permite volar")
+	await reset(&"sword", Vector2(0, -400))
+	var aerial = enemy(player.position + Vector2(55, 0), 40)
+	aerial.set_physics_process(false)
+	await frames(2)
+	await tap("attack")
+	await frames(8)
+	air_y = player.position.y
+	await tap("attack")
+	await frames(15)
+	check(player.weapons.air_stall and player.position.y - air_y < 35.0 and not player.is_on_floor(), "Tras conectar en el aire, el combo ligero mantiene aerial stall")
+	aerial.queue_free()
 	# Aim reemplaza el lanzamiento inmediato. Solo tira al pulsar ataque.
 	await reset(&"sword")
 	Input.action_press("throw_knife")

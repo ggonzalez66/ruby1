@@ -1,8 +1,8 @@
 {
-  "verified_at_utc": "2026-10-29T01:58:40.970975+00:00",
+  "verified_at_utc": "2026-10-29T02:53:45.302277+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "source_base_commit": "c4ceb265c070c19e9fb85e98ee384886b4fbd137",
-  "working_tree": "attack phases, RB transform, beast running, DYING hit shortening",
+  "source_base_commit": "4c1d5b1d94b0e37a1cdeee42fa29474329c9cd2b",
+  "working_tree": "weapon presentation phase 1, charge brake, beast run/uppercut, Wrath brake, B transform, air stall only on hit, DYING 1.4 s per hit",
   "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
   "scenes": [
     "main_menu",
@@ -32,8 +32,8 @@
     }
   },
   "gameplay_and_tools": {
-    "passed": 1342,
-    "total": 1342,
+    "passed": 1376,
+    "total": 1376,
     "runner": "tests/run_tests.sh"
   },
   "export_exit_codes": {

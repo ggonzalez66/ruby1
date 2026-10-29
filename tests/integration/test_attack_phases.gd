@@ -95,16 +95,22 @@ func _run() -> void:
 	player._cancel_all_states()
 	w.tick(10)
 	check(target.hits == 0 and w.phase == w.Phase.IDLE and w.queued == &"", "Cancelar startup elimina daño y buffer pendientes")
-	# Charging is separate from startup; release does not make the hit instant.
+	# The charge is the anticipation: charged time is taken off the startup.
 	Input.action_press("heavy_attack")
 	start(&"hammer", true)
 	w.tick(2.0)
 	check(w.charging and target.hits == 0 and is_zero_approx(w.elapsed), "Carga sostenida no adelanta las tres fases")
 	Input.action_release("heavy_attack")
 	w.tick(0.01)
-	check(not w.charging and w.charge_ratio == 1 and w.phase == w.Phase.STARTUP and target.hits == 0, "Soltar carga comienza startup sin daño")
-	w.tick(w.startup + 0.001)
-	check(target.hits == 1, "Heavy cargado golpea al llegar a active")
+	check(not w.charging and w.charge_ratio == 1 and w.phase == w.Phase.ACTIVE and target.hits == 1, "Soltar una carga completa golpea sin startup")
+	Input.action_press("heavy_attack")
+	start(&"hammer", true)
+	w.tick(0.02)
+	Input.action_release("heavy_attack")
+	w.tick(0.001)
+	check(w.phase == w.Phase.STARTUP and target.hits == 0 and is_equal_approx(w.elapsed, 0.021), "Un toque sin cargar conserva el startup no pagado")
+	w.tick(w.startup)
+	check(target.hits == 1, "El toque golpea al completar su startup")
 	# Speed modifiers scale every phase together.
 	player.attack_speed_multiplier = 2.0
 	start(&"sword", false)
@@ -123,6 +129,35 @@ func _run() -> void:
 		player._update_character_animation()
 		var last: int = player.animated_sprite.sprite_frames.get_frame_count(player.animated_sprite.animation) - 1
 		check(player.animated_sprite.frame == last, "%s: pose final durante recovery" % entry[0])
+	# Presentation: alternating strings, horizontal spins, visible flurry thrusts.
+	for step in range(4):
+		start(&"sword", false, step)
+		w.tick(w.startup + 0.0001)
+		w._process(0.0)
+		var raised: bool = w.weapon_sprite.rotation < -1.0
+		var lowered: bool = w.weapon_sprite.rotation > 1.0
+		check(raised if step % 2 == 0 else lowered, "Espada ligera %d alterna dirección (%s)" % [step + 1, "baja" if step % 2 == 0 else "sube"])
+	start(&"axe", true)
+	w.tick(w.startup + 0.0001)
+	w._process(0.0)
+	check(w.weapon_sprite.rotation < -1.0, "El pesado único del hacha sigue bajando")
+	for entry in [[&"axe", false, 2], [&"glaive", false, 3], [&"glaive", true, 1]]:
+		start(entry[0], entry[1], entry[2])
+		var turn: float = w.active_time / float(w.move.pulses)
+		w.tick(w.startup + turn * 0.25)
+		w._process(0.0)
+		var front_z: int = w.weapon_sprite.z_index
+		var edge_on: float = absf(w.weapon_sprite.scale.x)
+		w.tick(turn * 0.5)
+		w._process(0.0)
+		check(front_z == 0 and w.weapon_sprite.z_index < 0 and edge_on < 0.2 and is_zero_approx(w.weapon_sprite.rotation), "%s: el giro es horizontal y pasa por detrás del cuerpo" % entry[0])
+	start(&"sword", true, 1)
+	var heights: Array = []
+	for pulse in range(3):
+		w.elapsed = w.startup + w.active_time * (pulse + 0.5) / 3.0
+		w._process(0.0)
+		heights.append(w.weapon_sprite.position.y)
+	check(heights[0] != heights[1] and heights[1] != heights[2] and w.weapon_sprite.position.x > 50.0, "Las tres estocadas de la ráfaga se distinguen")
 	start(&"hammer", false)
 	player.show_hitbox_debug = true
 	player._update_hitbox_visual_visibility()

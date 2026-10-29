@@ -5,6 +5,9 @@ const MODE := 8
 const CHAIN_WINDOW := 0.55
 const CHARGE_TIME := 0.85
 const FORM_COOLDOWN := 0.45
+const REST_ANGLE := -0.7
+const FLURRY_HEIGHT := [-10.0, 6.0, -2.0]
+const FLURRY_TILT := [-0.1, 0.08, -0.02]
 enum Phase { IDLE, STARTUP, ACTIVE, RECOVERY }
 var player: CharacterBody2D
 var equipped: StringName = &"unarmed"
@@ -42,6 +45,10 @@ var breath_tick := 0.0
 var weapon_sprite: Sprite2D
 var status: Label
 var display_texture: StringName = &""
+var brake_fx_wait := 0.0
+# Suspensión aérea del string: solo tras conectar en el aire, hasta aterrizar.
+var air_stall := false
+var skid_played := false
 
 func _ready() -> void:
 	player = get_parent()
@@ -98,6 +105,8 @@ func toggle_form() -> void:
 
 func tick(delta: float) -> void:
 	form_cooldown = maxf(form_cooldown - delta, 0.0)
+	if player.is_on_floor():
+		air_stall = false
 	window = maxf(window - delta, 0.0)
 	# Aim has priority even on a simultaneous LT + RB press or while actions are blocked.
 	if Input.is_action_just_pressed("transform") and not Input.is_action_pressed("throw_knife"):
@@ -123,22 +132,30 @@ func tick(delta: float) -> void:
 			if not Input.is_action_pressed("heavy_attack"):
 				charging = false
 				charge_ratio = charge / CHARGE_TIME
+				# Cargar es la anticipación: se descuenta del startup lo ya cargado.
+				elapsed = minf(charge, startup)
+				_advance(-1.0 if elapsed >= startup else elapsed)
 		else:
 			var previous := elapsed
 			elapsed += delta
-			if previous < startup and elapsed >= startup:
-				Sfx.play("swing_heavy" if heavy else "swing_light")
-			# Revisar todo el intervalo: un frame largo no puede saltarse una ventana de daño.
-			for pulse in range(int(move.pulses)):
-				if not active:
-					break
-				var at := startup + active_time * float(pulse) / float(move.pulses)
-				var until := startup + active_time * float(pulse + 1) / float(move.pulses)
-				if elapsed >= at and previous < until:
-					_strike(pulse)
-			if active and elapsed >= duration:
-				_finish()
+			_advance(previous)
 	queue_redraw()
+
+func _advance(previous: float) -> void:
+	if previous < startup and elapsed >= startup:
+		Sfx.play("swing_heavy" if heavy else "swing_light")
+	# Revisar todo el intervalo: un frame largo no puede saltarse una ventana de daño.
+	for pulse in range(int(move.pulses)):
+		if not active:
+			break
+		var at := startup + active_time * float(pulse) / float(move.pulses)
+		var until := startup + active_time * float(pulse + 1) / float(move.pulses)
+		if move.kind == "flurry" and pulse > 0 and elapsed >= at and previous < at:
+			Sfx.play("rapier")
+		if elapsed >= at and previous < until:
+			_strike(pulse)
+	if active and elapsed >= duration:
+		_finish()
 
 func request(is_heavy: bool) -> bool:
 	if player.liquid_beast or aim or player._blocks_actions() or player.dash_timer > 0.0:
@@ -166,6 +183,11 @@ func request(is_heavy: bool) -> bool:
 	charge = 0.0
 	charge_ratio = 0.0
 	charging = Catalog.chargeable(current_weapon(), heavy, step) and Input.is_action_pressed("heavy_attack")
+	if charging:
+		# Cargar planta los pies: al soltar se corre hacia donde se mantenga, sin giro con frenada.
+		player._stop_sprint()
+		skid_played = false
+		brake_fx_wait = 0.0
 	hit_sets.clear()
 	for _pulse in range(int(move.pulses)):
 		hit_sets.append([])
@@ -179,7 +201,7 @@ func request(is_heavy: bool) -> bool:
 	player.light_combo_step = step + 1
 	if heavy:
 		player._consume_riposte()
-	if not player.is_on_floor():
+	if not player.is_on_floor() and air_stall:
 		player.velocity.y = minf(player.velocity.y, -50.0)
 	return true
 
@@ -198,7 +220,10 @@ func pose_progress() -> float:
 	return 1.0
 
 func apply_movement(delta: float, horizontal: float) -> void:
-	if player.is_sprinting and not heavy:
+	if charging and player.is_on_floor():
+		player.velocity.x = move_toward(player.velocity.x, horizontal * player.max_speed * 0.2, player.sprint_brake_deceleration * delta)
+		_brake_fx(delta)
+	elif player.is_sprinting and not heavy:
 		player._apply_sprint_movement(horizontal, delta)
 	else:
 		player.velocity.x = move_toward(player.velocity.x, horizontal * player.max_speed * 0.45, player.ground_acceleration * delta)
@@ -206,9 +231,41 @@ func apply_movement(delta: float, horizontal: float) -> void:
 		player.velocity.x = player.facing * (480.0 + charge_ratio * 520.0)
 	if player.is_on_floor():
 		player.velocity.y = 0.0
-	else:
-		# Cada string tiene suspensión, también si los golpes no encuentran un enemigo.
+	elif air_stall:
 		player.velocity.y = minf(player.velocity.y + player.gravity * delta * (0.35 if charging else 0.08), 85.0)
+	else:
+		# Sin golpear a nadie el string no sostiene en el aire: nada de vuelo infinito.
+		player._apply_gravity(delta)
+
+func _brake_fx(delta: float) -> void:
+	var speed := absf(player.velocity.x)
+	if speed < 90.0:
+		return
+	var direction := signf(player.velocity.x)
+	if not skid_played and speed > 220.0:
+		skid_played = true
+		Sfx.play("skid")
+	brake_fx_wait -= delta
+	if brake_fx_wait <= 0.0:
+		brake_fx_wait = 0.04
+		Fx.dust(player.get_parent(), player.global_position + Vector2(direction * 10.0, 0.0), Vector2(direction, -0.4), 3, 1.3, 0.4)
+
+func _swings_down() -> bool:
+	# Los strings alternan tajo descendente y ascendente; los golpes pesados únicos bajan.
+	return heavy or move.kind != "slash" or step % 2 == 0
+
+func _thrusts() -> bool:
+	return move.kind in ["stab", "lunge", "flurry", "spin"]
+
+func _swing_from() -> float:
+	if _thrusts():
+		return 0.0
+	return -1.5 if _swings_down() else 1.3
+
+func _swing_to() -> float:
+	if _thrusts():
+		return 0.0
+	return 1.3 if _swings_down() else -1.5
 
 func _finish() -> void:
 	var next := queued
@@ -317,6 +374,7 @@ func _strike(pulse: int) -> void:
 		Ferocity.add("weapon_" + str(current_weapon()) + ("_heavy" if heavy else "_light"), 6.0 + step * 2.0, "COMBO %d" % (step + 1))
 		Sfx.play("hit_heavy" if heavy else "hit_light")
 		if not player.is_on_floor():
+			air_stall = true
 			player._apply_light_hit_air_boost()
 
 func _breath_hit() -> void:
@@ -350,25 +408,37 @@ func _process(_delta: float) -> void:
 	weapon_sprite.visible = id != &"unarmed" and not player.liquid_beast and not player.dead and player.execution_core == null
 	weapon_sprite.position = Vector2(player.facing * 20, -26)
 	weapon_sprite.scale = Vector2(player.facing * 0.72, 0.72)
-	weapon_sprite.rotation = -0.7 * player.facing
+	weapon_sprite.rotation = REST_ANGLE * player.facing
+	weapon_sprite.z_index = 0
 	if aim:
 		weapon_sprite.scale = Vector2.ONE * 0.72
 		weapon_sprite.rotation = aim_direction.angle()
 	elif active:
 		var t := active_progress()
-		var angle := lerpf(-1.5, 1.3, t)
+		var angle := lerpf(_swing_from(), _swing_to(), t)
 		if move.kind in ["stab", "lunge"]:
-			angle = 0.0
 			weapon_sprite.position.x += player.facing * sin(t * PI) * 30.0
-		elif move.kind == "spin":
-			angle = t * TAU * float(move.pulses)
-		elif charging:
-			angle = -1.8
+		elif move.kind == "flurry" and phase == Phase.ACTIVE:
+			var index := mini(int(t * float(move.pulses)), int(move.pulses) - 1)
+			var local := t * float(move.pulses) - index
+			angle = FLURRY_TILT[index % FLURRY_TILT.size()]
+			weapon_sprite.position += Vector2(player.facing * sin(local * PI) * 40.0, FLURRY_HEIGHT[index % FLURRY_HEIGHT.size()])
 		if phase == Phase.STARTUP:
-			angle = lerpf(-0.7, -1.5, 1.0 if charging else elapsed / startup)
+			var windup := 1.0 if charging else elapsed / maxf(startup, 0.001)
+			angle = lerpf(REST_ANGLE, _swing_from(), windup)
+			if _thrusts():
+				weapon_sprite.position.x -= player.facing * 10.0 * windup
 		elif phase == Phase.RECOVERY:
-			angle = lerpf(angle, -0.7, clampf((elapsed - startup - active_time) / recovery, 0.0, 1.0))
+			angle = lerpf(_swing_to(), REST_ANGLE, clampf((elapsed - startup - active_time) / recovery, 0.0, 1.0))
 		weapon_sprite.rotation = angle * player.facing
+		if move.kind == "spin" and phase == Phase.ACTIVE:
+			# Giro horizontal fingido: el arma orbita en una elipse, se acorta de canto y pasa detrás del cuerpo.
+			var theta := t * TAU * float(move.pulses)
+			var depth := cos(theta)
+			weapon_sprite.position = Vector2(player.facing * depth * 12.0, -28.0 + sin(theta) * 6.0)
+			weapon_sprite.scale = Vector2(player.facing * 0.72 * (depth if absf(depth) > 0.12 else 0.12 * (1.0 if depth >= 0.0 else -1.0)), 0.72)
+			weapon_sprite.rotation = 0.0
+			weapon_sprite.z_index = 0 if sin(theta) >= 0.0 else -7
 	if player.common_moves.enabled:
 		if player.attack_mode == player.ATTACK_SPIN:
 			weapon_sprite.rotation = player.hitbox.rotation * player.facing
@@ -387,6 +457,42 @@ func _process(_delta: float) -> void:
 		text += " · %s: transformar" % InputHints.binding("transform")
 	status.text = text
 
+func _draw_flurry(progress: float) -> void:
+	var pulses := int(move.pulses)
+	var index := mini(int(progress * pulses), pulses - 1)
+	var local := progress * pulses - index
+	for i in range(index + 1):
+		var current := i == index
+		var fade := sin(local * PI) if current else 0.3 * (1.0 - local)
+		if fade <= 0.02:
+			continue
+		var y := -30.0 + float(FLURRY_HEIGHT[i % FLURRY_HEIGHT.size()])
+		var reach := float(move.reach) * (0.7 + 0.3 * (fade if current else 1.0))
+		var tip := Vector2(player.facing * reach, y)
+		draw_line(Vector2(player.facing * 24.0, y), tip, Color(0.8, 1.0, 0.85, fade * 0.85), 6.0 if current else 3.0, true)
+		if current:
+			var size := 10.0 * fade
+			var glint := Color(1.0, 1.0, 0.85, fade)
+			draw_colored_polygon(PackedVector2Array([tip + Vector2(0, -size), tip + Vector2(size * 0.3, 0), tip + Vector2(0, size), tip + Vector2(-size * 0.3, 0)]), glint)
+			draw_line(tip - Vector2(size * 0.9, 0), tip + Vector2(size * 0.9, 0), glint, 2.0, true)
+
+func _draw_spin_trail(progress: float) -> void:
+	var theta := progress * TAU * float(move.pulses)
+	var radius := float(move.reach) * 0.85
+	var strength := 0.5 + sin(progress * PI) * 0.4
+	var points := PackedVector2Array()
+	var colors := PackedColorArray()
+	for s in range(25):
+		var t := s / 24.0
+		var a := theta - 2.2 * (1.0 - t)
+		points.append(Vector2(player.facing * cos(a) * radius, -30.0 + sin(a) * radius * 0.2))
+		# La mitad trasera de la elipse queda tenue: así se lee que el arma pasa por detrás.
+		colors.append(Color(0.7, 1.0, 0.8, t * strength * (1.0 if sin(a) >= 0.0 else 0.35)))
+	draw_polyline_colors(points, colors, 5.0, true)
+	draw_set_transform(Vector2(0, -30), 0, Vector2(1.0, 0.2))
+	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 40, Color(0.7, 1.0, 0.8, 0.1 * strength), 2.0, true)
+	draw_set_transform(Vector2.ZERO)
+
 func _draw() -> void:
 	if aim:
 		var origin := Vector2(0, -26)
@@ -400,13 +506,19 @@ func _draw() -> void:
 			draw_rect(rect, Color(0.5, 1, 0.7), false, 2)
 		var progress := active_progress()
 		var color := Color(0.7, 1.0, 0.8, sin(progress * PI) * 0.8)
-		if move.kind in ["stab", "lunge", "kick"]:
-			draw_line(Vector2(player.facing * 28, -30), Vector2(player.facing * float(move.reach), -30), color, 7, true)
-		else:
-			draw_set_transform(Vector2(0, -30), 0, Vector2(player.facing, 0.65))
-			var angle := progress * TAU * float(move.pulses) if move.kind == "spin" else lerpf(-1.5, 1.5, progress)
-			draw_arc(Vector2.ZERO, float(move.reach), angle - 0.8, angle, 20, color, 5, true)
-			draw_set_transform(Vector2.ZERO)
+		match move.kind:
+			"stab", "lunge", "kick":
+				draw_line(Vector2(player.facing * 28, -30), Vector2(player.facing * float(move.reach), -30), color, 7, true)
+			"flurry":
+				_draw_flurry(progress)
+			"spin":
+				_draw_spin_trail(progress)
+			_:
+				var from := -1.5 if _swings_down() else 1.5
+				var angle := lerpf(from, -from, progress)
+				draw_set_transform(Vector2(0, -30), 0, Vector2(player.facing, 0.65))
+				draw_arc(Vector2.ZERO, float(move.reach), angle + 0.8 * signf(from), angle, 20, color, 5, true)
+				draw_set_transform(Vector2.ZERO)
 	if breath:
 		var texture: Texture2D = preload("res://jade_fire_visual.gd").TEXTURE
 		var cell := texture.get_size() * 0.5

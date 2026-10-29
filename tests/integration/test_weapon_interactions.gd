@@ -178,11 +178,11 @@ func _run() -> void:
 	enemy.ruby_core.stagger(0.5)
 	check(enemy.state == enemy.State.STAGGER and enemy.ruby_core.holds_actor() and not enemy.ruby_core.is_executable(), "Stagger interrumpe SWING sin abrir el ruby")
 	enemy.queue_free()
-	# RB transforma sin parry; en bestia LB no hace parry. LT es una acción mantenida.
+	# B transforma sin parry; en bestia LB no hace parry. LT es una acción mantenida.
 	player.liquid_beast = false
 	await frames(6)
 	var button := InputEventJoypadButton.new()
-	button.button_index = JOY_BUTTON_RIGHT_SHOULDER
+	button.button_index = JOY_BUTTON_B
 	button.pressed = true
 	Input.parse_input_event(button)
 	Input.flush_buffered_events()
@@ -190,7 +190,7 @@ func _run() -> void:
 	button.pressed = false
 	Input.parse_input_event(button)
 	Input.flush_buffered_events()
-	check(player.liquid_beast and not player.roar_active, "Evento real RB transforma sin activar parry")
+	check(player.liquid_beast and not player.roar_active, "Evento real B transforma sin activar parry")
 	button = InputEventJoypadButton.new()
 	button.button_index = JOY_BUTTON_LEFT_SHOULDER
 	button.pressed = true
@@ -208,6 +208,40 @@ func _run() -> void:
 	await frames(2)
 	check(player.dash_timer <= 0 and absf(player.velocity.x) <= player.max_speed, "Entrar en Aim desde dash elimina velocidad de carrera")
 	Input.action_release("throw_knife")
+	# Corriendo, cargar un pesado frena; al soltar sale corriendo hacia donde se mantenga, sin giro con frenada.
+	player._respawn_player()
+	player.liquid_beast = false
+	player.weapons.equip(&"hammer")
+	player.position = Vector2(-1500, -2)
+	player.facing = 1
+	await frames(6)
+	Input.action_press("move_right")
+	Input.action_press("dash")
+	await frames(40)
+	check(player.is_sprinting and player.velocity.x > player.max_speed, "Martillo: corre antes de cargar")
+	Input.action_press("heavy_attack")
+	await frames(2)
+	check(player.weapons.charging and not player.is_sprinting, "Cargar el pesado corta la carrera")
+	await frames(16)
+	check(absf(player.velocity.x) < player.max_speed * 0.3, "La carga frena en seco")
+	Input.action_release("move_right")
+	Input.action_press("move_left")
+	await frames(20)
+	Input.action_release("heavy_attack")
+	await frames(1)
+	check(player.weapons.phase != player.weapons.Phase.STARTUP, "El golpe cargado sale sin startup")
+	var running_left := false
+	var turned := false
+	for i in range(90):
+		await frames(1)
+		turned = turned or player.sprint_turn_timer > 0.0
+		if not player.weapons.active and player.is_sprinting:
+			running_left = player.sprint_direction == -1
+			break
+	await frames(3)
+	check(running_left and not turned and player.velocity.x <= -player.sprint_speed + 1.0, "Al terminar corre hacia el lado mantenido sin frenar ni girar")
+	Input.action_release("move_left")
+	Input.action_release("dash")
 	arena.queue_free()
 	await frames(4)
 	print("RESULTADO: %d/%d" % [checks - fails, checks])

@@ -102,7 +102,7 @@ roar={
 }
 transform={
 "deadzone": 0.5,
-"events": [Object(InputEventKey,"physical_keycode":81), Object(InputEventJoypadButton,"button_index":10)]
+"events": [Object(InputEventKey,"physical_keycode":81), Object(InputEventJoypadButton,"button_index":1)]
 }
 toggle_hitbox_visuals={
 "deadzone": 0.5,
