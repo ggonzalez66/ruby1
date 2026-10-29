@@ -5,6 +5,7 @@ const MODE := 8
 const CHAIN_WINDOW := 0.55
 const CHARGE_TIME := 0.85
 const FORM_COOLDOWN := 0.45
+enum Phase { IDLE, STARTUP, ACTIVE, RECOVERY }
 var player: CharacterBody2D
 var equipped: StringName = &"unarmed"
 var active := false
@@ -13,6 +14,19 @@ var charge := 0.0
 var charge_ratio := 0.0
 var elapsed := 0.0
 var duration := 0.0
+var startup := 0.0
+var active_time := 0.0
+var recovery := 0.0
+var attack_weapon: StringName = &"unarmed"
+var phase: Phase:
+	get:
+		if not active:
+			return Phase.IDLE
+		if charging or elapsed < startup:
+			return Phase.STARTUP
+		if elapsed < startup + active_time:
+			return Phase.ACTIVE
+		return Phase.RECOVERY
 var step := -1
 var heavy := false
 var last_heavy := false
@@ -71,6 +85,12 @@ func toggle_form() -> void:
 		return
 	player._cancel_all_states()
 	player.liquid_beast = not player.liquid_beast
+	if player.liquid_beast:
+		player.backflip_chain_timer = 0.0
+		player.long_jump_chain_timer = 0.0
+		player.bunnyhop_bonus = 0.0
+		player.bunnyhop_chain = 0
+		player.velocity.x = clampf(player.velocity.x, -player.max_speed, player.max_speed)
 	form_cooldown = FORM_COOLDOWN
 	aim = false
 	breath = false
@@ -79,7 +99,8 @@ func toggle_form() -> void:
 func tick(delta: float) -> void:
 	form_cooldown = maxf(form_cooldown - delta, 0.0)
 	window = maxf(window - delta, 0.0)
-	if Input.is_action_just_pressed("transform"):
+	# Aim has priority even on a simultaneous LT + RB press or while actions are blocked.
+	if Input.is_action_just_pressed("transform") and not Input.is_action_pressed("throw_knife"):
 		toggle_form()
 	aim = Input.is_action_pressed("throw_knife") and not player.liquid_beast and not player._blocks_actions()
 	if aim:
@@ -102,19 +123,18 @@ func tick(delta: float) -> void:
 			if not Input.is_action_pressed("heavy_attack"):
 				charging = false
 				charge_ratio = charge / CHARGE_TIME
-				Sfx.play("swing_heavy", 0.0, 0.85)
 		else:
 			var previous := elapsed
 			elapsed += delta
+			if previous < startup and elapsed >= startup:
+				Sfx.play("swing_heavy" if heavy else "swing_light")
 			# Revisar todo el intervalo: un frame largo no puede saltarse una ventana de daño.
 			for pulse in range(int(move.pulses)):
 				if not active:
 					break
-				var at := duration * (0.16 + float(pulse) * 0.52 / maxf(float(move.pulses), 1.0))
-				if current_weapon() == &"unarmed" and not heavy and step < 3:
-					at = 0.0
-				var until := at + duration * (0.55 if int(move.pulses) == 1 else 0.18)
-				if elapsed >= at and previous <= until:
+				var at := startup + active_time * float(pulse) / float(move.pulses)
+				var until := startup + active_time * float(pulse + 1) / float(move.pulses)
+				if elapsed >= at and previous < until:
 					_strike(pulse)
 			if active and elapsed >= duration:
 				_finish()
@@ -136,7 +156,12 @@ func request(is_heavy: bool) -> bool:
 	heavy = is_heavy
 	last_heavy = heavy
 	move = chain[step]
-	duration = float(move.duration) / maxf(player.attack_speed_multiplier, 0.1)
+	attack_weapon = current_weapon()
+	var speed := maxf(player.attack_speed_multiplier, 0.1)
+	startup = float(move.startup) / speed
+	active_time = float(move.active_time) / speed
+	recovery = float(move.recovery) / speed
+	duration = startup + active_time + recovery
 	elapsed = 0.0
 	charge = 0.0
 	charge_ratio = 0.0
@@ -156,11 +181,21 @@ func request(is_heavy: bool) -> bool:
 		player._consume_riposte()
 	if not player.is_on_floor():
 		player.velocity.y = minf(player.velocity.y, -50.0)
-	if not charging:
-		Sfx.play("swing_heavy" if heavy else "swing_light")
-		if current_weapon() == &"unarmed" and not heavy and step < 3:
-			_strike(0)
 	return true
+
+func active_progress() -> float:
+	return clampf((elapsed - startup) / maxf(active_time, 0.001), 0.0, 1.0)
+
+func pose_progress() -> float:
+	# Reuse existing anticipation, strike and recovery poses on the gameplay clock.
+	match phase:
+		Phase.STARTUP:
+			return 0.0 if charging else 0.2 * elapsed / startup
+		Phase.ACTIVE:
+			return lerpf(0.2, 0.75, active_progress())
+		Phase.RECOVERY:
+			return lerpf(0.75, 1.0, clampf((elapsed - startup - active_time) / recovery, 0.0, 1.0))
+	return 1.0
 
 func apply_movement(delta: float, horizontal: float) -> void:
 	if player.is_sprinting and not heavy:
@@ -189,7 +224,8 @@ func _finish() -> void:
 	if step + 1 >= chain.size():
 		step = -1
 		window = 0.0
-		player.attack_cooldown_timer = 0.12
+		# Recovery is already part of the last move; no hidden fourth phase.
+		player.attack_cooldown_timer = 0.0
 	if next != &"":
 		# El buffer no vuelve a iniciar una cadena completa tras su último golpe.
 		if window > 0.0 or (next == &"heavy") != heavy:
@@ -199,6 +235,9 @@ func _finish() -> void:
 func cancel() -> void:
 	active = false
 	charging = false
+	elapsed = 0.0
+	charge = 0.0
+	charge_ratio = 0.0
 	breath = false
 	queued = &""
 	window = 0.0
@@ -259,7 +298,7 @@ func attack_rect() -> Rect2:
 
 func _strike(pulse: int) -> void:
 	var rect := attack_rect()
-	for enemy in _targets(player.global_position + rect.get_center(), rect.size, current_weapon() == &"unarmed" and not heavy and step < 3):
+	for enemy in _targets(player.global_position + rect.get_center(), rect.size, attack_weapon == &"unarmed" and not heavy and step < 3):
 		if enemy in hit_sets[pulse]:
 			continue
 		hit_sets[pulse].append(enemy)
@@ -316,7 +355,7 @@ func _process(_delta: float) -> void:
 		weapon_sprite.scale = Vector2.ONE * 0.72
 		weapon_sprite.rotation = aim_direction.angle()
 	elif active:
-		var t := clampf(elapsed / maxf(duration, 0.001), 0, 1)
+		var t := active_progress()
 		var angle := lerpf(-1.5, 1.3, t)
 		if move.kind in ["stab", "lunge"]:
 			angle = 0.0
@@ -325,6 +364,10 @@ func _process(_delta: float) -> void:
 			angle = t * TAU * float(move.pulses)
 		elif charging:
 			angle = -1.8
+		if phase == Phase.STARTUP:
+			angle = lerpf(-0.7, -1.5, 1.0 if charging else elapsed / startup)
+		elif phase == Phase.RECOVERY:
+			angle = lerpf(angle, -0.7, clampf((elapsed - startup - active_time) / recovery, 0.0, 1.0))
 		weapon_sprite.rotation = angle * player.facing
 	if player.common_moves.enabled:
 		if player.attack_mode == player.ATTACK_SPIN:
@@ -350,12 +393,12 @@ func _draw() -> void:
 		var end := origin + aim_direction * 165.0
 		draw_line(origin + aim_direction * 40, end, Color(0.5, 1, 0.75, 0.6), 2, true)
 		draw_arc(end, 8, 0, TAU, 16, Color(0.8, 1, 0.65), 2, true)
-	if active and not charging:
+	if phase == Phase.ACTIVE:
 		var rect := attack_rect()
 		if player.show_hitbox_debug:
 			draw_rect(rect, Color(0.5, 1, 0.7, 0.15))
 			draw_rect(rect, Color(0.5, 1, 0.7), false, 2)
-		var progress := clampf(elapsed / maxf(duration, 0.001), 0, 1)
+		var progress := active_progress()
 		var color := Color(0.7, 1.0, 0.8, sin(progress * PI) * 0.8)
 		if move.kind in ["stab", "lunge", "kick"]:
 			draw_line(Vector2(player.facing * 28, -30), Vector2(player.facing * float(move.reach), -30), color, 7, true)

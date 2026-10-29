@@ -5,6 +5,7 @@ extends Node2D
 const LOW_HEALTH_RATIO := 0.30
 const NORMAL_OPEN_TIME := 2.0
 const DYING_TIME := 4.0
+const DYING_HIT_TIME := 0.8
 const MOTION := preload("res://enemy_launch_motion.gd")
 const POSTURE_MAX := 100.0
 const POSTURE_HIT := POSTURE_MAX / 3.0
@@ -134,6 +135,25 @@ func enter_dying() -> void:
 		enemy.warning_label.hide()
 	Fx.text(enemy.get_parent(), global_position + Vector2(0, -35), "DYING", Color(1.0, 0.65, 0.3))
 
+func hit_while_dying() -> void:
+	if not dying or locked or broken:
+		return
+	dying_left = maxf(dying_left - DYING_HIT_TIME, 0.0)
+	# Cada golpe suena más agudo según se acerca el final.
+	Sfx.play("enemy_hurt", 0.0, lerpf(1.6, 1.0, dying_left / DYING_TIME))
+	queue_redraw()
+	# Margen para que 4.0 − 5 × 0.8 no deje un residuo de coma flotante.
+	if dying_left <= 0.01:
+		_expire_dying()
+
+func _expire_dying() -> void:
+	dying = false
+	broken = true
+	hide()
+	var center := global_position
+	enemy._die()
+	_blast(center)
+
 func stagger(seconds: float) -> void:
 	if not alive() or locked or dying or final_open or open_time > 0.0 or seconds <= 0.0:
 		return
@@ -240,12 +260,7 @@ func _physics_process(delta: float) -> void:
 	if dying and not locked and not broken:
 		dying_left = maxf(dying_left - delta, 0.0)
 		if dying_left <= 0.0:
-			dying = false
-			broken = true
-			hide()
-			var center := global_position
-			enemy._die()
-			_blast(center)
+			_expire_dying()
 	if stagger_left > 0.0:
 		stagger_left = maxf(stagger_left - delta, 0.0)
 		if not locked and not dying and open_time <= 0.0 and enemy.get("knock_velocity") != null and enemy.get("collision_shape") != null:

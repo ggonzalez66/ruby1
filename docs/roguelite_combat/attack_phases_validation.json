@@ -1,0 +1,316 @@
+{
+  "verified_at_utc": "2026-10-28T20:08:38.672278+00:00",
+  "source_base_commit": "c4ceb265c070c19e9fb85e98ee384886b4fbd137",
+  "working_tree": "attack phases implementation, uncommitted",
+  "passed": 1304,
+  "total": 1304,
+  "suites": [
+    {
+      "suite": "test_ajustes",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 13/13 OK"
+      ],
+      "passed": 13,
+      "total": 13
+    },
+    {
+      "suite": "test_art_refresh",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 13/13 OK"
+      ],
+      "rerun_after_correction": true,
+      "passed": 13,
+      "total": 13
+    },
+    {
+      "suite": "test_combat_feedback",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 44/44 OK"
+      ],
+      "passed": 44,
+      "total": 44
+    },
+    {
+      "suite": "test_combat_modes",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 65/65 OK"
+      ],
+      "passed": 65,
+      "total": 65
+    },
+    {
+      "suite": "test_combat_revision",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 34/34 OK"
+      ],
+      "passed": 34,
+      "total": 34
+    },
+    {
+      "suite": "test_combos",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 74/74 OK"
+      ],
+      "passed": 74,
+      "total": 74
+    },
+    {
+      "suite": "test_enemigos",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 35/35 OK"
+      ],
+      "passed": 35,
+      "total": 35
+    },
+    {
+      "suite": "test_executions",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 114/114 OK"
+      ],
+      "passed": 114,
+      "total": 114
+    },
+    {
+      "suite": "test_feedback_v2",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 26/26 OK"
+      ],
+      "passed": 26,
+      "total": 26
+    },
+    {
+      "suite": "test_gauntlet_safety",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 29/29 OK"
+      ],
+      "passed": 29,
+      "total": 29
+    },
+    {
+      "suite": "test_jade_soul_pull",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 13/13 OK"
+      ],
+      "passed": 13,
+      "total": 13
+    },
+    {
+      "suite": "test_level_testing",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 25/25 OK"
+      ],
+      "passed": 25,
+      "total": 25
+    },
+    {
+      "suite": "test_movement_polish",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 25/25 OK"
+      ],
+      "passed": 25,
+      "total": 25
+    },
+    {
+      "suite": "test_regression",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 16/16 OK"
+      ],
+      "passed": 16,
+      "total": 16
+    },
+    {
+      "suite": "test_roguelite_combat",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 43/43"
+      ],
+      "passed": 43,
+      "total": 43
+    },
+    {
+      "suite": "test_sfx",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 20/20 OK"
+      ],
+      "passed": 20,
+      "total": 20
+    },
+    {
+      "suite": "test_shine_shield",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 36/36 OK"
+      ],
+      "passed": 36,
+      "total": 36
+    },
+    {
+      "suite": "test_sky_performance",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 8/8 OK"
+      ],
+      "rerun_after_correction": true,
+      "passed": 8,
+      "total": 8
+    },
+    {
+      "suite": "test_sky_records",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 14/14 OK"
+      ],
+      "passed": 14,
+      "total": 14
+    },
+    {
+      "suite": "test_spear_return",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 12/12 OK"
+      ],
+      "passed": 12,
+      "total": 12
+    },
+    {
+      "suite": "test_speedrun",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 59/59 OK"
+      ],
+      "passed": 59,
+      "total": 59
+    },
+    {
+      "suite": "test_spirit_spear",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 24/24 OK"
+      ],
+      "passed": 24,
+      "total": 24
+    },
+    {
+      "suite": "test_sprites",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 219/219 OK"
+      ],
+      "passed": 219,
+      "total": 219
+    },
+    {
+      "suite": "test_uppercut_collision",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 12/12 OK"
+      ],
+      "passed": 12,
+      "total": 12
+    },
+    {
+      "suite": "test_weapon_common",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 27/27"
+      ],
+      "passed": 27,
+      "total": 27
+    },
+    {
+      "suite": "test_weapon_interactions",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 17/17"
+      ],
+      "passed": 17,
+      "total": 17
+    },
+    {
+      "suite": "test_wrath_nature",
+      "exit_code": 0,
+      "ok": true,
+      "summary": [
+        "RESULTADO: 59/59 OK"
+      ],
+      "passed": 59,
+      "total": 59
+    },
+    {
+      "suite": "test_normalize_sheet",
+      "exit_code": 0,
+      "ok": true,
+      "passed": 32,
+      "total": 32,
+      "summary": [
+        "RESULTADO: 32/32 OK"
+      ]
+    },
+    {
+      "suite": "test_sound_tuning",
+      "exit_code": 0,
+      "ok": true,
+      "passed": 16,
+      "total": 16,
+      "summary": [
+        "RESULTADO: 16/16 OK"
+      ]
+    },
+    {
+      "suite": "test_attack_phases",
+      "exit_code": 0,
+      "passed": 180,
+      "total": 180,
+      "summary": [
+        "RESULTADO: 180/180"
+      ],
+      "ok": true
+    }
+  ],
+  "visual_validation": "30 OpenGL Compatibility captures: startup, active and recovery, five weapons, both facings; existing poses reused.",
+  "notes": [
+    "The art regression was updated to expect slashes only during active frames.",
+    "The interrupted sky performance check was rerun successfully after the debug visibility type correction."
+  ]
+}

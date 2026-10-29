@@ -16,32 +16,34 @@ static func texture(id: StringName) -> Texture2D:
 		return null
 	return load("res://assets/weapons/%s.svg" % id)
 
-static func hit(kind: String, damage: int, duration: float, reach: float, height: float, stagger := 0.0, push := 180.0, pulses := 1) -> Dictionary:
-	return {"kind": kind, "damage": damage, "duration": duration, "reach": reach, "height": height,
+# Timings at 60 Hz: startup / active / recovery. Runtime uses seconds.
+static func hit(kind: String, damage: int, frames: Vector3i, reach: float, height: float, stagger := 0.0, push := 180.0, pulses := 1) -> Dictionary:
+	return {"kind": kind, "damage": damage, "duration": (frames.x + frames.y + frames.z) / 60.0,
+		"startup": frames.x / 60.0, "active_time": frames.y / 60.0, "recovery": frames.z / 60.0, "reach": reach, "height": height,
 		"stagger": stagger, "push": push, "pulses": pulses}
 
 static func chain(id: StringName, heavy: bool) -> Array:
 	match id:
 		&"sword":
 			if heavy:
-				return [hit("stab", 3, 0.36, 124, 38), hit("flurry", 2, 0.62, 132, 100, 0.35, 280, 3)]
-			return [hit("slash", 2, 0.22, 98, 86), hit("slash", 2, 0.22, 98, 86), hit("slash", 2, 0.24, 106, 92), hit("slash", 3, 0.32, 115, 100, 0.35, 340)]
+				return [hit("stab", 3, Vector3i(6, 7, 9), 124, 38), hit("flurry", 2, Vector3i(6, 18, 13), 132, 100, 0.35, 280, 3)]
+			return [hit("slash", 2, Vector3i(4, 5, 5), 98, 86), hit("slash", 2, Vector3i(4, 5, 5), 98, 86), hit("slash", 2, Vector3i(4, 6, 5), 106, 92), hit("slash", 3, Vector3i(5, 7, 8), 115, 100, 0.35, 340)]
 		&"axe":
 			if heavy:
-				return [hit("chop", 5, 0.58, 145, 155, 0.7, 450)]
-			return [hit("slash", 3, 0.34, 128, 120, 0.3, 300), hit("slash", 3, 0.36, 132, 125, 0.35, 330), hit("spin", 3, 0.76, 140, 135, 0.45, 420, 2)]
+				return [hit("chop", 5, Vector3i(9, 6, 20), 145, 155, 0.7, 450)]
+			return [hit("slash", 3, Vector3i(6, 4, 11), 128, 120, 0.3, 300), hit("slash", 3, Vector3i(7, 4, 12), 132, 125, 0.35, 330), hit("spin", 3, Vector3i(8, 12, 26), 140, 135, 0.45, 420, 2)]
 		&"hammer":
 			if heavy:
-				return [hit("slam", 7, 0.78, 170, 155, 1.1, 540)]
-			return [hit("slash", 5, 0.52, 138, 130, 0.55, 380), hit("slam", 6, 0.65, 150, 145, 0.65, 460)]
+				return [hit("slam", 7, Vector3i(11, 7, 29), 170, 155, 1.1, 540)]
+			return [hit("slash", 5, Vector3i(8, 5, 19), 138, 130, 0.55, 380), hit("slam", 6, Vector3i(9, 6, 24), 150, 145, 0.65, 460)]
 		&"glaive":
 			if heavy:
-				return [hit("lunge", 4, 0.46, 180, 45, 0.3, 460), hit("spin", 3, 0.48, 165, 125, 0.4, 360)]
-			return [hit("stab", 2, 0.22, 168, 38), hit("slash", 2, 0.25, 145, 98), hit("slash", 2, 0.25, 150, 100), hit("spin", 3, 0.42, 158, 120, 0.4, 360)]
+				return [hit("lunge", 4, Vector3i(7, 8, 13), 180, 45, 0.3, 460), hit("spin", 3, Vector3i(6, 10, 13), 165, 125, 0.4, 360)]
+			return [hit("stab", 2, Vector3i(4, 5, 5), 168, 38), hit("slash", 2, Vector3i(4, 6, 5), 145, 98), hit("slash", 2, Vector3i(4, 6, 5), 150, 100), hit("spin", 3, Vector3i(5, 10, 10), 158, 120, 0.4, 360)]
 		_:
 			if heavy:
-				return [hit("kick", 2, 0.25, 105, 62, 0.35, 300), hit("kick", 2, 0.27, 112, 70, 0.4, 360), hit("kick", 3, 0.32, 122, 78, 0.55, 460)]
-			return [hit("claw", 1, 0.16, 80, 80), hit("claw", 1, 0.16, 80, 80), hit("claw", 2, 0.22, 105, 100), hit("kick", 2, 0.23, 118, 65, 0.35, 340), hit("kick", 2, 0.28, 132, 75, 0.5, 440)]
+				return [hit("kick", 2, Vector3i(4, 5, 6), 105, 62, 0.35, 300), hit("kick", 2, Vector3i(4, 5, 7), 112, 70, 0.4, 360), hit("kick", 3, Vector3i(5, 6, 8), 122, 78, 0.55, 460)]
+			return [hit("claw", 1, Vector3i(2, 3, 5), 80, 80), hit("claw", 1, Vector3i(2, 3, 5), 80, 80), hit("claw", 2, Vector3i(3, 4, 6), 105, 100), hit("kick", 2, Vector3i(3, 4, 7), 118, 65, 0.35, 340), hit("kick", 2, Vector3i(4, 5, 8), 132, 75, 0.5, 440)]
 
 static func chargeable(id: StringName, heavy: bool, index: int) -> bool:
 	return heavy and index == 0 and id in [&"axe", &"hammer", &"glaive"]

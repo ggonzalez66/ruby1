@@ -117,7 +117,7 @@ func _start_telegraph() -> void:
 
 func try_block(source_position: Vector2) -> bool:
 	# Los ligeros de frente rebotan en el escudo.
-	if state == State.DEAD or not guard_up() or not _in_front(source_position.x):
+	if state == State.DEAD or not guard_up() or not _in_front(source_position.x) or (ruby_core != null and ruby_core.dying):
 		return false
 	flash_timer = 0.06
 	knock_velocity = -facing * 60.0
@@ -125,6 +125,9 @@ func try_block(source_position: Vector2) -> bool:
 
 func take_hit(source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
 	if state == State.DEAD:
+		return
+	if ruby_core != null and ruby_core.dying:
+		super.take_hit(source_position, direction, damage)
 		return
 	# Llega de frente (empuja hacia atrás) con la guardia alta: se la rompe.
 	var breaks_guard: bool = guard_up() and direction == -facing

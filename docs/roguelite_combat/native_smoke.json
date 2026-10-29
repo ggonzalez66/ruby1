@@ -1,8 +1,9 @@
 {
-  "verified_at_utc": "2026-10-28T15:00:37.213919+00:00",
+  "verified_at_utc": "2026-10-29T01:58:40.970975+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "source_commit": "455443e",
-  "scope": "Regenerated exports from /home/ggonzalez66/godot_projects/ruby1. All nine scenes loaded from embedded PCK outside project with temporary gameplay data; 30 physics frames per scene.",
+  "source_base_commit": "c4ceb265c070c19e9fb85e98ee384886b4fbd137",
+  "working_tree": "attack phases, RB transform, beast running, DYING hit shortening",
+  "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
   "scenes": [
     "main_menu",
     "level_testing",
@@ -15,48 +16,28 @@
     "sky_stairs"
   ],
   "platforms": {
-    "windows": {
-      "method": "Native Windows, OpenGL Compatibility",
-      "exit_code": 0,
-      "checks_passed": 9,
-      "checks_total": 9,
-      "shutdown_resource_warning": true
-    },
     "linux": {
-      "method": "Native Linux, headless",
-      "exit_code": 0,
-      "checks_passed": 9,
-      "checks_total": 9,
-      "shutdown_resource_warning": true
+      "mode": "headless",
+      "scene_checks_passed": 9,
+      "scene_checks_total": 9,
+      "exit_codes": 0,
+      "script_errors": 0
+    },
+    "windows": {
+      "mode": "OpenGL Compatibility and headless, launched from WSL",
+      "scenes_ran_without_script_errors": 9,
+      "scene_checks_total": 9,
+      "exit_codes": 1,
+      "exit_code_note": "Every Windows run returns 1 when launched from WSL, including a build of the previous commit; release logs do not show per-scene loading."
     }
   },
-  "gameplay_tests": {
-    "passed": 94,
-    "total": 94,
-    "suites": [
-      {
-        "suite": "test_weapon_common",
-        "exit_code": 0,
-        "results": [
-          "RESULTADO: 27/27"
-        ]
-      },
-      {
-        "suite": "test_roguelite_combat",
-        "exit_code": 0,
-        "results": [
-          "RESULTADO: 43/43"
-        ]
-      },
-      {
-        "suite": "test_spirit_spear",
-        "exit_code": 0,
-        "results": [
-          "RESULTADO: 24/24 OK"
-        ]
-      }
-    ]
+  "gameplay_and_tools": {
+    "passed": 1342,
+    "total": 1342,
+    "runner": "tests/run_tests.sh"
   },
-  "export_note": "Both exporters completed savepack and wrote final binaries but remained running afterwards. Exporter processes were terminated after packaging; both resulting binaries passed native smoke tests with exit code 0.",
-  "shutdown_note": "Existing ObjectDB/resources-in-use warnings on shutdown; no script or resource-load errors."
+  "export_exit_codes": {
+    "windows": 0,
+    "linux": 0
+  }
 }

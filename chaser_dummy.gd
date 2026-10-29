@@ -299,7 +299,11 @@ func _move_horizontally(amount: float, stop_at_ledges: bool) -> void:
 	global_position.x += amount
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
-	if ruby_core != null and (ruby_core.locked or ruby_core.dying):
+	if ruby_core != null and ruby_core.locked:
+		return
+	if ruby_core != null and ruby_core.dying:
+		flash_timer = 0.1
+		ruby_core.hit_while_dying()
 		return
 	if state == State.DEAD:
 		return

@@ -435,6 +435,8 @@ var dash_timer := 0.0
 var dash_cooldown_timer := 0.0
 var dash_direction := 1
 var is_sprinting := false
+# La bestia corre con el movimiento normal: sin salto largo, flips ni wallride.
+var beast_running := false
 var sprint_direction := 1
 var sprint_turn_timer := 0.0
 var sprint_turn_direction := 0
@@ -819,7 +821,7 @@ func _physics_process(delta: float) -> void:
 
 	# El ataque en carrera aéreo (y su giro) contra una pared, manteniendo correr, entra en el wallride
 	# sin perder el flow.
-	var attack_into_wall: bool = is_on_wall() and not is_on_floor() and Input.is_action_pressed("dash") and (attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_UPPERCUT) and int(sign(get_wall_normal().x)) == -facing
+	var attack_into_wall: bool = not liquid_beast and is_on_wall() and not is_on_floor() and Input.is_action_pressed("dash") and (attack_mode == ATTACK_LIGHT_CHARGED_AIR or attack_mode == ATTACK_SPIN or attack_mode == ATTACK_UPPERCUT) and int(sign(get_wall_normal().x)) == -facing
 	if attack_into_wall:
 		_cancel_attack_for_chain()
 	if is_on_wall() and not is_on_floor() and (_uses_sprint_movement() or attack_into_wall):
@@ -1235,9 +1237,19 @@ func _sync_action_sprite(animation_name: StringName) -> void:
 		duration = weapons.duration
 		remaining = duration - weapons.elapsed
 	var progress := clampf(1.0 - remaining / maxf(duration, 0.001), 0.0, 1.0)
+	if weapons != null and weapons.active:
+		progress = weapons.pose_progress()
 	var count := animated_sprite.sprite_frames.get_frame_count(animation_name)
 	var index := mini(int(progress * count), count - 1)
-	if count == 4:
+	if count >= 3 and weapons != null and weapons.active:
+		match weapons.phase:
+			weapons.Phase.STARTUP:
+				index = 0
+			weapons.Phase.ACTIVE:
+				index = 1 + mini(int(weapons.active_progress() * (count - 2)), count - 3)
+			weapons.Phase.RECOVERY:
+				index = count - 1
+	elif count == 4:
 		# La anticipación cabe en el primer tick; el golpe ya es activo desde ese mismo tick.
 		index = 0 if progress < 0.12 else (1 if progress < 0.42 else (2 if progress < 0.72 else 3))
 	animated_sprite.pause()
@@ -1523,7 +1535,7 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	if attack_mode == ATTACK_SLASH:
 		control_multiplier = attack_move_multiplier
 
-	var target_speed: float = move_input * max_speed * control_multiplier
+	var target_speed: float = move_input * (sprint_speed if liquid_beast and beast_running else max_speed) * control_multiplier
 
 	if move_input == 0.0:
 		var friction: float = ground_friction if is_on_floor() else air_friction
@@ -1534,6 +1546,8 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 	velocity.x = move_toward(velocity.x, target_speed, acceleration * delta)
 
 func _try_start_sprint_jump(move_input: float) -> bool:
+	if liquid_beast:
+		return false
 	if not is_sprinting or (not is_on_floor() and coyote_timer <= 0.0) or _is_attack_active() or dash_timer > 0.0:
 		return false
 
@@ -1550,6 +1564,8 @@ func _try_start_sprint_jump(move_input: float) -> bool:
 	return true
 
 func _start_long_jump_squat() -> void:
+	if liquid_beast:
+		return
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0
 	long_jump_squat_timer = long_jump_squat_duration
@@ -1563,6 +1579,8 @@ func _start_long_jump_squat() -> void:
 		_launch_long_jump()
 
 func _launch_long_jump() -> void:
+	if liquid_beast:
+		return
 	jump_origin_y = global_position.y
 	long_jump_active = true
 	long_jump_chain_timer = 0.0
@@ -1583,6 +1601,8 @@ func _land_long_jump(move_input: float) -> void:
 		_try_start_long_jump_chain(move_input)
 
 func _try_start_long_jump_chain(move_input: float) -> bool:
+	if liquid_beast:
+		return false
 	# Bunnyhop: saltar justo al aterrizar de un salto largo encadena otro al instante.
 	if long_jump_chain_timer <= 0.0 or not is_on_floor() or _is_attack_active() or dash_timer > 0.0:
 		return false
@@ -1598,6 +1618,8 @@ func _try_start_long_jump_chain(move_input: float) -> bool:
 	return true
 
 func _start_backflip() -> void:
+	if liquid_beast:
+		return
 	backflip_run_direction = 0
 	bunnyhop_bonus = 0.0
 	bunnyhop_chain = 0
@@ -1638,6 +1660,8 @@ func _get_flip_rotation(elapsed: float, duration: float, spin_direction: int) ->
 	return spin_direction * TAU * smoothstep(0.0, 1.0, progress)
 
 func _try_start_frontflip(move_input: float) -> bool:
+	if liquid_beast:
+		return false
 	# Doble salto durante el salto largo (o tras un running walljump): frontflip sin perder la velocidad
 	# horizontal; manteniendo la dirección contraria sale un backflip hacia atrás.
 	if not long_jump_active or frontflip_active or is_on_floor() or air_jumps_remaining <= 0 or _is_attack_active() or dash_timer > 0.0:
@@ -1656,6 +1680,8 @@ func _try_start_frontflip(move_input: float) -> bool:
 	return true
 
 func _perform_frontflip() -> void:
+	if liquid_beast:
+		return
 	# Salto aéreo en carrera: el mismo frontflip tanto en el salto largo como tras un rebote.
 	execution_air_exit = ExecutionAirExit.NONE
 	air_jumps_remaining -= 1
@@ -1669,6 +1695,8 @@ func _perform_frontflip() -> void:
 	velocity.y = jump_velocity
 
 func _start_running_wall_cling() -> void:
+	if liquid_beast:
+		return
 	# Llegar a una pared con impulso de carrera y correr mantenido engancha sin pulsar hacia ella.
 	wall_cling_direction = int(sign(get_wall_normal().x))
 	if wall_cling_direction == 0:
@@ -1681,6 +1709,8 @@ func _start_running_wall_cling() -> void:
 		_try_start_running_wall_jump()
 
 func _start_wallride() -> void:
+	if liquid_beast:
+		return
 	# Saltar corriendo contra una pared: sube por ella una distancia fija.
 	wall_cling_direction = int(sign(get_wall_normal().x))
 	if wall_cling_direction == 0:
@@ -1715,6 +1745,8 @@ func _apply_running_wall_cling_movement(delta: float) -> void:
 	velocity.y = move_toward(velocity.y, running_wall_cling_slide_speed, gravity * delta)
 
 func _try_start_running_wall_jump() -> bool:
+	if liquid_beast:
+		return false
 	if (wall_cling_timer <= 0.0 and not wallride_active) or is_on_floor() or _is_attack_active() or dash_timer > 0.0:
 		return false
 
@@ -2244,7 +2276,7 @@ func _apply_mantle(delta: float) -> void:
 # ---------- Rugido (shine / deflect)
 
 func _start_roar() -> void:
-	if roar_active or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0 or shine_broken:
+	if liquid_beast or roar_active or mantle_active or hurt_lock_timer > 0.0 or current_health <= 0 or shine_broken:
 		return
 	var stunned: bool = block_stun_timer > 0.0
 	# En el aire se recuerda la velocidad de carrera para poder recuperarla al soltar a tiempo.
@@ -2487,7 +2519,7 @@ func parry_reaches(from: Vector2, to: Vector2) -> bool:
 	return Geometry2D.get_closest_point_to_segment(center, from, to).distance_to(center) <= roar_radius
 
 func is_roar_aura_active() -> bool:
-	return roar_active and (roar_explosive_timer > 0.0 or roar_aura_on)
+	return not liquid_beast and roar_active and (roar_explosive_timer > 0.0 or roar_aura_on)
 
 func get_roar_center() -> Vector2:
 	return global_position + Vector2(0.0, -14.0)
@@ -2499,7 +2531,7 @@ func wrath_aura_reaches(from: Vector2, to: Vector2) -> bool:
 	return is_wrath_aura_active() and Geometry2D.get_closest_point_to_segment(get_roar_center(), from, to).distance_to(get_roar_center()) <= 76.0
 
 func _is_roar_invincible() -> bool:
-	return roar_active and roar_explosive_timer > 0.0
+	return not liquid_beast and roar_active and roar_explosive_timer > 0.0
 
 func _create_roar_aura() -> void:
 	# El aura del rugido es un Cubo de Metatrón dorado.
@@ -2599,6 +2631,8 @@ func _land_backflip(move_input: float) -> void:
 	_try_backflip_instant_run(move_input)
 
 func _try_start_backflip_chain(move_input: float) -> bool:
+	if liquid_beast:
+		return false
 	if backflip_chain_timer <= 0.0 or not is_on_floor() or _is_attack_active() or dash_timer > 0.0:
 		return false
 	if int(sign(move_input)) != -facing:
@@ -2607,6 +2641,8 @@ func _try_start_backflip_chain(move_input: float) -> bool:
 	return true
 
 func _try_start_backflip_air_jump(move_input: float) -> bool:
+	if liquid_beast:
+		return false
 	if not backflip_active or is_on_floor() or air_jumps_remaining <= 0 or _is_attack_active() or dash_timer > 0.0:
 		return false
 
@@ -2662,7 +2698,7 @@ func _try_backflip_instant_run(move_input: float) -> void:
 		velocity.x = facing * max_speed
 
 func _uses_sprint_movement() -> bool:
-	return is_sprinting or long_jump_squat_timer > 0.0 or long_jump_active or backflip_active
+	return not liquid_beast and (is_sprinting or long_jump_squat_timer > 0.0 or long_jump_active or backflip_active)
 
 func _apply_sprint_movement(move_input: float, delta: float) -> void:
 	if long_jump_squat_timer > 0.0:
@@ -2707,6 +2743,8 @@ func _apply_sprint_movement(move_input: float, delta: float) -> void:
 	velocity.y = 0.0
 
 func _consume_sprint_air_jump() -> void:
+	if liquid_beast:
+		return
 	if jump_buffer_timer <= 0.0 or air_jumps_remaining <= 0 or _is_attack_active():
 		return
 	# Manteniendo la dirección contraria, el frontflip sale hacia ese lado: gira el facing y la carrera.
@@ -2721,6 +2759,9 @@ func _consume_sprint_air_jump() -> void:
 func _start_sprint(direction: int) -> void:
 	if weapons != null and weapons.aim:
 		return
+	if liquid_beast:
+		beast_running = true
+		return
 	var target_direction := direction
 	if target_direction == 0:
 		target_direction = facing
@@ -2734,6 +2775,7 @@ func _start_sprint(direction: int) -> void:
 func _stop_sprint() -> void:
 	backflip_run_direction = 0
 	is_sprinting = false
+	beast_running = false
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
 	long_jump_squat_timer = 0.0
@@ -3165,14 +3207,14 @@ func _end_attack() -> void:
 		light_combo_queued = false
 	elif ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
 		velocity.x = facing * charged_ground_end_speed
-	elif ending_mode == ATTACK_UPPERCUT and not is_on_floor():
+	elif ending_mode == ATTACK_UPPERCUT and not is_on_floor() and not liquid_beast:
 		frontflip_active = true
 		frontflip_elapsed = 0.0
 		execution_air_exit = ExecutionAirExit.UPPERCUT_RISE
 	elif ending_mode == ATTACK_SPIN and not is_on_floor():
 		# Conserva el lanzamiento y abre el bunnyhop al aterrizar, manteniendo correr.
 		aerial_stall_pose = true
-		if Input.is_action_pressed("dash"):
+		if Input.is_action_pressed("dash") and not liquid_beast:
 			long_jump_active = true
 			frontflip_active = true
 			frontflip_elapsed = frontflip_rotation_duration
@@ -3269,7 +3311,8 @@ func toggle_hitbox_debug() -> void:
 		node.queue_redraw()
 
 func _update_hitbox_visual_visibility() -> void:
-	var attacking := _is_attack_active()
+	# Weapon strings draw their own queries only during the active phase.
+	var attacking: bool = _is_attack_active() and not (weapons != null and weapons.active)
 	var show_hitboxes := show_hitbox_debug and attacking
 	slash_visual.visible = show_hitboxes
 	slash_area_visual.visible = show_hitboxes
@@ -3279,7 +3322,9 @@ func _update_hitbox_visual_visibility() -> void:
 
 func _update_attack_animation() -> void:
 	if weapons.active:
-		if weapons.current_weapon() == &"unarmed" and not weapons.heavy and weapons.step < 3:
+		claw_slash_sprite.hide()
+		attack_effects.visible = false
+		if weapons.phase == weapons.Phase.ACTIVE and weapons.attack_weapon == &"unarmed" and not weapons.heavy and weapons.step < 3:
 			attack_effects.visible = not show_hitbox_debug
 			_effect_claw_slash()
 		return
@@ -3388,7 +3433,7 @@ func _update_attack_effects() -> void:
 			_effect_liquid_bite()
 
 func _effect_claw_slash() -> void:
-	var progress: float = clampf(weapons.elapsed / weapons.duration, 0.0, 1.0) if weapons.active else clampf(1.0 - attack_timer / _get_light_attack_duration(), 0.0, 1.0)
+	var progress: float = weapons.active_progress() if weapons.active else clampf(1.0 - attack_timer / _get_light_attack_duration(), 0.0, 1.0)
 	var finisher := light_combo_step == 3
 	_hide_effect_strokes(0)
 	claw_slash_sprite.visible = true
@@ -3701,7 +3746,7 @@ func _hit_area(area: Area2D) -> void:
 		return
 
 	attack_targets_hit.append(area)
-	if liquid_beast and attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND]:
+	if liquid_beast and attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_UPPERCUT]:
 		var core: Node2D = area.get_node_or_null("RubyCore")
 		if core != null and core.claim(self):
 			_queue_execution(core)
@@ -3777,6 +3822,13 @@ func _end_dash() -> void:
 	if attack_buffered:
 		attack_buffered = false
 		_end_dash_into_attack.call_deferred()
+	if liquid_beast:
+		if Input.is_action_pressed("dash"):
+			_start_sprint(dash_direction)
+		velocity.x = dash_direction * (sprint_speed if beast_running else minf(dash_end_speed, max_speed))
+		if buffered_jump:
+			jump_buffer_timer = jump_buffer_time
+		return
 	if Input.is_action_pressed("dash") and is_on_floor():
 		_start_sprint(dash_direction)
 		velocity.x = sprint_direction * sprint_speed
@@ -3970,7 +4022,7 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 		# Cadena de rebotes: se cuenta hasta tocar el suelo.
 		bounce_chain += 1
 		Sfx.play("bounce", 0.0, 1.0 + 0.06 * min(bounce_chain - 1, 5))
-	if hit_enemy and not is_sprinting and Input.is_action_pressed("dash"):
+	if hit_enemy and not liquid_beast and not is_sprinting and Input.is_action_pressed("dash"):
 		_start_sprint(facing)
 		Stats.add("running_bounces")
 		Ferocity.add("running_bounce", 30.0, "REBOTE EN CARRERA", Ferocity.GOOD_COLOR, "bounce", bounce_chain)
@@ -3979,8 +4031,8 @@ func _bounce_out_of_heavy_attack(hit_enemy: bool = false) -> void:
 	velocity.x = -facing * charged_air_bounce_back_speed
 	velocity.y = jump_velocity * (heavy_dive_bounce_ratio if heavy_trajectory == HEAVY_DIVE else heavy_bounce_vertical_ratio)
 	jump_cut_available = false
-	# El rebote siempre gira con el frontflip.
-	frontflip_active = true
+	# Liquid Beast rebota sin el flip de Viridy.
+	frontflip_active = not liquid_beast
 	frontflip_elapsed = 0.0
 	frontflip_rotation_duration = _get_flip_airtime(velocity.y)
 
@@ -4163,7 +4215,7 @@ func _queue_execution(core: Node2D) -> void:
 	execution_started = false
 	execution_elapsed = 0.0
 	execution_direction = facing
-	execution_keep_sprint = is_sprinting or long_jump_active or Input.is_action_pressed("dash")
+	execution_keep_sprint = not liquid_beast and (is_sprinting or long_jump_active or Input.is_action_pressed("dash"))
 	execution_bonus = bunnyhop_bonus
 	execution_trajectory = HEAVY_ARC if attack_mode in [ATTACK_UPPERCUT, ATTACK_HEAVY_GROUND] else heavy_trajectory
 	# La colisión puede estar emitiendo area_entered: modificar hitboxes se hace después.
@@ -4229,8 +4281,8 @@ func _finish_execution() -> void:
 	Ferocity.add("ruby_execution" if final else "ruby_critical", 50.0 if final else 35.0, "RUBY ABSORBIDO" if final else "NÚCLEO DAÑADO", Color(1.0, 0.25, 0.3))
 	_camera_kick(0.3, 0.025)
 	facing = execution_direction
-	bunnyhop_bonus = execution_bonus
-	var keep_running := execution_keep_sprint or Input.is_action_pressed("dash")
+	bunnyhop_bonus = 0.0 if liquid_beast else execution_bonus
+	var keep_running := not liquid_beast and (execution_keep_sprint or Input.is_action_pressed("dash"))
 	running_attack_cooldown_timer = 0.0
 	dash_cooldown_timer = 0.0
 	uppercut_pose_timer = 0.0
@@ -4241,7 +4293,7 @@ func _finish_execution() -> void:
 	attack_mode = ATTACK_HEAVY
 	heavy_trajectory = execution_trajectory
 	_bounce_out_of_heavy_attack(true)
-	execution_air_exit = ExecutionAirExit.BOUNCE_FLIP
+	execution_air_exit = ExecutionAirExit.NONE if liquid_beast else ExecutionAirExit.BOUNCE_FLIP
 	if keep_running:
 		_start_sprint(execution_direction)
 		execution_air_boost_active = true

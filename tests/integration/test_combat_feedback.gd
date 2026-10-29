@@ -165,7 +165,7 @@ func _run() -> void:
 	check(InputMap.action_get_events("taunt").any(func(e): return e is InputEventJoypadButton and e.button_index == JOY_BUTTON_BACK), "Select pasa a taunt al cargar controles antiguos")
 	menu._save_settings()
 	legacy.load(menu.SETTINGS_PATH)
-	check(legacy.get_value("input", "version") == 6 and not InputMap.has_action("respawn"), "se guarda la versión nueva sin acción directa de reinicio")
+	check(legacy.get_value("input", "version") == menu.INPUT_VERSION and not InputMap.has_action("respawn"), "se guarda la versión nueva sin acción directa de reinicio")
 	legacy.set_value("input", "version", 5)
 	legacy.set_value("joypad", "slow_motion", ["b:10"])
 	legacy.save(menu.SETTINGS_PATH)

@@ -13,8 +13,8 @@ Implementación inicial: Viridy empieza **desarmado**. Las armas cambian ligeros
 | Aim | Mantener LT | Mantener clic central |
 | Apuntar en Aim | Stick derecho | Ratón |
 | Lanzar / recuperar arma | RB mientras se mantiene LT | Clic izquierdo durante Aim |
-| Liquid Beast | B | Q |
-| Parry / guardia | LB | Tab |
+| Liquid Beast | RB (sin Aim) | Q |
+| Parry / guardia (solo Viridy) | LB | Tab |
 | Dash / correr | RT | Shift |
 
 Aim permite caminar y saltar, pero cancela carrera y dash. Lanzar conserva la identidad del arma: fuera de la mano se utiliza Unarmed; recuperarla devuelve el arma original. Equipar otra en un pedestal retira el lanzamiento pendiente. No se pueden generar copias mediante recall o cambio de arma.
@@ -31,7 +31,7 @@ Datos en `weapon_catalog.gd`; daño base antes de modificadores de personaje, ri
 | Martillo | 2 golpes amplios, segundo en área | Descendente cargable en área con stun | 5 / 6 | 7–14 |
 | Lanza / Guja | Estocada, 2 cortes y giro a ambos lados | Embestida cargable; siguiente pulsación gira a ambos lados | 2 / 2 / 2 / 3 | 4–8 / 3 |
 
-Para resolver la diferencia entre las dos descripciones iniciales de Unarmed se implementó la primera: **cinco ligeros**, manteniendo las tres poses, geometrías y duraciones existentes (0,16 / 0,16 / 0,22 s), y añadiendo dos patadas. La propuesta alternativa de cuatro ligeros no está activa.
+Para resolver la diferencia entre las dos descripciones iniciales de Unarmed se implementó la primera: **cinco ligeros**, manteniendo las tres poses y geometrías existentes, y añadiendo dos patadas. Los tiempos ahora se dividen en las tres fases descritas a continuación. La propuesta alternativa de cuatro ligeros no está activa.
 
 La carga alcanza el máximo en 0,85 s; se mantiene hasta soltar. Aumenta daño, alcance y empuje; la guja también aumenta la velocidad de embestida. El martillo tiene superarmadura durante sus ataques: recibe daño, pero no pierde el ataque por hitstun. No concede invulnerabilidad.
 
@@ -39,14 +39,34 @@ Cada pulso de un giro o ráfaga puede golpear una vez a cada enemigo. El alcance
 
 Los sprites de armas son SVG propios con siluetas distintas. Las poses corporales se reutilizan de las animaciones actuales; aún no hay animaciones específicas de patadas ni de todos los strings. El estado de arma y la carga se muestran en pantalla.
 
+## Startup, fase activa y recuperación
+
+Las cadenas ligeras y heavy de las cinco armas usan tres fases explícitas, también cuando se ejecutan en el aire. Los valores se expresan en frames de referencia a **60 Hz**, pero se ejecutan en segundos y escalan juntos con `attack_speed_multiplier`. Cada tripleta representa **startup / active / recovery**; cada columna enumera los golpes de la cadena en orden.
+
+| Arma | Ligeros (S / A / R) | Heavy (S / A / R) |
+| --- | --- | --- |
+| Unarmed | 2/3/5 · 2/3/5 · 3/4/6 · 3/4/7 · 4/5/8 | 4/5/6 · 4/5/7 · 5/6/8 |
+| Espada | 4/5/5 · 4/5/5 · 4/6/5 · 5/7/8 | 6/7/9 · 6/18/13 |
+| Hacha | 6/4/11 · 7/4/12 · 8/12/26 | 9/6/20 |
+| Martillo | 8/5/19 · 9/6/24 | 11/7/29 |
+| Lanza / Guja | 4/5/5 · 4/6/5 · 4/6/5 · 5/10/10 | 7/8/13 · 6/10/13 |
+
+Startup anticipa sin daño; active habilita los impactos; recovery conserva la acción ocupada sin infligir daño. El buffer de ligero/heavy espera a terminar recovery antes de comenzar el startup del siguiente golpe. El último golpe incluye toda su recuperación en la tabla, sin el cooldown adicional anterior de 0,12 s. Las cancelaciones defensivas existentes, como parry, siguen disponibles; dash continúa bloqueado mientras el ataque está ocupado.
+
+Unarmed tiene anticipaciones breves y ventanas cortas; sus patadas heavy añaden tiempo en las tres fases. Espada es la referencia y guja mantiene un ritmo próximo con mayor alcance. Hacha y martillo tienen swings breves y concentran su peso en recovery. Los giros dobles del hacha y la ráfaga de espada reparten sus dos/tres pulsos dentro de active, una vez por objetivo y pulso. Un tick largo comprueba todos los intervalos atravesados.
+
+La carga mantenida precede a startup: soltarla empieza las tres fases y conserva los modificadores de carga. Las poses existentes siguen el reloj de combate y las estelas se muestran durante active. Daño, alcance y reglas de suspensión aérea siguen usando los perfiles existentes. Uppercut, screw, ataques de carrera, dive y Liquid Beast conservan su sistema actual.
+
+Regresión específica: `tests/integration/test_attack_phases.gd` comprueba daño por fase en los 27 golpes, límites temporales, pulsos, carga, velocidad, cancelación, poses y buffer por input: 180/180. La revisión completa de integración y herramientas pasó 1304/1304; detalle en `attack_phases_validation.json`.
+
 ## Liquid Beast y enemigos
 
-La transformación dura indefinidamente. Hay 0,45 s de cooldown entre cambios de forma. Mantener ligero produce aliento jade continuo; los heavies y el dive conservan las mordidas existentes y pueden ejecutar. Se puede correr, dashear y parrear. Aim queda inactivo.
+La transformación dura indefinidamente. Hay 0,45 s de cooldown entre cambios de forma. Mantener ligero produce aliento jade continuo; los heavies, el dive y el uppercut pueden ejecutar núcleos OPEN o DYING. Se puede dashear y correr manteniendo RT: la bestia alcanza la velocidad de carrera con el movimiento normal y salta normal, sin salto largo, flips ni wallride. No tiene parry ni guardia, y Aim queda inactivo. Al salir de una ejecución rebota sin flip ni impulso extra de carrera.
 
 - **OPEN:** el parry abre a un enemigo pequeño durante 2 s. Si no se ejecuta, vuelve al combate. Tener poca vida ya no produce OPEN.
-- **DYING:** un enemigo pequeño a 0 de vida queda inactivo y ejecutable durante 4 s. Después explota su ruby y muere. Ejecutarlo antes resuelve la baja y conserva la recompensa de ejecución.
+- **DYING:** un enemigo pequeño a 0 de vida queda inactivo y ejecutable durante 4 s. Cada golpe le resta 0,8 s (cinco golpes lo hacen explotar). Después explota su ruby y muere. Ejecutarlo antes resuelve la baja y conserva la recompensa de ejecución.
 - **Stagger:** interrumpe el ataque y aturde; no abre el ruby.
-- Solo Liquid Beast reclama rubies para ejecutar. El uppercut común y el recall no ejecutan. Wrath conserva su excepción de capturar enemigos con vida, pero requiere Liquid Beast para reclamar sus núcleos.
+- Solo Liquid Beast reclama rubies para ejecutar. El uppercut de Viridy y el recall no ejecutan. Wrath conserva su excepción de capturar enemigos con vida, pero requiere Liquid Beast para reclamar sus núcleos.
 - Los jefes conservan postura, críticos y ventana final existentes; también requieren Liquid Beast para la captura.
 
 El arma arrojada mantiene su marca jade y DoT no letal de hasta 2 s. En el regreso golpea y atrae a todos los enemigos atravesados, ordenados por contacto: 100 %, 70 %, 49 %… del daño de recall, redondeado a entero y con mínimo de 1. Un enemigo no recibe impactos repetidos en el mismo regreso. No hay teleejecución mediante recall.
@@ -69,7 +89,7 @@ La base del personaje expone `max_health`, `damage_multiplier` y `attack_speed_m
 
 ## Ejecutables
 
-Exportados con Godot 4.2.2 para Windows (`builds/windows/Ruby1.exe`) y Linux (`builds/linux/Ruby1.x86_64`). Tamaños y SHA-256 en `builds.json`. Ambos ejecutables arrancaron las nueve escenas de menú, Level Testing, Santuario y modos de juego desde su PCK embebido, con datos temporales: 18/18 arranques correctos, sin errores de scripts. Windows se comprobó con OpenGL Compatibility y Linux en modo headless. Detalle de esta exportación en `native_smoke.json`. Los binarios permanecen en `builds/`, ignorado por Git.
+Exportados con Godot 4.2.2 para Windows (`builds/windows/Ruby1.exe`) y Linux (`builds/linux/Ruby1.x86_64`). Tamaños y SHA-256 en `builds.json`. Ambos ejecutables arrancaron las nueve escenas de menú, Level Testing, Santuario y modos de juego desde su PCK embebido, con datos temporales y sin errores de scripts. Linux (headless): 9/9 con código 0. Windows (OpenGL Compatibility y headless): las nueve corrieron sus 300 frames sin errores, pero lanzado desde WSL el proceso devuelve código 1, también con el build del commit anterior; no se pudo confirmar la carga de cada escena desde el log de un build release. Detalle en `native_smoke.json`. Los binarios permanecen en `builds/`, ignorado por Git.
 
 ## Acciones comunes por arma
 

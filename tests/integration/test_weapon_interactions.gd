@@ -124,6 +124,50 @@ func _run() -> void:
 		check(captured and enemy.ruby_core.broken and not enemy.visible, "%s: heavy de Liquid Beast ejecuta por colisión real" % script)
 		enemy.queue_free()
 		await frames(4)
+	# Golpear a un enemigo en DYING acorta su temporizador hasta que explota.
+	var core_script := load("res://ruby_core.gd")
+	var hits_to_die := ceili(core_script.DYING_TIME / core_script.DYING_HIT_TIME)
+	for script in ["training_dummy", "chaser_dummy", "shield_bearer", "hawk"]:
+		enemy = load("res://training_dummy.tscn").instantiate() if script == "training_dummy" else load("res://%s.gd" % script).new()
+		enemy.position = Vector2(400, -2 if script != "hawk" else -35)
+		arena.add_child(enemy)
+		enemy.set_physics_process(false)
+		await frames(2)
+		enemy.take_hit(Vector2.ZERO, 1, 999)
+		var core: Node = enemy.ruby_core
+		if script == "shield_bearer":
+			check(not enemy.try_block(enemy.global_position + Vector2(enemy.facing * 30, 0)), "shield_bearer: en DYING no bloquea")
+		for _i in range(hits_to_die - 1):
+			var before: float = core.dying_left
+			enemy.take_hit(Vector2.ZERO, 1, 1)
+			if not is_equal_approx(before - core.dying_left, core_script.DYING_HIT_TIME):
+				break
+		check(core.dying and enemy.visible and core.dying_left > 0.0 and core.dying_left < core_script.DYING_HIT_TIME * 1.5, "%s: cada golpe en DYING resta tiempo sin matarlo antes de tiempo" % script)
+		enemy.take_hit(Vector2.ZERO, 1, 1)
+		check(not core.dying and core.broken and not enemy.visible, "%s: el último golpe en DYING lo hace explotar" % script)
+		enemy.queue_free()
+		await frames(2)
+	# Con input real: un ligero de espada recorta DYING; el núcleo sigue siendo ejecutable.
+	player._respawn_player()
+	player.liquid_beast = false
+	player.weapons.equip(&"sword")
+	player.position = Vector2(0, -2)
+	player.facing = 1
+	await frames(8)
+	enemy = load("res://training_dummy.tscn").instantiate()
+	enemy.position = Vector2(55, -2)
+	arena.add_child(enemy)
+	enemy.set_physics_process(false)
+	await frames(2)
+	enemy.take_hit(Vector2.ZERO, 1, 999)
+	var left_before: float = enemy.ruby_core.dying_left
+	Input.action_press("attack")
+	await frames(2)
+	Input.action_release("attack")
+	await frames(20)
+	check(enemy.ruby_core.dying and enemy.ruby_core.dying_left < left_before - 0.5 and enemy.ruby_core.is_executable(), "Ligero real de espada acorta DYING y conserva la ejecución")
+	enemy.queue_free()
+	await frames(4)
 	# Stagger interrumpe el ataque sin generar una oportunidad de ejecución.
 	player._respawn_player()
 	enemy = load("res://chaser_dummy.gd").new()
@@ -134,10 +178,11 @@ func _run() -> void:
 	enemy.ruby_core.stagger(0.5)
 	check(enemy.state == enemy.State.STAGGER and enemy.ruby_core.holds_actor() and not enemy.ruby_core.is_executable(), "Stagger interrumpe SWING sin abrir el ruby")
 	enemy.queue_free()
-	# B ya no dispara el parry y LT es una acción mantenida.
+	# RB transforma sin parry; en bestia LB no hace parry. LT es una acción mantenida.
+	player.liquid_beast = false
 	await frames(6)
 	var button := InputEventJoypadButton.new()
-	button.button_index = JOY_BUTTON_B
+	button.button_index = JOY_BUTTON_RIGHT_SHOULDER
 	button.pressed = true
 	Input.parse_input_event(button)
 	Input.flush_buffered_events()
@@ -145,7 +190,7 @@ func _run() -> void:
 	button.pressed = false
 	Input.parse_input_event(button)
 	Input.flush_buffered_events()
-	check(player.liquid_beast and not player.roar_active, "Evento real B transforma sin activar parry")
+	check(player.liquid_beast and not player.roar_active, "Evento real RB transforma sin activar parry")
 	button = InputEventJoypadButton.new()
 	button.button_index = JOY_BUTTON_LEFT_SHOULDER
 	button.pressed = true
@@ -155,7 +200,7 @@ func _run() -> void:
 	button.pressed = false
 	Input.parse_input_event(button)
 	Input.flush_buffered_events()
-	check(player.roar_active, "Evento real LB conserva parry en bestia")
+	check(not player.roar_active, "Evento real LB no hace parry en bestia")
 	player._end_roar()
 	player.liquid_beast = false
 	player._start_dash()

@@ -188,7 +188,7 @@ func _run() -> void:
 	Input.action_release("attack")
 	check(target.current_health <= 97 and player.liquid_beast, "Mantener ligero en bestia da aliento continuo")
 	await tap("roar")
-	check(player.roar_active, "Liquid Beast conserva LB/parry")
+	check(not player.roar_active, "Liquid Beast no usa LB/parry")
 	player._end_roar()
 	target.take_hit(Vector2.ZERO, 1, 200)
 	check(target.ruby_core.claim(player), "Liquid Beast puede reclamar DYING")
