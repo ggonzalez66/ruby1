@@ -55,21 +55,29 @@ Startup anticipa sin daño; active habilita los impactos; recovery conserva la a
 
 Unarmed tiene anticipaciones breves y ventanas cortas; sus patadas heavy añaden tiempo en las tres fases. Espada es la referencia y guja mantiene un ritmo próximo con mayor alcance. Hacha y martillo tienen swings breves y concentran su peso en recovery. Los giros dobles del hacha y la ráfaga de espada reparten sus dos/tres pulsos dentro de active, una vez por objetivo y pulso. Un tick largo comprueba todos los intervalos atravesados.
 
+El recovery de cualquier ligero (strings de arma y ataques en carrera, en su segunda mitad y su lag) se cancela en un pesado; un pesado pulsado antes espera en cola y sale al empezar el recovery.
+
 La carga mantenida hace de startup: al soltar se descuenta del startup el tiempo ya cargado, así que una carga completa golpea al instante y un toque conserva su anticipación. Cargar en el suelo frena con polvo y derrape y corta la carrera; al terminar el golpe, manteniendo RT se sale corriendo hacia el lado que se mantenga, sin frenada de giro. Las poses existentes siguen el reloj de combate y las estelas se muestran durante active. Daño, alcance y reglas de suspensión aérea siguen usando los perfiles existentes. Uppercut, screw, ataques de carrera, dive y Liquid Beast conservan su sistema actual.
 
 Regresión específica: `tests/integration/test_attack_phases.gd` comprueba daño por fase en los 27 golpes, límites temporales, pulsos, carga, velocidad, cancelación, poses y buffer por input: 180/180. La revisión completa de integración y herramientas pasó 1304/1304; detalle en `attack_phases_validation.json`.
 
 ## Presentación de las armas
 
-Los tajos de los strings alternan descendente y ascendente; los golpes pesados únicos bajan. Los giros (hacha y guja) son horizontales: el arma orbita en una elipse, se acorta de canto, pasa por detrás del cuerpo y deja una estela más tenue detrás. La ráfaga del segundo heavy de la espada muestra tres estocadas a distintas alturas con destello y sonido de estocada. Capturas: `tools/art/capture_weapon_feel.gd` (carpeta en `CAPTURE_DIR`).
+Sprites en pixel art (fase 2) generados desde los bocetos con `tools/art/weapon_art.py` (siluetas + ComfyUI); el punto de agarre de cada arma está en `weapon_catalog.gd` (`GRIP`). Los SVG anteriores se conservan.
+
+Los tajos de los strings alternan descendente y ascendente (el segundo del martillo sube); los golpes pesados únicos bajan. Los giros (hacha y guja) son horizontales: el arma orbita en una elipse, se acorta de canto, pasa por detrás del cuerpo y deja una estela más tenue detrás. La ráfaga del segundo heavy de la espada muestra tres estocadas a distintas alturas con destello y sonido de estocada. Capturas: `tools/art/capture_weapon_feel.gd` (carpeta en `CAPTURE_DIR`).
 
 ## Wrath of Nature
 
-Pulsar heavy durante el avance frena deslizando y ejecuta ahí los Rubies capturados. Desde el suelo no se puede apuntar hacia abajo (abajo-adelante, abajo, abajo-atrás) ni hacia atrás; en el aire sí.
+Pulsar heavy durante el avance frena gradualmente (desliza ~140 px) y ejecuta ahí los Rubies capturados. Si choca con una pared, durante el avance o la frenada, el peso lo devuelve varios metros (~150 px) antes de romperlos. Desde el suelo no se puede apuntar hacia abajo (abajo-adelante, abajo, abajo-atrás) ni hacia atrás; en el aire sí.
+
+## Enemigos y gauntlet
+
+Perseguidor, escudero y halcón usan sprites de autómatas (`assets/sprites/enemies/`, de `tools/art/enemy_art.py`) montados por `enemy_skin.gd` sobre sus polígonos: hitboxes, brazos y animaciones no cambian y el sprite copia el tinte de golpe y aviso. El gauntlet suma una torre trepable a la izquierda y semipisos alternados en las dos paredes con escalones para subir. El rugido de la pose (`growl`) ya no tiene notas graves.
 
 ## Liquid Beast y enemigos
 
-La transformación dura indefinidamente. Hay 0,45 s de cooldown entre cambios de forma. Mantener ligero produce aliento jade continuo; los heavies, el dive y el uppercut pueden ejecutar núcleos OPEN o DYING. Se puede dashear y correr manteniendo RT: como Viridy, basta mantener RT para seguir corriendo y el stick solo elige el lado; salta normal, sin salto largo, flips ni wallride. En el uppercut la bestia apunta hacia arriba. No tiene parry ni guardia, y Aim queda inactivo. Al salir de una ejecución rebota sin flip ni impulso extra de carrera.
+La transformación dura indefinidamente. Hay 0,45 s de cooldown entre cambios de forma. Mantener ligero produce aliento jade continuo; los heavies, el dive y el uppercut pueden ejecutar núcleos OPEN o DYING. Se puede dashear y correr manteniendo RT: como Viridy, basta mantener RT para seguir corriendo y el stick solo elige el lado; salta normal, sin salto largo, flips ni wallride. En el uppercut la bestia apunta hacia arriba. Al transformarse se abalanza al instante como un heavy: adelante por defecto, arriba con arriba y abajo con abajo (en el aire). Bunnyhop: saltar justo al aterrizar corriendo suma la misma velocidad que el de Viridy. Aspecto: cabeza de león espiritual con melena de fuego verde (`viridy_beast_head.png`, de `tools/art/beast_head_art.py` sobre el boceto del usuario); el cuerpo serpentino es un VFX que sigue a la cabeza (`beast_trail.gd`) y la cabeza se inclina al subir y al caer. El aliento jade tiene su sonido en bucle, muy bajo (`fire_breath`). No tiene parry ni guardia, y Aim queda inactivo. Al salir de una ejecución rebota sin flip ni impulso extra de carrera.
 
 - **OPEN:** el parry abre a un enemigo pequeño durante 2 s. Si no se ejecuta, vuelve al combate. Tener poca vida ya no produce OPEN.
 - **DYING:** un enemigo pequeño a 0 de vida queda inactivo y ejecutable durante 4 s. Cada golpe le resta 1,4 s (al tercero explota), así que ejecutarlo exige no machacarlo. Después explota su ruby y muere. Ejecutarlo antes resuelve la baja y conserva la recompensa de ejecución.

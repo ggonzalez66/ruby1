@@ -22,7 +22,7 @@ const MIX := {
 	"heavy_land": [-1.0, 0.04], "bounce": [-4.0, 0.06], "shine": [-4.0, 0.03], "parry": [-1.0, 0.02],
 	"block": [-3.0, 0.06], "shine_break": [-1.0, 0.0], "hurt": [-2.0, 0.05], "death": [0.0, 0.0],
 	"enemy_die": [-3.0, 0.08], "enemy_swing": [-7.0, 0.06], "knife_throw": [-5.0, 0.06],
-	"knife_hit": [-5.0, 0.08], "knife_catch": [-8.0, 0.05], "rank_up": [-9.0, 0.0], "growl": [-3.0, 0.03],
+	"knife_hit": [-5.0, 0.08], "knife_catch": [-8.0, 0.05], "rank_up": [-9.0, 0.0], "growl": [-5.0, 0.03], "fire_breath": [-22.0, 0.0],
 	"ui_move": [-14.0, 0.0], "ui_select": [-10.0, 0.0], "shine_hold": [-10.0, 0.0], "roar_parry": [-5.0, 0.12],
 	"enemy_alert": [-9.0, 0.0], "boss_alert": [-8.0, 0.0], "enemy_hurt": [-8.0, 0.1], "boss_hurt": [-5.0, 0.08],
 	"enemy_charge": [-10.0, 0.0], "enemy_shoot": [-7.0, 0.08], "projectile_pop": [-9.0, 0.1], "zap": [-6.0, 0.08],
@@ -32,7 +32,7 @@ const MIX := {
 	"sun_hit": [-6.0, 0.06], "hawk_screech": [-7.0, 0.04], "hawk_dive": [-8.0, 0.05], "guard_break": [-3.0, 0.04],
 }
 # Sonidos en bucle (se arrancan con start_loop y se paran con stop_loop).
-const LOOPS := ["shine_hold", "wrath_charge", "wrath_rush"]
+const LOOPS := ["shine_hold", "wrath_charge", "wrath_rush", "fire_breath"]
 const LOOP_FADE := 0.08
 
 var streams := {}

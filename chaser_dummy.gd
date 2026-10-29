@@ -57,6 +57,7 @@ var launch_rise := 0.0
 var launch_hang := 0.0
 var juggle_fall := false
 
+const ENEMY_SKIN := preload("res://enemy_skin.gd")
 var visual: Node2D
 var body_poly: Polygon2D
 var arm: Node2D
@@ -89,8 +90,11 @@ func _build() -> void:
 	add_child(visual)
 	body_poly = _poly([Vector2(-13, 0), Vector2(13, 0), Vector2(11, -50), Vector2(-11, -50)], BODY_COLOR)
 	visual.add_child(body_poly)
-	visual.add_child(_poly([Vector2(-12, -40), Vector2(12, -40), Vector2(12, -34), Vector2(-12, -34)], BAND_COLOR))
-	visual.add_child(_poly([Vector2(3, -46), Vector2(10, -46), Vector2(10, -42), Vector2(3, -42)], WARNING_COLOR))
+	var band := _poly([Vector2(-12, -40), Vector2(12, -40), Vector2(12, -34), Vector2(-12, -34)], BAND_COLOR)
+	visual.add_child(band)
+	var eye := _poly([Vector2(3, -46), Vector2(10, -46), Vector2(10, -42), Vector2(3, -42)], WARNING_COLOR)
+	visual.add_child(eye)
+	ENEMY_SKIN.new().dress(visual, body_poly, "chaser", [body_poly, band, eye])
 	# Brazo con cuchilla: pivota en el hombro y apunta hacia delante (+x).
 	arm = Node2D.new()
 	arm.position = Vector2(8, -32)

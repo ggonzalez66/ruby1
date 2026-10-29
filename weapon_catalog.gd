@@ -11,14 +11,20 @@ const DESCRIPTIONS := {
 	&"glaive": "Alcance ++ · Control de grupos",
 }
 
+# Sprites en pixel art (tools/art/weapon_art.py): mango a la izquierda; GRIP es el punto de agarre.
+const GRIP := {&"sword": Vector2(18, 40), &"axe": Vector2(14, 60), &"glaive": Vector2(14, 60), &"hammer": Vector2(14, 60)}
+
 static func texture(id: StringName) -> Texture2D:
 	if id == &"unarmed":
 		return null
-	return load("res://assets/weapons/%s.svg" % id)
+	return load("res://assets/weapons/%s.png" % id)
+
+static func grip(id: StringName) -> Vector2:
+	return GRIP.get(id, Vector2(18, 40))
 
 # Timings at 60 Hz: startup / active / recovery. Runtime uses seconds.
-static func hit(kind: String, damage: int, frames: Vector3i, reach: float, height: float, stagger := 0.0, push := 180.0, pulses := 1) -> Dictionary:
-	return {"kind": kind, "damage": damage, "duration": (frames.x + frames.y + frames.z) / 60.0,
+static func hit(kind: String, damage: int, frames: Vector3i, reach: float, height: float, stagger := 0.0, push := 180.0, pulses := 1, upward := false) -> Dictionary:
+	return {"upward": upward, "kind": kind, "damage": damage, "duration": (frames.x + frames.y + frames.z) / 60.0,
 		"startup": frames.x / 60.0, "active_time": frames.y / 60.0, "recovery": frames.z / 60.0, "reach": reach, "height": height,
 		"stagger": stagger, "push": push, "pulses": pulses}
 
@@ -35,7 +41,7 @@ static func chain(id: StringName, heavy: bool) -> Array:
 		&"hammer":
 			if heavy:
 				return [hit("slam", 7, Vector3i(11, 7, 29), 170, 155, 1.1, 540)]
-			return [hit("slash", 5, Vector3i(8, 5, 19), 138, 130, 0.55, 380), hit("slam", 6, Vector3i(9, 6, 24), 150, 145, 0.65, 460)]
+			return [hit("slash", 5, Vector3i(8, 5, 19), 138, 130, 0.55, 380), hit("slam", 6, Vector3i(9, 6, 24), 150, 145, 0.65, 460, 1, true)]
 		&"glaive":
 			if heavy:
 				return [hit("lunge", 4, Vector3i(7, 8, 13), 180, 45, 0.3, 460), hit("spin", 3, Vector3i(6, 10, 13), 165, 125, 0.4, 360)]

@@ -43,9 +43,13 @@ func _build() -> void:
 	body_poly = _poly([Vector2(-17, 0), Vector2(17, 0), Vector2(15, -58), Vector2(-15, -58)], ARMOR_COLOR)
 	visual.add_child(body_poly)
 	# Yelmo con visera y cinturón.
-	visual.add_child(_poly([Vector2(-14, -58), Vector2(14, -58), Vector2(10, -70), Vector2(-10, -70)], ARMOR_COLOR.lightened(0.15)))
-	visual.add_child(_poly([Vector2(2, -64), Vector2(13, -64), Vector2(13, -60), Vector2(2, -60)], WARNING_COLOR))
-	visual.add_child(_poly([Vector2(-16, -26), Vector2(16, -26), Vector2(16, -20), Vector2(-16, -20)], SHIELD_RIM.darkened(0.4)))
+	var helmet := _poly([Vector2(-14, -58), Vector2(14, -58), Vector2(10, -70), Vector2(-10, -70)], ARMOR_COLOR.lightened(0.15))
+	visual.add_child(helmet)
+	var visor := _poly([Vector2(2, -64), Vector2(13, -64), Vector2(13, -60), Vector2(2, -60)], WARNING_COLOR)
+	visual.add_child(visor)
+	var belt := _poly([Vector2(-16, -26), Vector2(16, -26), Vector2(16, -20), Vector2(-16, -20)], SHIELD_RIM.darkened(0.4))
+	visual.add_child(belt)
+	ENEMY_SKIN.new().dress(visual, body_poly, "shield_bearer", [body_poly, helmet, visor, belt])
 	# Maza: pivota en el hombro (el perseguidor anima "arm" al avisar y al golpear).
 	arm = Node2D.new()
 	arm.position = Vector2(-4, -44)

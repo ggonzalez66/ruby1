@@ -208,6 +208,32 @@ func _run() -> void:
 			break
 	check(player.weapons.step == 1 and player.attack_mode != player.ATTACK_LIGHT_CHARGED_AIR, "otro ligero sigue el string, no un dash attack")
 
+	print("== Recovery de ligeros cancelable en heavy")
+	await reset()
+	await start_sprinting()
+	await tap("attack")
+	check(player.attack_mode == player.ATTACK_GROUND_CHARGED, "dash attack")
+	for i in range(30):
+		await frames(1)
+		if player.attack_timer <= player.charged_ground_duration * 0.5:
+			break
+	await tap("heavy_attack")
+	await frames(1)
+	check(player.weapons.active and player.weapons.heavy, "el dash attack se cancela en un heavy en su segunda mitad")
+	release_all()
+	await reset(GROUND + Vector2(0, -260))
+	await tap("attack")
+	await frames(1)
+	await tap("heavy_attack")
+	var dived := false
+	for i in range(40):
+		await frames(1)
+		if player.attack_mode == player.ATTACK_HEAVY:
+			dived = true
+			break
+	check(dived and not player.weapons.active, "un heavy pulsado durante un ligero aéreo sale en su recovery")
+	release_all()
+
 	print("== Combo: uppercut -> dash attack (con correr) -> giro -> heavy aéreo")
 	await reset()
 	await tap_up_heavy()
@@ -233,7 +259,7 @@ func _run() -> void:
 	print("== Heavy de suelo: mordida de bestia líquida")
 	await reset()
 	var heavy_texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"ground_heavy", 0)
-	check(heavy_texture.atlas == player.GROUND_MORPH_SHEET and player.animated_sprite.sprite_frames.get_frame_count(&"ground_heavy") == 4, "usa la extensión, separación y salida de la mordida")
+	check(heavy_texture.atlas == player.LIQUID_BEAST_SHEET and player.animated_sprite.sprite_frames.get_frame_count(&"ground_heavy") == 4, "la mordida de suelo abre y cierra la cabeza de león")
 	var chew_texture: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(&"ruby_chew", 0)
 	check(chew_texture.atlas == player.LIQUID_BEAST_SHEET and chew_texture.region.position.x >= 768 * 2, "el mascado usa las poses cerradas de la bestia nueva")
 	var victim := make_chaser(GROUND + Vector2(60, 0))
@@ -297,7 +323,7 @@ func _run() -> void:
 	await frames(2)
 	check(player.is_on_floor() and player.animated_sprite.animation != &"aerial_stall", "y al aterrizar lo deja")
 
-	print("== Aterrizaje del heavy aéreo: mordida cerrada (solo visual)")
+	print("== Aterrizaje del heavy aéreo de Viridy (solo visual)")
 	await reset(GROUND + Vector2(0, -160))
 	Input.action_press("heavy_attack")
 	await frames(2)
@@ -312,7 +338,7 @@ func _run() -> void:
 			slide_speed = abs(player.velocity.x)
 			break
 	var landing_texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"heavy_landing", 0)
-	check(landed_anim == &"heavy_landing" and landing_texture.atlas == player.LIQUID_LANDING_SHEET and player.animated_sprite.sprite_frames.get_frame_count(&"heavy_landing") == 2, "al tocar el suelo: la bestia se aplasta y recupera su forma (%s)" % landed_anim)
+	check(landed_anim == &"heavy_landing" and landing_texture.atlas == player.JUMP_SQUAT_SHEET, "al tocar el suelo Viridy aterriza agachada, sin forma de goo (%s)" % landed_anim)
 	check(player.attack_mode == player.ATTACK_NONE and abs(slide_speed - player.heavy_ground_impact_slide_speed) < 60.0, "la mecánica no cambia: ataque terminado y deslizamiento de siempre (%.0f)" % slide_speed)
 	await frames(1)
 	var scrape: Node2D = player.knife_scrape

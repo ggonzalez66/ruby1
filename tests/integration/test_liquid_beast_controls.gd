@@ -107,7 +107,9 @@ func _run() -> void:
 	button(JOY_BUTTON_B, true)
 	await frames(2)
 	check(player.liquid_beast and not player.is_sprinting and not player.frontflip_active and not player.long_jump_active and player.backflip_chain_timer == 0 and player.long_jump_chain_timer == 0, "Transformarse limpia carrera, flips y ventanas pendientes")
-	check(absf(player.velocity.x) <= player.max_speed, "Transformarse no conserva velocidad de sprint")
+	check(player.attack_mode == player.ATTACK_HEAVY_GROUND, "Transformarse se abalanza al instante hacia delante")
+	await frames(40)
+	check(absf(player.velocity.x) <= player.max_speed + 1.0, "Tras la embestida no conserva la velocidad de sprint")
 	await reset(true)
 	Input.action_press("move_right")
 	trigger(JOY_AXIS_TRIGGER_RIGHT, 1.0)
@@ -206,6 +208,58 @@ func _run() -> void:
 		check(not player.frontflip_active and not player.is_sprinting and player.execution_air_exit == player.ExecutionAirExit.NONE, "Salida de uppercut/ejecución sin flip ni carrera: " + state)
 		target.queue_free()
 		await frames(2)
+	# Transforming lunges like an instant heavy: forward, up or down.
+	await reset()
+	Input.action_press("move_up")
+	button(JOY_BUTTON_B, true)
+	await frames(2)
+	button(JOY_BUTTON_B, false)
+	Input.action_release("move_up")
+	check(player.liquid_beast and player.attack_mode == player.ATTACK_UPPERCUT, "Transformarse con arriba se abalanza hacia arriba")
+	await frames(60)
+	for entry in [["move_down", player.HEAVY_DIVE], ["", player.HEAVY_ARC]]:
+		await reset()
+		player.position.y = -320
+		await frames(2)
+		if entry[0] != "":
+			Input.action_press(entry[0])
+		button(JOY_BUTTON_B, true)
+		await frames(2)
+		button(JOY_BUTTON_B, false)
+		if entry[0] != "":
+			Input.action_release(entry[0])
+		check(player.liquid_beast and player.attack_mode == player.ATTACK_HEAVY and player.heavy_trajectory == entry[1], "Transformarse en el aire se abalanza %s" % ("hacia abajo" if entry[0] != "" else "hacia delante"))
+		await frames(60)
+	# Bunnyhop: jumping right on landing while running stacks speed.
+	await reset(true)
+	player.facing = 1
+	trigger(JOY_AXIS_TRIGGER_RIGHT, 1.0)
+	await frames(45)
+	button(JOY_BUTTON_A, true)
+	await frames(8)
+	button(JOY_BUTTON_A, false)
+	var rose := false
+	var fell := false
+	for i in range(120):
+		await frames(1)
+		if player.velocity.y < -100.0:
+			rose = rose or player.animated_sprite.rotation < -0.05
+		elif player.velocity.y > 100.0:
+			fell = fell or player.animated_sprite.rotation > 0.05
+		if player.is_on_floor():
+			break
+	check(rose and fell, "La cabeza apunta arriba al subir y abajo al caer")
+	button(JOY_BUTTON_A, true)
+	await frames(3)
+	button(JOY_BUTTON_A, false)
+	check(player.beast_hop_bonus > 0.0 and player.velocity.x > player.sprint_speed and not player.is_on_floor(), "Saltar al aterrizar corriendo hace bunnyhop")
+	for i in range(120):
+		await frames(1)
+		if player.is_on_floor():
+			break
+	await frames(20)
+	check(player.beast_hop_bonus == 0.0, "Quedarse en el suelo pierde el bonus del bunnyhop")
+	trigger(JOY_AXIS_TRIGGER_RIGHT, 0.0)
 	# Saved defaults and remapping retain both actions on the contextual button.
 	var menu = load("res://pause_menu.gd").new()
 	menu.testing_mode = true

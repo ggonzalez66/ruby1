@@ -55,6 +55,18 @@ platform("ArenaTier6R", 3800, 3940, -960)
 platform("ArenaTier7L", 2620, 2760, -1120)
 platform("ArenaTier7R", 3480, 3620, -1120)
 platform("ArenaTop", 2900, 3060, -1280)
+
+# Semipisos a los lados: balcones pegados a las paredes trepables, alternados izquierda/derecha cada 160 px
+# de altura, con un escalón hacia dentro para subir de uno a otro (doble salto y agarre del borde).
+# La torre izquierda deja libre el paso del suelo hacia la arena.
+block("TowerLeft", 1340, 1400, TOP, -260, CLIMB_WALL)
+for index, y in enumerate((-480, -800, -1120)):
+    platform(f"SemiFloorLeft{index + 1}", 1400, 1720, y, 26)
+    platform(f"SemiStepLeft{index + 1}", 1780, 1930, y - 160)
+for index, y in enumerate((-330, -800, -1120)):
+    platform(f"SemiFloorRight{index + 1}", 4120, 4400, y, 26)
+platform("SemiStepRight1", 3960, 4100, -480)
+platform("SemiStepRight2", 3960, 4100, -1280)
 S.node("BossSpawner", "Node2D", {
     "script": f'ExtResource("{SPAWNER}")',
     "spawn_point": vec(3150, 0),

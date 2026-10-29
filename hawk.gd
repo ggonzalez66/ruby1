@@ -56,6 +56,7 @@ var launch_target := Vector2.ZERO
 var launch_rise := 0.0
 var launch_hang := 0.0
 
+const ENEMY_SKIN := preload("res://enemy_skin.gd")
 var visual: Node2D
 var body_poly: Polygon2D
 var wing_front: Polygon2D
@@ -90,16 +91,23 @@ func _build() -> void:
 	wing_back = _poly([Vector2(-4, -2), Vector2(-30, -26), Vector2(-10, -24), Vector2(8, -4)], WING_COLOR.darkened(0.25))
 	wing_back.position = Vector2(2, -4)
 	visual.add_child(wing_back)
-	visual.add_child(_poly([Vector2(-14, -4), Vector2(-34, -10), Vector2(-36, 2), Vector2(-14, 4)], WING_COLOR))
+	var tail := _poly([Vector2(-14, -4), Vector2(-34, -10), Vector2(-36, 2), Vector2(-14, 4)], WING_COLOR)
+	visual.add_child(tail)
 	body_poly = _poly([Vector2(-16, -6), Vector2(4, -10), Vector2(16, -6), Vector2(14, 6), Vector2(-14, 6)], BODY_COLOR)
 	visual.add_child(body_poly)
-	visual.add_child(_poly([Vector2(-8, 2), Vector2(10, 0), Vector2(8, 6), Vector2(-8, 6)], BELLY_COLOR))
-	visual.add_child(_poly([Vector2(10, -12), Vector2(20, -12), Vector2(22, -4), Vector2(12, -2)], BODY_COLOR.lightened(0.1)))
-	visual.add_child(_poly([Vector2(21, -10), Vector2(30, -6), Vector2(22, -4)], BEAK_COLOR))
-	visual.add_child(_poly([Vector2(16, -10), Vector2(19, -10), Vector2(19, -7), Vector2(16, -7)], Color(0.1, 0.06, 0.04)))
+	var details := [
+		_poly([Vector2(-8, 2), Vector2(10, 0), Vector2(8, 6), Vector2(-8, 6)], BELLY_COLOR),
+		_poly([Vector2(10, -12), Vector2(20, -12), Vector2(22, -4), Vector2(12, -2)], BODY_COLOR.lightened(0.1)),
+		_poly([Vector2(21, -10), Vector2(30, -6), Vector2(22, -4)], BEAK_COLOR),
+		_poly([Vector2(16, -10), Vector2(19, -10), Vector2(19, -7), Vector2(16, -7)], Color(0.1, 0.06, 0.04)),
+	]
+	for piece in details:
+		visual.add_child(piece)
 	wing_front = _poly([Vector2(-6, 0), Vector2(-26, -30), Vector2(-4, -28), Vector2(10, -2)], WING_COLOR)
 	wing_front.position = Vector2(0, -2)
 	visual.add_child(wing_front)
+	# El sprite trae las alas abiertas: sustituye cuerpo y alas, y late con el aleteo.
+	ENEMY_SKIN.new().dress(visual, body_poly, "hawk", [wing_back, tail, body_poly, wing_front] + details, wing_front, 22.0)
 
 	warning_label = Label.new()
 	warning_label.text = "!"

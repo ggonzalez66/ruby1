@@ -48,6 +48,7 @@ var display_texture: StringName = &""
 var brake_fx_wait := 0.0
 # Suspensión aérea del string: solo tras conectar en el aire, hasta aterrizar.
 var air_stall := false
+var breath_sound := false
 var skid_played := false
 
 func _ready() -> void:
@@ -102,6 +103,9 @@ func toggle_form() -> void:
 	aim = false
 	breath = false
 	Fx.jade_splash(player.get_parent(), player.global_position + Vector2(0, -25), Vector2.UP, 0.45)
+	if player.liquid_beast:
+		player.beast_hop_bonus = 0.0
+		player.beast_lunge()
 
 func tick(delta: float) -> void:
 	form_cooldown = maxf(form_cooldown - delta, 0.0)
@@ -122,6 +126,12 @@ func tick(delta: float) -> void:
 		player.velocity.x = clampf(player.velocity.x, -player.max_speed, player.max_speed)
 		_update_aim()
 	breath = player.liquid_beast and Input.is_action_pressed("attack") and not player._is_attack_active() and not player._blocks_actions() and player.dash_timer <= 0.0
+	if breath != breath_sound:
+		breath_sound = breath
+		if breath:
+			Sfx.start_loop("fire_breath")
+		else:
+			Sfx.stop_loop("fire_breath")
 	breath_tick -= delta
 	if breath and breath_tick <= 0.0:
 		breath_tick = 0.16
@@ -139,6 +149,9 @@ func tick(delta: float) -> void:
 			var previous := elapsed
 			elapsed += delta
 			_advance(previous)
+		if active and queued == &"heavy" and not heavy and phase == Phase.RECOVERY:
+			queued = &""
+			request(true)
 	queue_redraw()
 
 func _advance(previous: float) -> void:
@@ -161,8 +174,12 @@ func request(is_heavy: bool) -> bool:
 	if player.liquid_beast or aim or player._blocks_actions() or player.dash_timer > 0.0:
 		return false
 	if active:
-		queued = &"heavy" if is_heavy else &"light"
-		return true
+		if is_heavy and not heavy and phase == Phase.RECOVERY:
+			# El recovery de cualquier ligero se cancela en un pesado.
+			interrupt()
+		else:
+			queued = &"heavy" if is_heavy else &"light"
+			return true
 	if player._is_attack_active() or player.attack_cooldown_timer > 0.0:
 		return false
 	var chain := Catalog.chain(current_weapon(), is_heavy)
@@ -252,6 +269,8 @@ func _brake_fx(delta: float) -> void:
 
 func _swings_down() -> bool:
 	# Los strings alternan tajo descendente y ascendente; los golpes pesados únicos bajan.
+	if move.get("upward", false):
+		return false
 	return heavy or move.kind != "slash" or step % 2 == 0
 
 func _thrusts() -> bool:
@@ -289,6 +308,22 @@ func _finish() -> void:
 			player.attack_cooldown_timer = 0.0
 			request(next == &"heavy")
 
+func interrupt() -> void:
+	# Corta el ataque actual sin abrir ventana de combo ni lanzar lo que hubiera en cola.
+	active = false
+	charging = false
+	queued = &""
+	window = 0.0
+	step = -1
+	player.attack_mode = player.ATTACK_NONE
+	player.riposte_attack = false
+	player.attack_cooldown_timer = 0.0
+	player.attack_effects.visible = false
+	player.claw_slash_sprite.hide()
+
+func in_light_recovery() -> bool:
+	return active and not heavy and phase == Phase.RECOVERY
+
 func cancel() -> void:
 	active = false
 	charging = false
@@ -296,6 +331,9 @@ func cancel() -> void:
 	charge = 0.0
 	charge_ratio = 0.0
 	breath = false
+	if breath_sound:
+		breath_sound = false
+		Sfx.stop_loop("fire_breath")
 	queued = &""
 	window = 0.0
 	step = -1
@@ -405,6 +443,7 @@ func _process(_delta: float) -> void:
 	if display_texture != id:
 		display_texture = id
 		weapon_sprite.texture = Catalog.texture(id)
+		weapon_sprite.offset = -Catalog.grip(id)
 	weapon_sprite.visible = id != &"unarmed" and not player.liquid_beast and not player.dead and player.execution_core == null
 	weapon_sprite.position = Vector2(player.facing * 20, -26)
 	weapon_sprite.scale = Vector2(player.facing * 0.72, 0.72)

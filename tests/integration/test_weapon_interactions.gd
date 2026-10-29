@@ -203,6 +203,8 @@ func _run() -> void:
 	check(not player.roar_active, "Evento real LB no hace parry en bestia")
 	player._end_roar()
 	player.liquid_beast = false
+	# La embestida de la transformación no debe seguir activa al probar el dash.
+	player._cancel_all_states()
 	player._start_dash()
 	Input.action_press("throw_knife")
 	await frames(2)

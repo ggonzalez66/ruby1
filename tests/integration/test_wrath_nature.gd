@@ -114,7 +114,9 @@ func _run() -> void:
 	player.return_to_checkpoint(50)
 	check(not player.dead and player.current_health == 40 and player.position == stopped, "avance y ejecución son invulnerables, también ante pinchos")
 	await frames(4)
-	check(player.position.x < stopped.x, "al chocar retrocede un poco antes de romperlos")
+	check(player.position.x < stopped.x, "al chocar retrocede antes de romperlos")
+	await frames(20)
+	check(stopped.x - player.position.x > 100.0, "el peso lo devuelve varios metros desde la pared")
 	await frames(5)
 	check(not sound.is_looping("wrath_rush"), "el sonido continuo se apaga al detenerse")
 	for i in range(90):
@@ -198,7 +200,7 @@ func _run() -> void:
 		wrath.tick(1.0 / 60.0)
 		if wrath.state == wrath.State.IDLE:
 			break
-	check(caught.current_health == 0 and caught.ruby_core.broken and player.position.x < braked_at + 60.0, "frena ahí mismo y ejecuta los Rubies capturados")
+	check(caught.current_health == 0 and caught.ruby_core.broken and player.position.x > braked_at + 60.0 and player.position.x < braked_at + 260.0, "frena gradualmente deslizando y ejecuta los Rubies capturados")
 	await frames(6)
 	check(not sound.is_looping("wrath_rush"), "frenar apaga el sonido del avance")
 	print("== Desde el suelo no se apunta hacia abajo ni hacia atrás; en el aire sí")

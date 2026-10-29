@@ -12,6 +12,10 @@ const JADE := Color(0.22, 0.65, 0.43)
 @export var recoil_duration := 0.12
 @export var shatter_duration := 0.30
 @export var recovery_duration := 0.18
+@export var brake_duration := 0.45
+@export var brake_speed_ratio := 0.5
+@export var wall_bounce_speed := 1100.0
+@export var wall_bounce_duration := 0.4
 
 var player: CharacterBody2D
 var state := State.IDLE
@@ -20,6 +24,8 @@ var ready_left := 0.0
 var distance := 0.0
 var direction := Vector2.RIGHT
 var recoil := Vector2.ZERO
+var recoil_time := 0.12
+var braking := false
 var captured: Array[Node2D] = []
 var afterimage_wait := 0.0
 var trail_wait := 0.0
@@ -95,9 +101,12 @@ func tick(delta: float) -> void:
 				else:
 					_rush(delta)
 			State.RECOIL:
-				player.velocity = recoil * (1.0 - clampf(elapsed / recoil_duration, 0.0, 1.0))
-				player.move_and_collide(player.velocity * delta)
-				if elapsed >= recoil_duration:
+				var left := 1.0 - clampf(elapsed / recoil_time, 0.0, 1.0)
+				player.velocity = recoil * left * left
+				var bump := player.move_and_collide(player.velocity * delta)
+				if bump != null and braking and absf(bump.get_normal().x) > 0.7:
+					_wall_bounce(bump.get_normal(), bump.get_position())
+				elif elapsed >= recoil_time:
 					state = State.SHATTER
 					elapsed = 0.0
 			State.SHATTER:
@@ -203,10 +212,15 @@ func _rush(delta: float) -> void:
 		Fx.jade_splash(player.get_parent(), to + Vector2(0, -42), -direction, 0.50, 0.65)
 	if collision != null or distance >= max_distance - 0.1 or elapsed >= max_rush_duration:
 		Sfx.stop_loop("wrath_rush")
+		if collision != null and absf(collision.get_normal().x) > 0.7:
+			_wall_bounce(collision.get_normal(), collision.get_position())
+			return
 		if collision != null:
 			Fx.jade_burst(player.get_parent(), collision.get_position(), 1.3)
 		landed = collision != null and collision.get_normal().y < -0.7
 		recoil = (collision.get_normal() if collision != null else -direction) * 190.0
+		recoil_time = recoil_duration
+		braking = false
 		state = State.RECOIL
 		elapsed = 0.0
 		Sfx.play("wrath_impact")
@@ -223,10 +237,25 @@ func _brake() -> void:
 	Sfx.play("wrath_impact", -4.0, 0.85)
 	Fx.jade_burst(player.get_parent(), player.global_position + Vector2(0, -42), 0.8)
 	landed = player.test_move(player.global_transform, Vector2.DOWN * 4.0)
-	recoil = direction * 260.0
+	# Frenada gradual: parte de la mitad de la velocidad del avance y se apaga con suavidad.
+	recoil = direction * rush_speed * brake_speed_ratio
+	recoil_time = brake_duration
+	braking = true
 	state = State.RECOIL
 	elapsed = 0.0
 	player._camera_kick(0.3, 0.03)
+
+func _wall_bounce(normal: Vector2, point: Vector2) -> void:
+	# Contra una pared el peso lo devuelve varios metros antes de romper los Rubies.
+	Fx.jade_burst(player.get_parent(), point, 1.3)
+	Sfx.play("wrath_impact")
+	player._camera_kick(0.55, 0.045)
+	landed = false
+	recoil = Vector2(signf(normal.x), -0.18).normalized() * wall_bounce_speed
+	recoil_time = wall_bounce_duration
+	braking = false
+	state = State.RECOIL
+	elapsed = 0.0
 
 func _capture_segment(from: Vector2, to: Vector2) -> void:
 	var shape := CapsuleShape2D.new()

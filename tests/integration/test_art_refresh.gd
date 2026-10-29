@@ -46,22 +46,20 @@ func _run() -> void:
 	await frames(1)
 	check(player.hurt_lock_timer <= 0 and player.attack_mode == mode and player.animated_sprite.animation != &"hurt", "Imparable recibe daño y conserva su ataque sin pose de dolor")
 
-	print("== Recuperación líquida puramente visual")
+	print("== Recuperación de la mordida puramente visual")
 	player._cancel_all_states()
 	style.reset()
 	player.attack_cooldown_timer = 0.0
 	player.ground_heavy_cooldown_timer = 0.0
 	player._start_ground_heavy_attack()
 	await frames(1)
-	check(player.afterimage_container.get_children().any(func(n): return n.name == "HeavyBodyRemnant" and n is Sprite2D), "la parte abandonada es un sprite en el mundo")
+	check(not player.afterimage_container.get_children().any(func(n): return n.name == "HeavyBodyRemnant"), "la mordida ya no deja un cuerpo de goo en el mundo")
 	await frames(9)
 	check(player.attack_mode == player.ATTACK_NONE and player.heavy_morph_recovery_timer > 0, "el heavy acaba a su tiempo aunque la transición visual siga")
 	player.attack_cooldown_timer = 0.0
 	player._start_attack()
 	await frames(1)
 	check(player.weapons.active and player.animated_sprite.animation == &"light_hit", "otro ataque reemplaza la forma líquida sin esperar al dibujo")
-	await frames(20)
-	check(not player.afterimage_container.get_children().any(func(n): return n.name == "HeavyBodyRemnant"), "el remanente se elimina tras desvanecerse")
 
 	print("== Mismo período de carrera con apoyos marcados")
 	var animations: SpriteFrames = player.animated_sprite.sprite_frames

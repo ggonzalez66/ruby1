@@ -38,7 +38,7 @@ func _run() -> void:
 
 	print("== Animaciones nuevas")
 	var sprite_frames: SpriteFrames = player.animated_sprite.sprite_frames
-	var expected := {"idle": [6, "viridy_idle"], "proud": [3, "viridy_proud"], "proud_loop": [2, "viridy_proud"], "walk": [8, "viridy_walk_arcade"], "sprint": [8, "viridy_sprint_wolverine_v2"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [4, "viridy_dash_reach_v2"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [2, "viridy_liquid_beast"], "ground_heavy": [4, "viridy_ground_heavy_arcade"], "heavy_landing": [2, "viridy_liquid_landing"], "ruby_chew": [2, "viridy_liquid_beast"], "liquid_launch": [2, "viridy_liquid_beast_arcade"], "dash": [2, "viridy_liquid_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "spin": [1, "viridy_frontflip"], "ruby_spin": [4, "viridy_liquid_ouroboros"], "hurt": [3, "viridy_hurt_arcade"], "light_hit": [4, "viridy_light1_arcade"], "light_hit_2": [4, "viridy_light2_arcade"], "light_finisher": [3, "viridy_light3_arcade"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
+	var expected := {"idle": [6, "viridy_idle"], "proud": [3, "viridy_proud"], "proud_loop": [2, "viridy_proud"], "walk": [8, "viridy_walk_arcade"], "sprint": [8, "viridy_sprint_wolverine_v2"], "wallride": [5, "viridy_wallrun"], "mantle": [1, "viridy_mantle"], "wall_slide": [1, "viridy_wall_cling"], "charge": [4, "viridy_dash_reach_v2"], "jump": [3, "viridy_jump"], "jump_squat": [1, "viridy_jump_squat"], "fall": [1, "viridy_jump"], "roar": [1, "viridy_roar.png"], "backflip": [1, "viridy_backflip"], "uppercut": [1, "viridy_uppercut"], "wall_jump": [1, "viridy_wall_jump"], "long_jump": [1, "viridy_wall_jump"], "heavy_aerial": [2, "viridy_beast_head"], "ground_heavy": [4, "viridy_beast_head"], "heavy_landing": [1, "viridy_jump_squat"], "ruby_chew": [2, "viridy_beast_head"], "liquid_launch": [2, "viridy_beast_head"], "dive": [1, "viridy_heavy_aerial"], "dash": [2, "viridy_liquid_dash"], "roar_hold": [1, "viridy_roar_hold"], "aerial_stall": [1, "viridy_aerial_stall"], "frontflip": [1, "viridy_frontflip"], "spin": [1, "viridy_frontflip"], "ruby_spin": [4, "viridy_liquid_ouroboros"], "hurt": [3, "viridy_hurt_arcade"], "light_hit": [4, "viridy_light1_arcade"], "light_hit_2": [4, "viridy_light2_arcade"], "light_finisher": [3, "viridy_light3_arcade"], "sprint_brake": [1, "viridy_brake"], "brake_recover": [1, "viridy_brake_recover"], "proud_roar": [1, "viridy_proud"]}
 	expected["knife_throw"] = [4, "viridy_javelin_throw_v1"]
 	for anim in expected:
 		var texture := sprite_frames.get_frame_texture(anim, 0)
@@ -161,9 +161,9 @@ func _run() -> void:
 	level.add_child(knife)
 	knife.set_physics_process(false)
 	await frames(1)
-	check(knife.sprite.texture.resource_path.ends_with("glaive.svg") and knife.sprite.hframes == 1, "usa el sprite nuevo")
+	check(knife.sprite.texture.resource_path.ends_with("glaive.png") and knife.sprite.hframes == 1, "usa el sprite en pixel art")
 	var length: float = knife.sprite.texture.get_width() * knife.sprite.scale.x
-	check(is_equal_approx(length, 149.6), "guja arrojada de alcance visual largo (%.0f px)" % length)
+	check(is_equal_approx(length, 196.0 * 0.85), "guja arrojada de alcance visual largo (%.0f px)" % length)
 	var target: Node2D = load("res://training_dummy.tscn").instantiate()
 	target.aerial = true
 	target.max_health = 99

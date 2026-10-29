@@ -196,6 +196,11 @@ func _run() -> void:
 	await frames(2)
 	check(not player.weapons.aim, "Aim no actúa en Liquid Beast")
 	Input.action_release("throw_knife")
+	# La embestida al transformarse lo movió: se recoloca delante del objetivo.
+	player._cancel_all_states()
+	player.position = Vector2(0, -2)
+	player.facing = 1
+	player._update_facing_visual()
 	target = enemy(Vector2(90, -2), 100)
 	await frames(2)
 	Input.action_press("attack")

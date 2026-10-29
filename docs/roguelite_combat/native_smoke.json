@@ -1,8 +1,8 @@
 {
-  "verified_at_utc": "2026-10-29T02:53:45.302277+00:00",
+  "verified_at_utc": "2026-10-29T04:30:09.630672+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "source_base_commit": "4c1d5b1d94b0e37a1cdeee42fa29474329c9cd2b",
-  "working_tree": "weapon presentation phase 1, charge brake, beast run/uppercut, Wrath brake, B transform, air stall only on hit, DYING 1.4 s per hit",
+  "source_base_commit": "ae1590bf71b1d0685ffddd87541e4c50e70756a7",
+  "working_tree": "weapon/beast/enemy art phase 2, light-to-heavy recovery cancels, beast lunge/bunnyhop/serpentine body, Wrath brake and wall bounce, gauntlet semi-floors, growl and fire_breath",
   "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
   "scenes": [
     "main_menu",
@@ -28,12 +28,12 @@
       "scenes_ran_without_script_errors": 9,
       "scene_checks_total": 9,
       "exit_codes": 1,
-      "exit_code_note": "Every Windows run returns 1 when launched from WSL, including a build of the previous commit; release logs do not show per-scene loading."
+      "exit_code_note": "Every Windows run returns 1 when launched from WSL, including builds of earlier commits; release logs do not show per-scene loading. level_testing runs ~1000 fps uncapped (300 frames 2.4 s, 900 frames 3.0 s), so its short time is not a crash."
     }
   },
   "gameplay_and_tools": {
-    "passed": 1376,
-    "total": 1376,
+    "passed": 1391,
+    "total": 1391,
     "runner": "tests/run_tests.sh"
   },
   "export_exit_codes": {

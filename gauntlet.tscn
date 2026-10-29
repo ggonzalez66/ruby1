@@ -200,6 +200,90 @@ script = ExtResource("13_platform")
 size = Vector2(160, 20)
 style = 2
 
+[node name="TowerLeft" type="StaticBody2D" parent="."]
+position = Vector2(1370, -880)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1240)
+style = 4
+
+[node name="SemiFloorLeft1" type="StaticBody2D" parent="."]
+position = Vector2(1560, -467)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(320, 26)
+style = 2
+
+[node name="SemiStepLeft1" type="StaticBody2D" parent="."]
+position = Vector2(1855, -630)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 20)
+style = 2
+
+[node name="SemiFloorLeft2" type="StaticBody2D" parent="."]
+position = Vector2(1560, -787)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(320, 26)
+style = 2
+
+[node name="SemiStepLeft2" type="StaticBody2D" parent="."]
+position = Vector2(1855, -950)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 20)
+style = 2
+
+[node name="SemiFloorLeft3" type="StaticBody2D" parent="."]
+position = Vector2(1560, -1107)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(320, 26)
+style = 2
+
+[node name="SemiStepLeft3" type="StaticBody2D" parent="."]
+position = Vector2(1855, -1270)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 20)
+style = 2
+
+[node name="SemiFloorRight1" type="StaticBody2D" parent="."]
+position = Vector2(4260, -317)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(280, 26)
+style = 2
+
+[node name="SemiFloorRight2" type="StaticBody2D" parent="."]
+position = Vector2(4260, -787)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(280, 26)
+style = 2
+
+[node name="SemiFloorRight3" type="StaticBody2D" parent="."]
+position = Vector2(4260, -1107)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(280, 26)
+style = 2
+
+[node name="SemiStepRight1" type="StaticBody2D" parent="."]
+position = Vector2(4030, -470)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(140, 20)
+style = 2
+
+[node name="SemiStepRight2" type="StaticBody2D" parent="."]
+position = Vector2(4030, -1270)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(140, 20)
+style = 2
+
 [node name="BossSpawner" type="Node2D" parent="."]
 script = ExtResource("10_spawner")
 spawn_point = Vector2(3150, 0)

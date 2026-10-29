@@ -31,16 +31,14 @@ signal shine_changed(durability: float, maximum: float, broken: bool)
 signal died
 signal respawned
 
-const LIQUID_LANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_landing.png")
 const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_dash.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
 const JAVELIN_THROW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_javelin_throw_v1.png")
 const JAVELIN_THROW_DURATION := 0.15
-const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_beast_arcade.png")
+# Cabeza de león espiritual (tools/art/beast_head_art.py): 0 abierta, 1 a medio cerrar, 2-3 cerradas.
+const LIQUID_BEAST_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_beast_head.png")
 const LIQUID_SPIN_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_ouroboros.png")
 const CLAW_SLASH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_claw_slashes_v2.png")
-const GROUND_MORPH_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_ground_heavy_arcade.png")
-const HEAVY_REMNANT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_remnant_arcade.png")
 const HURT_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_hurt_arcade.png")
 const LIGHT_ONE_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light1_arcade.png")
 const LIGHT_TWO_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light2_arcade.png")
@@ -80,7 +78,7 @@ const UPPERCUT_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/
 # Provisional: la pose de picada de Viridy mientras no haya una hoja nueva del dive.
 const DIVE_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_heavy_aerial.png")
 const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
-const JADE_SHEETS := [JAVELIN_THROW_SHEET, WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_BEAST_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, LIQUID_LANDING_SHEET, DASH_ATTACK_TEXTURE, GROUND_MORPH_SHEET, HEAVY_REMNANT_SHEET, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET, WRATH_SHEET]
+const JADE_SHEETS := [JAVELIN_THROW_SHEET, WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, DASH_ATTACK_TEXTURE, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET, WRATH_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -190,7 +188,7 @@ const ANIMATION_VISUAL_SCALES := {
 	ANIMATION_WALLRIDE: 0.95,
 	ANIMATION_KNIFE_THROW: 1.0,
 	ANIMATION_GROUND_HEAVY: 0.65,
-	ANIMATION_HEAVY_LANDING: 0.65,
+	ANIMATION_HEAVY_LANDING: 0.556,
 	ANIMATION_SPRINT: 1.0,
 	ANIMATION_BACKFLIP: 0.38,
 	ANIMATION_FRONTFLIP: 0.3,
@@ -441,6 +439,10 @@ var dash_direction := 1
 var is_sprinting := false
 # La bestia corre con el movimiento normal: sin salto largo, flips ni wallride.
 var beast_running := false
+# Bunnyhop de la bestia: saltar justo al aterrizar corriendo suma velocidad, como el de Viridy.
+const BEAST_HOP_WINDOW := 0.12
+var beast_hop_bonus := 0.0
+var beast_floor_time := 0.0
 var sprint_direction := 1
 var sprint_turn_timer := 0.0
 var sprint_turn_direction := 0
@@ -516,6 +518,7 @@ var shine_tint_ratio := -1.0
 var bounce_chain := 0
 var dead := false
 var mane_emitter: CPUParticles2D
+var beast_trail: Node2D
 var screw_embers: CPUParticles2D
 var knife_scrape: Node2D
 var death_spin := 0.0
@@ -554,6 +557,7 @@ var attack_buffered := false
 var combo_buffer: StringName = &""
 var combo_buffer_timer := 0.0
 var uppercut_chain_timer := 0.0
+var charged_light_cancel_timer := 0.0
 # Tras el uppercut (y su pose de subida) o al acabar el giro en el aire queda en aerial stall hasta
 # aterrizar o hacer otra cosa.
 var aerial_stall_pose := false
@@ -609,6 +613,8 @@ func _ready() -> void:
 	mane_emitter = MANE_EMITTER_SCRIPT.new()
 	add_child(mane_emitter)
 	move_child(mane_emitter, animated_sprite.get_index())
+	beast_trail = preload("res://beast_trail.gd").new()
+	add_child(beast_trail)
 	_create_screw_embers()
 	wrath = WRATH_SCRIPT.new()
 	wrath.name = "WrathOfNature"
@@ -867,6 +873,12 @@ func _physics_process(delta: float) -> void:
 	if is_on_floor() and not long_jump_active and long_jump_chain_timer <= 0.0:
 		bunnyhop_bonus = 0.0
 		bunnyhop_chain = 0
+	if liquid_beast and is_on_floor():
+		beast_floor_time += delta
+		if beast_floor_time > BEAST_HOP_WINDOW:
+			beast_hop_bonus = 0.0
+	else:
+		beast_floor_time = 0.0
 	Ferocity.update_airtime(delta, is_on_floor(), is_on_wall() or wallride_active or wall_cling_timer > 0.0 or mantle_active or wall_embedded)
 	_update_movement_fx(delta, was_on_floor, air_jumps_before, fall_speed)
 	_update_proud(delta, move_input)
@@ -969,14 +981,11 @@ func _configure_character_animations() -> void:
 	_add_region_animation(frames, ANIMATION_MANTLE, MANTLING_SHEET, [Rect2(1090, 0, 535, 600)], 1.0, false)
 	# Wallride: Rengar corriendo pared arriba (dibujado de pie, mirando a la pared).
 	_add_region_animation(frames, ANIMATION_WALLRIDE, WALLRUN_SHEET, WALLRUN_REGIONS, 14.0, true)
-	_add_arcade_animation(frames, ANIMATION_GROUND_HEAVY, GROUND_MORPH_SHEET, 4, 28.0, false, Vector2(1024, 640), 608.0)
-	_add_padded_animation(frames, ANIMATION_HEAVY_LANDING, LIQUID_LANDING_SHEET, Vector2(1000, 450), [Rect2(77, 454, 838, 255), Rect2(946, 343, 766, 364)], 20.0, false)
+	# Mordida a ras de suelo: la cabeza se abre y se cierra.
+	_add_arcade_animation(frames, ANIMATION_GROUND_HEAVY, LIQUID_BEAST_SHEET, 4, 28.0, false, Vector2(768, 512), 512.0)
+	# Viridy al aterrizar del dive: agachada, con el cuchillo raspando el suelo (provisional).
+	_add_region_animation(frames, ANIMATION_HEAVY_LANDING, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
 	_add_arcade_animation(frames, ANIMATION_RUBY_CHEW, LIQUID_BEAST_SHEET, 4, 12.0, true, Vector2(768, 512), 512.0, [2, 3])
-	# El heavy de suelo termina cerrando la mordida. Reutilizar la pose cerrada sin tocar las hojas.
-	var heavy_closed: AtlasTexture = frames.get_frame_texture(ANIMATION_RUBY_CHEW, 0).duplicate()
-	# Conservar el canvas de 1024 × 608 y el apoyo de los otros tres frames.
-	heavy_closed.margin = Rect2(Vector2(128, 96), Vector2(256, 96))
-	frames.set_frame(ANIMATION_GROUND_HEAVY, 3, heavy_closed)
 	_add_region_animation(frames, ANIMATION_UPPERCUT, UPPERCUT_TEXTURE, [UPPERCUT_REGION], 1.0, false)
 	_add_arcade_animation(frames, ANIMATION_LIQUID_LAUNCH, LIQUID_BEAST_SHEET, 4, 14.0, false, Vector2(768, 512), 512.0, [0, 1])
 	# Ocho claves, con apoyos sostenidos; el período visual sigue siendo 1/3 s.
@@ -1342,6 +1351,9 @@ func _update_character_orientation(animation_name: StringName) -> void:
 	if liquid_beast and attack_mode == ATTACK_UPPERCUT:
 		# La estela de la bestia mira hacia delante: en el uppercut se gira para subir con la cabeza arriba.
 		animated_sprite.rotation = -facing * PI * 0.45
+	elif liquid_beast and attack_mode == ATTACK_NONE and not is_on_floor():
+		# La cabeza apunta un poco hacia arriba al subir y hacia abajo al caer.
+		animated_sprite.rotation = facing * clampf(atan2(velocity.y, maxf(absf(velocity.x), 320.0)), -0.45, 0.55)
 	elif liquid_beast and attack_mode != ATTACK_HEAVY:
 		animated_sprite.rotation = 0.0
 	animated_sprite.flip_h = facing < 0
@@ -1367,18 +1379,16 @@ func _align_character_animation(animation_name: StringName) -> void:
 	elif animation_name in [ANIMATION_WRATH_RUSH, ANIMATION_WRATH_CHEW]:
 		animated_sprite.scale = Vector2.ONE * 185.0 / texture.get_width()
 		animated_sprite.position = Vector2(0, -42)
-	elif animation_name in [ANIMATION_HEAVY_LANDING, ANIMATION_DASH]:
+	elif animation_name == ANIMATION_DASH:
 		animated_sprite.scale = Vector2.ONE * LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
 		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
 
 func arcade_frame_layout(animation_name: StringName, texture: Texture2D) -> Transform2D:
 	# También lo usan los fantasmas: los replays guardados pueden tener tamaños de hojas anteriores.
 	var factor := CHARACTER_VISUAL_SCALE
-	if animation_name == ANIMATION_GROUND_HEAVY:
-		factor = 160.0 / texture.get_width()
-	elif animation_name == ANIMATION_RUBY_SPIN:
+	if animation_name == ANIMATION_RUBY_SPIN:
 		factor = LIQUID_SPIN_CANVAS_SIZE / texture.get_width()
-	elif animation_name in [ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH]:
+	elif animation_name in [ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH, ANIMATION_GROUND_HEAVY]:
 		factor = LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
 	var offset := Vector2(0, -33.0) if animation_name == ANIMATION_RUBY_SPIN else Vector2(0, -texture.get_height() * factor * 0.5)
 	return Transform2D(0.0, Vector2.ONE * factor, 0.0, offset)
@@ -1402,6 +1412,7 @@ func _update_timers(delta: float) -> void:
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	proud_roar_timer = max(proud_roar_timer - delta, 0.0)
 	uppercut_chain_timer = max(uppercut_chain_timer - delta, 0.0)
+	charged_light_cancel_timer = max(charged_light_cancel_timer - delta, 0.0)
 	combo_buffer_timer = max(combo_buffer_timer - delta, 0.0)
 	if combo_buffer_timer <= 0.0:
 		combo_buffer = &""
@@ -1476,6 +1487,10 @@ func _consume_jump_buffer() -> void:
 
 	var can_ground_jump: bool = is_on_floor() or coyote_timer > 0.0
 	if can_ground_jump:
+		if liquid_beast and beast_running and beast_floor_time <= BEAST_HOP_WINDOW:
+			beast_hop_bonus += bunnyhop_speed_gain
+			velocity.x = sprint_direction * (sprint_speed + beast_hop_bonus)
+			Stats.add("bunnyhops")
 		jump_buffer_timer = 0.0
 		coyote_timer = 0.0
 		wall_contact_direction = 0
@@ -1542,7 +1557,7 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 		# Como Viridy: mantener correr basta para seguir corriendo; el stick solo elige el lado.
 		if move_input != 0.0:
 			sprint_direction = 1 if move_input > 0.0 else -1
-		velocity.x = move_toward(velocity.x, sprint_direction * sprint_speed, (ground_acceleration if is_on_floor() else air_acceleration) * delta)
+		velocity.x = move_toward(velocity.x, sprint_direction * (sprint_speed + beast_hop_bonus), (ground_acceleration if is_on_floor() else air_acceleration) * delta)
 		return
 
 	var control_multiplier: float = 1.0
@@ -2603,6 +2618,7 @@ func _exit_tree() -> void:
 	_cancel_execution()
 	Engine.time_scale = TimeControl.base_scale()
 	Sfx.stop_loop("shine_hold")
+	Sfx.stop_loop("fire_breath")
 	if is_instance_valid(afterimage_container):
 		afterimage_container.queue_free()
 
@@ -2792,6 +2808,7 @@ func _stop_sprint() -> void:
 	backflip_run_direction = 0
 	is_sprinting = false
 	beast_running = false
+	beast_hop_bonus = 0.0
 	sprint_turn_timer = 0.0
 	sprint_turn_direction = 0
 	long_jump_squat_timer = 0.0
@@ -2880,6 +2897,7 @@ func _try_combat_action(kind: StringName) -> bool:
 				_start_uppercut_attack(true)
 				return true
 			var was_uppercut: bool = attack_mode == ATTACK_UPPERCUT
+			_cancel_light_recovery_for_heavy()
 			_try_heavy_uppercut()
 			return attack_mode == ATTACK_UPPERCUT and not was_uppercut
 		&"heavy":
@@ -2891,7 +2909,8 @@ func _try_combat_action(kind: StringName) -> bool:
 				attack_cooldown_timer = 0.0
 			var mode_before: int = attack_mode
 			_start_heavy_attack(false)
-			return weapons.active or (attack_mode != mode_before and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND))
+			# Un pesado pulsado durante un ligero aéreo espera en el buffer a su recovery.
+			return (weapons.active and (weapons.heavy or weapons.queued == &"heavy")) or (attack_mode != mode_before and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_HEAVY_GROUND))
 		&"attack":
 			if _in_uppercut_chain():
 				if not _uppercut_can_be_cancelled():
@@ -2994,6 +3013,21 @@ func _get_claw_center_offset() -> Vector2:
 func _get_claw_scale() -> float:
 	return light_finisher_scale if light_combo_step == 3 else light_hit_scale
 
+func _cancel_light_recovery_for_heavy() -> void:
+	# Los recovery de los ligeros (strings y ataques en carrera) se cancelan en un pesado.
+	# En el suelo, el string del arma lo resuelve su propio request.
+	if weapons.in_light_recovery() and (not is_on_floor() or Input.is_action_pressed("move_up")):
+		weapons.interrupt()
+	elif _in_charged_light_recovery():
+		_cancel_attack_for_chain()
+		attack_cooldown_timer = 0.0
+		charged_light_cancel_timer = 0.0
+
+func _in_charged_light_recovery() -> bool:
+	if attack_mode in [ATTACK_GROUND_CHARGED, ATTACK_LIGHT_CHARGED_AIR]:
+		return attack_timer <= charged_ground_duration * 0.5
+	return attack_mode == ATTACK_NONE and charged_light_cancel_timer > 0.0
+
 func _start_ground_charged_attack() -> void:
 	_face_attack_input()
 	attack_mode = ATTACK_GROUND_CHARGED
@@ -3009,6 +3043,7 @@ func _start_ground_charged_attack() -> void:
 	_refresh_attack_hits()
 
 func _start_heavy_attack(allow_uppercut: bool = true) -> void:
+	_cancel_light_recovery_for_heavy()
 	if not liquid_beast and is_on_floor() and not (allow_uppercut and Input.is_action_pressed("move_up")):
 		weapons.request(true)
 		return
@@ -3056,6 +3091,20 @@ func _start_heavy_attack(allow_uppercut: bool = true) -> void:
 	_update_attack_animation()
 	_refresh_attack_hits()
 
+func beast_lunge() -> void:
+	# Al transformarse se abalanza al instante como un heavy: arriba o abajo según el stick, si no adelante.
+	attack_cooldown_timer = 0.0
+	ground_heavy_cooldown_timer = 0.0
+	if Input.is_action_pressed("move_up"):
+		_try_heavy_uppercut()
+		if attack_mode == ATTACK_UPPERCUT:
+			return
+	if is_on_floor():
+		# Desde el suelo no hay hacia dónde bajar: adelante o abajo muerden hacia delante pegados al suelo.
+		_start_ground_heavy_attack()
+	else:
+		_start_heavy_attack(false)
+
 func _try_heavy_uppercut() -> void:
 	# Pesado + arriba: uppercut sin cargar. Es la excepción que se puede hacer sin el cuchillo.
 	if dash_timer > 0.0 or _is_attack_active() or attack_cooldown_timer > 0.0:
@@ -3093,33 +3142,9 @@ func _start_ground_heavy_attack() -> void:
 	attack_targets_hit.clear()
 	velocity.x = facing * max(abs(velocity.x), ground_heavy_speed)
 	velocity.y = 0.0
-	_spawn_heavy_body_remnant()
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
-
-func _spawn_heavy_body_remnant() -> void:
-	# Solo dibujo en el mundo: sin colisión, daño ni tiempo de inmovilización adicional.
-	if not afterimage_container.is_inside_tree():
-		return
-	var remnant := Sprite2D.new()
-	var texture := AtlasTexture.new()
-	texture.atlas = HEAVY_REMNANT_SHEET
-	texture.region = Rect2(0, 0, 512, 480)
-	remnant.name = "HeavyBodyRemnant"
-	remnant.texture = texture
-	remnant.flip_h = facing < 0
-	remnant.scale = Vector2.ONE * CHARACTER_VISUAL_SCALE
-	remnant.material = charge_glow_material.duplicate()
-	remnant.material.set_shader_parameter("jade_amount", 1.0)
-	remnant.modulate.a = 0.0
-	afterimage_container.add_child(remnant)
-	remnant.global_position = global_position + Vector2(-facing * 24.0, -480.0 * CHARACTER_VISUAL_SCALE * 0.5)
-	var fade := remnant.create_tween()
-	fade.tween_interval(0.035)
-	fade.tween_property(remnant, "modulate:a", 0.8, 0.025)
-	fade.tween_property(remnant, "modulate:a", 0.0, 0.18)
-	fade.tween_callback(remnant.queue_free)
 
 func _start_light_charged_air_attack() -> void:
 	_face_attack_input()
@@ -3228,6 +3253,7 @@ func _end_attack() -> void:
 		light_combo_queued = false
 	elif ending_mode == ATTACK_GROUND_CHARGED or ending_mode == ATTACK_LIGHT_CHARGED_AIR:
 		velocity.x = facing * charged_ground_end_speed
+		charged_light_cancel_timer = attack_cooldown_timer
 	elif ending_mode == ATTACK_UPPERCUT and not is_on_floor() and not liquid_beast:
 		frontflip_active = true
 		frontflip_elapsed = 0.0

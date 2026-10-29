@@ -414,10 +414,14 @@ def rank_up():
 
 
 def growl():
-    d = 0.75
-    voice = lowpass(mul(osc(d, sweep(105, 80, d), "saw", 0.04, 7), env(d, 0.12, 0.6, 4.5)), 900)
-    rasp = mul(lowpass(noise(d, 38), 1100), tremolo(env(d, 0.12, 0.6, 4.5), 34, 0.6))
-    return finish(drive(mix(voice, gain(rasp, 0.7)), 2.4))
+    # Rugido de pose/taunt en registro medio: sube y cae sin notas graves (antes 105-80 Hz, molestas).
+    d = 0.62
+    shape = env(d, 0.06, 0.5, 3.5)
+    pitch = lambda t: 190.0 + 70.0 * math.sin(math.pi * min(t / d, 1.0)) - 30.0 * t / d
+    voice = bandpass(mul(osc(d, pitch, "saw", 0.03, 9), shape), 260, 2400)
+    formant = bandpass(mul(osc(d, lambda t: pitch(t) * 2.0, "square"), shape), 700, 1800)
+    rasp = mul(bandpass(noise(d, 38), 900, 3200), tremolo(shape, 41, 0.55))
+    return finish(highpass(drive(mix(voice, gain(formant, 0.25), gain(rasp, 0.6)), 1.8), 180), 0.8)
 
 
 def grab():
@@ -622,6 +626,15 @@ def wrath_aim():
     tension = mul(osc(d, sweep(110, 440, d, 1.5), "triangle"), env(d, 0.38, 0.10, 1.0))
     wind = gain(mul(bandpass(noise(d, 802), 400, 2200), env(d, 0.40, 0.08, 1.0)), 0.7)
     return finish(mix(tension, wind), 0.75)
+
+
+def fire_breath():
+    # Aliento jade: soplido suave y chisporroteo, en bucle y muy bajo.
+    d = 1.0
+    hiss = bandpass(noise(d, 911), 500, 4200)
+    flicker = tremolo([1.0] * n_samples(d), 13, 0.35)
+    sparks = lowpass(crackle(d, 912, 0.004), 6000)
+    return finish(make_loop(mix(mul(hiss, flicker), gain(sparks, 0.25)), 0.25), 0.5, fade_out=False)
 
 
 def wrath_rush():
