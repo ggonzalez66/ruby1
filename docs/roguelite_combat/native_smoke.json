@@ -1,8 +1,8 @@
 {
-  "verified_at_utc": "2026-10-30T02:14:07.720998+00:00",
+  "verified_at_utc": "2026-10-30T15:01:15.662367+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "source_base_commit": "4c0d442f3e227ce673368f0b0708dfde72d34ec6",
-  "working_tree": "clean at source_base_commit: unarmed combat rework (no weapons or Liquid Beast, heavies execute, jade spear aim/recall, DYING chain, user kick and beast sheets)",
+  "source_base_commit": "02c64599a2ca983177594aa61427ff134d133696",
+  "working_tree": "clean at source_base_commit: Cogmind-style enemies (sentinel, rifleman, stinger, restorer, hound pin) and mecha boss, Wrath gallop, single-frame dash, fricative growl, aim blocks dash",
   "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
   "scenes": [
     "main_menu",
@@ -32,8 +32,8 @@
     }
   },
   "gameplay_and_tools": {
-    "passed": 1211,
-    "total": 1211,
+    "passed": 1260,
+    "total": 1260,
     "runner": "tests/run_tests.sh"
   },
   "export_exit_codes": {
