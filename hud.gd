@@ -66,8 +66,6 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if RunSession.level == get_parent():
 		elapsed_time = RunSession.elapsed
-	elif get_parent().scene_file_path == "res://gauntlet.tscn":
-		elapsed_time = 0.0
 	else:
 		elapsed_time += delta
 	_update_timer_text()
@@ -76,8 +74,6 @@ func _process(delta: float) -> void:
 	_update_knife_warning(delta)
 	_update_shine_bar()
 	if is_instance_valid(tracked_player):
-		knife_icon.texture = preload("res://weapon_catalog.gd").texture(tracked_player.weapons.equipped)
-		knife_icon.visible = tracked_player.weapons.equipped != &"unarmed"
 		var cooldown: float = tracked_player.jade_fire_cooldown_timer
 		var fire: Node2D = tracked_player.thrown_knife
 		if tracked_player.has_knife:

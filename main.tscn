@@ -144,7 +144,7 @@ style = 0
 position = Vector2(1780, 0)
 script = ExtResource("14_sign")
 text = "{attack} ataca con las garras.
-Pulsa 3 veces seguidas: el tercer golpe es un remate más fuerte."
+Encadena hasta 5 golpes: tres zarpazos y dos patadas."
 title = "Combo"
 panel_width = 320
 
@@ -157,8 +157,8 @@ position = Vector2(2120, 0)
 [node name="SignHeavy" type="Node2D" parent="."]
 position = Vector2(2820, 0)
 script = ExtResource("14_sign")
-text = "{heavy_attack} da un golpe pesado.
-En el aire cae en picado: si golpea a un enemigo, rebotas y recuperas el doble salto."
+text = "{heavy_attack} embiste hacia delante. En el aire cae en picado: si golpea a un enemigo, rebotas y recuperas el doble salto.
+Contra un enemigo OPEN o DYING, el pesado lo ejecuta."
 title = "Ataque pesado"
 panel_width = 320
 
@@ -547,7 +547,7 @@ theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
 theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
 theme_override_constants/outline_size = 8
 theme_override_font_sizes/font_size = 34
-text = "PISO 3 · FUEGO JADE"
+text = "PISO 3 · LANZA JADE"
 
 [node name="F3Slab1" type="StaticBody2D" parent="."]
 position = Vector2(743, -2170)
@@ -631,8 +631,9 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnife" type="Node2D" parent="."]
 position = Vector2(820, -2200)
 script = ExtResource("14_sign")
-text = "Con un arma equipada, mantén {throw_knife} para apuntar y pulsa {attack} para lanzarla o recuperarla.\nElige tu arma en el Santuario o antes del Gauntlet."
-title = "Armas y Aim"
+text = "Mantén {throw_knife} para apuntar y pulsa {dash} para lanzar la lanza jade: se clava y marca al enemigo.
+Con la lanza clavada, toca {throw_knife} para recuperarla. Tiene cooldown."
+title = "Lanza jade"
 panel_width = 320
 
 [node name="DummyKnifeTarget" parent="." instance=ExtResource("2_dummy")]
@@ -642,7 +643,7 @@ max_health = 8
 [node name="SignKnifeAim" type="Node2D" parent="."]
 position = Vector2(2000, -2200)
 script = ExtResource("14_sign")
-text = "Durante Aim usa el stick derecho o el ratón. Puedes caminar, pero no correr.\nMientras tu arma está fuera utilizas el combo desarmado."
+text = "Durante Aim apuntas con el stick derecho o el ratón. Puedes caminar, pero no correr."
 title = "Apuntar"
 panel_width = 320
 
@@ -654,7 +655,8 @@ max_health = 6
 [node name="SignKnifePull" type="Node2D" parent="."]
 position = Vector2(2600, -2200)
 script = ExtResource("14_sign")
-text = "El arma que regresa golpea y atrae a todos los enemigos atravesados.\nEl primero recibe daño completo; los siguientes, cada vez menos."
+text = "La lanza que vuelve hace poco daño y atrae a los enemigos que atraviesa: Soul pull.
+Baja al dummy de la plataforma alta: la caída lo destruye."
 title = "Atraer"
 panel_width = 340
 
@@ -779,8 +781,8 @@ script = ExtResource("9_checkpoint")
 [node name="SignKnifeChaser" type="Node2D" parent="."]
 position = Vector2(6950, -2200)
 script = ExtResource("14_sign")
-text = "{transform} alterna Liquid Beast. Solo sus heavies ejecutan enemigos OPEN o DYING.\nMantén {attack} para exhalar fuego jade."
-title = "Liquid Beast"
+text = "Clava la lanza en el perseguidor y recupérala. Si está OPEN o DYING, te teletransportas y lo ejecutas."
+title = "Lanza jade y perseguidores"
 panel_width = 340
 
 [node name="ChaserF3A" type="Area2D" parent="."]
@@ -902,15 +904,16 @@ shoot_direction = Vector2(1, 0.35)
 [node name="SignShineKnife" type="Node2D" parent="."]
 position = Vector2(7700, -3300)
 script = ExtResource("14_sign")
-text = "{roar} conserva el parry en ambas formas. Los enemigos pequeños quedan OPEN durante 2 segundos.\nA cero de vida quedan DYING durante 4 segundos."
-title = "Parry y forma"
+text = "Ruge mientras la lanza vuelve hacia ti: sale disparada otra vez contra el enemigo en que estaba clavada.
+Encadénalo: recupera, ruge, recupera..."
+title = "Shine lanza"
 panel_width = 340
 
 [node name="SignParry" type="Node2D" parent="."]
 position = Vector2(7350, -3300)
 script = ExtResource("14_sign")
 text = "Ruge justo antes de que un perseguidor te golpee: queda aturdido.
-Riposte: tu siguiente {heavy_attack} o fuego jade hace el doble de daño. Ejecutar un Ruby recupera vida."
+Riposte: tu siguiente {heavy_attack} o lanza hace el doble de daño. Ejecutar un Ruby recupera vida."
 title = "Parry y contraataque"
 panel_width = 340
 

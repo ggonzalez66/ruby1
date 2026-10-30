@@ -197,16 +197,16 @@ func _run() -> void:
 	for i in range(70):
 		await frames(1)
 		dash_attack_seen = dash_attack_seen or player.attack_mode == player.ATTACK_LIGHT_CHARGED_AIR
-		if player.weapons.active and not player.weapons.heavy:
+		if player.combo.active:
 			string_started = true
 			break
-	check(string_started and not dash_attack_seen and player.weapons.step == 0, "del uppercut, un ligero sale como primer golpe del string")
+	check(string_started and not dash_attack_seen and player.combo.step == 0, "del uppercut, un ligero sale como primer golpe del string")
 	await tap("attack")
 	for i in range(40):
 		await frames(1)
-		if player.weapons.step == 1:
+		if player.combo.step == 1:
 			break
-	check(player.weapons.step == 1 and player.attack_mode != player.ATTACK_LIGHT_CHARGED_AIR, "otro ligero sigue el string, no un dash attack")
+	check(player.combo.step == 1 and player.attack_mode != player.ATTACK_LIGHT_CHARGED_AIR, "otro ligero sigue el string, no un dash attack")
 
 	print("== Recovery de ligeros cancelable en heavy")
 	await reset()
@@ -219,7 +219,7 @@ func _run() -> void:
 			break
 	await tap("heavy_attack")
 	await frames(1)
-	check(player.weapons.active and player.weapons.heavy, "el dash attack se cancela en un heavy en su segunda mitad")
+	check(player.attack_mode == player.ATTACK_HEAVY_GROUND, "el dash attack se cancela en la embestida en su segunda mitad")
 	release_all()
 	await reset(GROUND + Vector2(0, -260))
 	await tap("attack")
@@ -231,7 +231,7 @@ func _run() -> void:
 		if player.attack_mode == player.ATTACK_HEAVY:
 			dived = true
 			break
-	check(dived and not player.weapons.active, "un heavy pulsado durante un ligero aéreo sale en su recovery")
+	check(dived and not player.combo.active, "un heavy pulsado durante un ligero aéreo sale en su recovery")
 	release_all()
 
 	print("== Combo: uppercut -> dash attack (con correr) -> giro -> heavy aéreo")
@@ -253,19 +253,18 @@ func _run() -> void:
 	await tap("heavy_attack")
 	seen = await watch_modes(25)
 	check(player.ATTACK_HEAVY in seen, "y el heavy aéreo")
-	check(player.animated_sprite.animation == player.ANIMATION_DIVE, "el heavy aéreo de Viridy usa su pose de picada, no la bestia")
+	check(player.animated_sprite.animation == player.ANIMATION_HEAVY_AERIAL, "el heavy aéreo usa la cabeza de la bestia")
 	Input.action_release("dash")
 
 	print("== Heavy de suelo: mordida de bestia líquida")
 	await reset()
 	var heavy_texture: Texture2D = player.animated_sprite.sprite_frames.get_frame_texture(&"ground_heavy", 0)
-	check(heavy_texture.atlas == player.LIQUID_BEAST_SHEET and player.animated_sprite.sprite_frames.get_frame_count(&"ground_heavy") == 4, "la mordida de suelo abre y cierra la cabeza de león")
+	check(heavy_texture.atlas == player.LIQUID_BEAST_SHEET and player.animated_sprite.sprite_frames.get_frame_count(&"ground_heavy") == 5, "la embestida recorre las cinco cabezas con la llama creciendo")
 	var chew_texture: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(&"ruby_chew", 0)
-	check(chew_texture.atlas == player.LIQUID_BEAST_SHEET and chew_texture.region.position.x >= 768 * 2, "el mascado usa las poses cerradas de la bestia nueva")
+	check(chew_texture.atlas == player.LIQUID_BEAST_SHEET and chew_texture.region.position.x < 768 * 2, "el mascado usa las cabezas compactas")
 	var victim := make_chaser(GROUND + Vector2(60, 0))
 	await frames(2)
 	var victim_health: int = victim.current_health
-	player.liquid_beast = true
 	Input.action_press("heavy_attack")
 	await frames(2)
 	Input.action_release("heavy_attack")
@@ -362,7 +361,7 @@ func _run() -> void:
 	var rb_bound := false
 	for event in InputMap.action_get_events("slow_motion"):
 		rb_bound = rb_bound or (event is InputEventJoypadButton and event.button_index == JOY_BUTTON_RIGHT_SHOULDER)
-	check(not rb_bound, "slow_motion no tiene RB asignado")
+	check(rb_bound, "RB vuelve a la cámara lenta: sin lanzar armas ni transformar")
 	var pause_menu: Node = null
 	for node in level.find_children("*", "CanvasLayer", true, false):
 		if node.get_script() == load("res://pause_menu.gd"):

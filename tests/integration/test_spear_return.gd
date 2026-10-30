@@ -58,7 +58,6 @@ func _run() -> void:
 	root.add_child(arena)
 	player = load("res://playerr.tscn").instantiate()
 	arena.add_child(player)
-	player.weapons.equip(&"glaive")
 	player.set_physics_process(false)
 	await frames(2)
 	print("== Regreso barrido, multiblanco y ambos lados")

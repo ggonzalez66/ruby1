@@ -1,8 +1,8 @@
 extends Node2D
 
 # Cuerpo serpentino de la bestia: una cadena que sigue a la cabeza (follow-the-leader), dibujada como una
-# lengua de fuego jade que se afina hacia la cola. La cabeza manda y el cuerpo recorre su camino; quieta,
-# la llama se recoge y ondea.
+# lengua de fuego jade que se afina hacia la cola. Solo sale en las ejecuciones: las cabezas de los pesados y la
+# bestia de Wrath ya traen su propia llama dibujada. La cabeza manda y el cuerpo recorre su camino.
 const SEGMENTS := 34
 const SEGMENT_LENGTH := 4.5
 const HEAD_WIDTH := 30.0
@@ -45,7 +45,7 @@ func head_anchor() -> Vector2:
 
 func _physics_process(delta: float) -> void:
 	clock += delta
-	var active: bool = player.liquid_beast and not player.dead and player.visible and player.execution_core == null and not player.wrath.uses_beast()
+	var active: bool = not player.dead and player.visible and player.execution_core != null and not player.wrath.uses_beast()
 	visible = active
 	embers.emitting = active
 	if not active:

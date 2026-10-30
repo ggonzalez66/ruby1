@@ -59,7 +59,7 @@ func _run() -> void:
 	player.attack_cooldown_timer = 0.0
 	player._start_attack()
 	await frames(1)
-	check(player.weapons.active and player.animated_sprite.animation == &"light_hit", "otro ataque reemplaza la forma líquida sin esperar al dibujo")
+	check(player.combo.active and player.animated_sprite.animation == &"light_hit", "otro ataque reemplaza la forma líquida sin esperar al dibujo")
 
 	print("== Mismo período de carrera con apoyos marcados")
 	var animations: SpriteFrames = player.animated_sprite.sprite_frames
@@ -75,10 +75,10 @@ func _run() -> void:
 	player._start_attack()
 	player._update_attack_animation()
 	check(not player.claw_slash_sprite.visible, "startup no muestra el slash antes de activar el daño")
-	player.weapons.tick(player.weapons.startup + 0.001)
+	player.combo.tick(player.combo.startup + 0.001)
 	player._update_attack_animation()
 	check(player.claw_slash_sprite.visible and player.claw_slash_sprite.hframes == 8 and player.claw_slash_sprite.z_index > 0, "los slashes del combo se dibujan delante del personaje")
-	player.weapons.tick(player.weapons.active_time)
+	player.combo.tick(player.combo.active_time)
 	player._update_attack_animation()
 	check(not player.claw_slash_sprite.visible, "recovery retira el slash al terminar la fase activa")
 	player._cancel_all_states()

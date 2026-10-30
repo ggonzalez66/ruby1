@@ -29,7 +29,7 @@ const UPPER_SPOTS := [
 	[1560.0, -1120.0, 7], [4260.0, -1120.0, 7],
 ]
 
-enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE, PREPARATION }
+enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE }
 
 @export var arena_min_x := 1400.0
 @export var arena_max_x := 4100.0
@@ -42,8 +42,7 @@ enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE, PREPARATION }
 @export var spawn_grace_time := 2.0
 
 var round_number := 1
-var phase := Phase.PREPARATION
-var armory: Array[Node2D] = []
+var phase := Phase.WAVE
 var phase_timer := 0.0
 var enemies: Array = []
 var portals: Array = []
@@ -66,24 +65,6 @@ func _start() -> void:
 	if player:
 		player.respawn_enabled = false
 		player.died.connect(_on_player_died)
-	var ids := preload("res://weapon_catalog.gd").IDS
-	for index in range(ids.size()):
-		var pickup := preload("res://weapon_pickup.gd").new()
-		pickup.weapon_id = ids[index]
-		pickup.position = Vector2(350 + index * 190, ground_y)
-		get_parent().add_child(pickup)
-		armory.append(pickup)
-	_spawn_portal(1390.0, "COMENZAR", Color(0.3, 0.7, 1.0), _begin_gauntlet)
-	_show_banner("ELIGE TU ARMA · ARRIBA", Color(0.6, 1.0, 0.8))
-
-func _begin_gauntlet() -> void:
-	if phase != Phase.PREPARATION:
-		return
-	for pickup in armory:
-		pickup.queue_free()
-	armory.clear()
-	var player := get_tree().get_first_node_in_group(&"player")
-	RunSession.begin_run(player, OS.get_environment("RUBY1_SKIP_COUNTDOWN") != "1")
 	_start_wave()
 
 func _process(_delta: float) -> void:
@@ -285,8 +266,6 @@ func _update_counter() -> void:
 	# Junto al reloj: oleada actual y enemigos vivos (o guardianes en pie).
 	var text := "OLEADA %d" % round_number
 	match phase:
-		Phase.PREPARATION:
-			text = "ELIGE ARMA · ENTRA AL PORTAL AZUL"
 		Phase.WAVE:
 			text += "  ·  ENEMIGOS: %d" % _alive_enemies()
 		Phase.BOSS_INTRO:

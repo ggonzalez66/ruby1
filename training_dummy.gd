@@ -348,5 +348,5 @@ func _update_health_bar() -> void:
 	health_fill.visible = current_health > 0
 	health_back.visible = current_health < max_health
 
-func on_weapon_stagger() -> void:
+func on_stagger() -> void:
 	shoot_timer = maxf(shoot_timer, shoot_warning_time + 0.1)

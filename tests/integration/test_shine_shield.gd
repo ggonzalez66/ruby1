@@ -176,32 +176,34 @@ func _run() -> void:
 	release_all()
 	await frames(20)
 
-	print("== Fuego marcado: recall hace soul pull incluso con rugido")
+	print("== Shine lanza: rugir con la lanza volviendo la dispara otra vez contra el enemigo")
 	var bounced := 0
 	var tries := 0
 	for distance in [180.0, 223.0, 260.0, 297.0, 335.0, 371.0, 410.0, 455.0]:
 		await reset()
-		player.weapons.equip(&"glaive")
 		var target: Node2D = load("res://training_dummy.tscn").instantiate()
 		target.max_health = 999
 		target.position = GROUND + Vector2(distance, 2)
 		level.add_child(target)
 		await frames(2)
-		player._on_knife_input(0)
+		player.combo.aim_direction = Vector2.RIGHT
+		player._throw_spear()
 		await frames(30)
 		var knife: Node2D = player.thrown_knife
 		if knife == null or knife.state != knife.State.MARKED:
 			target.queue_free()
 			continue
 		tries += 1
+		# Puede clavarse en el dummy fijo de la escena: el shine vuela hacia él y se clava en el primero que cruce.
+		var marked: Node2D = knife.target
 		Input.action_press("roar")
 		await frames(16)
-		player._on_knife_input(0)
+		player.recall_spear()
 		for i in range(60):
 			await frames(1)
-			if not is_instance_valid(knife):
+			if not is_instance_valid(knife) or (knife.player_shines > 0 and knife.state == knife.State.MARKED):
 				break
-		if not is_instance_valid(knife) and player.has_knife and target.current_health < 999:
+		if is_instance_valid(knife) and knife.player_shines > 0 and knife.state == knife.State.MARKED and knife.target in [marked, target]:
 			bounced += 1
 		release_all()
 		target.queue_free()
@@ -209,7 +211,7 @@ func _run() -> void:
 		if is_instance_valid(player.thrown_knife):
 			player.thrown_knife.queue_free()
 			player.on_knife_caught()
-	check(tries >= 6 and bounced == tries, "soul pull con daño en %d de %d recalls" % [bounced, tries])
+	check(tries >= 6 and bounced == tries, "shine lanza vuelve a clavarse en %d de %d recalls" % [bounced, tries])
 
 	print("== Shine enemigo")
 	await reset()
@@ -288,7 +290,6 @@ func _run() -> void:
 	await frames(40)
 	await reset()
 	F._set_points(650.0)
-	player.liquid_beast = true
 	var ground_shot := shoot_at_player(GROUND + Vector2(70, -16), null)
 	await tap("heavy_attack")
 	await frames(3)

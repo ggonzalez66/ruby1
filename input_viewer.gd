@@ -7,7 +7,7 @@ extends CanvasLayer
 
 const MARGIN := 14.0
 const PAD_SIZE := Vector2(236, 124)
-const KEYS_SIZE := Vector2(312, 162)
+const KEYS_SIZE := Vector2(312, 112)
 const BG := Color(0.03, 0.05, 0.04, 0.72)
 const BORDER := Color(0.55, 0.85, 0.5, 0.55)
 const KEY_IDLE := Color(0.16, 0.2, 0.18, 0.95)
@@ -16,7 +16,7 @@ const TEXT := Color(0.88, 0.95, 0.86)
 const TEXT_ON := Color(0.08, 0.06, 0.02)
 const FACE := {"A": Color(0.36, 0.8, 0.28), "B": Color(0.9, 0.26, 0.24), "X": Color(0.25, 0.5, 0.95), "Y": Color(0.98, 0.78, 0.18)}
 # Acciones del teclado que se muestran (además del movimiento) y su rótulo.
-const ACTIONS := [["jump", "Salto"], ["attack", "Ataque"], ["heavy_attack", "Pesado"], ["dash", "Dash"], ["throw_knife", "Aim"], ["roar", "Parry"], ["transform", "Bestia"]]
+const ACTIONS := [["jump", "Salto"], ["attack", "Ataque"], ["heavy_attack", "Pesado"], ["dash", "Dash"], ["throw_knife", "Aim / lanza"], ["roar", "Parry"]]
 
 var enabled := false
 var panel: Control
@@ -133,7 +133,7 @@ func _draw_keyboard() -> void:
 	_key(Rect2(origin + Vector2(0, cell.y + 3), cell), "move_left")
 	_key(Rect2(origin + Vector2(cell.x + 2, cell.y + 3), cell), "move_down")
 	_key(Rect2(origin + Vector2((cell.x + 2) * 2, cell.y + 3), cell), "move_right")
-	# Acciones en filas de tres.
+	# Acciones en dos filas de tres.
 	for index in range(ACTIONS.size()):
 		var column: int = index % 3
 		var row: int = index / 3

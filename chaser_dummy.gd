@@ -382,7 +382,7 @@ func _poly(points: Array, color: Color) -> Polygon2D:
 	poly.color = color
 	return poly
 
-func on_weapon_stagger() -> void:
+func on_stagger() -> void:
 	if state == State.DEAD:
 		return
 	state = State.STAGGER

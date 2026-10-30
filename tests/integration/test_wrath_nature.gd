@@ -87,7 +87,6 @@ func _run() -> void:
 
 	print("== Captura en stasis y rotura conjunta contra pared")
 	player._respawn_player()
-	player.liquid_beast = true
 	player.current_health = 40
 	var first := dummy(Vector2(120, -2))
 	var second := dummy(Vector2(250, -2))
@@ -179,7 +178,6 @@ func _run() -> void:
 	wrath.max_distance = 4800
 	wrath.max_rush_duration = 3.0
 	print("== Heavy en pleno avance frena y ejecuta ahí")
-	player.liquid_beast = true
 	player.position = Vector2(8000, -2)
 	var caught := dummy(Vector2(8150, -2))
 	caught.set_physics_process(false)

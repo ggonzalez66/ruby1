@@ -38,7 +38,6 @@ func _run() -> void:
 	player = load("res://playerr.tscn").instantiate()
 	player.position = Vector2(0, -2)
 	arena.add_child(player)
-	player.weapons.equip(&"glaive")
 	await frames(5)
 	print("== Quemadura no letal sin hitstun")
 	var enemy: Area2D = load("res://chaser_dummy.gd").new()
@@ -64,10 +63,8 @@ func _run() -> void:
 	enemy.current_health = 1
 	check(enemy.ruby_core.apply_spirit_burn(500) == 0 and enemy.current_health == 1, "la quemadura nunca resuelve una baja")
 	enemy.ruby_core.register_parry()
-	player.liquid_beast = true
-	player.attack_mode = player.ATTACK_HEAVY_GROUND
-	player._hit_area(enemy)
-	check(player.execution_core == enemy.ruby_core, "heavy de bestia captura al enemigo quemado y OPEN")
+	spear.recall()
+	check(player.execution_core == enemy.ruby_core, "recall del enemigo quemado y OPEN inicia la ejecución")
 	await frames(35)
 	check(enemy.current_health == 0 and not enemy.visible, "la ejecución sí termina la baja")
 	player._respawn_player()
@@ -89,7 +86,6 @@ func _run() -> void:
 	boss.current_health = 50
 	spear = mark(boss)
 	boss.ruby_core.open_time = 2.5
-	player.liquid_beast = true
 	boss.ruby_core.claim(player)
 	spear._physics_process(2.0)
 	check(boss.current_health == 50, "captura y crítico suspenden el DoT y consumen su duración")
@@ -124,20 +120,22 @@ func _run() -> void:
 	print("== Presentación e inputs conservados")
 	player.position = Vector2(0, -2)
 	await frames(3)
+	var hints: Node = root.get_node("InputHints")
+	hints.device = hints.Device.JOYPAD
+	player.facing = 1
 	Input.action_press("throw_knife")
 	await frames(1)
-	player.weapons.aim_direction = Vector2.RIGHT
-	Input.action_press("weapon_throw")
+	Input.action_press("dash")
 	await frames(1)
-	Input.action_release("weapon_throw")
+	Input.action_release("dash")
 	Input.action_release("throw_knife")
 	check(is_instance_valid(player.thrown_knife) and player.animated_sprite.animation == player.ANIMATION_KNIFE_THROW, "el input real reproduce el lanzamiento nuevo")
 	check(player.animated_sprite.sprite_frames.get_frame_count(player.ANIMATION_KNIFE_THROW) == 4, "la animación contiene cuatro poses nuevas")
-	check(is_equal_approx(player.thrown_knife.velocity.length(), 1300.0) and player.thrown_knife.life > 3.9, "Aim lanza a 1300 px/s y conserva tiempo de vuelo")
+	check(is_equal_approx(player.thrown_knife.velocity.length(), 1300.0) and player.thrown_knife.straight_timer > 0.3 and player.thrown_knife.life > 3.9, "Aim + RT lanza recta a 1300 px/s y conserva tiempo de vuelo")
 	await frames(1)
 	player.attack_cooldown_timer = 0.0
 	player._start_heavy_attack(false)
-	check(player.weapons.active and player.weapons.heavy, "el lanzamiento no bloquea el heavy desarmado")
+	check(player.attack_mode == player.ATTACK_HEAVY_GROUND, "el lanzamiento no bloquea la embestida")
 	player._respawn_player()
 	var session: Node = root.get_node("RunSession")
 	session.player = player

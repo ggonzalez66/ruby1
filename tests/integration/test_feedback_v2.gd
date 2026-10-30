@@ -46,7 +46,6 @@ func _run() -> void:
 	player = load("res://playerr.tscn").instantiate()
 	player.position = Vector2(2000, -2)
 	arena.add_child(player)
-	player.weapons.equip(&"glaive")
 	var bird: Area2D = load("res://hawk.gd").new()
 	bird.position = Vector2(0, -160)
 	arena.add_child(bird)
@@ -161,7 +160,6 @@ func _run() -> void:
 	chaser.position = Vector2(2600, -2)
 	arena.add_child(chaser)
 	fire = mark(chaser)
-	player.liquid_beast = true
 	chaser.ruby_core.claim_wrath(player)
 	fire._release()
 	await frames(2)

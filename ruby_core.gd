@@ -1,7 +1,7 @@
 extends Node2D
 
 # Núcleo común de los autómatas. El daño ordinario nunca inicia una ejecución:
-# solo Viridy puede reclamar un núcleo que YA estuviera open al conectar su heavy.
+# solo un pesado de Viridy (o el recall de su lanza) reclama un núcleo que YA estuviera OPEN o DYING al conectar.
 const LOW_HEALTH_RATIO := 0.30
 const NORMAL_OPEN_TIME := 2.0
 const DYING_TIME := 4.0
@@ -146,6 +146,11 @@ func hit_while_dying() -> void:
 	if dying_left <= 0.01:
 		_expire_dying()
 
+func refresh_dying() -> void:
+	dying_left = DYING_TIME
+	Fx.text(enemy.get_parent(), global_position + Vector2(0, -35), "¡CADENA!", Color(1.0, 0.65, 0.3))
+	queue_redraw()
+
 func _expire_dying() -> void:
 	dying = false
 	broken = true
@@ -158,13 +163,13 @@ func stagger(seconds: float) -> void:
 	if not alive() or locked or dying or final_open or open_time > 0.0 or seconds <= 0.0:
 		return
 	stagger_left = maxf(stagger_left, seconds * (0.35 if boss else 1.0))
-	if enemy.has_method("on_weapon_stagger"):
-		enemy.on_weapon_stagger()
+	if enemy.has_method("on_stagger"):
+		enemy.on_stagger()
 	if enemy.get("warning_label") != null:
 		enemy.warning_label.hide()
 
 func claim(by: Node) -> bool:
-	if by.get("liquid_beast") != true or not is_executable():
+	if not is_executable():
 		return false
 	locked = true
 	z_index = 13
@@ -182,7 +187,7 @@ func release_claim(by: Node) -> void:
 		claimant = null
 
 func claim_wrath(by: Node) -> bool:
-	if by.get("liquid_beast") != true or not alive() or locked:
+	if not alive() or locked:
 		return false
 	locked = true
 	stolen = true
@@ -253,7 +258,7 @@ func complete(by: Node) -> bool:
 		enemy._die()
 	Stats.add("ruby_executions")
 	_essence(by, center)
-	_blast(center)
+	_blast(center, true)
 	return true
 
 func _physics_process(delta: float) -> void:
@@ -365,7 +370,9 @@ func _impact_feedback(center: Vector2) -> void:
 	Fx.shatter(enemy.get_parent(), center, RED, BLAST_RADIUS)
 	Fx.puff(enemy.get_parent(), center, RED)
 
-func _blast(center: Vector2) -> void:
+func _blast(center: Vector2, executed := false) -> void:
+	# El estallido de una ejecución reinicia el DYING de los vecinos para encadenar otra;
+	# el de un DYING que expira solo los golpea.
 	_impact_feedback(center)
 	for target in get_tree().get_nodes_in_group(&"ruby_enemies"):
 		if target == enemy or not is_instance_valid(target) or not target.visible:
@@ -380,6 +387,9 @@ func _blast(center: Vector2) -> void:
 		if not get_world_2d().direct_space_state.intersect_ray(ray).is_empty():
 			continue
 		var direction := 1 if point.x >= center.x else -1
+		if executed and core.dying:
+			core.refresh_dying()
+			continue
 		target.take_hit(center, direction, BLAST_DAMAGE)
 		if target.get("knock_velocity") != null:
 			target.on_shine_hit(direction, BLAST_PUSH)

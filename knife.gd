@@ -1,7 +1,9 @@
 extends Node2D
 
-# Arma arrojada: conserva su identidad y una marca con quemadura no letal.
-# Recall daña en orden de contacto con caída del 30 % y atrae cada enemigo una vez.
+# Lanza espiritual jade: una marca activa, con quemadura periódica no letal.
+# Recall devuelve la lanza: daña poco, en orden de contacto con caída del 30 %, y atrae a cada enemigo
+# atravesado una vez. Si el enemigo marcado está OPEN o DYING, Viridy se teletransporta y lo ejecuta.
+# Rugir con la lanza volviendo la dispara otra vez contra el último enemigo (shine lanza).
 # Se clava también en el terreno hasta que se llama de vuelta.
 # - Algunos enemigos lo shinean de vuelta: viaja hostil hacia Rengar (que lo puede volver a shinear).
 
@@ -11,8 +13,9 @@ const RETURN_SPEED := 1800.0
 const BURN_DURATION := 2.0
 # La punta mira hacia la derecha y se orienta con la trayectoria.
 const TIP_ANGLE := 0.0
-# Las cuatro armas comparten lienzo de 176 × 80; hitbox de vuelo 52 × 18.
-const VISUAL_SCALE := 0.85
+const KNIFE_TEXTURE: Texture2D = preload("res://spirit_spear_visual.gd").TEXTURE
+# Lanza al doble de tamaño visual; conserva la hurtbox de 52 × 18.
+const VISUAL_SCALE := 0.20
 const TRAIL_LENGTH := 9
 
 const GRAVITY := 1100.0
@@ -40,9 +43,8 @@ var target_offset := Vector2.ZERO
 var recall_hits: Array = []
 var sprite: Sprite2D
 var trail: Line2D
-# El riposte conserva la apariencia potenciada. El daño del recall lo define el arma.
-var weapon_id: StringName = &"glaive"
-var recall_damage := 4
+# El riposte conserva la apariencia potenciada.
+var recall_damage := 2
 var empowered := false
 var hit_any := false
 # Veces que se ha shineado (Rengar o enemigos) y cuántas fueron de Rengar (para el "SHINE KNIFE xN").
@@ -82,7 +84,9 @@ func _ready() -> void:
 	trail.width_curve = width_curve
 	add_child(trail)
 	sprite = Sprite2D.new()
-	sprite.texture = preload("res://weapon_catalog.gd").texture(weapon_id)
+	sprite.texture = KNIFE_TEXTURE
+	sprite.hframes = 2
+	sprite.vframes = 2
 	sprite.scale = Vector2.ONE * VISUAL_SCALE
 	add_child(sprite)
 
@@ -102,6 +106,10 @@ func recall() -> void:
 	if not is_instance_valid(player):
 		_release()
 		return
+	if state == State.MARKED and _is_target_alive(target):
+		if player.try_soul_execution(target):
+			_release()
+			return
 	state = State.RETURNING
 	_clear_mark()
 	target = null
@@ -121,6 +129,9 @@ func _clear_mark() -> void:
 func _return_to_player(delta: float) -> void:
 	if not is_instance_valid(player) or player.dead:
 		_release()
+		return
+	if _player_aura_reaches() and _is_target_alive(last_target):
+		_player_shine()
 		return
 	var goal := player.global_position + Vector2(0, -16)
 	var from := global_position
@@ -203,6 +214,7 @@ func _draw() -> void:
 
 func _physics_process(delta: float) -> void:
 	flame_time += delta
+	sprite.frame = int(flame_time * 14.0) % 4
 	_update_trail()
 	_update_look()
 	if state == State.STUCK_WORLD:
@@ -421,7 +433,7 @@ func _find_enemy(exclude: Array) -> Node2D:
 			return collider
 	return null
 
-func _is_target_alive(node: Object) -> bool:
+func _is_target_alive(node) -> bool:
 	return is_instance_valid(node) and node.visible and node.get("monitorable") != false
 
 func _update_trail() -> void:

@@ -7,9 +7,10 @@ const SETTINGS_PATH := "user://settings.cfg"
 const TUTORIAL_SIGN := preload("res://tutorial_sign.gd")
 const MAIN_MENU := "res://main_menu.tscn"
 # Al cambiar el esquema por defecto se sube la versión: los controles guardados con una
-# versión anterior se ignoran (el volumen sí se conserva). Se migran las versiones 2 y 3:
-# Select pasa a taunt y, desde la 2, "Lanza jade / Soul pull" vuelve a LT.
-const INPUT_VERSION := 8
+# versión anterior se ignoran (el volumen sí se conserva). Se migran las versiones 2 a 8:
+# Select pasa a taunt y, desde la 2, "Lanza jade / Soul pull" vuelve a LT. De la 5 a la 8 (las armas y la
+# Liquid Beast) LT, el parry y la cámara lenta vuelven a su botón por defecto.
+const INPUT_VERSION := 9
 const MUSIC_BUS := &"Music"
 const SFX_BUS := &"SFX"
 
@@ -33,7 +34,7 @@ signal closed
 const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
-	["throw_knife", "Mantener Aim"], ["weapon_throw", "Lanzar / recuperar en Aim"], ["transform", "Liquid Beast"], ["roar", "Parry / Guardia (Viridy)"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
+	["throw_knife", "Aim (mantener) / recuperar lanza"], ["roar", "Rugido"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
 	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).
@@ -442,8 +443,6 @@ func _assign_event(action: String, new_event: InputEvent) -> void:
 	# Quita esa misma tecla/botón de otras acciones para no tener dos acciones en el mismo input.
 	for entry in REMAP_ACTIONS:
 		var other: String = entry[0]
-		if _share_context_input(action, other):
-			continue
 		for existing in InputMap.action_get_events(other):
 			if _same_input(existing, new_event):
 				InputMap.action_erase_event(other, existing)
@@ -451,9 +450,6 @@ func _assign_event(action: String, new_event: InputEvent) -> void:
 		if _is_remappable(action, existing):
 			InputMap.action_erase_event(action, existing)
 	InputMap.action_add_event(action, new_event)
-
-func _share_context_input(a: String, b: String) -> bool:
-	return a != b and a in ["transform", "weapon_throw"] and b in ["transform", "weapon_throw"]
 
 func _is_remappable(action: String, event: InputEvent) -> bool:
 	if remap_device == Device.KEYBOARD:
@@ -506,8 +502,6 @@ func _restore_joypad_default(action: String) -> void:
 	for event in default_events[action]:
 		if event is InputEventJoypadButton or event is InputEventJoypadMotion:
 			for entry in REMAP_ACTIONS:
-				if _share_context_input(action, entry[0]):
-					continue
 				for other in InputMap.action_get_events(entry[0]):
 					if _same_input(other, event):
 						InputMap.action_erase_event(entry[0], other)
@@ -593,23 +587,17 @@ func _load_settings() -> void:
 		var saved_version := int(config.get_value("input", "version", 1))
 		if saved_version == INPUT_VERSION:
 			_load_bindings(config)
-		elif saved_version in [6, 7]:
-			# La transformación vuelve a B; RB queda para lanzar/recuperar en Aim.
+		elif saved_version == 4:
+			# Mismo esquema que la 9: el de antes de las armas.
 			_load_bindings(config)
-			_restore_joypad_default("transform")
-		elif saved_version == 5:
+		elif saved_version in [5, 6, 7, 8]:
 			_load_bindings(config)
-			_restore_joypad_default("slow_motion")
-			_restore_joypad_default("weapon_throw")
-			_restore_joypad_default("transform")
-		elif saved_version in [2, 3, 4]:
+			for action in ["throw_knife", "roar", "slow_motion"]:
+				_restore_joypad_default(action)
+		elif saved_version in [2, 3]:
 			_load_bindings(config)
 			if saved_version == 2:
 				_restore_joypad_default("throw_knife")
-			_restore_joypad_default("slow_motion")
-			_restore_joypad_default("weapon_throw")
-			_restore_joypad_default("roar")
-			_restore_joypad_default("transform")
 			# El antiguo reinicio deja de ser una acción directa. Select queda libre para taunt.
 			_restore_joypad_default("taunt")
 	music_slider.set_value_no_signal(volume * 100.0)
