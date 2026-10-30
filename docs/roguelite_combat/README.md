@@ -5,7 +5,7 @@ Viridy pelea con sus garras, sus patadas y la lanza jade. Las armas (catálogo, 
 Arte de la bestia: la hoja propuesta por el usuario (`~/ruby1_referencias/bestia/usuario_bestia_v1.png`, fondo magenta), armada con `tools/art/assemble_beast_user.py` (chroma key, limpieza del borde rosado y componentes conectados).
 
 - `viridy_beast_head_v2.png`: 5 cabezas con la llama creciendo hacia atrás y las fauces fijas en x = 610. La embestida las recorre todas; la picada y la salida alargada usan la 4 y la 5; el mascado de la ejecución alterna la 1 y la 2.
-- `viridy_wrath_beast_v2.png`: la bestia completa, con la boca en x = 660. En el avance de Wrath arremete (frames 1 a 6, en bucle); en la frenada y la rotura se agacha (frames 7 a 10).
+- `viridy_wrath_beast_v2.png`: la bestia completa, con la boca en x = 660. Por el suelo galopa (frames 0 a 3, con las patas apoyadas en el suelo en cada frame y polvo en cada pisada); en el aire o en diagonal arremete con las llamaradas estiradas (frames 4 a 6); en la frenada y la rotura se agacha (frames 7 a 10).
 
 El cuerpo serpentino dibujado (`beast_trail.gd`) solo acompaña las ejecuciones; los dibujos nuevos ya traen su propia llama. La cabeza anterior (`viridy_beast_head.png`) se conserva.
 
@@ -17,13 +17,16 @@ El cuerpo serpentino dibujado (`beast_trail.gd`) solo acompaña las ejecuciones;
 | Pesado: embestida en el suelo, picada en el aire | Y | Clic derecho |
 | Uppercut | Arriba + Y | W / ↑ + clic derecho |
 | Aim (mantener) / recuperar la lanza clavada (un toque) | LT | Clic central |
+| Soltarse del sabueso (machacar) | X | Clic izquierdo |
 | Apuntar en Aim | Stick derecho | Ratón |
 | Lanzar la lanza en Aim | RT | Shift |
 | Dash / correr | RT | Shift |
 | Parry / guardia | LB o B | Tab |
 | Cámara lenta | RB | — |
 
-Es el esquema de antes de las armas (versión de controles 9). Los ajustes guardados en las versiones 5 a 8 recuperan LT, el parry y la cámara lenta en su botón por defecto. Aim permite caminar y saltar, pero cancela la carrera y el dash, y RT lanza en vez de dashear.
+Es el esquema de antes de las armas (versión de controles 9). Los ajustes guardados en las versiones 5 a 8 recuperan LT, el parry y la cámara lenta en su botón por defecto. Aim permite caminar y saltar, pero cancela la carrera y el dash, y RT lanza en vez de dashear. Mientras LT siga pulsado (también después de lanzar) RT nunca dashea ni corre, y un RT pulsado con LT no dashea hasta soltarlo y volver a pulsarlo.
+
+El dash usa una sola pose, `viridy_dash.png`, con sus colores originales.
 
 ## Combo ligero y pesado
 
@@ -64,11 +67,11 @@ Mantener LT abre Aim; RT la lanza en la dirección apuntada a 1300 px/s. Vuela r
 
 ## Wrath of Nature
 
-En rango SSS, agacharse carga Wrath; el pesado abre la dirección y luego la embestida. Ya no requiere transformarse. Durante el avance aparece la bestia completa arremetiendo, y al frenar se agacha. El pesado durante el avance frena gradualmente y ejecuta ahí lo capturado. Contra una pared, el peso lo devuelve varios metros. Desde el suelo no se apunta hacia abajo ni hacia atrás.
+En rango SSS, agacharse carga Wrath; el pesado abre la dirección y luego la embestida. Ya no requiere transformarse. Durante el avance aparece la bestia completa: 300 px de celda en pantalla (antes 185), con las fauces 56 px por delante de Viridy. Por el suelo galopa con las patas en el suelo; en el aire o en diagonal arremete. Al frenar se agacha. La captura es una cápsula de radio 58 (antes 38) que llega hasta las fauces. El pesado durante el avance frena gradualmente y ejecuta ahí lo capturado. Contra una pared, el peso lo devuelve varios metros. Desde el suelo no se apunta hacia abajo ni hacia atrás.
 
 ## Enemigos y gauntlet
 
-Perseguidor, escudero y halcón usan sprites de autómatas (`enemy_skin.gd`, `tools/art/enemy_art.py`). El gauntlet vuelve a empezar directamente con la primera oleada y conserva la torre trepable y los semipisos laterales. El santuario ya no tiene pedestales.
+Perseguidor, escudero y halcón usan sprites de autómatas (`enemy_skin.gd`, `tools/art/enemy_art.py`). Los enemigos nuevos, el guardián mecha y sus reglas se describen en [docs/art/enemies_v2/README.md](../art/enemies_v2/README.md). El gauntlet vuelve a empezar directamente con la primera oleada y conserva la torre trepable y los semipisos laterales. El santuario ya no tiene pedestales.
 
 ## Validación
 

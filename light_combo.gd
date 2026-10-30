@@ -31,6 +31,8 @@ var hit_set: Array = []
 var aim := false
 var aim_armed := false
 var aim_direction := Vector2.RIGHT
+# RT lanzó la lanza: no dashea ni corre hasta soltarlo.
+var dash_latch := false
 # Suspensión aérea del string: solo tras conectar en el aire, hasta aterrizar.
 var air_stall := false
 
@@ -60,7 +62,11 @@ func tick(delta: float) -> void:
 			player.recall_spear()
 	if not Input.is_action_pressed("throw_knife"):
 		aim_armed = false
+	if not Input.is_action_pressed("dash"):
+		dash_latch = false
 	aim = aim_armed and player.has_knife and not player._blocks_actions()
+	if Input.is_action_just_pressed("dash") and (aim or aim_armed):
+		dash_latch = true
 	if aim:
 		if player.dash_timer > 0.0:
 			player.dash_timer = 0.0
@@ -119,6 +125,10 @@ func request() -> bool:
 	if not player.is_on_floor() and air_stall:
 		player.velocity.y = minf(player.velocity.y, -50.0)
 	return true
+
+func blocks_dash() -> bool:
+	# Mientras se mantiene LT (apuntando, o tras lanzar sin soltarlo) RT nunca dashea.
+	return aim or aim_armed or dash_latch
 
 func queue_heavy() -> void:
 	queued = &"heavy"

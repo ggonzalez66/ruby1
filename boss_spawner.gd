@@ -10,8 +10,8 @@ extends Node2D
 @export var spawn_point := Vector2(6800, 0)
 @export var arena_min_x := 5400.0
 @export var arena_max_x := 8800.0
-# -1 = aleatorio; 0 pesado, 1 ágil, 2 arquero, 3 los tres juntos, 4 uno de los que aún no se vencieron
-# en esta partida.
+# -1 = aleatorio; 0 pesado, 1 ágil, 2 arquero, 3 mecha, 4 uno de los que aún no se vencieron en esta
+# partida, 5 el trío (pesado, ágil y arquero juntos).
 @export var forced_boss := -1
 @export var trio_chance := 0.2
 # En el trío cada guardián tiene esta fracción de su vida normal.
@@ -27,9 +27,11 @@ const BOSSES := [
 	{"script": preload("res://boss_heavy.gd"), "name": "GUARDIÁN PESADO", "subtitle": "El coloso del espadón", "health": 105, "block": 0.2},
 	{"script": preload("res://boss_agile.gd"), "name": "GUARDIÁN ÁGIL", "subtitle": "Estoque y daga", "health": 80, "block": 0.35},
 	{"script": preload("res://boss_archer.gd"), "name": "GUARDIÁN ARQUERO", "subtitle": "El gigante del arco", "health": 90, "block": 0.0},
+	{"script": preload("res://boss_mecha.gd"), "name": "GUARDIÁN MECHA", "subtitle": "Puño de hierro y misiles", "health": 120, "block": 0.0},
 ]
 
-const TRIO := 3
+const TRIO := 5
+const TRIO_MEMBERS := [0, 1, 2]
 const NEXT_UNDEFEATED := 4
 # Guardianes vencidos en la partida actual (índices de BOSSES); el menú principal la vacía.
 const DEFEATED_META := &"defeated_bosses"
@@ -61,6 +63,9 @@ func spawn_round() -> void:
 
 func clear_bosses() -> void:
 	for old in bosses:
+		# Un guardián que otro código ya liberó no se toca.
+		if not is_instance_valid(old):
+			continue
 		old._on_reset()
 		old.remove_from_group(&"boss")
 		old.remove_from_group(&"training_dummies")
@@ -75,7 +80,7 @@ func _pick_next(previous: int) -> int:
 	# El trío no se repite dos veces seguidas.
 	if previous != TRIO and randf() < trio_chance:
 		return TRIO
-	if previous < 0 or previous >= TRIO:
+	if previous < 0 or previous >= BOSSES.size():
 		return randi() % BOSSES.size()
 	# Uno de los otros dos, al azar.
 	return (previous + 1 + randi() % (BOSSES.size() - 1)) % BOSSES.size()
@@ -86,7 +91,7 @@ func _spawn(index: int) -> void:
 	boss_index = index
 	Stats.set_meta(&"last_boss", index)
 	if index == TRIO:
-		for which in range(BOSSES.size()):
+		for which in TRIO_MEMBERS:
 			_add_boss(which, spawn_point + _entry_offset(TRIO_OFFSETS[which]), trio_health_factor)
 	else:
 		_add_boss(index, spawn_point, 1.0)
@@ -115,7 +120,7 @@ func _on_boss_defeated() -> void:
 		if not boss.is_defeated():
 			return
 	var defeated: Array = Stats.get_meta(DEFEATED_META, []).duplicate()
-	for index in (range(BOSSES.size()) if boss_index == TRIO else [boss_index]):
+	for index in (TRIO_MEMBERS if boss_index == TRIO else [boss_index]):
 		if not index in defeated:
 			defeated.append(index)
 	Stats.set_meta(DEFEATED_META, defeated)

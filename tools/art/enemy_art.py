@@ -7,6 +7,8 @@ escribe assets/sprites/enemies/<enemigo>.png (el juego lo dibuja a 1/SCALE).
 
 Uso:  python3 tools/art/enemy_art.py [--enemigos chaser hawk] [--variantes 3] [--semilla 41]
       python3 tools/art/enemy_art.py --elegir chaser=41 shield_bearer=42 hawk=43
+      (enemigo=semilla:flip refleja la variante si mira a la izquierda)
+      Nuevos: --enemigos sentinel rifleman stinger restorer hound mecha
 """
 import argparse
 import os
@@ -23,7 +25,9 @@ OUT = os.path.join(ROOT, "assets", "sprites", "enemies")
 RAW = os.path.expanduser("~/ruby1_referencias/enemigos")
 SCALE = 3
 # Caja del cuerpo en el juego (px, ancho x alto) por enemigo: el sprite cabe en ella apoyado abajo.
-BODY_BOX = {"chaser": (36, 54), "shield_bearer": (56, 74), "hawk": (60, 52)}
+BODY_BOX = {"chaser": (36, 54), "shield_bearer": (56, 74), "hawk": (60, 52),
+            "sentinel": (58, 38), "rifleman": (68, 64), "stinger": (36, 32), "restorer": (50, 44), "hound": (72, 58),
+            "mecha": (190, 190)}
 
 PROMPTS = {
     "chaser": "a lean jungle automaton soldier made of carved mossy grey stone and bronze plates, one glowing red eye slit, "
@@ -32,6 +36,23 @@ PROMPTS = {
                      "helmet with a glowing red visor slit, broad shoulders, short thick legs, standing upright",
     "hawk": "a mechanical bird of prey automaton made of bronze plates and green jade stone, glowing red eye, sharp "
             "hooked beak, wings folded tight against the body, tail feathers of bronze, gliding",
+    # Conceptos del usuario (inspirados en los roles de Cogmind), con la paleta de los autómatas de la jungla.
+    "sentinel": "a small spider-like sentinel robot with four thin segmented steel legs, round armored dome body of "
+                "dark gunmetal and bronze plates with moss, one big glowing red sensor eye and two small red lights, "
+                "low crouching stance",
+    "rifleman": "side profile view of a bipedal combat robot soldier of dark gunmetal steel and bronze plates, small "
+                "head with a glowing red visor, aiming a long heavy rifle horizontally to the right with both arms, "
+                "sturdy mechanical legs, standing in profile",
+    "stinger": "a small round flying drone robot, dark gunmetal sphere body with one glowing red eye in the center, "
+               "four curved claw blades around it, tiny thrusters, hovering",
+    "restorer": "a floating maintenance repair robot of brass and bronze with glowing orange lights, round compact "
+                "body with two mechanical repair arms holding tools, small propeller, hovering",
+    "hound": "a sleek quadruped robot hound of dark gunmetal steel plates, wolf-like head with glowing red eyes, "
+             "long mechanical legs, running pose, red light stripes on the body",
+    "mecha": "side profile view of a huge heavy war mecha robot of dark gunmetal and bronze armor, its front arm "
+             "ends in a gigantic oversized mechanical fist as big as its torso, a box missile launcher pod with red "
+             "missile tips on its shoulder, small head with glowing red visor, short thick legs, hunched, standing in "
+             "profile facing right",
 }
 STYLE = ("pixel art, 16-bit video game enemy sprite, single character, side view facing right, full body, centered, "
          "clean dark outline, plain white background")
@@ -81,8 +102,11 @@ def clear_pale(image):
     return image
 
 
-def pick(enemy, seed):
+def pick(enemy, seed, flip=False):
     clean = clear_pale(Image.open(os.path.join(RAW, f"{enemy}_s{seed}.png")).convert("RGBA"))
+    if flip:
+        # El juego espera los sprites mirando a la derecha.
+        clean = clean.transpose(Image.FLIP_LEFT_RIGHT)
     alpha = clean.getchannel("A").point(lambda a: 255 if a > 120 else 0)
     clean.putalpha(alpha)
     sprite = clean.crop(alpha.getbbox())
@@ -114,7 +138,7 @@ def main():
     if args.elegir:
         for choice in args.elegir:
             enemy, seed = choice.split("=")
-            pick(enemy, int(seed))
+            pick(enemy, int(seed.split(":")[0]), seed.endswith(":flip"))
         return
     for enemy in args.enemigos:
         for k in range(args.variantes):

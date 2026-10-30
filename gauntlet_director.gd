@@ -1,8 +1,9 @@
 extends Node2D
 
 # Director del Gauntlet por oleadas. Cada ronda:
-# 1. Oleada de enemigos normales: hay que matarlos a todos. Perseguidores y tiradores; desde la ronda 2
-#    también escuderos y halcones, y desde la 3 enemigos en las plataformas altas (más arriba cada ronda).
+# 1. Oleada de enemigos normales: hay que matarlos a todos. Perseguidores, tiradores y fusileros; desde la
+#    ronda 2 también escuderos, halcones, sabuesos, un enjambre de aguijones y un centinela (su alarma trae
+#    refuerzos), desde la 3 restauradores y enemigos en las plataformas altas (más arriba cada ronda).
 # 2. Con todos muertos, se prepara el guardián (a veces salen los tres) y aparece.
 # 3. Al vencerlo aparecen dos portales: el de la derecha sigue a la siguiente ronda; el de la izquierda
 #    termina el Gauntlet y muestra la pantalla de fin con las medallas.
@@ -15,6 +16,11 @@ const DUMMY_SCENE := preload("res://training_dummy.tscn")
 const PORTAL_SCRIPT := preload("res://portal.gd")
 const HAWK_SCRIPT := preload("res://hawk.gd")
 const SHIELD_SCRIPT := preload("res://shield_bearer.gd")
+const HOUND_SCRIPT := preload("res://hound.gd")
+const SENTINEL_SCRIPT := preload("res://sentinel.gd")
+const RIFLEMAN_SCRIPT := preload("res://rifleman.gd")
+const STINGER_SCRIPT := preload("res://stinger.gd")
+const RESTORER_SCRIPT := preload("res://restorer.gd")
 # Plataformas altas de la arena donde aparecen enemigos en las oleadas mayores: [x, altura del suelo de
 # la plataforma respecto al suelo, piso (1 = la más baja)].
 const UPPER_SPOTS := [
@@ -99,16 +105,19 @@ func _start_wave() -> void:
 	_show_banner("RONDA %d · OLEADA" % round_number, Color(1.0, 0.9, 0.55))
 	_spawn_ground_wave()
 	_spawn_hawks()
+	_spawn_machines()
 	_spawn_upper_wave()
 
 func _spawn_ground_wave() -> void:
 	# En el suelo: perseguidores, tiradores (de suelo y voladores bajos) y, desde la ronda 2, escuderos;
 	# más cada ronda y repartidos por la arena.
 	var kinds: Array[String] = []
-	var chasers: int = 2 + min(round_number, 4)
-	var shooters: int = 1 + round_number / 2
+	var chasers: int = 1 + min(round_number, 4)
+	var shooters: int = (1 + round_number) / 2
 	var shields: int = 0 if round_number < 2 else min(1 + (round_number - 2) / 2, 3)
-	while chasers + shooters + shields > 0:
+	var riflemen: int = min(1 + round_number / 3, 3)
+	var hounds: int = 0 if round_number < 2 else min(1 + (round_number - 2) / 2, 3)
+	while chasers + shooters + shields + riflemen + hounds > 0:
 		if chasers > 0:
 			kinds.append("melee")
 			chasers -= 1
@@ -118,6 +127,12 @@ func _spawn_ground_wave() -> void:
 		if shields > 0:
 			kinds.append("shield")
 			shields -= 1
+		if riflemen > 0:
+			kinds.append("rifleman")
+			riflemen -= 1
+		if hounds > 0:
+			kinds.append("hound")
+			hounds -= 1
 	var aerial_toggle := false
 	for index in range(kinds.size()):
 		var x: float = lerp(arena_min_x, arena_max_x, (index + 0.5) / kinds.size())
@@ -128,6 +143,10 @@ func _spawn_ground_wave() -> void:
 				var shield: Area2D = SHIELD_SCRIPT.new()
 				shield.position = Vector2(x, ground_y)
 				_add_enemy(shield)
+			"rifleman":
+				_add_scripted(RIFLEMAN_SCRIPT, Vector2(x, ground_y))
+			"hound":
+				_add_scripted(HOUND_SCRIPT, Vector2(x, ground_y))
 			"shooter":
 				# Uno sí y uno no, volador.
 				_add_shooter(Vector2(x, ground_y - (220.0 if aerial_toggle else 0.0)), aerial_toggle, 0.25 if aerial_toggle else 0.0)
@@ -143,6 +162,32 @@ func _spawn_hawks() -> void:
 		hawk.position = Vector2(lerp(arena_min_x + 500.0, arena_max_x - 300.0, (index + 0.5) / count), ground_y - 720.0 - 140.0 * (index % 2))
 		hawk.patrol_direction = 1.0 if index % 2 == 0 else -1.0
 		_add_enemy(hawk)
+
+func _spawn_machines() -> void:
+	# Desde la ronda 2: un enjambre de aguijones y un centinela en una plataforma baja (dos desde la 4);
+	# desde la 3, restauradores que reparan al resto.
+	if round_number < 2:
+		return
+	var swarm: int = min(2 + (round_number - 2), 5)
+	var swarm_x: float = lerp(arena_min_x, arena_max_x, 0.65)
+	for index in range(swarm):
+		_add_scripted(STINGER_SCRIPT, Vector2(swarm_x + (index - swarm * 0.5) * 70.0, ground_y - 260.0 - 40.0 * (index % 2)))
+	var sentinel_spots: Array = UPPER_SPOTS.filter(func(spot): return spot[2] == 2)
+	for index in range(min(1 + int(round_number >= 4), sentinel_spots.size())):
+		var spot: Array = sentinel_spots[index]
+		_add_scripted(SENTINEL_SCRIPT, Vector2(spot[0], ground_y + spot[1]))
+	if round_number >= 3:
+		for index in range(min(1 + (round_number - 3) / 2, 3)):
+			_add_scripted(RESTORER_SCRIPT, Vector2(lerp(arena_min_x, arena_max_x, 0.3 + 0.4 * index), ground_y - 200.0))
+
+func _add_scripted(script: Script, at: Vector2) -> void:
+	var enemy: Area2D = script.new()
+	enemy.position = at
+	_add_enemy(enemy)
+
+func add_reinforcement(enemy: Node2D) -> void:
+	# Refuerzos de un centinela: cuentan como parte de la oleada.
+	_add_enemy(enemy)
 
 func _spawn_upper_wave() -> void:
 	# Oleadas mayores (desde la ronda 3): enemigos en las plataformas de arriba, cada ronda más alto y más
@@ -161,7 +206,10 @@ func _spawn_upper_wave() -> void:
 			0:
 				_add_chaser(feet)
 			1:
-				_add_shooter(feet, false, 0.35)
+				if round_number >= 4 and index % 2 == 0:
+					_add_scripted(RIFLEMAN_SCRIPT, feet)
+				else:
+					_add_shooter(feet, false, 0.35)
 			2:
 				_add_shooter(feet + Vector2(0, -120.0), true, 0.35)
 

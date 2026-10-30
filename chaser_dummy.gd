@@ -56,6 +56,8 @@ var launch_target := Vector2.ZERO
 var launch_rise := 0.0
 var launch_hang := 0.0
 var juggle_fall := false
+# Alarma de un centinela: hasta este instante ve a Viridy desde mucho más lejos.
+var alert_until_msec := 0
 
 const ENEMY_SKIN := preload("res://enemy_skin.gd")
 var visual: Node2D
@@ -242,7 +244,11 @@ func _update_launch(delta: float) -> void:
 
 func _can_see(player: Node2D) -> bool:
 	var offset := player.global_position - global_position
-	return abs(offset.x) < detect_range and abs(offset.y) < 140.0 and player.current_health > 0
+	var alerted: bool = Time.get_ticks_msec() < alert_until_msec
+	return abs(offset.x) < detect_range * (2.5 if alerted else 1.0) and abs(offset.y) < (320.0 if alerted else 140.0) and player.current_health > 0
+
+func alert(duration: float) -> void:
+	alert_until_msec = Time.get_ticks_msec() + int(duration * 1000.0)
 
 func _face(player: Node2D) -> void:
 	facing = 1 if player.global_position.x >= global_position.x else -1

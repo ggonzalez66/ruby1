@@ -16,6 +16,16 @@ const JADE := Color(0.22, 0.65, 0.43)
 @export var brake_speed_ratio := 0.5
 @export var wall_bounce_speed := 1100.0
 @export var wall_bounce_duration := 0.4
+# Bestia: ancho en pantalla de la celda de 768 px (antes 185) y fauces por delante de Viridy.
+const BEAST_WIDTH := 300.0
+const CELL_CENTER := Vector2(384, 256)
+const MOUTH_X := 660.0
+const MOUTH_AHEAD := 56.0
+const CENTER := Vector2(0, -42)
+# Fila de las patas de cada frame de galope y de los agachados (píxeles de la hoja).
+const GALLOP_FEET := [355.0, 358.0, 365.0, 364.0]
+const CROUCH_FEET := 353.0
+const CAPTURE_RADIUS := 58.0
 
 var player: CharacterBody2D
 var state := State.IDLE
@@ -31,6 +41,9 @@ var afterimage_wait := 0.0
 var trail_wait := 0.0
 var clock := 0.0
 var landed := false
+# Avance horizontal apoyado en el suelo: galopa y deja polvo en cada pisada.
+var galloping := false
+var gallop_frame := -1
 var aura: Node2D
 var recovery_ghost: Sprite2D
 
@@ -182,6 +195,8 @@ func launch(input_direction: Vector2) -> bool:
 	elapsed = 0.0
 	distance = 0.0
 	landed = false
+	galloping = _touches_ground()
+	gallop_frame = -1
 	afterimage_wait = 0.0
 	trail_wait = 0.0
 	captured.clear()
@@ -198,7 +213,8 @@ func _rush(delta: float) -> void:
 	var collision := player.move_and_collide(direction * remaining)
 	var to := player.global_position
 	distance += from.distance_to(to)
-	_capture_segment(from + Vector2(0, -42), to + Vector2(0, -42))
+	galloping = _touches_ground()
+	_capture_segment(from + CENTER, to + CENTER + direction * MOUTH_AHEAD)
 	Ferocity.special_progress = maxf(1.0 - distance / max_distance, 0.0)
 	afterimage_wait -= delta
 	if afterimage_wait <= 0.0:
@@ -209,7 +225,12 @@ func _rush(delta: float) -> void:
 	trail_wait -= delta
 	if trail_wait <= 0.0:
 		trail_wait = 0.045
-		Fx.jade_splash(player.get_parent(), to + Vector2(0, -42), -direction, 0.50, 0.65)
+		Fx.jade_splash(player.get_parent(), to + CENTER, -direction, 0.50, 0.65)
+	if galloping and player.animated_sprite.animation == player.ANIMATION_WRATH_GALLOP and player.animated_sprite.frame != gallop_frame:
+		gallop_frame = player.animated_sprite.frame
+		# Pisada: polvo bajo las patas y un golpe grave.
+		Fx.dust(player.get_parent(), to + Vector2(player.facing * 30.0, 0), Vector2(-player.facing, -0.4), 6, 1.6)
+		Sfx.play("step", 4.0, 0.55, true)
 	if collision != null or distance >= max_distance - 0.1 or elapsed >= max_rush_duration:
 		Sfx.stop_loop("wrath_rush")
 		if collision != null and absf(collision.get_normal().x) > 0.7:
@@ -217,7 +238,7 @@ func _rush(delta: float) -> void:
 			return
 		if collision != null:
 			Fx.jade_burst(player.get_parent(), collision.get_position(), 1.3)
-		landed = collision != null and collision.get_normal().y < -0.7
+		landed = galloping or (collision != null and collision.get_normal().y < -0.7)
 		recoil = (collision.get_normal() if collision != null else -direction) * 190.0
 		recoil_time = recoil_duration
 		braking = false
@@ -225,6 +246,9 @@ func _rush(delta: float) -> void:
 		elapsed = 0.0
 		Sfx.play("wrath_impact")
 		player._camera_kick(0.55, 0.045)
+
+func _touches_ground() -> bool:
+	return absf(direction.y) < 0.01 and player.test_move(player.global_transform, Vector2.DOWN * 6.0)
 
 func _blocked_on_ground(candidate: Vector2) -> bool:
 	# Desde el suelo no se apunta hacia abajo (abajo-adelante, abajo, abajo-atrás) ni hacia atrás.
@@ -259,8 +283,8 @@ func _wall_bounce(normal: Vector2, point: Vector2) -> void:
 
 func _capture_segment(from: Vector2, to: Vector2) -> void:
 	var shape := CapsuleShape2D.new()
-	shape.radius = 38.0
-	shape.height = from.distance_to(to) + 76.0
+	shape.radius = CAPTURE_RADIUS
+	shape.height = from.distance_to(to) + CAPTURE_RADIUS * 2.0
 	var query := PhysicsShapeQueryParameters2D.new()
 	query.shape = shape
 	query.transform = Transform2D((to - from).angle() - PI * 0.5, from.lerp(to, 0.5))
@@ -283,7 +307,7 @@ func _capture_segment(from: Vector2, to: Vector2) -> void:
 
 func _shatter() -> void:
 	var count := captured.size()
-	var mouth := player.global_position + Vector2(0, -42) + direction * 60.0
+	var mouth := player.global_position + CENTER + direction * MOUTH_AHEAD
 	for core in captured:
 		if is_instance_valid(core) and core.complete_wrath(player, mouth):
 			player.heal(player.boss_execution_heal if core.boss else player.execution_heal)
@@ -306,18 +330,30 @@ func _shatter() -> void:
 	player.animated_sprite.self_modulate.a = 0.0
 
 func _pose() -> void:
-	var animation: StringName = player.ANIMATION_WRATH_RUSH if state == State.RUSH else player.ANIMATION_WRATH_CHEW
+	var animation: StringName = player.ANIMATION_WRATH_CHEW
+	if state == State.RUSH:
+		animation = player.ANIMATION_WRATH_GALLOP if galloping else player.ANIMATION_WRATH_RUSH
 	player.animated_sprite.play(animation)
 	player._align_character_animation(animation)
-	player.animated_sprite.position = Vector2(0, -42)
-	player.animated_sprite.rotation = direction.angle() - (PI if player.facing < 0 else 0.0)
+	var factor := BEAST_WIDTH / (CELL_CENTER.x * 2.0)
+	# Las fauces quedan MOUTH_AHEAD por delante: el cuerpo grande se extiende hacia atrás.
+	var ahead := (MOUTH_X - CELL_CENTER.x) * factor - MOUTH_AHEAD
+	var grounded := galloping if state == State.RUSH else (landed and absf(direction.y) < 0.01)
+	if grounded:
+		var frame: int = player.animated_sprite.frame
+		var feet: float = GALLOP_FEET[mini(frame, GALLOP_FEET.size() - 1)] if animation == player.ANIMATION_WRATH_GALLOP else CROUCH_FEET
+		player.animated_sprite.rotation = 0.0
+		player.animated_sprite.position = Vector2(-player.facing * ahead, -(feet - CELL_CENTER.y) * factor + 2.0)
+	else:
+		player.animated_sprite.rotation = direction.angle() - (PI if player.facing < 0 else 0.0)
+		player.animated_sprite.position = CENTER - direction * ahead
 	player.animated_sprite.flip_h = player.facing < 0
 	player.mane_emitter.follow(player.animated_sprite, player.facing, true, SSS_COLOR)
 
 func _destroy_projectiles() -> void:
-	var center: Vector2 = player.global_position + Vector2(0, -42)
+	var center: Vector2 = player.global_position + CENTER
 	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
-		if projectile.global_position.distance_to(center) <= 76.0:
+		if projectile.global_position.distance_to(center) <= 100.0:
 			if projectile.has_method("_destroy"):
 				projectile._destroy()
 			else:
@@ -372,5 +408,5 @@ func _draw() -> void:
 	if not uses_beast():
 		return
 	for i in range(mini(captured.size(), 20)):
-		var point := Vector2(0, -42) + direction * 58.0 + direction.orthogonal() * ((i % 5) - 2) * 4.0 - direction * (i / 5) * 7.0
+		var point := CENTER + direction * (MOUTH_AHEAD - 2.0) + direction.orthogonal() * ((i % 5) - 2) * 4.0 - direction * (i / 5) * 7.0
 		draw_colored_polygon(PackedVector2Array([point + Vector2(0, -4), point + Vector2(3, 0), point + Vector2(0, 4), point + Vector2(-3, 0)]), Color(1.0, 0.12, 0.22))

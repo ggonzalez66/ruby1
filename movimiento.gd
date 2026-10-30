@@ -31,7 +31,7 @@ signal shine_changed(durability: float, maximum: float, broken: bool)
 signal died
 signal respawned
 
-const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_liquid_dash.png")
+const DASH_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_dash.png")
 const LIGHT_HITS_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_light_hits.png")
 const JAVELIN_THROW_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_javelin_throw_v1.png")
 const JAVELIN_THROW_DURATION := 0.15
@@ -83,7 +83,7 @@ const BRAKE_RECOVER_TEXTURE: Texture2D = preload("res://assets/sprites/player/vi
 const FRONTFLIP_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_frontflip.png")
 const UPPERCUT_TEXTURE: Texture2D = preload("res://assets/sprites/player/viridy/viridy_uppercut.png")
 const UPPERCUT_REGION := Rect2(17, 52, 1055, 1366)
-const JADE_SHEETS := [JAVELIN_THROW_SHEET, WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_SPIN_SHEET, DASH_TEXTURE, DASH_ATTACK_TEXTURE, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET]
+const JADE_SHEETS := [JAVELIN_THROW_SHEET, WALKING_SHEET, SPRINTING_NEW_SHEET, SPRINTING_ALTERNATE_SHEET, LIQUID_SPIN_SHEET, DASH_ATTACK_TEXTURE, HURT_SHEET, LIGHT_ONE_SHEET, LIGHT_TWO_SHEET, LIGHT_THREE_SHEET]
 # Recortes de los sprites de una sola pose (recuadro del cuerpo, pies en el borde de abajo) y de los
 # frames del aire (misma altura, centrados en cada cuerpo).
 const AERIAL_STALL_REGION := Rect2(136, 43, 1373, 939)
@@ -160,6 +160,7 @@ const ANIMATION_WALLRIDE := &"wallride"
 const ANIMATION_KNIFE_THROW := &"knife_throw"
 const ANIMATION_CROUCH := &"crouch"
 const ANIMATION_WRATH_RUSH := &"wrath_rush"
+const ANIMATION_WRATH_GALLOP := &"wrath_gallop"
 const ANIMATION_WRATH_CHEW := &"wrath_chew"
 # Pose orgullosa: tras unos segundos quieto (respira y sube el medidor de estilo).
 const ANIMATION_PROUD := &"proud"
@@ -513,6 +514,13 @@ var shine_tint_ratio := -1.0
 # Rebotes del heavy aéreo encadenados sin tocar el suelo ("REBOTE x3").
 var bounce_chain := 0
 var dead := false
+# Inmovilizada en el suelo por un sabueso: no se mueve ni ataca y los demás pueden pegarle. Machacar el
+# ligero la suelta (y por seguridad se suelta sola a los PIN_MAX_TIME s).
+const PIN_MAX_TIME := 3.5
+var pinned_by: Node2D = null
+var pin_mash_left := 0
+var pin_time := 0.0
+var pin_label: Label
 var mane_emitter: CPUParticles2D
 var beast_trail: Node2D
 var screw_embers: CPUParticles2D
@@ -665,6 +673,9 @@ func _physics_process(delta: float) -> void:
 	if dead:
 		_update_death(delta)
 		return
+	if pinned_by != null:
+		_update_pin(delta)
+		return
 	var was_on_floor: bool = is_on_floor()
 	_update_wall_state()
 	_update_timers(delta)
@@ -737,7 +748,7 @@ func _physics_process(delta: float) -> void:
 	if combo_buffer != &"" and not _blocks_actions() and _try_combat_action(combo_buffer):
 		combo_buffer = &""
 
-	if Input.is_action_just_pressed("dash") and not combo.aim:
+	if Input.is_action_just_pressed("dash") and not combo.blocks_dash():
 		if roar_active and dash_cooldown_timer <= 0.0:
 			# El bloqueo del rugido se cancela con salto o con dash.
 			_end_roar()
@@ -850,7 +861,7 @@ func _physics_process(delta: float) -> void:
 			_land_long_jump(move_input)
 		if backflip_active:
 			_land_backflip(move_input)
-		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0 and not roar_active and not mantle_active and not combo.aim:
+		if Input.is_action_pressed("dash") and dash_timer <= 0.0 and not _is_attack_active() and backflip_chain_timer <= 0.0 and not roar_active and not mantle_active and not combo.blocks_dash():
 			if not is_sprinting:
 				_start_sprint(_get_sprint_start_direction(move_input))
 		elif not Input.is_action_pressed("dash"):
@@ -957,7 +968,9 @@ func _configure_character_animations() -> void:
 	_add_arcade_animation(frames, ANIMATION_KICK_TWO, KICK_TWO_SHEET, 6, 14.0, false, Vector2(768, 512))
 	_add_arcade_animation(frames, ANIMATION_KNIFE_THROW, JAVELIN_THROW_SHEET, 4, 4.0 / JAVELIN_THROW_DURATION, false, Vector2(768, 640), 608.0)
 	# Wrath of Nature: la bestia completa, con la cabeza de león abierta al embestir y mordiendo al masticar.
-	_add_arcade_animation(frames, ANIMATION_WRATH_RUSH, WRATH_BEAST_SHEET, 0, 16.0, true, Vector2(768, 512), 512.0, [1, 2, 3, 4, 5, 6])
+	# Wrath: por el suelo galopa (frames con patas); en el aire o en diagonal, las llamaradas estiradas.
+	_add_arcade_animation(frames, ANIMATION_WRATH_GALLOP, WRATH_BEAST_SHEET, 0, 14.0, true, Vector2(768, 512), 512.0, [0, 1, 2, 3])
+	_add_arcade_animation(frames, ANIMATION_WRATH_RUSH, WRATH_BEAST_SHEET, 0, 16.0, true, Vector2(768, 512), 512.0, [4, 5, 6])
 	_add_arcade_animation(frames, ANIMATION_WRATH_CHEW, WRATH_BEAST_SHEET, 0, 12.0, false, Vector2(768, 512), 512.0, [7, 8, 9, 10])
 	# Rugido (shine): el grito durante los frames explosivos y la guardia mientras se mantiene.
 	_add_single_frame_animation(frames, ANIMATION_ROAR, ROAR_TEXTURE)
@@ -987,7 +1000,8 @@ func _configure_character_animations() -> void:
 	_add_arcade_animation(frames, ANIMATION_HEAVY_AERIAL, LIQUID_BEAST_SHEET, 0, 14.0, false, Vector2(768, 512), 512.0, [3, 4])
 	# Caída: el último frame del aire.
 	_add_region_animation(frames, ANIMATION_FALL, JUMP_AIR_SHEET, [JUMP_AIR_REGIONS[2]], 1.0, false)
-	_add_padded_animation(frames, ANIMATION_DASH, DASH_TEXTURE, Vector2(1000, 500), [Rect2(33, 306, 714, 336), Rect2(785, 306, 956, 330)], 18.0, true)
+	# Dash: una sola pose (viridy_dash.png), con sus colores originales.
+	_add_single_frame_animation(frames, ANIMATION_DASH, DASH_TEXTURE)
 	_add_region_animation(frames, ANIMATION_BACKFLIP, BACKFLIP_NEW, [BACKFLIP_REGION], 1.0, false)
 	# Frontflip: la pose encogida, que gira entera (ver _update_character_orientation).
 	_add_single_frame_animation(frames, ANIMATION_FRONTFLIP, FRONTFLIP_TEXTURE)
@@ -1355,12 +1369,9 @@ func _align_character_animation(animation_name: StringName) -> void:
 		var layout := arcade_frame_layout(animation_name, texture)
 		animated_sprite.scale = layout.get_scale()
 		animated_sprite.position = layout.origin
-	elif animation_name in [ANIMATION_WRATH_RUSH, ANIMATION_WRATH_CHEW]:
-		animated_sprite.scale = Vector2.ONE * 185.0 / texture.get_width()
-		animated_sprite.position = Vector2(0, -42)
-	elif animation_name == ANIMATION_DASH:
-		animated_sprite.scale = Vector2.ONE * LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
-		animated_sprite.position = Vector2(0.0, -texture_height * animated_sprite.scale.y * 0.5)
+	elif animation_name in [ANIMATION_WRATH_RUSH, ANIMATION_WRATH_GALLOP, ANIMATION_WRATH_CHEW]:
+		# La posición la pone wrath_of_nature.gd (patas en el suelo, fauces por delante).
+		animated_sprite.scale = Vector2.ONE * wrath.BEAST_WIDTH / texture.get_width()
 
 func arcade_frame_layout(animation_name: StringName, texture: Texture2D) -> Transform2D:
 	# También lo usan los fantasmas: los replays guardados pueden tener tamaños de hojas anteriores.
@@ -1849,6 +1860,7 @@ func begin_merge() -> void:
 # ---------- Muerte
 
 func _start_death(source_position: Vector2, amount: int) -> void:
+	release_pin(false)
 	combo.cancel()
 	wrath.cancel()
 	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
@@ -2056,6 +2068,96 @@ func _camera_kick(trauma: float, punch: float = 0.0) -> void:
 func _get_target_center(target: Node2D) -> Vector2:
 	var offset = target.get("impact_offset")
 	return target.global_position + (offset if offset is Vector2 else Vector2.ZERO)
+
+# ---------- Inmovilización (sabueso)
+
+func can_be_pinned() -> bool:
+	if dead or pinned_by != null or execution_core != null or current_health <= 0:
+		return false
+	if wrath.invulnerable() or _is_roar_invincible() or _has_sss_iframes() or invulnerability_timer > 0.0:
+		return false
+	return true
+
+func pin(by: Node2D, mash_count: int) -> bool:
+	# La llama el sabueso al alcanzarla con su salto. No quita vida: solo la deja en el suelo.
+	if not can_be_pinned():
+		return false
+	_cancel_all_states()
+	_cancel_attack_for_chain()
+	combo.cancel()
+	_end_roar()
+	_stop_sprint()
+	if dash_timer > 0.0:
+		dash_timer = 0.0
+		_set_dash_visual_active(false)
+	pinned_by = by
+	pin_mash_left = maxi(mash_count, 1)
+	pin_time = 0.0
+	velocity = Vector2.ZERO
+	Sfx.play("grab", 2.0, 0.8)
+	_camera_kick(0.4)
+	if pin_label == null:
+		pin_label = Label.new()
+		pin_label.add_theme_font_size_override("font_size", 16)
+		pin_label.add_theme_color_override("font_color", Color(1.0, 0.9, 0.5))
+		pin_label.add_theme_color_override("font_outline_color", Color(0.1, 0.05, 0.02))
+		pin_label.add_theme_constant_override("outline_size", 5)
+		pin_label.position = Vector2(-60, -104)
+		pin_label.size = Vector2(120, 22)
+		pin_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pin_label.z_index = 20
+		add_child(pin_label)
+	_update_pin_label()
+	pin_label.show()
+	return true
+
+func is_pinned() -> bool:
+	return pinned_by != null
+
+func release_pin(escaped: bool) -> void:
+	if pinned_by == null:
+		return
+	var by := pinned_by
+	pinned_by = null
+	if pin_label != null:
+		pin_label.hide()
+	animated_sprite.rotation = 0.0
+	if dead:
+		return
+	# Un instante de gracia para que no la vuelvan a atrapar en el mismo sitio.
+	invulnerability_timer = maxf(invulnerability_timer, 0.45)
+	if escaped:
+		velocity = Vector2(0, -260)
+		Fx.dust(get_parent(), global_position, Vector2.UP, 8, 1.4, 1.6)
+		Fx.text(get_parent(), global_position + Vector2(0, -70), "¡LIBRE!", Color(0.7, 1.0, 0.6))
+		Sfx.play("roar_parry", -4.0, 1.15)
+	if is_instance_valid(by) and by.has_method("on_pin_released"):
+		by.on_pin_released(escaped)
+
+func _update_pin(delta: float) -> void:
+	pin_time += delta
+	_update_timers(delta)
+	velocity.x = 0.0
+	_apply_gravity(delta)
+	move_and_slide()
+	if Input.is_action_just_pressed("attack"):
+		pin_mash_left -= 1
+		Sfx.play("grab", 0.0, 1.0 + randf() * 0.2)
+		_update_pin_label()
+	var holder_free: bool = not is_instance_valid(pinned_by) or not pinned_by.visible or (pinned_by.has_method("holds_pin") and not pinned_by.holds_pin())
+	if pin_mash_left <= 0 or pin_time >= PIN_MAX_TIME or holder_free:
+		release_pin(pin_mash_left <= 0)
+		return
+	animated_sprite.play(ANIMATION_HURT)
+	_align_character_animation(ANIMATION_HURT)
+	animated_sprite.pause()
+	animated_sprite.frame = animated_sprite.sprite_frames.get_frame_count(ANIMATION_HURT) - 1
+	animated_sprite.rotation = -facing * 0.35 + sin(pin_time * 40.0) * 0.04
+	_update_hurt_visual()
+
+func _update_pin_label() -> void:
+	if pin_label != null:
+		pin_label.text = "¡MACHACA %s! ×%d" % [InputHints.binding("attack").get_slice(" / ", 0), maxi(pin_mash_left, 0)]
 
 # ---------- Lanza espiritual (nombres de input/señales conservados por compatibilidad)
 
@@ -2703,7 +2805,7 @@ func _consume_sprint_air_jump() -> void:
 	_perform_frontflip()
 
 func _start_sprint(direction: int) -> void:
-	if combo != null and combo.aim:
+	if combo != null and combo.blocks_dash():
 		return
 	var target_direction := direction
 	if target_direction == 0:
@@ -3724,7 +3826,7 @@ func _on_hitbox_area_entered(area: Area2D) -> void:
 	_hit_area(area)
 
 func _start_dash() -> void:
-	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active():
+	if dash_timer > 0.0 or dash_cooldown_timer > 0.0 or _is_attack_active() or combo.blocks_dash():
 		return
 	execution_air_boost_active = false
 	execution_air_exit = ExecutionAirExit.NONE
@@ -4019,9 +4121,11 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	release_pin(false)
 	combo.cancel()
 	combo.aim = false
 	combo.aim_armed = false
+	combo.dash_latch = false
 	wrath.cancel()
 	jade_fire_cooldown_timer = 0.0
 	_cancel_execution()

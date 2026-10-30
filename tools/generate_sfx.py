@@ -414,14 +414,17 @@ def rank_up():
 
 
 def growl():
-    # Rugido de pose/taunt en registro medio: sube y cae sin notas graves (antes 105-80 Hz, molestas).
-    d = 0.62
-    shape = env(d, 0.06, 0.5, 3.5)
-    pitch = lambda t: 190.0 + 70.0 * math.sin(math.pi * min(t / d, 1.0)) - 30.0 * t / d
-    voice = bandpass(mul(osc(d, pitch, "saw", 0.03, 9), shape), 260, 2400)
-    formant = bandpass(mul(osc(d, lambda t: pitch(t) * 2.0, "square"), shape), 700, 1800)
-    rasp = mul(bandpass(noise(d, 38), 900, 3200), tremolo(shape, 41, 0.55))
-    return finish(highpass(drive(mix(voice, gain(formant, 0.25), gain(rasp, 0.6)), 1.8), 180), 0.8)
+    # Rugido de pose/taunt grave (vuelve al registro de 105-80 Hz) y fricativo: la garganta raspa con ruido
+    # que se abre en cada pulso de la voz (fritura), más un soplido continuo de aire.
+    d = 0.8
+    shape = env(d, 0.07, 0.68, 3.8)
+    pitch = lambda t: 104.0 + 10.0 * math.sin(math.pi * min(t / d, 1.0)) - 26.0 * t / d
+    voice = lowpass(mul(osc(d, pitch, "saw", 0.05, 7), shape), 900)
+    pulses = [(0.5 + 0.5 * x) ** 4 for x in osc(d, pitch, "saw", 0.05, 7)]
+    fry = mul(bandpass(noise(d, 381), 1100, 5200), pulses, shape)
+    breath = mul(bandpass(noise(d, 382), 2400, 7500), shape)
+    rasp = mul(lowpass(noise(d, 38), 1100), tremolo(shape, 34, 0.6))
+    return finish(highpass(drive(mix(voice, gain(fry, 2.2), gain(breath, 0.35), gain(rasp, 0.6)), 2.4), 55), 0.85)
 
 
 def grab():

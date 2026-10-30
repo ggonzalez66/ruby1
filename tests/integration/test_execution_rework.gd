@@ -122,8 +122,15 @@ func _run() -> void:
 	check(wrath.state == wrath.State.AIM, "el pesado abre la dirección de Wrath")
 	wrath.launch(Vector2.RIGHT)
 	await frames(3)
-	var rush: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(player.ANIMATION_WRATH_RUSH, 0)
-	check(player.animated_sprite.animation == player.ANIMATION_WRATH_RUSH and rush.atlas == player.WRATH_BEAST_SHEET, "el avance usa la bestia completa arremetiendo")
+	var rush: AtlasTexture = player.animated_sprite.sprite_frames.get_frame_texture(player.ANIMATION_WRATH_GALLOP, 0)
+	check(player.animated_sprite.animation == player.ANIMATION_WRATH_GALLOP and rush.atlas == player.WRATH_BEAST_SHEET, "por el suelo la bestia completa galopa")
+	# Las patas tocan el suelo: el borde inferior opaco del frame queda en los pies de Viridy (y = 0).
+	for frame in range(4):
+		player.animated_sprite.frame = frame
+		wrath._pose()
+		var feet: float = player.animated_sprite.position.y + (wrath.GALLOP_FEET[frame] - 256.0) * player.animated_sprite.scale.y
+		check(absf(feet - 2.0) < 0.5 and player.animated_sprite.rotation == 0.0, "galope #%d: patas en el suelo (%.1f)" % [frame, feet])
+	check(player.animated_sprite.scale.x * 768.0 > 290.0, "la bestia es más grande (%.0f px)" % (player.animated_sprite.scale.x * 768.0))
 	check(not player.beast_trail.visible, "sin la estela dibujada: la bestia trae su propia llama")
 	wrath.cancel()
 	style.reset()
