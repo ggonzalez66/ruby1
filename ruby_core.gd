@@ -39,6 +39,10 @@ var stasis_tint := Color.WHITE
 var ai_suspended := false
 # Ralentizado por hielo: se salta un tick de cada dos.
 var slow_skip := false
+# Hechizo de Enfoque con Reloj detenido: quieto, con todos sus temporizadores parados.
+var time_stopped := false
+# Gauntlet: parries que aguanta un enemigo normal antes de abrirse; en un guardián, cuántas veces dura más.
+var posture_toughness := 1.0
 
 func _ready() -> void:
 	enemy = get_parent()
@@ -81,7 +85,7 @@ func is_open() -> bool:
 	return open_time > 0.0
 
 func holds_actor() -> bool:
-	return locked or dying or final_open or open_time > 0.0 or stagger_left > 0.0 or spawn_grace_left > 0.0
+	return locked or dying or final_open or open_time > 0.0 or stagger_left > 0.0 or spawn_grace_left > 0.0 or time_stopped
 
 func skips_tick() -> bool:
 	return holds_actor() or ai_suspended or slow_skip
@@ -115,6 +119,12 @@ func register_parry(token: int = -1) -> bool:
 	if not alive() or locked or dying or final_open or open_time > 0.0:
 		return false
 	if not boss:
+		posture = maxf(posture - POSTURE_MAX / posture_toughness, 0.0)
+		if posture > 0.01:
+			Fx.text(enemy.get_parent(), global_position + Vector2(0, -35), "POSTURA", Color(1.0, 0.7, 0.3))
+			queue_redraw()
+			return false
+		posture = POSTURE_MAX
 		open_time = NORMAL_OPEN_TIME
 		if enemy.get("knock_velocity") != null:
 			enemy.knock_velocity = 0.0
@@ -127,13 +137,14 @@ func register_parry(token: int = -1) -> bool:
 		return false
 	if token >= 0:
 		parried_attacks[token] = true
-	posture = maxf(posture - POSTURE_HIT, 0.0)
+	var loss: float = POSTURE_HIT / posture_toughness
+	posture = maxf(posture - loss, 0.0)
 	if posture <= 0.01:
 		open_time = BOSS_OPEN_TIME
 		enemy._on_posture_broken()
 		Fx.text(enemy.get_parent(), global_position + Vector2(0, -100), "¡POSTURA ROTA!", Color(1.0, 0.78, 0.3))
 		return true
-	Fx.text(enemy.get_parent(), global_position + Vector2(0, -70), "POSTURA −33", Color(1.0, 0.7, 0.3))
+	Fx.text(enemy.get_parent(), global_position + Vector2(0, -70), "POSTURA −%d" % roundi(loss), Color(1.0, 0.7, 0.3))
 	return false
 
 func enter_final_open() -> void:
@@ -288,6 +299,8 @@ func complete(by: Node) -> bool:
 	return true
 
 func _physics_process(delta: float) -> void:
+	if time_stopped:
+		return
 	if dying and not locked and not broken:
 		dying_left = maxf(dying_left - delta, 0.0)
 		if dying_left <= 0.0:
@@ -367,7 +380,7 @@ func _draw() -> void:
 		draw_colored_polygon(filled, RED.lerp(Color(1.0, 0.55, 0.55), pulse * (0.6 if exposed else 0.15)))
 	diamond.append(diamond[0])
 	draw_polyline(diamond, Color(0.10, 0.005, 0.015), 2.0, true)
-	if boss:
+	if boss or posture_toughness > 1.0:
 		var outline := posture_outline(radius + 5.0, 1.0)
 		draw_polyline(outline, Color(0.10, 0.06, 0.015), 5.0, true)
 		var remaining := posture_outline(radius + 5.0, posture / POSTURE_MAX)

@@ -5,7 +5,8 @@ extends Node
 # - Subir de rango: las acrobacias solo suben hasta S; desde ahí hace falta daño, un parry o un shine.
 #   Correr y las acciones de daño "débiles" (ataques ligeros salvo el remate, la estocada del dash
 #   attack) llenan la barra pero nunca suben de rango.
-# - El estilo baja solo (más rápido cuanto más alto) y cae fuerte al recibir golpes.
+# - El estilo baja solo (más rápido cuanto más alto) y cae fuerte al recibir golpes. Desde A cada ganancia
+#   rinde menos y da menos margen antes de bajar; desde S moverse ya no lo detiene y por encima de S no suma.
 # - Desde el rango A Rengar es IMPARABLE: los golpes le quitan vida pero no lo frenan, a cambio de
 #   bajar dos rangos (en A y S aguanta un golpe; en SS y SSS, dos).
 # - Cuanto más estilo, más daño e impacto (hitstop) tienen sus golpes.
@@ -45,10 +46,13 @@ const PRIDE_GAIN := 10.0
 const ACROBATIC_RANK_LIMIT := 4
 const ACROBATIC_KEYS := ["frontflips", "backflips", "bunnyhops", "running_walljumps", "wallride", "mantles", "wall_embeds", "bounce", "running_bounce"]
 # Acciones de daño débiles: llenan la barra pero nunca suben de rango.
-const WEAK_KEYS := ["light_hit", "dash_attack", "air_hit_weak", "pistol_hit"]
+const WEAK_KEYS := ["light_hit", "dash_attack", "air_hit_weak", "pistol_hit", "grenade_hit"]
 const DRAIN_BASE := 2.0
 const DRAIN_PER_POINT := 0.045
 const DRAIN_GRACE := 0.8
+# Por rango: margen sin bajar tras ganar estilo y lo que rinde cada ganancia.
+const RANK_GRACE := [0.8, 0.8, 0.8, 0.7, 0.55, 0.4, 0.3]
+const RANK_GAIN := [1.0, 1.0, 1.0, 0.9, 0.8, 0.65, 0.5]
 # Daño y "peso" del golpe (hitstop) por rango.
 const DAMAGE_MULTIPLIER := [1.0, 1.0, 1.1, 1.2, 1.35, 1.5, 1.75]
 const IMPACT_MULTIPLIER := [1.0, 1.05, 1.15, 1.3, 1.45, 1.6, 1.8]
@@ -107,8 +111,8 @@ func add(key: String, amount: float, label: String = "", color: Color = GOOD_COL
 	# Cada repetición del mismo evento rinde un 20 % menos; se recupera con el tiempo.
 	var fresh: float = freshness.get(key, 1.0)
 	freshness[key] = max(fresh - 0.2, 0.3)
-	var gained: float = amount * fresh
-	grace = DRAIN_GRACE
+	var gained: float = amount * fresh * RANK_GAIN[rank]
+	grace = RANK_GRACE[rank]
 	_add_capped(gained, _promotion_cap(key))
 	if label != "":
 		var stale: bool = fresh <= 0.55
@@ -116,6 +120,8 @@ func add(key: String, amount: float, label: String = "", color: Color = GOOD_COL
 
 func add_running(delta: float) -> void:
 	# Correr llena la barra del rango actual pero nunca sube de rango: el tope es el final de la barra.
+	if _past_movement_limit():
+		return
 	var cap := _rank_top(rank)
 	if points < cap:
 		_set_points(min(points + RUNNING_GAIN * delta, cap))
@@ -127,15 +133,15 @@ func speed_bonus_rate(speed: float, sprint: float) -> float:
 
 func add_speed(delta: float, speed: float, sprint: float) -> void:
 	var bonus := speed_bonus_rate(speed, sprint)
-	if bonus <= 0.0:
+	if bonus <= 0.0 or _past_movement_limit():
 		return
-	grace = DRAIN_GRACE
+	_hold_drain()
 	_add_capped(bonus * delta, _rank_top(maxi(rank, ACROBATIC_RANK_LIMIT)))
 
 func add_pride(delta: float) -> void:
 	var cap := _rank_top(rank)
 	if points < cap:
-		grace = DRAIN_GRACE
+		_hold_drain()
 		_set_points(min(points + PRIDE_GAIN * delta, cap))
 
 func player_hit() -> bool:
@@ -166,7 +172,9 @@ func update_airtime(delta: float, grounded: bool, wall_contact: bool) -> void:
 	if wall_contact:
 		return
 	airtime += delta
-	grace = DRAIN_GRACE
+	if _past_movement_limit():
+		return
+	_hold_drain()
 	_add_capped(AIRTIME_GAIN * delta, _rank_top(max(rank, ACROBATIC_RANK_LIMIT)))
 
 func fill_for_testing() -> void:
@@ -220,6 +228,15 @@ func rank_progress() -> float:
 	return clamp((points - rank * RANK_POINTS) / RANK_POINTS, 0.0, 1.0)
 
 # ---------- Interno
+
+func _past_movement_limit() -> bool:
+	# Por encima de S moverse ya no suma: SS y SSS solo se sostienen peleando.
+	return rank > ACROBATIC_RANK_LIMIT
+
+func _hold_drain() -> void:
+	# Moverse sostiene el estilo solo por debajo del tope de las acrobacias.
+	if rank < ACROBATIC_RANK_LIMIT:
+		grace = DRAIN_GRACE
 
 func _on_stat(key: String, _amount: int) -> void:
 	if STAT_EVENTS.has(key):

@@ -42,6 +42,7 @@ var blur: Line2D
 var trail: Line2D
 
 func _ready() -> void:
+	add_to_group(&"time_stoppable")
 	z_index = 2
 	trail = Line2D.new()
 	trail.top_level = true

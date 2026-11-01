@@ -44,8 +44,11 @@ func _run() -> void:
 	rifle.get_node("StealthAgent")._turn(1)
 	player.position = bush.position + Vector2(-90, -2)
 	stealth.cloak_left = 0.0
+	# Los conos solo se dibujan con las hitboxes activadas (H).
+	player.show_hitbox_debug = true
 	await frames(10)
 	await capture("conos_de_vision")
+	player.show_hitbox_debug = false
 	player.position = bush.position + Vector2(10, -2)
 	await frames(30)
 	await capture("en_el_bush")
@@ -72,6 +75,8 @@ func _run() -> void:
 	await process_frame
 	await capture("mejora_gratis")
 	director.upgrade_menu.choose(0)
+	if director.upgrade_menu.is_confirming():
+		director.upgrade_menu.accept_replace()
 	await process_frame
 	await capture("tienda")
 	quit(0)

@@ -35,7 +35,7 @@ const REMAP_ACTIONS := [
 	["move_left", "Izquierda"], ["move_right", "Derecha"], ["move_up", "Arriba"], ["move_down", "Abajo"],
 	["jump", "Saltar"], ["attack", "Ataque ligero"], ["heavy_attack", "Ataque pesado"], ["dash", "Dash / correr"],
 	["throw_knife", "Aim (mantener) / recuperar lanza"], ["roar", "Rugido"], ["pause", "Pausa"], ["taunt", "Taunt / pose orgullosa"],
-	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta"],
+	["toggle_hitbox_visuals", "Ver hitboxes"], ["frame_pause", "Pausa de frame"], ["slow_motion", "Cámara lenta / Enfoque"],
 ]
 # En el mando, el stick izquierdo de estas acciones es fijo: el remapeo cambia el botón (d-pad).
 const STICK_ACTIONS := ["move_left", "move_right", "move_up", "move_down"]
@@ -122,7 +122,8 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 		_toggle_frame_pause()
 		return
-	if event.is_action_pressed("slow_motion") and not root_control.visible:
+	# En el Gauntlet RB es el hechizo de Enfoque (focus_spell.gd).
+	if event.is_action_pressed("slow_motion") and not root_control.visible and not Upgrades.active:
 		get_viewport().set_input_as_handled()
 		TimeControl.toggle()
 		return

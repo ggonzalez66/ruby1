@@ -25,8 +25,16 @@ var execution_chain := 0
 var execution_chain_timer := 0.0
 # Mejoras del Gauntlet.
 const PISTOL_SHOT_SCRIPT := preload("res://pistol_shot.gd")
-const PISTOL_COOLDOWN := 0.3
-const PISTOL_DAMAGE := 3
+const PISTOL_COOLDOWN := 0.12
+const ICE_GRENADE_SCRIPT := preload("res://ice_grenade.gd")
+const RAIL_BEAM_SCRIPT := preload("res://rail_beam.gd")
+const PISTOL_DAMAGE := 1
+const PISTOL_ELEMENT_EVERY := 3
+const GRENADE_COOLDOWN := 4.0
+const RAIL_DAMAGE := 12
+const RAIL_COOLDOWN := 1.8
+const RAIL_HITSTOP := 0.16
+const RAIL_RECOIL := 340.0
 const PISTOL_POSE_TIME := 0.12
 const STAMPEDE_RADIUS := 56.0
 const STAMPEDE_DAMAGE := 2
@@ -479,6 +487,9 @@ var light_combo_window_timer := 0.0
 var light_combo_queued := false
 var jump_cut_available := false
 var has_knife := true
+var pistol_shots := 0
+# Elementos enemigos sobre Viridy (solo en el Gauntlet, ver player_ailments.gd).
+var ailments: Node2D
 var combo: Node2D
 var thrown_knife: Node2D
 var knife_missing_cue: Node2D
@@ -741,8 +752,8 @@ func _physics_process(delta: float) -> void:
 				# Durante el dash el salto se guarda y sale al terminar (salto largo si sigue corriendo).
 				dash_jump_buffered = true
 
-	# Aim + RT lanza la lanza jade; con LT se recupera (light_combo.gd).
-	if combo.aim and Input.is_action_just_pressed("dash") and not _blocks_actions():
+	# Aim + RT lanza la lanza jade; con LT se recupera (light_combo.gd). La pistola dispara mientras se mantiene.
+	if combo.aim and not _blocks_actions() and (Input.is_action_just_pressed("dash") or (Input.is_action_pressed("dash") and Upgrades.ranged_weapon() == "pistol")):
 		_throw_spear()
 
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
@@ -835,7 +846,10 @@ func _physics_process(delta: float) -> void:
 	_update_dash_visual()
 	_update_impact_wave_visual()
 	var fall_speed: float = velocity.y
+	var ailment_slow: float = ailments.movement_scale() if ailments != null else 1.0
+	velocity.x *= ailment_slow
 	move_and_slide()
+	velocity.x /= ailment_slow
 	_update_wall_state()
 	_refresh_attack_hits()
 	if execution_core != null:
@@ -1775,7 +1789,7 @@ func _try_start_running_wall_jump() -> bool:
 	_spawn_walljump_fx(direction)
 	return true
 
-func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -> void:
+func take_damage(amount: int, source_position: Vector2, attacker: Node = null, element := "") -> void:
 	if wrath != null and wrath.invulnerable():
 		return
 	if execution_core != null:
@@ -1820,6 +1834,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		_start_death(source_position, amount)
 		return
 
+	if ailments != null:
+		ailments.apply(element if element != "" or attacker == null else String(attacker.get_meta(&"element", "")))
 	invulnerability_timer = hurt_invulnerability_time
 	_camera_kick(0.6)
 	if (wrath != null and wrath.is_ready()) or Ferocity.player_hit():
@@ -1827,7 +1843,8 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		Fx.impact(get_parent(), global_position + Vector2(0, -14), Fx.ROAR, 1.2)
 		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡IMPARABLE!", Ferocity.rank_info()["color"])
 		return
-	hurt_lock_timer = hurt_control_lock_time
+	# Un aturdimiento elemental de este mismo golpe puede durar más.
+	hurt_lock_timer = maxf(hurt_lock_timer, hurt_control_lock_time)
 	execution_air_boost_active = false
 	execution_air_exit = ExecutionAirExit.NONE
 	# Interrumpe cualquier estado de movimiento o ataque y empuja lejos del origen del daño.
@@ -1847,6 +1864,22 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 	if push_direction == 0.0:
 		push_direction = -facing
 	velocity = Vector2(push_direction * hurt_knockback.x, hurt_knockback.y)
+
+func take_element_burn(amount: int) -> void:
+	# Quemadura de un enemigo de fuego: no pasa por los i-frames ni puede matar.
+	if dead or current_health <= 1:
+		return
+	current_health = maxi(current_health - amount, 1)
+	Stats.add("damage_taken", amount)
+	health_changed.emit(current_health, max_health)
+
+func apply_element_stun(seconds: float) -> void:
+	# Aturdimiento de los elementos enemigos: bloquea el control como un golpe, sin empujar.
+	hurt_lock_timer = maxf(hurt_lock_timer, seconds)
+	_stop_sprint()
+	velocity.x = 0.0
+	if _is_attack_active():
+		_cancel_attack_for_chain()
 
 func return_to_checkpoint(amount: int) -> void:
 	if wrath != null and wrath.invulnerable():
@@ -2193,8 +2226,8 @@ func recall_spear() -> void:
 func _throw_spear() -> void:
 	if not has_knife or jade_fire_cooldown_timer > 0.0:
 		return
-	if Upgrades.has("pistol"):
-		_fire_pistol()
+	if Upgrades.ranged_weapon() != Upgrades.DEFAULT_WEAPON:
+		_fire_ranged_weapon()
 		return
 	# Con el riposte disponible, lanzar la lanza cancela el rugido (igual que el heavy).
 	if roar_active and riposte_timer > 0.0:
@@ -2251,23 +2284,51 @@ func try_soul_execution(target: Node2D) -> bool:
 	Stats.add("soul_executions")
 	return true
 
-func _fire_pistol() -> void:
-	# Mejora: reemplaza la lanza. Hereda la punta perforante y la lanza ardiente.
+func sync_ranged_weapon() -> void:
+	# Al cambiar de arma, la lanza que siguiera lanzada vuelve a la mano.
+	if Upgrades.ranged_weapon() != Upgrades.DEFAULT_WEAPON and is_instance_valid(thrown_knife):
+		thrown_knife._release()
+
+func _fire_ranged_weapon() -> void:
+	# Mejoras que reemplazan la lanza. El riposte dobla el daño del disparo.
 	if roar_active and riposte_timer > 0.0:
 		_end_roar()
 	if _blocks_actions() or wall_embedded or _is_attack_active() or dash_timer > 0.0 or hurt_lock_timer > 0.0:
 		return
-	var damage: int = PISTOL_DAMAGE + Upgrades.level("spear_pierce")
-	if riposte_timer > 0.0:
-		damage *= 2
+	var bonus: int = Upgrades.level("spear_pierce")
+	var power: int = 2 if riposte_timer > 0.0 else 1
 	riposte_timer = 0.0
-	var shot: Node2D = PISTOL_SHOT_SCRIPT.new()
-	get_parent().add_child(shot)
-	shot.fire(global_position + Vector2(0, -26) + combo.aim_direction * 40.0, combo.aim_direction, damage, Upgrades.level("spear_pierce"), Upgrades.has("spear_burn"))
-	jade_fire_cooldown_timer = PISTOL_COOLDOWN
+	var aim: Vector2 = combo.aim_direction
+	var muzzle: Vector2 = global_position + Vector2(0, -26) + aim * 40.0
+	match Upgrades.ranged_weapon():
+		"pistol":
+			var shot: Node2D = PISTOL_SHOT_SCRIPT.new()
+			get_parent().add_child(shot)
+			pistol_shots += 1
+			shot.fire(muzzle, aim, (PISTOL_DAMAGE + bonus) * power, bonus, pistol_shots % PISTOL_ELEMENT_EVERY == 0)
+			jade_fire_cooldown_timer = PISTOL_COOLDOWN
+			Sfx.play("pistol_shot")
+			_camera_kick(0.05)
+		"grenade":
+			var grenade: Node2D = ICE_GRENADE_SCRIPT.new()
+			get_parent().add_child(grenade)
+			grenade.launch(muzzle, aim, power)
+			jade_fire_cooldown_timer = GRENADE_COOLDOWN
+			Sfx.play("knife_throw", 0.0, 0.8)
+		"railgun":
+			var beam: Node2D = RAIL_BEAM_SCRIPT.new()
+			get_parent().add_child(beam)
+			beam.fire(self, muzzle, aim, (RAIL_DAMAGE + bonus) * power)
+			jade_fire_cooldown_timer = RAIL_COOLDOWN
+			Sfx.play("rail_shot")
+			_camera_kick(0.3)
 	knife_throw_pose_timer = PISTOL_POSE_TIME
-	Sfx.play("pistol_shot")
-	_camera_kick(0.08)
+
+func on_rail_hit(direction: Vector2) -> void:
+	# La railgun al conectar: mucho hitstop y un empujón hacia atrás.
+	_apply_hitstop(RAIL_HITSTOP)
+	velocity -= direction * RAIL_RECOIL
+	_camera_kick(0.6)
 
 func on_knife_hit(point: Vector2) -> void:
 	Fx.impact(get_parent(), point, [Color(0.03, 0.16, 0.1), Color(0.22, 0.65, 0.43), Color(0.8, 1.0, 0.7)], 0.7)
@@ -4213,6 +4274,8 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	if ailments != null:
+		ailments.clear()
 	release_pin(false)
 	combo.cancel()
 	combo.aim = false
@@ -4396,6 +4459,7 @@ func register_execution(boss: bool) -> int:
 	if Upgrades.active:
 		var gained: int = Upgrades.chain_rubies(execution_chain, boss)
 		Upgrades.add_rubies(gained)
+		Upgrades.add_focus(Upgrades.FOCUS_PER_EXECUTION)
 		Fx.text(get_parent(), global_position + Vector2(0, -84), "+%d RUBÍ%s" % [gained, "" if gained == 1 else "ES"], Upgrades.RUBY_COLOR.lightened(0.25))
 		Sfx.play("ruby_gain", 0.0, 1.0 + 0.05 * minf(execution_chain - 1, 6))
 	return execution_chain

@@ -13,6 +13,8 @@ extends Node2D
 # Los enemigos de la oleada empiezan sin saber nada (stealth_director.gd, stealth_agent.gd): no hace falta
 # margen de preparación; los guardianes sí lo tienen. Al superar la ronda, y antes de los portales, se
 # abre la pantalla de mejoras (upgrade_menu.gd), que se paga con los rubíes de las ejecuciones.
+# Cada ronda los enemigos tienen más vida y postura, y más de ellos salen como variante de un elemento,
+# que le aplican a Viridy al dañarla (player_ailments.gd). RB lanza el hechizo de Enfoque (focus_spell.gd).
 
 const CHASER_SCRIPT := preload("res://chaser_dummy.gd")
 const DUMMY_SCENE := preload("res://training_dummy.tscn")
@@ -29,6 +31,23 @@ const AGENT_SCRIPT := preload("res://stealth_agent.gd")
 const UPGRADE_MENU_SCRIPT := preload("res://upgrade_menu.gd")
 const SPIRIT_HAWK_SCRIPT := preload("res://spirit_hawk.gd")
 const SPIRIT_HOUND_SCRIPT := preload("res://spirit_hound.gd")
+const FOCUS_SCRIPT := preload("res://focus_spell.gd")
+const AILMENTS_SCRIPT := preload("res://player_ailments.gd")
+const AURA_SCRIPT := preload("res://element_aura.gd")
+# Vida: ya más alta en la ronda 1 y sube cada ronda. Los guardianes empiezan como siempre.
+const HEALTH_BASE := 1.25
+const HEALTH_PER_ROUND := 0.2
+const GUARDIAN_HEALTH_PER_ROUND := 0.15
+# Parries que aguanta un enemigo: suma uno cada POSTURE_ROUNDS rondas.
+const POSTURE_ROUNDS := 2
+const MAX_POSTURE_PARRIES := 3
+const GUARDIAN_POSTURE_PER_ROUND := 0.25
+const MAX_GUARDIAN_POSTURE := 2.0
+# Probabilidad de que un enemigo salga como variante elemental.
+const VARIANT_BASE := 0.1
+const VARIANT_PER_ROUND := 0.06
+const MAX_VARIANT_CHANCE := 0.5
+const VARIANT_TINT := 0.4
 # Pocos bushes: tres en el suelo de la arena.
 const BUSH_SPOTS := [1820.0, 2830.0, 3640.0]
 # Plataformas altas de la arena donde aparecen enemigos en las oleadas mayores: [x, altura del suelo de
@@ -74,6 +93,7 @@ var stealth: Node2D
 var upgrade_menu: CanvasLayer
 var rubies_label: Label
 var allies := {}
+var focus: Node
 
 func _ready() -> void:
 	add_to_group(&"gauntlet_director")
@@ -87,6 +107,8 @@ func _ready() -> void:
 	upgrade_menu = UPGRADE_MENU_SCRIPT.new()
 	add_child(upgrade_menu)
 	upgrade_menu.closed.connect(_on_upgrades_closed)
+	focus = FOCUS_SCRIPT.new()
+	add_child(focus)
 	Upgrades.rubies_changed.connect(_on_rubies_changed)
 	_start.call_deferred()
 
@@ -95,6 +117,8 @@ func _start() -> void:
 	if player:
 		player.respawn_enabled = false
 		player.died.connect(_on_player_died)
+		player.ailments = AILMENTS_SCRIPT.new()
+		player.add_child(player.ailments)
 	_start_wave()
 
 func _exit_tree() -> void:
@@ -119,10 +143,12 @@ func _physics_process(delta: float) -> void:
 				phase = Phase.BOSS
 				spawn_grace_left = spawn_grace_time
 				spawner.spawn_round()
+				_tune_guardians()
 		Phase.REWARD:
 			phase_timer -= delta
 			if phase_timer <= 0.0 and not upgrade_menu.is_open():
 				phase = Phase.PORTALS
+				focus.cancel()
 				upgrade_menu.open()
 
 # ---------- Rondas
@@ -269,8 +295,41 @@ func _add_enemy(enemy: Node2D) -> void:
 	# Empieza sin saber nada: su agente lo mueve hasta que descubre a Viridy.
 	enemy.set_meta(&"stealth_agent", true)
 	enemy.add_child(AGENT_SCRIPT.new())
+	enemy.ready.connect(_tune_enemy.bind(enemy), CONNECT_ONE_SHOT)
 	get_parent().add_child.call_deferred(enemy)
 	enemies.append(enemy)
+
+func health_scale() -> float:
+	return HEALTH_BASE + HEALTH_PER_ROUND * (round_number - 1)
+
+func posture_parries() -> int:
+	return mini(1 + (round_number - 1) / POSTURE_ROUNDS, MAX_POSTURE_PARRIES)
+
+func variant_chance() -> float:
+	return minf(VARIANT_BASE + VARIANT_PER_ROUND * (round_number - 1), MAX_VARIANT_CHANCE)
+
+func _tune_enemy(enemy: Node2D) -> void:
+	# Tras su _ready: cada tipo fija ahí su vida base.
+	enemy.max_health = ceili(enemy.max_health * health_scale())
+	enemy.current_health = enemy.max_health
+	enemy.get_node("RubyCore").posture_toughness = posture_parries()
+	if randf() < variant_chance():
+		make_variant(enemy, Upgrades.ELEMENTS.keys().pick_random())
+
+func make_variant(enemy: Node2D, element: String) -> void:
+	var color: Color = Upgrades.ELEMENTS[element]["color"]
+	enemy.set_meta(&"element", element)
+	enemy.set_meta(&"tint", Color.WHITE.lerp(color, VARIANT_TINT))
+	enemy.modulate = enemy.get_meta(&"tint")
+	var aura: Node2D = AURA_SCRIPT.new()
+	aura.color = color
+	enemy.add_child(aura)
+
+func _tune_guardians() -> void:
+	for boss in spawner.bosses:
+		boss.max_health = ceili(boss.max_health * (1.0 + GUARDIAN_HEALTH_PER_ROUND * (round_number - 1)))
+		boss.current_health = boss.max_health
+		boss.get_node("RubyCore").posture_toughness = minf(1.0 + GUARDIAN_POSTURE_PER_ROUND * (round_number - 1), MAX_GUARDIAN_POSTURE)
 
 func _alive_enemies() -> int:
 	var alive := 0
@@ -309,6 +368,9 @@ func on_bosses_defeated() -> void:
 
 func _on_upgrades_closed() -> void:
 	_sync_allies()
+	var player := get_tree().get_first_node_in_group(&"player")
+	if player:
+		player.sync_ranged_weapon()
 	_spawn_portal(left_portal_x, "TERMINAR", Color(1.0, 0.55, 0.35), _finish)
 	_spawn_portal(right_portal_x, "SEGUIR", Color(0.4, 0.8, 1.0), _next_round)
 
@@ -348,6 +410,7 @@ func _finish() -> void:
 func _on_player_died() -> void:
 	RunSession.finish_stage()
 	stealth.stand_down()
+	focus.cancel()
 	# Sin checkpoint: tras un momento, pantalla de fin con lo sobrevivido.
 	if phase == Phase.DONE:
 		return

@@ -374,7 +374,8 @@ func _update_mark(delta: float) -> void:
 		mark.visible = true
 
 func _draw() -> void:
-	if enemy == null or not enemy.visible or is_aware() or director.player == null or director.alarm_active():
+	# Los conos solo se ven con las hitboxes activadas (H).
+	if enemy == null or not enemy.visible or is_aware() or director.player == null or director.alarm_active() or not director.player.show_hitbox_debug:
 		return
 	if director.player.global_position.distance_to(enemy.global_position) > DRAW_DISTANCE:
 		return

@@ -291,6 +291,7 @@ func _update_shooting(delta: float) -> void:
 	projectile.velocity = direction * projectile_speed
 	projectile.damage = projectile_damage
 	projectile.shooter = self
+	projectile.element = get_meta(&"element", "")
 	get_parent().add_child(projectile)
 	Sfx.play("enemy_shoot")
 	projectile.global_position = global_position + impact_offset + direction * 20.0

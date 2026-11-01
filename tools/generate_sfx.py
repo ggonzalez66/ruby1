@@ -719,6 +719,28 @@ def pistol_shot():
     return finish(drive(mix(crack, gain(body, 0.9)), 1.6), 0.85)
 
 
+def rail_shot():
+    d = 0.55
+    zap = mul(osc(d, lambda t: 1800.0 - 2600.0 * t, "saw"), env(d, 0.001, 0.4))
+    crack = mul(highpass(noise(d, 903), 1400), env(d, 0.001, 0.12, 4.0))
+    body = mul(osc(d, lambda t: 140.0 - 120.0 * t, "sine"), env(d, 0.001, 0.45))
+    return finish(drive(mix(lowpass(zap, 5000), crack, gain(body, 1.2)), 1.8), 0.9)
+
+
+def grenade_blast():
+    d = 0.5
+    boom = mul(lowpass(noise(d, 904), 900), env(d, 0.001, 0.38, 2.5))
+    shards = mul(bandpass(noise(d, 905), 3500, 9000), env(d, 0.01, 0.3, 3.0))
+    return finish(drive(mix(boom, gain(shards, 0.5)), 1.5), 0.85)
+
+
+def time_stop():
+    d = 0.6
+    sweep = mul(osc(d, lambda t: 900.0 - 1250.0 * t, "sine"), env(d, 0.01, 0.5))
+    bell = delay(mul(osc(0.4, 1320, "sine"), env(0.4, 0.001, 0.35, 3.0)), 0.2)
+    return finish(mix(sweep, gain(bell, 0.6)), 0.7)
+
+
 def bush_rustle():
     d = 0.4
     leaves = mul(bandpass(noise(d, 902), 1800, 6500), tremolo(env(d, 0.05, 0.3), 19, 0.7))

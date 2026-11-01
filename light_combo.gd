@@ -6,6 +6,8 @@ extends Node2D
 const MODE := 8
 const CHAIN_WINDOW := 0.55
 const THROW_SPEED := 1300.0
+# Enfriamiento que llena el anillo de la mira.
+const WEAPON_COOLDOWN_RING := 4.0
 enum Phase { IDLE, STARTUP, ACTIVE, RECOVERY }
 var player: CharacterBody2D
 var active := false
@@ -295,13 +297,18 @@ func _draw() -> void:
 	if aim:
 		var origin := Vector2(0, -26)
 		var end := origin + aim_direction * 165.0
-		var pistol: bool = Upgrades.has("pistol")
-		draw_line(origin + aim_direction * 40, end, Color(1.0, 0.85, 0.5, 0.6) if pistol else Color(0.5, 1, 0.75, 0.6), 2, true)
-		draw_arc(end, 8, 0, TAU, 16, Color(1.0, 0.9, 0.6) if pistol else Color(0.8, 1, 0.65), 2, true)
-		if pistol:
-			# La pistola en la mano, apuntando.
+		var weapon: String = Upgrades.ranged_weapon()
+		var color: Color = Upgrades.WEAPONS[weapon]["color"]
+		draw_line(origin + aim_direction * 40, end, Color(0.5, 1, 0.75, 0.6) if weapon == Upgrades.DEFAULT_WEAPON else Color(color, 0.6), 2, true)
+		draw_arc(end, 8, 0, TAU, 16, color, 2, true)
+		# Enfriamiento del arma alrededor de la mira.
+		if player.jade_fire_cooldown_timer > 0.05:
+			draw_arc(end, 13, -PI * 0.5, -PI * 0.5 + TAU * minf(player.jade_fire_cooldown_timer / WEAPON_COOLDOWN_RING, 1.0), 24, Color(color, 0.8), 2, true)
+		if weapon in ["pistol", "railgun"]:
+			# El arma en la mano, apuntando; la railgun es más larga.
 			var side := aim_direction.orthogonal()
-			draw_colored_polygon(PackedVector2Array([origin + aim_direction * 16 + side * 4, origin + aim_direction * 40 + side * 4, origin + aim_direction * 40 - side * 3, origin + aim_direction * 16 - side * 3]), Color(0.22, 0.23, 0.27))
+			var length: float = 40.0 if weapon == "pistol" else 62.0
+			draw_colored_polygon(PackedVector2Array([origin + aim_direction * 16 + side * 4, origin + aim_direction * length + side * 4, origin + aim_direction * length - side * 3, origin + aim_direction * 16 - side * 3]), Color(0.22, 0.23, 0.27))
 			draw_colored_polygon(PackedVector2Array([origin + aim_direction * 18 - side * 3, origin + aim_direction * 26 - side * 3, origin + aim_direction * 24 - side * 12, origin + aim_direction * 16 - side * 12]), Color(0.35, 0.22, 0.14))
 	if phase == Phase.ACTIVE and move.kind == "kick":
 		var rect := attack_rect()

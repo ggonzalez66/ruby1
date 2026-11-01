@@ -1,5 +1,7 @@
 # Sigilo y mejoras del Gauntlet
 
+Las armas a distancia, el Enfoque, el escalado por ronda y las variantes elementales están en [arsenal](../arsenal/README.md).
+
 Todo esto existe solo en el Gauntlet. En las demás etapas los enemigos, los rubíes y las mejoras siguen igual: `Upgrades.active` es falso y los enemigos no tienen agente.
 
 ## Rubíes
@@ -19,13 +21,11 @@ Se abre 1 s después de vencer al guardián, antes de los portales, porque el ju
 | --- | --- | --- |
 | Backflip / Frontflip fantasma | 8 | Invulnerable mientras gira el flip (no todo el salto) |
 | Giro reflector | 8 | El screw attack devuelve proyectiles, sin gastar durabilidad |
-| Lanza ardiente | 10 | La lanza quema (también la pistola) |
-| Punta perforante | 10 | Atraviesa 1 enemigo más y hace más daño. Acumulable hasta 3 (también la pistola) |
+| Punta perforante | 10 | La lanza o la pistola atraviesan 1 enemigo más y hacen más daño. Acumulable hasta 3 |
 | Estampida | 10 | Correr en SSS a través de un enemigo le hace 2 de daño base cada 0,5 s |
-| Pistola | 14 | Reemplaza la lanza: apuntar + el botón de lanzar. 3 de daño, cada 0,3 s |
 | Halcón espiritual | 14 | 4 de vida. Se lanza contra enemigos en alerta (3 de daño) |
 | Sabueso espiritual | 14 | 5 de vida. Inmoviliza 3 s a un enemigo de suelo en alerta |
-| Elemento en un ataque | 12 | Ver abajo |
+| Elemento en un ataque o en el arma a distancia | 12 | Ver abajo |
 
 **Elementos:** cada carta sale con un tipo de ataque libre al azar: ligeros, pesados (aéreo y de suelo) o uppercut. Cada tipo admite un elemento.
 
@@ -49,12 +49,12 @@ Mientras un enemigo no descubre a Viridy su IA propia está suspendida (`ruby_co
 | Descubre `!` | Viridy en la visión corta (210 px): corre su IA normal y carga la alarma |
 | Caza | La perdió de vista 2 s, o hay alarma: va a la última posición conocida |
 
-La visión es hacia donde mira, y por la espalda solo nota a Viridy a menos de 46 px. Los voladores ven en círculo hacia abajo (430 y 190 px). Los conos se dibujan en el suelo mientras no están en alerta.
+La visión es hacia donde mira, y por la espalda solo nota a Viridy a menos de 46 px. Los voladores ven en círculo hacia abajo (430 y 190 px). Los conos solo se ven con las hitboxes activadas (H).
 
 **Ejecución por sorpresa:** un pesado ejecuta a cualquier enemigo normal que no esté descubriendo a Viridy, si no hay alarma. Invisible, ejecuta a cualquiera, aunque esté en alerta. El estallido de la ejecución sigue golpeando a los vecinos y los alerta. Una lanza clavada también alerta.
 
 **Alarma:**
-- Se llena en 7 s con un enemigo. Cada uno extra suma un 60 % de velocidad.
+- Se llena en 3,5 s con un enemigo. Cada uno más suma esa misma velocidad: dos la llenan en 1,75 s.
 - Golpear a quien la carga la pausa 1,5 s. Matarlo la hace bajar (5 s de llena a vacía).
 - El centinela la dispara de golpe al terminar su sirena.
 - Llena: todos van a por Viridy. Se apaga tras 6 s sin que nadie la vea.

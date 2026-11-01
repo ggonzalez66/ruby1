@@ -72,6 +72,9 @@ func is_frozen() -> bool:
 	return frozen_left > 0.0
 
 func apply(element: String, damage: int) -> int:
+	# Una variante no sufre su propio elemento.
+	if enemy.get_meta(&"element", "") == element:
+		return damage
 	match element:
 		"electric":
 			return _electric(damage)
@@ -195,6 +198,8 @@ func _physics_process(delta: float) -> void:
 	if not enemy.visible or core == null or not core.alive():
 		_clear()
 		return
+	if core.time_stopped:
+		return
 	if marks_left > 0.0:
 		marks_left = maxf(marks_left - delta, 0.0)
 		if marks_left == 0.0:
@@ -229,7 +234,7 @@ func _update_burn(delta: float) -> void:
 		flames.emitting = false
 
 func _update_tint() -> void:
-	var tint := Color.WHITE
+	var tint: Color = enemy.get_meta(&"tint", Color.WHITE)
 	if is_frozen():
 		tint = Color(0.6, 0.85, 1.5)
 	elif slow_left > 0.0:
@@ -246,8 +251,9 @@ func _clear() -> void:
 	flames.emitting = false
 	if core != null:
 		core.slow_skip = false
-	if enemy.modulate != Color.WHITE:
-		enemy.modulate = Color.WHITE
+	var tint: Color = enemy.get_meta(&"tint", Color.WHITE)
+	if enemy.modulate != tint:
+		enemy.modulate = tint
 
 func _draw() -> void:
 	# Marcas acumuladas sobre la cabeza.

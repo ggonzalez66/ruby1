@@ -10,7 +10,9 @@ extends "res://chaser_dummy.gd"
 @export var lock_time := 0.22
 @export var burst := 3
 @export var burst_gap := 0.12
-@export var bullet_speed := 720.0
+# La misma bala que la pistola de Viridy.
+@export var bullet_speed := 2100.0
+@export var bullet_life := 0.7
 @export var bullet_damage := 8
 @export var reload_time := 1.5
 @export var shoot_range := 760.0
@@ -183,12 +185,15 @@ func _start_telegraph() -> void:
 
 func _fire() -> void:
 	var shot: Area2D = PROJECTILE_SCRIPT.new()
+	shot.style = "bullet"
+	shot.life = bullet_life
 	shot.velocity = aim_direction * bullet_speed
 	shot.damage = bullet_damage
 	shot.shooter = self
+	shot.element = get_meta(&"element", "")
 	get_parent().add_child(shot)
 	shot.global_position = _muzzle()
-	Sfx.play("enemy_shoot", 0.0, 1.3)
+	Sfx.play("pistol_shot")
 	Fx.puff(get_parent(), _muzzle(), Color(1.0, 0.6, 0.3, 0.8))
 	knock_velocity = -facing * 60.0
 

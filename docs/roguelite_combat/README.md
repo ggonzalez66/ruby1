@@ -56,7 +56,7 @@ Queda como alternativa una v1 de 3 frames hecha con SD (`viridy_kick1_arcade.png
 - **Lanza:** recuperar la lanza clavada en un enemigo OPEN o DYING teletransporta a Viridy y lo ejecuta.
 - **Recompensa:** curación, mucha Ferocity, dash disponible, y se devuelven el doble salto y el uppercut aéreo. Si DYING expira, el enemigo muere sin recompensa.
 - **Cadena:** el estallido de una ejecución reinicia a 4 s el DYING de los vecinos dentro de su radio («¡CADENA!»), en vez de restarles tiempo. El estallido de un DYING que expira solo los golpea.
-- **Rubíes (Gauntlet):** cada eslabón de la cadena da uno más (1, 2, 3…) y un guardián da 10. Ver [sigilo y mejoras](../art/stealth/README.md).
+- **Rubíes (Gauntlet):** cada eslabón de la cadena da uno más (1, 2, 3…) y un guardián da 10. Ver [sigilo y mejoras](../art/stealth/README.md) y [arsenal](../art/arsenal/README.md).
 - **Log de estilo:** las ejecuciones seguidas (menos de 4 s entre una y otra) se agrupan en una sola línea, «+RUBY ABSORBIDO x2, x3…», con destello dorado. Cada una sigue rindiendo menos estilo por repetición.
 - **Jefes:** conservan postura, críticos y ventana final; los ejecuta cualquier pesado.
 - **Stagger** (patadas): interrumpe y aturde; no abre el rubí.

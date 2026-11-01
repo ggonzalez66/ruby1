@@ -1,7 +1,8 @@
 extends CanvasLayer
 
 # Pantalla de mejoras al superar una ronda del Gauntlet: primero una mejora gratis de tres (con reroll
-# pagado en rubíes) y después una tienda para gastar los que queden. Pausa el juego hasta cerrarse.
+# pagado en rubíes) y después una tienda para gastar los que queden. Cambiar de arma a distancia pide
+# confirmación porque reemplaza la actual. Pausa el juego hasta cerrarse.
 
 signal closed
 
@@ -21,6 +22,12 @@ var rubies_label: Label
 var card_row: HBoxContainer
 var reroll_button: Button
 var continue_button: Button
+var main_column: VBoxContainer
+var confirm_box: VBoxContainer
+var confirm_label: Label
+var confirm_accept: Button
+var confirm_back: Button
+var pending_index := -1
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -30,6 +37,9 @@ func _ready() -> void:
 
 func is_open() -> bool:
 	return root_control.visible
+
+func is_confirming() -> bool:
+	return pending_index >= 0
 
 func open() -> void:
 	stage = Stage.FREE
@@ -48,18 +58,55 @@ func close() -> void:
 	closed.emit()
 
 func _input(event: InputEvent) -> void:
-	# Aquí no se puede abrir la pausa ni salir sin decidir.
+	# Aquí no se puede abrir la pausa ni salir sin decidir; cancelar solo vuelve de la confirmación.
 	if is_open() and (event.is_action_pressed("pause") or event.is_action_pressed("ui_cancel")):
 		get_viewport().set_input_as_handled()
+		if is_confirming() and event.is_action_pressed("ui_cancel"):
+			cancel_replace()
 
 func choose(index: int) -> void:
+	if Upgrades.replaces_weapon(cards[index]) and _can_choose(index):
+		_ask_replace(index)
+		return
+	_take(index)
+
+func _can_choose(index: int) -> bool:
+	var card: Dictionary = cards[index]
+	if not Upgrades.can_take(card):
+		return false
+	return stage == Stage.FREE or (not index in bought and Upgrades.rubies >= int(card["price"]))
+
+func _ask_replace(index: int) -> void:
+	pending_index = index
+	confirm_label.text = "¿Reemplazar %s por %s?" % [Upgrades.weapon_title(), cards[index]["title"]]
+	main_column.hide()
+	confirm_box.show()
+	confirm_back.grab_focus()
+
+func accept_replace() -> void:
+	var index := pending_index
+	_hide_confirm()
+	_take(index)
+
+func cancel_replace() -> void:
+	_hide_confirm()
+	_render()
+
+func _hide_confirm() -> void:
+	pending_index = -1
+	confirm_box.hide()
+	main_column.show()
+
+func _take(index: int) -> void:
+	if not _can_choose(index):
+		return
 	var card: Dictionary = cards[index]
 	if stage == Stage.FREE:
 		Upgrades.grant(card)
 		Sfx.play("upgrade_pick")
 		_open_shop()
 		return
-	if index in bought or not Upgrades.buy(card):
+	if not Upgrades.buy(card):
 		return
 	bought.append(index)
 	Sfx.play("upgrade_pick")
@@ -111,7 +158,7 @@ func _make_card(index: int) -> Button:
 	var sold: bool = index in bought
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(290, 250)
-	button.disabled = sold or (not free and Upgrades.rubies < int(card["price"]))
+	button.disabled = not _can_choose(index)
 	button.add_theme_stylebox_override("normal", _card_style(card["color"], 2))
 	button.add_theme_stylebox_override("hover", _card_style(card["color"], 3))
 	button.add_theme_stylebox_override("pressed", _card_style(card["color"], 3))
@@ -131,7 +178,7 @@ func _make_card(index: int) -> Button:
 	var body := _text(card["text"], 16, Color(0.9, 0.93, 0.9))
 	body.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	column.add_child(body)
-	var footer := "GRATIS" if free else ("COMPRADA" if sold else "%d RUBÍES" % int(card["price"]))
+	var footer := "GRATIS" if free else ("COMPRADA" if sold else ("OCUPADO" if not Upgrades.can_take(card) else "%d RUBÍES" % int(card["price"])))
 	column.add_child(_text(footer, 18, TITLE_COLOR if not button.disabled else Color(0.6, 0.6, 0.6)))
 	return button
 
@@ -169,6 +216,8 @@ func _build() -> void:
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 18)
 	center.add_child(column)
+	main_column = column
+	_build_confirm(center)
 	title_label = _text("", 36, TITLE_COLOR)
 	column.add_child(title_label)
 	rubies_label = _text("", 22, Upgrades.RUBY_COLOR.lightened(0.2))
@@ -190,3 +239,25 @@ func _build() -> void:
 	continue_button.custom_minimum_size = Vector2(240, 46)
 	continue_button.pressed.connect(close)
 	buttons.add_child(continue_button)
+
+func _build_confirm(parent: Control) -> void:
+	confirm_box = VBoxContainer.new()
+	confirm_box.add_theme_constant_override("separation", 24)
+	confirm_box.hide()
+	parent.add_child(confirm_box)
+	confirm_label = _text("", 30, TITLE_COLOR)
+	confirm_box.add_child(confirm_label)
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 16)
+	confirm_box.add_child(buttons)
+	confirm_accept = Button.new()
+	confirm_accept.text = "Reemplazar"
+	confirm_accept.custom_minimum_size = Vector2(240, 46)
+	confirm_accept.pressed.connect(accept_replace)
+	buttons.add_child(confirm_accept)
+	confirm_back = Button.new()
+	confirm_back.text = "Volver"
+	confirm_back.custom_minimum_size = Vector2(240, 46)
+	confirm_back.pressed.connect(cancel_replace)
+	buttons.add_child(confirm_back)

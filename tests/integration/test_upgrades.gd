@@ -44,6 +44,12 @@ func reset() -> void:
 	player.position = Vector2(2000, -2)
 	await frames(4)
 
+func pick(menu: CanvasLayer, index: int) -> void:
+	# Las armas piden confirmación (test_arsenal.gd comprueba el diálogo).
+	menu.choose(index)
+	if menu.is_confirming():
+		menu.accept_replace()
+
 func execute(enemy: Area2D) -> void:
 	enemy.take_hit(player.global_position, 1, 999)
 	player.attack_mode = player.ATTACK_HEAVY_GROUND
@@ -95,12 +101,12 @@ func _run() -> void:
 	check(upgrades.offers(30).all(func(card): return card.get("slot", "") != "uppercut"), "ese tipo de ataque ya no se ofrece")
 	upgrades.grant(upgrades._card("spear_pierce"))
 	check(upgrades.offers(30).any(func(card): return card["key"] == "spear_pierce"), "la punta perforante se acumula")
-	upgrades.grant(upgrades._card("pistol"))
-	check(not upgrades.offers(30).any(func(card): return card["key"] == "pistol"), "una mejora única no se repite")
+	upgrades.grant(upgrades._card("time_stop"))
+	check(not upgrades.offers(60).any(func(card): return card["key"] == "time_stop"), "una mejora única no se repite")
 
 	print("== Pantalla de mejoras y tienda")
 	await reset()
-	upgrades.add_rubies(20)
+	upgrades.add_rubies(30)
 	director.phase = director.Phase.BOSS
 	director.on_bosses_defeated()
 	check(director.phase == director.Phase.REWARD and director.portals.is_empty(), "al ganar aún no hay portales")
@@ -112,18 +118,18 @@ func _run() -> void:
 	check(not menu.continue_button.visible, "la gratis no se puede saltar")
 	var first_cards: Array = menu.cards.map(func(card): return card["key"])
 	menu.reroll()
-	check(upgrades.rubies == 15, "el reroll cuesta 5 (%d)" % upgrades.rubies)
+	check(upgrades.rubies == 25, "el reroll cuesta 5 (%d)" % upgrades.rubies)
 	check(menu.cards.size() == 3, "reroll da tres cartas nuevas (antes %s)" % [first_cards])
 	var pick: Dictionary = menu.cards[0]
-	menu.choose(0)
-	check(upgrades.rubies == 15, "la mejora elegida es gratis")
+	pick(menu, 0)
+	check(upgrades.rubies == 25, "la mejora elegida es gratis")
 	check(menu.stage == menu.Stage.SHOP and menu.continue_button.visible, "después viene la tienda")
 	check(not menu.cards.any(func(card): return card["key"] == pick["key"] and card["id"] != "element" and not card.get("max", false) and pick["id"] != "spear_pierce"), "la tienda no repite la elegida")
 	var price: int = menu.cards[0]["price"]
-	menu.choose(0)
-	check(upgrades.rubies == 15 - price, "comprar descuenta el precio (%d)" % upgrades.rubies)
-	menu.choose(0)
-	check(upgrades.rubies == 15 - price, "no se compra dos veces")
+	pick(menu, 0)
+	check(upgrades.rubies == 25 - price, "comprar descuenta el precio (%d)" % upgrades.rubies)
+	pick(menu, 0)
+	check(upgrades.rubies == 25 - price, "no se compra dos veces")
 	upgrades.rubies = 1
 	var dear: Dictionary = menu.cards[1]
 	var owned_before: int = upgrades.owned.size() + upgrades.element_slots.size()
@@ -167,7 +173,7 @@ func _run() -> void:
 
 	print("== Lanza: fuego y perforar")
 	await reset()
-	upgrades.grant(upgrades._card("spear_burn"))
+	upgrades.grant(upgrades._element_card("fire", upgrades.RANGED_SLOT))
 	var burned := await enemy_at(Vector2(2200, 0))
 	var life: int = burned.current_health
 	player._throw_spear()
@@ -192,14 +198,14 @@ func _run() -> void:
 
 	print("== Pistola")
 	await reset()
-	upgrades.grant(upgrades._card("pistol"))
+	upgrades.grant(upgrades._weapon_card("pistol"))
 	var shot_target := await enemy_at(Vector2(2300, -2))
 	player.combo.aim_direction = Vector2(1, 0).rotated(-0.02)
 	player._throw_spear()
 	check(player.has_knife and player.thrown_knife == null, "dispara sin soltar la lanza")
 	check(player.jade_fire_cooldown_timer > 0.0 and player.jade_fire_cooldown_timer < 0.5, "con cadencia corta")
 	await frames(16)
-	check(shot_target.current_health == 37, "la bala golpea (%d)" % shot_target.current_health)
+	check(shot_target.current_health == 39, "la bala golpea (%d)" % shot_target.current_health)
 
 	print("== Estampida en SSS")
 	await reset()

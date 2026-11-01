@@ -1,7 +1,7 @@
 extends Node2D
 
 # Sigilo del Gauntlet: alarma global, invisibilidad de Viridy y su HUD.
-# - Alarma: cada enemigo que descubre a Viridy la carga (uno más la carga más rápido). Golpearlo la pausa y
+# - Alarma: cada enemigo que descubre a Viridy suma velocidad de carga. Golpearlo la pausa y
 #   matarlo la hace bajar. Llena, todos saben dónde está. Para apagarla hay que huir o esconderse: baja
 #   cuando nadie la ve durante EVASION_TIME.
 # - Precaución: al apagarse queda una marca en la última posición conocida y durante CAUTION_TIME ven más
@@ -12,8 +12,8 @@ extends Node2D
 enum Alert { CALM, ALARM, CAUTION }
 
 const BUSH_SCRIPT := preload("res://bush.gd")
-const FILL_TIME := 7.0
-const EXTRA_SPOTTER_RATE := 0.6
+const FILL_TIME := 3.5
+const EXTRA_SPOTTER_RATE := 1.0
 const DRAIN_TIME := 5.0
 const EVASION_TIME := 6.0
 const CAUTION_TIME := 25.0
@@ -21,6 +21,10 @@ const CAUTION_VISION := 1.25
 const SIREN_INTERVAL := 1.5
 const CLOAK_CHARGE := 2.0
 const CLOAK_TIME := 6.0
+const LONG_CLOAK_BONUS := 4.0
+const BAR_WIDTH := 300.0
+const BAR_HEIGHT := 12.0
+const BLOCK_HEIGHT := 40.0
 const STRIKE_WINDOW := 0.6
 const REVEAL_TIME := 0.8
 const CLOAK_TINT := Color(0.55, 1.0, 0.75, 0.35)
@@ -45,10 +49,10 @@ var reveal_left := 0.0
 var bushes: Array = []
 var last_known_mark: Node2D
 var hud_root: Control
-var alarm_panel: PanelContainer
+var alarm_panel: Control
 var alarm_fill: ColorRect
 var alarm_label: Label
-var cloak_panel: PanelContainer
+var cloak_panel: Control
 var cloak_fill: ColorRect
 var cloak_label: Label
 
@@ -210,7 +214,7 @@ func _update_cloak(delta: float) -> void:
 			bush_time += delta
 	else:
 		if in_bush and bush_time >= CLOAK_CHARGE:
-			cloak_left = CLOAK_TIME
+			cloak_left = _cloak_time()
 		bush_time = 0.0
 		cloak_left = maxf(cloak_left - delta, 0.0)
 	in_bush = inside
@@ -219,6 +223,9 @@ func _update_cloak(delta: float) -> void:
 	if player_cloaked() != cloaked_before:
 		Sfx.play("bush_rustle")
 	_apply_tint()
+
+func _cloak_time() -> float:
+	return CLOAK_TIME + (LONG_CLOAK_BONUS if Upgrades.has("long_cloak") else 0.0)
 
 func _player_attacking() -> bool:
 	return player._is_attack_active() or player.combo.active or player.knife_throw_pose_timer > 0.0 or player.roar_active
@@ -250,51 +257,50 @@ func _build_hud() -> void:
 	alarm_panel = alarm[0]
 	alarm_fill = alarm[1]
 	alarm_label = alarm[2]
-	var cloak: Array = _make_bar(28.0)
+	var cloak: Array = _make_bar(BLOCK_HEIGHT)
 	cloak_panel = cloak[0]
 	cloak_fill = cloak[1]
 	cloak_label = cloak[2]
 
 func _make_bar(y: float) -> Array:
-	var panel := PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.05, 0.05, 0.07, 0.85)
-	style.set_border_width_all(2)
-	style.border_color = Color(1.0, 1.0, 1.0, 0.35)
-	style.set_corner_radius_all(4)
-	panel.add_theme_stylebox_override("panel", style)
-	panel.custom_minimum_size = Vector2(300, 24)
-	panel.position = Vector2(-150, y)
-	panel.hide()
-	hud_root.add_child(panel)
-	var fill := ColorRect.new()
-	fill.size = Vector2(0, 20)
-	fill.position = Vector2(2, 2)
-	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var holder := Control.new()
-	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	holder.add_child(fill)
-	panel.add_child(holder)
+	# El texto arriba y la barra debajo.
+	var block := Control.new()
+	block.position = Vector2(-BAR_WIDTH * 0.5, y)
+	block.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	block.hide()
+	hud_root.add_child(block)
 	var label := Label.new()
+	label.size = Vector2(BAR_WIDTH, 20)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 14)
+	label.add_theme_font_size_override("font_size", 16)
+	label.add_theme_color_override("font_color", Color(1.0, 0.96, 0.92))
 	label.add_theme_color_override("font_outline_color", Color(0.03, 0.02, 0.03))
-	label.add_theme_constant_override("outline_size", 5)
-	panel.add_child(label)
-	return [panel, fill, label]
+	label.add_theme_constant_override("outline_size", 6)
+	block.add_child(label)
+	var back := ColorRect.new()
+	back.color = Color(0.05, 0.05, 0.07, 0.85)
+	back.position = Vector2(0, 22)
+	back.size = Vector2(BAR_WIDTH, BAR_HEIGHT)
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	block.add_child(back)
+	var fill := ColorRect.new()
+	fill.position = Vector2(2, 24)
+	fill.size = Vector2(0, BAR_HEIGHT - 4.0)
+	fill.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	block.add_child(fill)
+	return [block, fill, label]
 
-func _set_bar(panel: PanelContainer, fill: ColorRect, label: Label, text: String, ratio: float, color: Color) -> void:
-	panel.show()
+func _set_bar(block: Control, fill: ColorRect, label: Label, text: String, ratio: float, color: Color) -> void:
+	block.show()
 	label.text = text
-	fill.color = Color(color, 0.8)
-	fill.size = Vector2(296.0 * clampf(ratio, 0.0, 1.0), 20)
+	fill.color = Color(color, 0.9)
+	fill.size.x = (BAR_WIDTH - 4.0) * clampf(ratio, 0.0, 1.0)
 
 func _update_hud() -> void:
 	match alert:
 		Alert.ALARM:
 			var blink: bool = int(Time.get_ticks_msec() / 250) % 2 == 0
-			_set_bar(alarm_panel, alarm_fill, alarm_label, "¡ALARMA! · ESCÓNDETE", evasion_left / EVASION_TIME, ALARM_COLOR if blink else ALARM_COLOR.darkened(0.35))
+			_set_bar(alarm_panel, alarm_fill, alarm_label, "ALARMA", evasion_left / EVASION_TIME, ALARM_COLOR if blink else ALARM_COLOR.darkened(0.35))
 		Alert.CAUTION:
 			_set_bar(alarm_panel, alarm_fill, alarm_label, "PRECAUCIÓN", caution_left / CAUTION_TIME, CAUTION_COLOR)
 		_:
@@ -306,7 +312,7 @@ func _update_hud() -> void:
 		alarm_panel.hide()
 		cloak_panel.hide()
 	elif cloak_left > 0.0:
-		_set_bar(cloak_panel, cloak_fill, cloak_label, "INVISIBLE %.1f s" % cloak_left, cloak_left / CLOAK_TIME, CLOAK_COLOR)
+		_set_bar(cloak_panel, cloak_fill, cloak_label, "INVISIBLE %.1f s" % cloak_left, cloak_left / _cloak_time(), CLOAK_COLOR)
 	elif in_bush and reveal_left <= 0.0:
 		var charged: bool = bush_time >= CLOAK_CHARGE
 		_set_bar(cloak_panel, cloak_fill, cloak_label, "OCULTA · LISTA PARA SALIR" if charged else "OCULTA", bush_time / CLOAK_CHARGE, CLOAK_COLOR)

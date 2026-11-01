@@ -1,7 +1,7 @@
 extends Node2D
 
 # Disparo de la pistola (mejora del Gauntlet): bala rápida y recta que barre su trayecto cada frame.
-# Hereda de la lanza la punta perforante y el fuego.
+# Hereda de la lanza la punta perforante; el elemento del arma solo va en los disparos cargados.
 
 const SPEED := 2100.0
 const LIFE := 0.7
@@ -12,17 +12,17 @@ const COLOR := Color(1.0, 0.9, 0.55)
 var velocity := Vector2.ZERO
 var damage := 3
 var pierce_left := 0
-var burns := false
+var charged := false
 var hits: Array = []
 var life := LIFE
 var trail: Line2D
 
-func fire(start: Vector2, direction: Vector2, shot_damage: int, pierce: int, burn: bool) -> void:
+func fire(start: Vector2, direction: Vector2, shot_damage: int, pierce: int, carries_element: bool) -> void:
 	global_position = start
 	velocity = direction.normalized() * SPEED
 	damage = shot_damage
 	pierce_left = pierce
-	burns = burn
+	charged = carries_element
 	trail = Line2D.new()
 	trail.top_level = true
 	trail.width = 3.0
@@ -68,10 +68,8 @@ func _hit_enemies(from: Vector2, to: Vector2) -> bool:
 		if enemy.has_method("try_block") and enemy.try_block(from):
 			Sfx.play("block")
 			return true
-		enemy.take_hit(from, direction, damage)
-		if burns:
-			Upgrades.ignite(enemy)
-		Ferocity.add("pistol_hit", 6.0, "DISPARO")
+		enemy.take_hit(from, direction, Upgrades.strike(enemy, Upgrades.RANGED_SLOT if charged else "", damage))
+		Ferocity.add("pistol_hit", 3.0, "DISPARO")
 		Fx.impact(get_parent(), hit.position, Fx.SILVER, 0.7)
 		Sfx.play("hit_light")
 		if pierce_left <= 0:

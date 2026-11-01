@@ -8,15 +8,22 @@ const ENEMY_COLOR := Color(0.85, 0.25, 0.55)
 const ENEMY_CORE := Color(1.0, 0.75, 0.9)
 const REFLECTED_COLOR := Color(1.0, 0.8, 0.28)
 const REFLECTED_CORE := Color(1.0, 0.98, 0.82)
+const BULLET_COLOR := Color(1.0, 0.9, 0.55)
+const BULLET_LENGTH := 46.0
+# Más rápido que esto un disparo devuelto podría saltarse a un enemigo entre dos frames.
+const BULLET_MAX_SPEED := 1800.0
 
 var velocity := Vector2.ZERO
 var damage := 10
 var reflected_damage := 2
 var shooter: Node2D
+# Variante elemental del tirador: se lo aplica a Viridy al dañarla.
+var element := ""
 var parry_token := -1
 var reflected := false
 var life := 6.0
-# "orb" (bola de energía de los dummies) o "arrow" (flecha del guardián arquero).
+# "orb" (bola de energía de los dummies), "arrow" (flecha del guardián arquero) o "bullet" (bala de los
+# fusileros, igual a la de la pistola).
 var style := "orb"
 var fall_gravity := 0.0
 var glow: Polygon2D
@@ -44,8 +51,15 @@ func _ready() -> void:
 		add_child(core)
 		add_child(glow)
 		rotation = velocity.angle()
+	elif style == "bullet":
+		var tracer: Color = Upgrades.ELEMENTS[element]["color"] if element != "" else BULLET_COLOR
+		glow = _poly([Vector2(-BULLET_LENGTH, -3), Vector2(0, -3), Vector2(0, 3), Vector2(-BULLET_LENGTH, 3)], Color(tracer, 0.3))
+		core = _poly([Vector2(-BULLET_LENGTH, -1.5), Vector2(0, -1.5), Vector2(0, 1.5), Vector2(-BULLET_LENGTH, 1.5)], Color(tracer, 0.9))
+		add_child(glow)
+		add_child(core)
+		rotation = velocity.angle()
 	else:
-		glow = _circle(11.0, Color(ENEMY_COLOR, 0.45))
+		glow = _circle(11.0, Color(Upgrades.ELEMENTS[element]["color"] if element != "" else ENEMY_COLOR, 0.45))
 		core = _circle(6.0, ENEMY_CORE)
 		add_child(glow)
 		add_child(core)
@@ -68,8 +82,10 @@ func _physics_process(delta: float) -> void:
 		queue_free()
 		return
 	velocity.y += fall_gravity * delta
+	if style == "bullet" and _bullet_collides(delta):
+		return
 	global_position += velocity * delta
-	if style == "arrow":
+	if style != "orb":
 		rotation = velocity.angle()
 	else:
 		glow.scale = Vector2.ONE * (1.0 + 0.15 * sin(life * 20.0))
@@ -83,6 +99,23 @@ func _physics_process(delta: float) -> void:
 	if player and player.is_roar_aura_active() and global_position.distance_to(player.get_roar_center()) <= player.roar_radius + 6.0:
 		_reflect(player)
 
+func _bullet_collides(delta: float) -> bool:
+	# Barre el trayecto: a esta velocidad cruzaría a Viridy o una plataforma fina entre dos frames.
+	var from := global_position
+	var hit := get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(from, from + velocity * delta, 2 if reflected else 1 | 2))
+	if hit.is_empty():
+		return false
+	global_position = hit.position
+	if hit.collider.is_in_group(&"player"):
+		_on_body_entered(hit.collider)
+	else:
+		_destroy()
+	return true
+
+func _limit_bullet_speed() -> void:
+	if style == "bullet":
+		velocity = velocity.limit_length(BULLET_MAX_SPEED)
+
 func _on_body_entered(body: Node) -> void:
 	if body.has_method("is_wrath_aura_active") and body.is_wrath_aura_active():
 		_destroy()
@@ -93,7 +126,7 @@ func _on_body_entered(body: Node) -> void:
 		if body.is_roar_aura_active():
 			_reflect(body)
 			return
-		body.take_damage(Shine.damage(damage, shine_level), global_position)
+		body.take_damage(Shine.damage(damage, shine_level), global_position, null, element)
 		_destroy()
 		return
 	if body is StaticBody2D:
@@ -131,6 +164,7 @@ func _reflect(player: Node) -> void:
 	velocity = (goal - global_position).normalized() * max(velocity.length() * 2.0, 420.0)
 	if perfect:
 		velocity *= player.perfect_reflect_speed
+	_limit_bullet_speed()
 	fall_gravity = 0.0
 	life = 4.0
 	set_deferred("collision_mask", 2 | 8)
@@ -149,6 +183,7 @@ func _enemy_shine(by: Node2D) -> void:
 	if player:
 		goal = player.global_position + Vector2(0, -16)
 	velocity = (goal - global_position).normalized() * max(velocity.length() * 1.1, 520.0)
+	_limit_bullet_speed()
 	fall_gravity = 0.0
 	life = 4.0
 	set_deferred("collision_mask", 1 | 2)
@@ -163,6 +198,11 @@ func _apply_shine_look(player_side: bool) -> void:
 		glow.color = tint
 		glow.scale = Vector2.ONE * visual_scale
 		core.color = tint.lerp(Color(0.45, 0.3, 0.18), 0.5)
+	elif style == "bullet":
+		glow.color = Color(tint, 0.3)
+		core.color = Color(tint, 0.9)
+		glow.scale.y = visual_scale
+		core.scale.y = visual_scale
 	else:
 		glow.color = Color(tint, 0.45)
 		core.color = REFLECTED_CORE if player_side else ENEMY_CORE
@@ -175,6 +215,10 @@ func _apply_shine_look(player_side: bool) -> void:
 
 func _destroy() -> void:
 	Sfx.play("projectile_pop")
+	if style == "bullet":
+		Fx.impact(get_parent(), global_position, Fx.SILVER, 0.5)
+		queue_free()
+		return
 	Fx.puff(get_parent(), global_position, Shine.color(max(shine_level, 1), reflected) if shine_level > 0 else ENEMY_COLOR)
 	queue_free()
 

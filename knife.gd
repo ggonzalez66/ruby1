@@ -177,7 +177,7 @@ func _return_to_player(delta: float) -> void:
 		var damage := maxi(1, roundi(float(recall_damage) * pow(0.7, recall_hits.size())))
 		recall_hits.append(enemy)
 		var direction := 1 if player.global_position.x >= enemy.global_position.x else -1
-		enemy.take_hit(global_position, direction, damage)
+		enemy.take_hit(global_position, direction, Upgrades.strike(enemy, Upgrades.RANGED_SLOT, damage))
 		if enemy.has_method("pull_towards"):
 			enemy.pull_towards(player.global_position, PULL_STRENGTH)
 		elif enemy.has_method("on_shine_hit"):
@@ -282,9 +282,7 @@ func _pierce(enemy: Node2D) -> void:
 	# Lo atraviesa de paso y sigue volando.
 	pierce_left -= 1
 	recall_hits.append(enemy)
-	enemy.take_hit(global_position, 1 if velocity.x >= 0.0 else -1, PIERCE_DAMAGE + Upgrades.level("spear_pierce"))
-	if Upgrades.has("spear_burn"):
-		Upgrades.ignite(enemy)
+	enemy.take_hit(global_position, 1 if velocity.x >= 0.0 else -1, Upgrades.strike(enemy, Upgrades.RANGED_SLOT, PIERCE_DAMAGE + Upgrades.level("spear_pierce")))
 	Ferocity.add("knife_mark", 8.0, "LANZA JADE")
 	Fx.impact(get_parent(), _target_center(enemy), [FIRE_VISUAL.COLOR.darkened(0.6), FIRE_VISUAL.COLOR, Color(0.85, 1.0, 0.8)], 0.7)
 	Sfx.play("knife_hit")
@@ -295,8 +293,8 @@ func _stick_in_enemy(enemy: Node2D) -> void:
 		_enemy_shine(enemy)
 		return
 	Ferocity.add("knife_mark", 8.0, "LANZA JADE")
-	if Upgrades.has("spear_burn"):
-		Upgrades.ignite(enemy)
+	# Clavarse no hace daño, pero sí aplica el elemento del arma.
+	Upgrades.strike(enemy, Upgrades.RANGED_SLOT, 0)
 	# Una lanza clavada delata a Viridy aunque no quite vida.
 	var agent: Node = enemy.get_node_or_null("StealthAgent")
 	if agent != null:
