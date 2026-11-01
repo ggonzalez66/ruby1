@@ -1,8 +1,8 @@
 {
-  "verified_at_utc": "2026-11-01T14:17:37.534315+00:00",
+  "verified_at_utc": "2026-11-01T16:49:03.021934+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "source_base_commit": "364973fe9ed112e55564f25f6ae8e7ef2d832d7b",
-  "working_tree": "clean at source_base_commit: Gauntlet rubies, free pick and shop with 12 upgrades, elements, spirit allies, Metal Gear-style stealth with bushes, execution chains in the style log",
+  "source_base_commit": "ffbed90a0276be32dd67899bfc880f8f0c1b0e10",
+  "working_tree": "clean at source_base_commit: ranged arsenal with replace confirmation, Focus spell and Time Stop, round scaling, elemental enemy variants, faster alarm, rifleman pistol bullets, harder SSS",
   "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
   "scenes": [
     "main_menu",
@@ -32,8 +32,8 @@
     }
   },
   "gameplay_and_tools": {
-    "passed": 1396,
-    "total": 1396,
+    "passed": 1515,
+    "total": 1515,
     "runner": "tests/run_tests.sh"
   },
   "export_exit_codes": {
