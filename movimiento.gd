@@ -18,6 +18,20 @@ var execution_keep_sprint := false
 var execution_bonus := 0.0
 var execution_trajectory := 0
 var execution_air_boost_active := false
+# Cadena de ejecuciones: el log de estilo las agrupa ("+RUBY ABSORBIDO x3") mientras la siguiente llegue
+# antes de que se cierre la ventana (el DYING que el estallido da a los vecinos).
+const EXECUTION_CHAIN_WINDOW := 4.0
+var execution_chain := 0
+var execution_chain_timer := 0.0
+# Mejoras del Gauntlet.
+const PISTOL_SHOT_SCRIPT := preload("res://pistol_shot.gd")
+const PISTOL_COOLDOWN := 0.3
+const PISTOL_DAMAGE := 3
+const PISTOL_POSE_TIME := 0.12
+const STAMPEDE_RADIUS := 56.0
+const STAMPEDE_DAMAGE := 2
+const STAMPEDE_INTERVAL_MSEC := 500
+var stampede_hits := {}
 var heavy_morph_recovery_timer := 0.0
 enum ExecutionAirExit { NONE, LAUNCH, APEX_FLIP, UPPERCUT_RISE, UPPERCUT_FLIP, BOUNCE_FLIP }
 var execution_air_exit := ExecutionAirExit.NONE
@@ -513,6 +527,7 @@ var shine_idle_time := 0.0
 var shine_tint_ratio := -1.0
 # Rebotes del heavy aéreo encadenados sin tocar el suelo ("REBOTE x3").
 var bounce_chain := 0
+var screw_reflecting := false
 var dead := false
 # Inmovilizada en el suelo por un sabueso: no se mueve ni ataca y los demás pueden pegarle. Machacar el
 # ligero la suelta (y por seguridad se suelta sola a los PIN_MAX_TIME s).
@@ -815,6 +830,7 @@ func _physics_process(delta: float) -> void:
 	_update_execution_air_exit()
 	_update_attack_animation()
 	_destroy_projectiles_with_attack()
+	_update_stampede()
 	_update_riposte_visual()
 	_update_dash_visual()
 	_update_impact_wave_visual()
@@ -1402,6 +1418,9 @@ func _update_timers(delta: float) -> void:
 	roar_explosive_timer = max(roar_explosive_timer - delta, 0.0)
 	proud_roar_timer = max(proud_roar_timer - delta, 0.0)
 	uppercut_chain_timer = max(uppercut_chain_timer - delta, 0.0)
+	execution_chain_timer = max(execution_chain_timer - delta, 0.0)
+	if execution_chain_timer <= 0.0:
+		execution_chain = 0
 	charged_light_cancel_timer = max(charged_light_cancel_timer - delta, 0.0)
 	combo_buffer_timer = max(combo_buffer_timer - delta, 0.0)
 	if combo_buffer_timer <= 0.0:
@@ -1778,6 +1797,9 @@ func take_damage(amount: int, source_position: Vector2, attacker: Node = null) -
 		return
 	if _has_sss_iframes():
 		return
+	if _has_flip_iframes():
+		Fx.text(get_parent(), global_position + Vector2(0, -60), "¡ESQUIVA!", Color(0.7, 0.85, 1.0))
+		return
 	if invulnerability_timer > 0.0 or current_health <= 0:
 		return
 	if roar_active and attacker != null:
@@ -2074,7 +2096,7 @@ func _get_target_center(target: Node2D) -> Vector2:
 func can_be_pinned() -> bool:
 	if dead or pinned_by != null or execution_core != null or current_health <= 0:
 		return false
-	if wrath.invulnerable() or _is_roar_invincible() or _has_sss_iframes() or invulnerability_timer > 0.0:
+	if wrath.invulnerable() or _is_roar_invincible() or _has_sss_iframes() or _has_flip_iframes() or invulnerability_timer > 0.0:
 		return false
 	return true
 
@@ -2171,6 +2193,9 @@ func recall_spear() -> void:
 func _throw_spear() -> void:
 	if not has_knife or jade_fire_cooldown_timer > 0.0:
 		return
+	if Upgrades.has("pistol"):
+		_fire_pistol()
+		return
 	# Con el riposte disponible, lanzar la lanza cancela el rugido (igual que el heavy).
 	if roar_active and riposte_timer > 0.0:
 		_end_roar()
@@ -2225,6 +2250,24 @@ func try_soul_execution(target: Node2D) -> bool:
 	_queue_execution(core)
 	Stats.add("soul_executions")
 	return true
+
+func _fire_pistol() -> void:
+	# Mejora: reemplaza la lanza. Hereda la punta perforante y la lanza ardiente.
+	if roar_active and riposte_timer > 0.0:
+		_end_roar()
+	if _blocks_actions() or wall_embedded or _is_attack_active() or dash_timer > 0.0 or hurt_lock_timer > 0.0:
+		return
+	var damage: int = PISTOL_DAMAGE + Upgrades.level("spear_pierce")
+	if riposte_timer > 0.0:
+		damage *= 2
+	riposte_timer = 0.0
+	var shot: Node2D = PISTOL_SHOT_SCRIPT.new()
+	get_parent().add_child(shot)
+	shot.fire(global_position + Vector2(0, -26) + combo.aim_direction * 40.0, combo.aim_direction, damage, Upgrades.level("spear_pierce"), Upgrades.has("spear_burn"))
+	jade_fire_cooldown_timer = PISTOL_COOLDOWN
+	knife_throw_pose_timer = PISTOL_POSE_TIME
+	Sfx.play("pistol_shot")
+	_camera_kick(0.08)
 
 func on_knife_hit(point: Vector2) -> void:
 	Fx.impact(get_parent(), point, [Color(0.03, 0.16, 0.1), Color(0.22, 0.65, 0.43), Color(0.8, 1.0, 0.7)], 0.7)
@@ -2473,7 +2516,7 @@ func on_projectile_reflected(perfect: bool = false) -> void:
 	if perfect:
 		Fx.text(get_parent(), global_position + Vector2(0, -62), "¡PERFECTO!", Color(1.0, 0.95, 0.6))
 		_camera_kick(0.25, 0.02)
-	else:
+	elif not screw_reflecting:
 		# Los proyectiles gastan durabilidad (salvo en la perfect devolución).
 		_change_shine_durability(-shine_reflect_cost)
 
@@ -2552,7 +2595,44 @@ func _has_sss_iframes() -> bool:
 	# SSS: el heavy aéreo y el giro del dash attack son invulnerables hasta que terminan.
 	return Ferocity.rank >= SSS_RANK and (attack_mode == ATTACK_HEAVY or attack_mode == ATTACK_SPIN)
 
+func _has_flip_iframes() -> bool:
+	# Mejoras: invulnerable mientras gira el flip (no todo el salto).
+	if backflip_active and backflip_elapsed < backflip_rotation_duration and Upgrades.has("backflip_iframes"):
+		return true
+	return frontflip_active and frontflip_elapsed < frontflip_rotation_duration and Upgrades.has("frontflip_iframes")
+
+func _reflect_projectiles_with_screw() -> bool:
+	# Mejora: el screw attack devuelve lo que toca, sin gastar durabilidad ni depender del rango.
+	if attack_mode != ATTACK_SPIN or not Upgrades.has("screw_reflect"):
+		return false
+	var center: Vector2 = hitbox_shape.global_position
+	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
+		if projectile.get("reflected") == true or not projectile.has_method("_reflect"):
+			continue
+		if projectile.global_position.distance_to(center) <= 64.0:
+			screw_reflecting = true
+			projectile._reflect(self)
+			screw_reflecting = false
+	return true
+
+func _update_stampede() -> void:
+	# Mejora: correr en SSS a través de los enemigos los daña, cada uno cada medio segundo.
+	if not is_sprinting or Ferocity.rank < SSS_RANK or not Upgrades.has("sss_run"):
+		return
+	var now := Time.get_ticks_msec()
+	for enemy in get_tree().get_nodes_in_group(&"ruby_enemies"):
+		if not enemy.visible or now < int(stampede_hits.get(enemy.get_instance_id(), 0)):
+			continue
+		if _get_target_center(enemy).distance_to(global_position + Vector2(0, -26)) > STAMPEDE_RADIUS:
+			continue
+		stampede_hits[enemy.get_instance_id()] = now + STAMPEDE_INTERVAL_MSEC
+		enemy.take_hit(global_position, facing, int(round(STAMPEDE_DAMAGE * Ferocity.damage_multiplier())))
+		Fx.impact(get_parent(), _get_target_center(enemy), Fx.GOLD, 0.8)
+		Sfx.play("hit_light")
+
 func _destroy_projectiles_with_attack() -> void:
+	if _reflect_projectiles_with_screw():
+		return
 	# SSS: los ataques fuertes (heavy terrestre y aéreo, giro) destruyen proyectiles que tocan.
 	if Ferocity.rank < SSS_RANK or not attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN]:
 		return
@@ -3796,7 +3876,8 @@ func _hit_area(area: Area2D) -> void:
 		return
 
 	if area.has_method("take_hit"):
-		area.take_hit(global_position, facing, int(round(_get_attack_damage() * Ferocity.damage_multiplier())))
+		var damage: int = int(round(_get_attack_damage() * Ferocity.damage_multiplier()))
+		area.take_hit(global_position, facing, Upgrades.strike(area, _element_slot(), damage, attack_mode == ATTACK_HEAVY))
 		var heavy_hit: bool = attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN, ATTACK_UPPERCUT]
 		Sfx.play("hit_heavy" if heavy_hit else "hit_light")
 		# Más estilo, más impacto: los perseguidores salen despedidos más lejos.
@@ -3817,6 +3898,17 @@ func _hit_area(area: Area2D) -> void:
 		_bounce_after_hit.call_deferred()
 	elif attack_mode == ATTACK_SLASH and not is_on_floor():
 		_apply_light_hit_air_boost()
+
+func _element_slot() -> String:
+	# Tipo de ataque a efectos de los elementos de las mejoras.
+	match attack_mode:
+		ATTACK_HEAVY, ATTACK_HEAVY_GROUND:
+			return "heavy"
+		ATTACK_UPPERCUT:
+			return "uppercut"
+		ATTACK_SLASH:
+			return "light"
+	return ""
 
 func _bounce_after_hit() -> void:
 	if execution_core == null:
@@ -4203,6 +4295,8 @@ func _respawn_player() -> void:
 	shine_idle_time = 0.0
 	_emit_shine_changed()
 	bounce_chain = 0
+	execution_chain = 0
+	execution_chain_timer = 0.0
 	attack_buffered = false
 	combo_buffer = &""
 	uppercut_chain_timer = 0.0
@@ -4295,6 +4389,17 @@ func _align_execution_beast() -> void:
 	# El centro permanece en el núcleo, sin orbitar con la cabeza larga.
 	animated_sprite.position = to_local(execution_core.global_position)
 
+func register_execution(boss: bool) -> int:
+	# Un eslabón más de la cadena; en el Gauntlet cada uno da un rubí más que el anterior.
+	execution_chain += 1
+	execution_chain_timer = EXECUTION_CHAIN_WINDOW
+	if Upgrades.active:
+		var gained: int = Upgrades.chain_rubies(execution_chain, boss)
+		Upgrades.add_rubies(gained)
+		Fx.text(get_parent(), global_position + Vector2(0, -84), "+%d RUBÍ%s" % [gained, "" if gained == 1 else "ES"], Upgrades.RUBY_COLOR.lightened(0.25))
+		Sfx.play("ruby_gain", 0.0, 1.0 + 0.05 * minf(execution_chain - 1, 6))
+	return execution_chain
+
 func _finish_execution() -> void:
 	var core := execution_core
 	var boss: bool = core.boss
@@ -4307,7 +4412,10 @@ func _finish_execution() -> void:
 	ground_heavy_cooldown_timer = 0.0
 	animated_sprite.rotation = 0.0
 	heal((boss_execution_heal if boss else execution_heal) if final else critical_heal)
-	Ferocity.add("ruby_execution" if final else "ruby_critical", 50.0 if final else 35.0, "RUBY ABSORBIDO" if final else "NÚCLEO DAÑADO", Color(1.0, 0.25, 0.3))
+	if final:
+		Ferocity.add("ruby_execution", 50.0, "RUBY ABSORBIDO", Color(1.0, 0.25, 0.3), "execution", register_execution(boss))
+	else:
+		Ferocity.add("ruby_critical", 35.0, "NÚCLEO DAÑADO", Color(1.0, 0.25, 0.3))
 	_camera_kick(0.3, 0.025)
 	facing = execution_direction
 	bunnyhop_bonus = execution_bonus

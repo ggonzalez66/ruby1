@@ -311,6 +311,7 @@ func _shatter() -> void:
 	for core in captured:
 		if is_instance_valid(core) and core.complete_wrath(player, mouth):
 			player.heal(player.boss_execution_heal if core.boss else player.execution_heal)
+			player.register_execution(core.boss)
 	captured.clear()
 	Fx.shatter(player.get_parent(), mouth, Color(1.0, 0.1, 0.18), 70.0)
 	Sfx.play("wrath_shatter")

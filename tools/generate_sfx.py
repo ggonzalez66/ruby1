@@ -684,6 +684,47 @@ def wrath_shatter():
     return finish(mix(crystal, gain(shards, 0.65), gain(absorb, 0.5)), 0.82)
 
 
+def ruby_gain():
+    d = 0.3
+    a = mul(osc(0.16, 1320, "sine"), env(0.16, 0.002, 0.12))
+    b = delay(mul(osc(0.22, 1980, "sine"), env(0.22, 0.002, 0.18)), 0.06)
+    return finish(mix(a, gain(b, 0.8)), 0.6)
+
+
+def upgrade_pick():
+    a = mul(osc(0.14, 523, "square"), env(0.14, 0.002, 0.1))
+    b = delay(mul(osc(0.14, 784, "square"), env(0.14, 0.002, 0.1)), 0.09)
+    c = delay(mul(osc(0.3, 1047, "square"), env(0.3, 0.002, 0.24)), 0.18)
+    return finish(lowpass(mix(a, b, c), 3000), 0.6)
+
+
+def stealth_spot():
+    d = 0.42
+    shape = env(d, 0.004, 0.3, 3.0)
+    tone = mul(osc(d, lambda t: 420.0 + 900.0 * min(t / 0.08, 1.0), "saw"), shape)
+    return finish(lowpass(drive(tone, 2.0), 3200), 0.8)
+
+
+def alarm_siren():
+    d = 1.2
+    shape = env(d, 0.02, 1.0)
+    tone = mul(osc(d, lambda t: 620.0 + 260.0 * math.sin(math.pi * t / d), "saw"), shape)
+    return finish(bandpass(tone, 350, 2200), 0.7)
+
+
+def pistol_shot():
+    d = 0.2
+    crack = mul(highpass(noise(d, 901), 900), env(d, 0.001, 0.08, 4.0))
+    body = mul(osc(d, lambda t: 220.0 - 700.0 * t, "sine"), env(d, 0.001, 0.14))
+    return finish(drive(mix(crack, gain(body, 0.9)), 1.6), 0.85)
+
+
+def bush_rustle():
+    d = 0.4
+    leaves = mul(bandpass(noise(d, 902), 1800, 6500), tremolo(env(d, 0.05, 0.3), 19, 0.7))
+    return finish(leaves, 0.5)
+
+
 def ui_move():
     d = 0.04
     return finish(lowpass(mul(osc(d, 880, "square"), env(d, 0.001, 0.02)), 3500), 0.5)

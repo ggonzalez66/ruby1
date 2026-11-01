@@ -29,6 +29,8 @@ const MIX := {
 	"boss_swing": [-4.0, 0.06], "shockwave": [-2.0, 0.04], "boss_charge": [-4.0, 0.0], "boss_spin": [-4.0, 0.03],
 	"boss_dash": [-5.0, 0.06], "rapier": [-5.0, 0.1], "dagger_throw": [-6.0, 0.04], "bow_draw": [-11.0, 0.04],
 	"arrow_shot": [-4.0, 0.06], "rain_mark": [-11.0, 0.05], "arrow_rain": [-6.0, 0.03], "teleport": [-6.0, 0.03],
+	"ruby_gain": [-6.0, 0.0], "upgrade_pick": [-6.0, 0.0], "stealth_spot": [-4.0, 0.0], "alarm_siren": [-9.0, 0.0],
+	"pistol_shot": [-5.0, 0.06], "bush_rustle": [-8.0, 0.1],
 	"sun_hit": [-6.0, 0.06], "hawk_screech": [-7.0, 0.04], "hawk_dive": [-8.0, 0.05], "guard_break": [-3.0, 0.04],
 }
 # Sonidos en bucle (se arrancan con start_loop y se paran con stop_loop).

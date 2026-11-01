@@ -84,7 +84,7 @@ func reset_dummy() -> void:
 	super.reset_dummy()
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor() or state == State.DEAD:
+	if ruby_core.skips_tick() or state == State.DEAD:
 		return
 	flash_timer = max(flash_timer - delta, 0.0)
 	state_timer -= delta
@@ -146,6 +146,9 @@ func _sound_alarm(player: Node2D) -> void:
 	Sfx.play("boss_alert", 0.0, 1.4)
 	Fx.text(get_parent(), global_position + Vector2(0, -70), "¡ALARMA!", SIREN_COLOR.lightened(0.3))
 	Fx.parry_wave(get_parent(), global_position + Vector2(0, -30), 160.0, 0.5)
+	var stealth := get_tree().get_first_node_in_group(&"stealth_director")
+	if stealth != null:
+		stealth.trigger_alarm()
 	for enemy in get_tree().get_nodes_in_group(&"training_dummies"):
 		if enemy != self and enemy.has_method("alert") and enemy.global_position.distance_to(global_position) <= alarm_radius:
 			enemy.alert(alert_duration)

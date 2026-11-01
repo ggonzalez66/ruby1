@@ -29,6 +29,7 @@ var beam: Line2D
 var pulse_ring: Line2D
 
 func _init() -> void:
+	creature_kind = &"machine"
 	max_health = 14
 	detect_range = 700.0
 
@@ -85,7 +86,7 @@ func reset_dummy() -> void:
 	super.reset_dummy()
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor() or state == State.DEAD:
+	if ruby_core.skips_tick() or state == State.DEAD:
 		beam.default_color.a = 0.0
 		return
 	flight_time += delta

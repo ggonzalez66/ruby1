@@ -32,6 +32,7 @@ const HOSTILE_SPEED := 900.0
 const HOSTILE_DAMAGE := 10
 const HOSTILE_TIME := 2.5
 const RIPOSTE_COLOR := Color(1.0, 0.12, 0.08)
+const PIERCE_DAMAGE := 2
 
 enum State { FLYING, MARKED, RETURNING, HOSTILE, STUCK_WORLD }
 
@@ -67,6 +68,8 @@ var mark_effect: Node2D
 var burn_left := 1.0
 var burn_duration_left := BURN_DURATION
 var embedded_angle := 0.0
+# Punta perforante: enemigos que aún puede atravesar.
+var pierce_left := 0
 
 func _ready() -> void:
 	z_index = 2
@@ -95,6 +98,8 @@ func launch(owner_player: Node2D, start: Vector2, initial_velocity: Vector2) -> 
 	global_position = start
 	velocity = initial_velocity
 	state = State.FLYING
+	pierce_left = Upgrades.level("spear_pierce")
+	recall_damage += pierce_left
 	_point_along(velocity)
 
 func is_returning() -> bool:
@@ -258,7 +263,9 @@ func _fly(delta: float) -> void:
 	_point_along(velocity)
 	if state == State.FLYING:
 		var enemy := _find_enemy(recall_hits)
-		if enemy:
+		if enemy and pierce_left > 0:
+			_pierce(enemy)
+		elif enemy:
 			_stick_in_enemy(enemy)
 
 func _stick_in_world() -> void:
@@ -271,12 +278,29 @@ func _stick_in_world() -> void:
 	trail.clear_points()
 	Sfx.play("knife_hit")
 
+func _pierce(enemy: Node2D) -> void:
+	# Lo atraviesa de paso y sigue volando.
+	pierce_left -= 1
+	recall_hits.append(enemy)
+	enemy.take_hit(global_position, 1 if velocity.x >= 0.0 else -1, PIERCE_DAMAGE + Upgrades.level("spear_pierce"))
+	if Upgrades.has("spear_burn"):
+		Upgrades.ignite(enemy)
+	Ferocity.add("knife_mark", 8.0, "LANZA JADE")
+	Fx.impact(get_parent(), _target_center(enemy), [FIRE_VISUAL.COLOR.darkened(0.6), FIRE_VISUAL.COLOR, Color(0.85, 1.0, 0.8)], 0.7)
+	Sfx.play("knife_hit")
+
 func _stick_in_enemy(enemy: Node2D) -> void:
 	# Algunos enemigos lo shinean de vuelta en vez de dejar que se clave.
 	if enemy.has_method("try_shine") and enemy.try_shine(self):
 		_enemy_shine(enemy)
 		return
 	Ferocity.add("knife_mark", 8.0, "LANZA JADE")
+	if Upgrades.has("spear_burn"):
+		Upgrades.ignite(enemy)
+	# Una lanza clavada delata a Viridy aunque no quite vida.
+	var agent: Node = enemy.get_node_or_null("StealthAgent")
+	if agent != null:
+		agent.on_attacked()
 	if player and player.has_method("on_knife_hit"):
 		player.on_knife_hit(global_position)
 	state = State.MARKED

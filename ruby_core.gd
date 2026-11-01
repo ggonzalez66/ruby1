@@ -35,10 +35,15 @@ var parried_attacks := {}
 var stolen := false
 var stasis_mode := Node.PROCESS_MODE_INHERIT
 var stasis_tint := Color.WHITE
+# Lo mueve su agente de sigilo: la IA propia no corre hasta que descubre a Viridy.
+var ai_suspended := false
+# Ralentizado por hielo: se salta un tick de cada dos.
+var slow_skip := false
 
 func _ready() -> void:
 	enemy = get_parent()
 	spawn_grace_left = maxf(float(enemy.get_meta(&"spawn_grace", 0.0)), 0.0)
+	ai_suspended = enemy.has_meta(&"stealth_agent")
 	boss = enemy.is_in_group(&"boss")
 	enemy.add_to_group(&"ruby_enemies")
 	position = enemy.impact_offset
@@ -77,6 +82,22 @@ func is_open() -> bool:
 
 func holds_actor() -> bool:
 	return locked or dying or final_open or open_time > 0.0 or stagger_left > 0.0 or spawn_grace_left > 0.0
+
+func skips_tick() -> bool:
+	return holds_actor() or ai_suspended or slow_skip
+
+func apply_element_burn(damage: int) -> void:
+	# Fuego de las mejoras: a diferencia de la quemadura de la lanza, sí puede dejarlo en DYING.
+	if boss:
+		apply_spirit_burn(damage)
+		return
+	if not alive() or locked or dying:
+		return
+	enemy.current_health = maxi(enemy.current_health - maxi(damage, 0), 0)
+	enemy._update_health_bar()
+	queue_redraw()
+	if enemy.current_health == 0:
+		enter_dying()
 
 func apply_spirit_burn(damage: int) -> int:
 	# La quemadura no cuenta como golpe: no empuja, rompe guardia ni corta ataques.
@@ -123,7 +144,12 @@ func enter_final_open() -> void:
 	Fx.text(enemy.get_parent(), global_position + Vector2(0, -100), "¡ROMPE EL RUBY!", RED.lightened(0.3))
 
 func is_executable() -> bool:
-	return alive() and not locked and (is_open() or dying)
+	return alive() and not locked and (is_open() or dying or _sneak_exposed())
+
+func _sneak_exposed() -> bool:
+	# Sigilo: sin saberse descubierto (o con Viridy invisible) se le puede ejecutar a cualquier enemigo normal.
+	var agent: Node = enemy.get_node_or_null("StealthAgent")
+	return agent != null and agent.can_be_assassinated()
 
 func enter_dying() -> void:
 	if boss or dying or broken:

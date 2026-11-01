@@ -87,7 +87,7 @@ func reset_dummy() -> void:
 	super.reset_dummy()
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor() or state == State.DEAD:
+	if ruby_core.skips_tick() or state == State.DEAD:
 		laser.default_color.a = 0.0
 		return
 	flash_timer = max(flash_timer - delta, 0.0)

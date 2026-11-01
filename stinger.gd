@@ -17,6 +17,7 @@ var orbit_wait := 0.0
 var aim_line: Line2D
 
 func _init() -> void:
+	creature_kind = &"machine"
 	max_health = 3
 	dive_speed = 820.0
 	dive_overshoot = 90.0
@@ -73,7 +74,7 @@ func reset_dummy() -> void:
 	orbit_wait = randf_range(1.2, 2.6)
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor() or state == State.DEAD:
+	if ruby_core.skips_tick() or state == State.DEAD:
 		aim_line.default_color.a = 0.0
 		return
 	flight_time += delta

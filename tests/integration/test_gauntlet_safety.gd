@@ -35,7 +35,7 @@ func _run() -> void:
 	var shield: Node2D
 	for enemy in director.enemies:
 		var script_path: String = enemy.get_script().resource_path
-		check(enemy.ruby_core.spawn_grace_left > 1.8 and enemy.ruby_core.holds_actor(), "%s aparece con dos segundos de preparación" % script_path.get_file())
+		check(enemy.ruby_core.spawn_grace_left == 0.0 and enemy.ruby_core.skips_tick(), "%s aparece sin preparación y sin saber nada" % script_path.get_file())
 		match script_path.get_file():
 			"chaser_dummy.gd":
 				if chaser == null:
@@ -43,19 +43,24 @@ func _run() -> void:
 			"hawk.gd": hawk = enemy
 			"training_dummy.gd": shooter = enemy
 			"shield_bearer.gd": shield = enemy
-	check(chaser != null and hawk != null and shooter != null and shield != null, "la preparación cubre los cuatro tipos de enemigo")
-	player.position = chaser.global_position + Vector2(30, -2)
+	check(chaser != null and hawk != null and shooter != null and shield != null, "el sigilo cubre los cuatro tipos de enemigo")
+	# Por la espalda y lejos del resto: sin descubrirla, nadie combate.
+	var agent: Node = chaser.get_node("StealthAgent")
+	agent._turn(-1)
+	agent.timer = 999.0
+	player.position = chaser.global_position + Vector2(60, -2)
 	# Debajo de la plataforma: al vencer la gracia debe tener línea de visión despejada.
 	hawk.position = player.position + Vector2(0, -90)
 	hawk.home = hawk.position
 	var health: int = player.current_health
 	var shot_time: float = shooter.shoot_timer
 	await frames(60)
-	check(chaser.state == chaser.State.IDLE and hawk.state == hawk.State.PATROL and is_equal_approx(shooter.shoot_timer, shot_time), "durante la preparación no persiguen, se lanzan ni preparan disparos")
+	check(chaser.state == chaser.State.IDLE and is_equal_approx(shooter.shoot_timer, shot_time), "sin descubrirla no persiguen ni preparan disparos")
 	check(player.current_health == health and get_nodes_in_group(&"projectiles").is_empty(), "no golpean al aparecer aunque Viridy esté al lado")
-	check(director.counter_label.text.contains("PREPARACIÓN"), "el HUD muestra el tiempo de preparación")
-	await frames(80)
-	check(chaser.ruby_core.spawn_grace_left == 0.0 and chaser.state != chaser.State.IDLE and hawk.state != hawk.State.PATROL, "al terminar el margen vuelven a detectar y combatir")
+	check(not director.counter_label.text.contains("PREPARACIÓN"), "la oleada ya no tiene tiempo de preparación")
+	agent._turn(1)
+	await frames(60)
+	check(chaser.state != chaser.State.IDLE, "al descubrirla vuelve a combatir")
 	director._clear_wave()
 	director.phase = director.Phase.BOSS_INTRO
 	director.phase_timer = 0.0
@@ -67,7 +72,10 @@ func _run() -> void:
 	current_scene.get_node("BossSpawner").clear_bosses()
 	director.phase = director.Phase.BOSS
 	director.on_bosses_defeated()
-	await frames(30)
+	await frames(110)
+	check(director.upgrade_menu.is_open(), "al ganar se abre la pantalla de mejoras")
+	director.upgrade_menu.close()
+	await frames(3)
 	var portal: Area2D = director.portals.filter(func(p): return p.label_text == "TERMINAR")[0]
 	check(portal.confirm_finish, "el portal de terminar requiere confirmación")
 	player.position = portal.position + Vector2(0, -2)

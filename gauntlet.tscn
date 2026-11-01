@@ -68,9 +68,9 @@ script = ExtResource("9_checkpoint")
 [node name="SignGauntlet" type="Node2D" parent="."]
 position = Vector2(60, 0)
 script = ExtResource("14_sign")
-text = "Elige un arma suspendida con {move_up}. El portal azul inicia el reloj y la primera oleada.
-Acaba con los enemigos y después con el guardián.
-Al ganar, el portal de la derecha sigue a la siguiente ronda y el de la izquierda termina."
+text = "Los enemigos no saben que estás aquí: entra por su espalda y ejecútalos con un pesado.
+Si te descubren se carga la alarma: huye o escóndete en un bush.
+Al vencer al guardián eliges una mejora y gastas tus rubíes. El portal de la derecha sigue a la siguiente ronda y el de la izquierda termina."
 title = "Gauntlet"
 panel_width = 380
 

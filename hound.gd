@@ -79,6 +79,11 @@ func reset_dummy() -> void:
 	cooldown = 0.0
 	super.reset_dummy()
 
+func on_ai_sleep() -> void:
+	_drop_pin()
+	airborne = false
+	air_velocity = Vector2.ZERO
+
 func holds_pin() -> bool:
 	return pinning and state != State.DEAD and not (ruby_core != null and (ruby_core.dying or ruby_core.holds_actor()))
 
@@ -94,7 +99,7 @@ func on_pin_released(escaped: bool) -> void:
 	visual.rotation = 0.0
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor():
+	if ruby_core.skips_tick():
 		return
 	if state == State.DEAD:
 		return

@@ -87,7 +87,7 @@ func _build_ui() -> void:
 	bar.add_child(name_label)
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor():
+	if ruby_core.holds_actor() or ruby_core.slow_skip:
 		return
 	flash_timer = max(flash_timer - delta, 0.0)
 	for index in range(flash_polys.size()):

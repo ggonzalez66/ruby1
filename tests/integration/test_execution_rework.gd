@@ -67,6 +67,32 @@ func _run() -> void:
 	await wait_execution()
 	check(first.ruby_core.broken and second.ruby_core.dying and second.ruby_core.dying_left > second.ruby_core.DYING_TIME - 0.1, "el vecino en DYING vuelve a tener los cuatro segundos")
 	check(second.visible and second.ruby_core.is_executable(), "y sigue ejecutable para encadenar")
+
+	print("== La cadena de ejecuciones se agrupa en el log de estilo")
+	var chain_logs: Array = []
+	var on_logged := func(text: String, _color: Color, _stale: bool, chain: String, count: int) -> void:
+		chain_logs.append([text, chain, count])
+	style.logged.connect(on_logged)
+	check(player.execution_chain == 1, "la primera ejecución abre la cadena (%d)" % player.execution_chain)
+	var freshness: float = style.freshness.get("ruby_execution", 1.0)
+	player.attack_mode = player.ATTACK_HEAVY_GROUND
+	player.attack_targets_hit.clear()
+	player._hit_area(second)
+	await wait_execution()
+	check(second.ruby_core.broken and player.execution_chain == 2, "el vecino encadena (x%d)" % player.execution_chain)
+	check(chain_logs.any(func(entry): return entry == ["+RUBY ABSORBIDO", "execution", 2]), "el log recibe RUBY ABSORBIDO x2 en la cadena %s" % [chain_logs])
+	check(freshness < 1.0, "encadenar sigue rindiendo menos estilo (la segunda vale un %d %%)" % roundi(freshness * 100.0))
+	var hud: Node = load("res://ferocity_hud.gd").new()
+	root.add_child(hud)
+	await frames(1)
+	hud._on_logged("+RUBY ABSORBIDO", Color.RED, false, "execution", 1)
+	hud._on_logged("+RUBY ABSORBIDO", Color.RED, false, "execution", 2)
+	check(hud.logs.size() == 1 and hud.logs[0]["label"].text.begins_with("+RUBY ABSORBIDO x2"), "el HUD muestra una sola línea con x2")
+	hud.queue_free()
+	style.logged.disconnect(on_logged)
+	player.execution_chain_timer = 0.01
+	await frames(2)
+	check(player.execution_chain == 0, "sin ejecutar en la ventana, la cadena se corta")
 	first.queue_free()
 	second.queue_free()
 	player._respawn_player()

@@ -116,7 +116,7 @@ func reset_dummy() -> void:
 	_update_health_bar()
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor():
+	if ruby_core.holds_actor() or ruby_core.slow_skip:
 		return
 	if current_health <= 0:
 		return
@@ -134,7 +134,7 @@ func _physics_process(delta: float) -> void:
 	position = anchor_position + pull_offset + Vector2(0.0, fall_offset) + _get_path_offset() + juggle_offset + Vector2(wobble * push_distance, -abs(wobble) * lift_distance)
 	rotation = wobble * 0.08
 	body.color = hit_color if flash_timer > 0.0 else base_color
-	if shoot_interval > 0.0:
+	if shoot_interval > 0.0 and not ruby_core.ai_suspended:
 		_update_shooting(delta)
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:

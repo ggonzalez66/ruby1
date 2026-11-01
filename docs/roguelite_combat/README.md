@@ -56,6 +56,8 @@ Queda como alternativa una v1 de 3 frames hecha con SD (`viridy_kick1_arcade.png
 - **Lanza:** recuperar la lanza clavada en un enemigo OPEN o DYING teletransporta a Viridy y lo ejecuta.
 - **Recompensa:** curación, mucha Ferocity, dash disponible, y se devuelven el doble salto y el uppercut aéreo. Si DYING expira, el enemigo muere sin recompensa.
 - **Cadena:** el estallido de una ejecución reinicia a 4 s el DYING de los vecinos dentro de su radio («¡CADENA!»), en vez de restarles tiempo. El estallido de un DYING que expira solo los golpea.
+- **Rubíes (Gauntlet):** cada eslabón de la cadena da uno más (1, 2, 3…) y un guardián da 10. Ver [sigilo y mejoras](../art/stealth/README.md).
+- **Log de estilo:** las ejecuciones seguidas (menos de 4 s entre una y otra) se agrupan en una sola línea, «+RUBY ABSORBIDO x2, x3…», con destello dorado. Cada una sigue rindiendo menos estilo por repetición.
 - **Jefes:** conservan postura, críticos y ventana final; los ejecuta cualquier pesado.
 - **Stagger** (patadas): interrumpe y aturde; no abre el rubí.
 
@@ -76,7 +78,7 @@ Perseguidor, escudero y halcón usan sprites de autómatas (`enemy_skin.gd`, `to
 ## Validación
 
 - `test_unarmed_combat.gd`: combo de 5, embestida y picada con la cabeza de león, sostén aéreo solo al conectar, Aim + RT, recall con LT, estados del rubí y ejecución por pesado.
-- `test_execution_rework.gd`: cadena de DYING, expiración sin cadena, recursos aéreos devueltos y Wrath sin transformación.
+- `test_execution_rework.gd`: cadena de DYING y su línea agrupada en el log de estilo, expiración sin cadena, recursos aéreos devueltos y Wrath sin transformación.
 - `test_attack_phases.gd`: daño por fase de los cinco ligeros, buffer, poses y cola del pesado.
 - `test_dying_interactions.gd`: recall ordenado, ejecución real de los cuatro enemigos pequeños, golpes en DYING y parry con B y LB.
 - `test_jade_soul_pull.gd`, `test_spirit_spear.gd`, `test_shine_shield.gd`: teleejecución en OPEN y DYING, shine lanza.

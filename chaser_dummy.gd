@@ -145,7 +145,7 @@ func reset_dummy() -> void:
 	_update_health_bar()
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor():
+	if ruby_core.skips_tick():
 		return
 	if state == State.DEAD:
 		return

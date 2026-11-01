@@ -32,6 +32,8 @@ const CONTACT_RADIUS := 30.0
 enum State { PATROL, WATCH, DIVE, CLIMB, STAGGER, DEAD }
 
 var impact_offset := Vector2.ZERO
+# Tipo para los elementos: el fuego es eficaz contra bestias y la electricidad contra máquinas.
+var creature_kind := &"beast"
 var state := State.PATROL
 var state_timer := 0.0
 var current_health := 0
@@ -147,7 +149,7 @@ func reset_dummy() -> void:
 	_update_health_bar()
 
 func _physics_process(delta: float) -> void:
-	if ruby_core.holds_actor():
+	if ruby_core.skips_tick():
 		return
 	if state == State.DEAD:
 		return

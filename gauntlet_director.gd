@@ -10,6 +10,9 @@ extends Node2D
 # Si Rengar muere se acaba: tras un momento aparece la pantalla de fin con las oleadas sobrevividas y
 # "Empezar de nuevo" (sin checkpoint; la pausa permite reiniciar la etapa completa).
 # Junto al reloj se muestra la oleada actual y los enemigos que quedan por matar.
+# Los enemigos de la oleada empiezan sin saber nada (stealth_director.gd, stealth_agent.gd): no hace falta
+# margen de preparación; los guardianes sí lo tienen. Al superar la ronda, y antes de los portales, se
+# abre la pantalla de mejoras (upgrade_menu.gd), que se paga con los rubíes de las ejecuciones.
 
 const CHASER_SCRIPT := preload("res://chaser_dummy.gd")
 const DUMMY_SCENE := preload("res://training_dummy.tscn")
@@ -21,6 +24,13 @@ const SENTINEL_SCRIPT := preload("res://sentinel.gd")
 const RIFLEMAN_SCRIPT := preload("res://rifleman.gd")
 const STINGER_SCRIPT := preload("res://stinger.gd")
 const RESTORER_SCRIPT := preload("res://restorer.gd")
+const STEALTH_SCRIPT := preload("res://stealth_director.gd")
+const AGENT_SCRIPT := preload("res://stealth_agent.gd")
+const UPGRADE_MENU_SCRIPT := preload("res://upgrade_menu.gd")
+const SPIRIT_HAWK_SCRIPT := preload("res://spirit_hawk.gd")
+const SPIRIT_HOUND_SCRIPT := preload("res://spirit_hound.gd")
+# Pocos bushes: tres en el suelo de la arena.
+const BUSH_SPOTS := [1820.0, 2830.0, 3640.0]
 # Plataformas altas de la arena donde aparecen enemigos en las oleadas mayores: [x, altura del suelo de
 # la plataforma respecto al suelo, piso (1 = la más baja)].
 const UPPER_SPOTS := [
@@ -35,7 +45,7 @@ const UPPER_SPOTS := [
 	[1560.0, -1120.0, 7], [4260.0, -1120.0, 7],
 ]
 
-enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE }
+enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE, REWARD }
 
 @export var arena_min_x := 1400.0
 @export var arena_max_x := 4100.0
@@ -46,6 +56,7 @@ enum Phase { WAVE, BOSS_INTRO, BOSS, PORTALS, DONE }
 @export var right_portal_x := 4150.0
 @export var death_screen_delay := 2.5
 @export var spawn_grace_time := 2.0
+@export var reward_delay := 1.0
 
 var round_number := 1
 var phase := Phase.WAVE
@@ -59,11 +70,24 @@ var counter_label: Label
 # Rondas completadas (oleada + guardián vencidos).
 var rounds_cleared := 0
 var spawn_grace_left := 0.0
+var stealth: Node2D
+var upgrade_menu: CanvasLayer
+var rubies_label: Label
+var allies := {}
 
 func _ready() -> void:
 	add_to_group(&"gauntlet_director")
 	spawner = get_node(spawner_path)
+	Upgrades.begin_run()
 	_build_banner()
+	stealth = STEALTH_SCRIPT.new()
+	add_child(stealth)
+	var bush_points: Array = BUSH_SPOTS.map(func(x): return Vector2(x, ground_y))
+	stealth.spawn_bushes(bush_points, get_parent())
+	upgrade_menu = UPGRADE_MENU_SCRIPT.new()
+	add_child(upgrade_menu)
+	upgrade_menu.closed.connect(_on_upgrades_closed)
+	Upgrades.rubies_changed.connect(_on_rubies_changed)
 	_start.call_deferred()
 
 func _start() -> void:
@@ -73,6 +97,9 @@ func _start() -> void:
 		player.died.connect(_on_player_died)
 	_start_wave()
 
+func _exit_tree() -> void:
+	Upgrades.end_run()
+
 func _process(_delta: float) -> void:
 	_update_counter()
 
@@ -80,9 +107,11 @@ func _physics_process(delta: float) -> void:
 	spawn_grace_left = maxf(spawn_grace_left - delta, 0.0)
 	match phase:
 		Phase.WAVE:
+			_call_down_stragglers()
 			if not enemies.is_empty() and _alive_enemies() == 0:
 				phase = Phase.BOSS_INTRO
 				phase_timer = boss_intro_time
+				stealth.stand_down()
 				_show_banner("¡SE ACERCA EL GUARDIÁN!", Color(1.0, 0.75, 0.4))
 		Phase.BOSS_INTRO:
 			phase_timer -= delta
@@ -90,6 +119,11 @@ func _physics_process(delta: float) -> void:
 				phase = Phase.BOSS
 				spawn_grace_left = spawn_grace_time
 				spawner.spawn_round()
+		Phase.REWARD:
+			phase_timer -= delta
+			if phase_timer <= 0.0 and not upgrade_menu.is_open():
+				phase = Phase.PORTALS
+				upgrade_menu.open()
 
 # ---------- Rondas
 
@@ -98,7 +132,9 @@ func _start_wave() -> void:
 	_clear_portals()
 	spawner.clear_bosses()
 	phase = Phase.WAVE
-	spawn_grace_left = spawn_grace_time
+	spawn_grace_left = 0.0
+	stealth.begin_wave()
+	_sync_allies()
 	# Ningún proyectil de la ronda anterior puede golpear durante la preparación.
 	for projectile in get_tree().get_nodes_in_group(&"projectiles"):
 		projectile.queue_free()
@@ -230,7 +266,9 @@ func _add_shooter(at: Vector2, aerial: bool, aim_down: float) -> void:
 	_add_enemy(dummy)
 
 func _add_enemy(enemy: Node2D) -> void:
-	enemy.set_meta(&"spawn_grace", spawn_grace_time)
+	# Empieza sin saber nada: su agente lo mueve hasta que descubre a Viridy.
+	enemy.set_meta(&"stealth_agent", true)
+	enemy.add_child(AGENT_SCRIPT.new())
 	get_parent().add_child.call_deferred(enemy)
 	enemies.append(enemy)
 
@@ -243,15 +281,56 @@ func _alive_enemies() -> int:
 			alive += 1
 	return alive
 
+func _call_down_stragglers() -> void:
+	# Si solo quedan voladores, bajan a por Viridy aunque no la hayan visto.
+	var flyers: Array = []
+	for enemy in enemies:
+		if not is_instance_valid(enemy) or not enemy.is_inside_tree() or not enemy.visible:
+			continue
+		var agent: Node = enemy.get_node_or_null("StealthAgent")
+		if agent == null or agent.enemy == null:
+			return
+		if agent.mover != agent.Mover.FLY:
+			return
+		flyers.append(agent)
+	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	if player != null:
+		for agent in flyers:
+			agent.call_down(player.global_position)
+
 func on_bosses_defeated() -> void:
 	# Lo llaman los guardianes al caer el último (en vez de la pantalla de fin).
 	if phase != Phase.BOSS:
 		return
-	phase = Phase.PORTALS
+	phase = Phase.REWARD
+	phase_timer = reward_delay
 	rounds_cleared = round_number
 	_show_banner("¡RONDA %d SUPERADA!" % round_number, Color(0.6, 1.0, 0.6))
+
+func _on_upgrades_closed() -> void:
+	_sync_allies()
 	_spawn_portal(left_portal_x, "TERMINAR", Color(1.0, 0.55, 0.35), _finish)
 	_spawn_portal(right_portal_x, "SEGUIR", Color(0.4, 0.8, 1.0), _next_round)
+
+func _sync_allies() -> void:
+	# Los aliados comprados aparecen junto a Viridy y duran toda la partida.
+	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	if player == null:
+		return
+	for pair in [["spirit_hawk", SPIRIT_HAWK_SCRIPT, Vector2(-60, -110)], ["spirit_hound", SPIRIT_HOUND_SCRIPT, Vector2(-70, 0)]]:
+		if Upgrades.has(pair[0]) and not is_instance_valid(allies.get(pair[0])):
+			var ally: Node2D = pair[1].new()
+			ally.position = player.global_position + pair[2]
+			get_parent().add_child.call_deferred(ally)
+			allies[pair[0]] = ally
+
+func _on_rubies_changed(total: int, gained: int) -> void:
+	rubies_label.text = "RUBÍES: %d" % total
+	if gained > 0:
+		rubies_label.pivot_offset = rubies_label.size * 0.5
+		var tween := rubies_label.create_tween()
+		tween.tween_property(rubies_label, "scale", Vector2.ONE * 1.3, 0.08)
+		tween.tween_property(rubies_label, "scale", Vector2.ONE, 0.16)
 
 func _next_round() -> void:
 	round_number += 1
@@ -268,6 +347,7 @@ func _finish() -> void:
 
 func _on_player_died() -> void:
 	RunSession.finish_stage()
+	stealth.stand_down()
 	# Sin checkpoint: tras un momento, pantalla de fin con lo sobrevivido.
 	if phase == Phase.DONE:
 		return
@@ -324,11 +404,11 @@ func _update_counter() -> void:
 				if not boss.is_defeated():
 					standing += 1
 			text += "  ·  GUARDIANES: %d" % standing
-		Phase.PORTALS:
+		Phase.PORTALS, Phase.REWARD:
 			text += "  ·  ¡SUPERADA!"
 		Phase.DONE:
 			text += "  ·  FIN"
-	if phase in [Phase.WAVE, Phase.BOSS] and spawn_grace_left > 0.0:
+	if phase == Phase.BOSS and spawn_grace_left > 0.0:
 		text += "  ·  PREPARACIÓN: %.1f s" % spawn_grace_left
 	counter_label.text = text
 
@@ -356,13 +436,21 @@ func _build_banner() -> void:
 	counter_label = Label.new()
 	counter_label.add_theme_font_size_override("font_size", 16)
 	counter_label.add_theme_color_override("font_color", Color(0.93, 1.0, 0.86))
-	counter_panel.add_child(counter_label)
+	var counter_row := HBoxContainer.new()
+	counter_row.add_theme_constant_override("separation", 14)
+	counter_panel.add_child(counter_row)
+	counter_row.add_child(counter_label)
+	rubies_label = Label.new()
+	rubies_label.text = "RUBÍES: 0"
+	rubies_label.add_theme_font_size_override("font_size", 16)
+	rubies_label.add_theme_color_override("font_color", Upgrades.RUBY_COLOR.lightened(0.25))
+	counter_row.add_child(rubies_label)
 	counter_panel.resized.connect(func(): counter_panel.position.x = -counter_panel.size.x * 0.5)
 	banner = Label.new()
 	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	banner.set_anchors_preset(Control.PRESET_CENTER_TOP)
 	banner.size = Vector2(800, 60)
-	banner.position = Vector2(-400, 110)
+	banner.position = Vector2(-400, 158)
 	banner.add_theme_font_size_override("font_size", 38)
 	banner.add_theme_color_override("font_outline_color", Color(0.1, 0.04, 0.02))
 	banner.add_theme_constant_override("outline_size", 10)

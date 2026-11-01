@@ -45,7 +45,7 @@ const PRIDE_GAIN := 10.0
 const ACROBATIC_RANK_LIMIT := 4
 const ACROBATIC_KEYS := ["frontflips", "backflips", "bunnyhops", "running_walljumps", "wallride", "mantles", "wall_embeds", "bounce", "running_bounce"]
 # Acciones de daño débiles: llenan la barra pero nunca suben de rango.
-const WEAK_KEYS := ["light_hit", "dash_attack", "air_hit_weak"]
+const WEAK_KEYS := ["light_hit", "dash_attack", "air_hit_weak", "pistol_hit"]
 const DRAIN_BASE := 2.0
 const DRAIN_PER_POINT := 0.045
 const DRAIN_GRACE := 0.8

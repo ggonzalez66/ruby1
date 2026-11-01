@@ -21,6 +21,8 @@
 | Ruby, apertura, postura, crítico, remate y stasis | `ruby_core.gd`, `boss_base.gd` |
 | Ultimate | `wrath_of_nature.gd` |
 | Fuego jade, Soul pull y marca | `knife.gd`, `jade_mark.gd`, `jade_fire_visual.gd` |
+| Rubíes, mejoras y elementos del Gauntlet | `run_upgrades.gd`, `upgrade_menu.gd`, `element_status.gd`, `spirit_*.gd` |
+| Sigilo del Gauntlet | `stealth_director.gd`, `stealth_agent.gd`, `bush.gd` |
 | Enemigos y desplazamiento contra terreno | `hawk.gd`, `chaser_dummy.gd`, `shield_bearer.gd`, `training_dummy.gd`, `enemy_launch_motion.gd` |
 | Estilo, reloj, fantasmas y récords | `ferocity.gd`, `run_session.gd` |
 | Presentación, audio y opciones | `fx.gd`, `shine.gd`, `sfx.gd`, `pause_menu.gd`, `hud.gd` |

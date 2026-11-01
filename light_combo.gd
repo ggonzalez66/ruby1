@@ -259,7 +259,7 @@ func _strike() -> void:
 			return
 		var damage := maxi(1, roundi(float(move.damage) * Ferocity.damage_multiplier() * (2.0 if player.riposte_attack else 1.0)))
 		var direction := 1 if enemy.global_position.x >= player.global_position.x else -1
-		enemy.take_hit(player.global_position, direction, damage)
+		enemy.take_hit(player.global_position, direction, Upgrades.strike(enemy, "light", damage))
 		var core: Node = enemy.get_node_or_null("RubyCore")
 		if core != null:
 			core.stagger(float(move.stagger))
@@ -295,8 +295,14 @@ func _draw() -> void:
 	if aim:
 		var origin := Vector2(0, -26)
 		var end := origin + aim_direction * 165.0
-		draw_line(origin + aim_direction * 40, end, Color(0.5, 1, 0.75, 0.6), 2, true)
-		draw_arc(end, 8, 0, TAU, 16, Color(0.8, 1, 0.65), 2, true)
+		var pistol: bool = Upgrades.has("pistol")
+		draw_line(origin + aim_direction * 40, end, Color(1.0, 0.85, 0.5, 0.6) if pistol else Color(0.5, 1, 0.75, 0.6), 2, true)
+		draw_arc(end, 8, 0, TAU, 16, Color(1.0, 0.9, 0.6) if pistol else Color(0.8, 1, 0.65), 2, true)
+		if pistol:
+			# La pistola en la mano, apuntando.
+			var side := aim_direction.orthogonal()
+			draw_colored_polygon(PackedVector2Array([origin + aim_direction * 16 + side * 4, origin + aim_direction * 40 + side * 4, origin + aim_direction * 40 - side * 3, origin + aim_direction * 16 - side * 3]), Color(0.22, 0.23, 0.27))
+			draw_colored_polygon(PackedVector2Array([origin + aim_direction * 18 - side * 3, origin + aim_direction * 26 - side * 3, origin + aim_direction * 24 - side * 12, origin + aim_direction * 16 - side * 12]), Color(0.35, 0.22, 0.14))
 	if phase == Phase.ACTIVE and move.kind == "kick":
 		var rect := attack_rect()
 		if player.show_hitbox_debug:
