@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=23 format=3]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
@@ -16,6 +16,11 @@
 [ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
 [ext_resource type="Script" path="res://factory_decor.gd" id="21_decor"]
 [ext_resource type="Script" path="res://factory_door.gd" id="22_door"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
 [ext_resource type="Script" path="res://run_encounter.gd" id="20_run_director"]
 
 [node name="Main" type="Node2D"]
@@ -152,6 +157,41 @@ style = 5
 position = Vector2(3420, -880)
 script = ExtResource("22_door")
 label_text = "GUARDIÁN →"
+
+[node name="CameraEntrance" type="Node2D" parent="."]
+position = Vector2(420, -372)
+script = ExtResource("23_camera")
+aim_angle = 60
+sweep = 25
+period = 3.8
+
+[node name="CameraF1" type="Node2D" parent="."]
+position = Vector2(2000, -372)
+script = ExtResource("23_camera")
+aim_angle = 90
+sweep = 45
+period = 4.5
+
+[node name="CameraF2" type="Node2D" parent="."]
+position = Vector2(1100, -812)
+script = ExtResource("23_camera")
+aim_angle = 90
+sweep = 45
+period = 4
+
+[node name="CameraF2Stairs" type="Node2D" parent="."]
+position = Vector2(2800, -812)
+script = ExtResource("23_camera")
+aim_angle = 90
+sweep = 40
+period = 3.6
+
+[node name="CameraF3" type="Node2D" parent="."]
+position = Vector2(2300, -1312)
+script = ExtResource("23_camera")
+aim_angle = 90
+sweep = 45
+period = 4.4
 
 [node name="Spawns" type="Node2D" parent="."]
 

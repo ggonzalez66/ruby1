@@ -13,6 +13,7 @@ Ejecutar desde la raíz de Ruby1. Elegir las filas relacionadas con el cambio; n
 | Uppercut contra plataformas y paredes | `test_uppercut_collision.gd` |
 | Gauntlet: aparición, gracia y portal de terminar | `test_gauntlet_safety.gd` |
 | Run con mapa: panal, hub, fases de fábrica, fuente, zorro, muerte y Torre | `test_run_map.gd` |
+| Cámaras, refuerzos, embestida del sabueso, visión del halcón y ligeros aéreos | `test_run_difficulty.gd` |
 | Movimiento, velocidad y bunnyhop | `test_movement_polish.gd`, `test_regression.gd` |
 | Animación, escala y separación entre pose y gameplay | `test_sprites.gd`, `test_art_refresh.gd` |
 | Enemigos, detección y ataques | `test_enemigos.gd` |

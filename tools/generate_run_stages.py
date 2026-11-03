@@ -48,6 +48,13 @@ def decor(K, mode, area, **extra):
     K.S.node("FactoryDecor", "Node2D", props)
 
 
+def camera(K, name, x, y, aim, sweep=35, period=4.0):
+    """Cámara de seguridad (security_camera.gd): aim en grados (0 derecha, 90 abajo)."""
+    script = K.S.ext_res("Script", "res://security_camera.gd", "23_camera")
+    K.S.node(name, "Node2D", {"position": K.vec(x, y), "script": f'ExtResource("{script}")',
+                              "aim_angle": f"{aim:g}", "sweep": f"{sweep:g}", "period": f"{period:g}"})
+
+
 def door(K, name, x, y, label):
     script = K.S.ext_res("Script", "res://factory_door.gd", "22_door")
     K.S.node(name, "Area2D", {"position": K.vec(x, y), "script": f'ExtResource("{script}")',
@@ -74,6 +81,10 @@ def build_outdoor(K):
     K.block("CatwalkHigh", 3300, 3800, -520, -500, K.METAL)
     K.block("CatwalkRight", 3950, 4450, -300, -280, K.METAL)
     door(K, "FactoryDoor", 3550, 0, "ENTRAR")
+    # Cámaras en las entradas: la reja y la puerta de la fábrica.
+    camera(K, "CameraGate", 905, -300, 50, 25, 3.6)
+    camera(K, "CameraDoor", 3550, -330, 125, 30, 4.2)
+    camera(K, "CameraFacade", 2640, -620, 120, 25, 5.0)
 
 
 OUTDOOR_SPAWNS = [
@@ -118,6 +129,12 @@ def build_indoor(K):
     K.block("F2Catwalk", 1500, 1900, -440 - 170, -440 - 150, K.METAL)
     K.block("F3Crate", 1600, 1760, -880 - 110, -880, K.METAL)
     door(K, "BossDoor", 3420, -880, "GUARDIÁN →")
+    # Cámaras en el techo de cada piso y en la entrada.
+    camera(K, "CameraEntrance", 420, -372, 60, 25, 3.8)
+    camera(K, "CameraF1", 2000, -372, 90, 45, 4.5)
+    camera(K, "CameraF2", 1100, -812, 90, 45, 4.0)
+    camera(K, "CameraF2Stairs", 2800, -812, 90, 40, 3.6)
+    camera(K, "CameraF3", 2300, -1312, 90, 45, 4.4)
 
 
 INDOOR_SPAWNS = [

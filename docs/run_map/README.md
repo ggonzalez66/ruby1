@@ -12,6 +12,10 @@ una run y aparece el mapa: un panal de hexágonos entre el Árbol Madre y la Tor
   3. `factory_boss.tscn`: un guardián que aún no se venció en la run. Da la única mejora gratis.
   Los enemigos salen de los `Marker2D` de `Spawns` (`kind`, `min_depth`) y escalan con los enfrentamientos
   superados, como las rondas del Gauntlet.
+  Cámaras de seguridad (`security_camera.gd`): 3 en las entradas de afuera y 5 dentro. Barren con un cono;
+  si ven a Viridy (sin paredes en medio ni invisibilidad de bush) la alarma salta en ~0,35 s y llaman 4
+  refuerzos una vez. La alarma de los guardias se llena en 1,2 s y dura 9 s sin verla; el centinela llama
+  4 refuerzos.
 - **Fuente de curación** (`fountain.gd`): meterse en el agua cura toda la vida, una vez.
 - **Zorro comerciante** (`fox_shop.gd`, `fox_stall.gd`): 4 mejoras por visita, reroll de 5 rubíes que cambia
   solo lo no vendido. Los rubíes de las ejecuciones se guardan para aquí.

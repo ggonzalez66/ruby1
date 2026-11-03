@@ -574,13 +574,13 @@ func _run() -> void:
 	var spotter: Node = director.enemies[0].get_node("StealthAgent")
 	var other: Node = director.enemies[1].get_node("StealthAgent")
 	spotter.mode = spotter.Mode.ENGAGED
-	await frames(60)
-	var one_rate: float = stealth.level
-	check(one_rate > 0.24 and one_rate < 0.34, "un enemigo la llena en unos 3,5 s (%.2f por segundo)" % one_rate)
+	await frames(20)
+	var one_rate: float = stealth.level * 3.0
+	check(one_rate > 0.75 and one_rate < 0.92, "un enemigo la llena en unos 1,2 s (%.2f por segundo)" % one_rate)
 	stealth.level = 0.0
 	other.mode = other.Mode.ENGAGED
-	await frames(60)
-	check(stealth.level > one_rate * 1.8, "cada enemigo más la acelera (%.2f)" % stealth.level)
+	await frames(20)
+	check(stealth.level * 3.0 > one_rate * 1.8, "cada enemigo más la acelera (%.2f por segundo)" % (stealth.level * 3.0))
 	stealth.trigger_alarm()
 	await frames(2)
 	check(stealth.alarm_label.text == "ALARMA", "en alarma solo dice ALARMA")

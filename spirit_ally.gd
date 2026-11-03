@@ -94,17 +94,24 @@ func _valid_target(enemy: Variant) -> bool:
 	var agent: Node = enemy.get_node_or_null("StealthAgent")
 	return agent == null or agent.is_aware()
 
-func _nearest_target(reach: float, ground_only: bool) -> Node2D:
+func _nearest_target(reach: float, ground_only: bool, needs_sight := false) -> Node2D:
 	var best: Node2D
 	var best_distance := reach
 	for enemy in get_tree().get_nodes_in_group(&"ruby_enemies"):
 		if not _valid_target(enemy) or (ground_only and (not enemy.has_method("_move_horizontally") or enemy.get_node("RubyCore").boss)):
+			continue
+		if needs_sight and not in_sight(_center(enemy)):
 			continue
 		var distance: float = enemy.global_position.distance_to(player.global_position)
 		if distance < best_distance:
 			best = enemy
 			best_distance = distance
 	return best
+
+func in_sight(point: Vector2) -> bool:
+	# Sin terreno (capa 2: suelos, losas, plataformas, muros) entre el aliado y el punto.
+	var query := PhysicsRayQueryParameters2D.create(global_position, point, 2)
+	return get_world_2d().direct_space_state.intersect_ray(query).is_empty()
 
 func _center(enemy: Node2D) -> Vector2:
 	return enemy.global_position + enemy.impact_offset

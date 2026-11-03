@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3]
+[gd_scene load_steps=21 format=3]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
@@ -16,6 +16,9 @@
 [ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
 [ext_resource type="Script" path="res://factory_decor.gd" id="21_decor"]
 [ext_resource type="Script" path="res://factory_door.gd" id="22_door"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
 [ext_resource type="Script" path="res://run_encounter.gd" id="20_run_director"]
 
 [node name="Main" type="Node2D"]
@@ -110,6 +113,27 @@ style = 5
 position = Vector2(3550, 0)
 script = ExtResource("22_door")
 label_text = "ENTRAR"
+
+[node name="CameraGate" type="Node2D" parent="."]
+position = Vector2(905, -300)
+script = ExtResource("23_camera")
+aim_angle = 50
+sweep = 25
+period = 3.6
+
+[node name="CameraDoor" type="Node2D" parent="."]
+position = Vector2(3550, -330)
+script = ExtResource("23_camera")
+aim_angle = 125
+sweep = 30
+period = 4.2
+
+[node name="CameraFacade" type="Node2D" parent="."]
+position = Vector2(2640, -620)
+script = ExtResource("23_camera")
+aim_angle = 120
+sweep = 25
+period = 5
 
 [node name="Spawns" type="Node2D" parent="."]
 

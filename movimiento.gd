@@ -334,7 +334,8 @@ const DAMAGE_WALL_EXPLOSION := 2
 @export var heavy_bounce_vertical_ratio := 0.8
 # El rebote del heavy en picado sube más.
 @export var heavy_dive_bounce_ratio := 1.35
-@export var light_hit_air_boost := -230.0
+# Al conectar un ligero en el aire: casi suspendida a la altura del golpe (solo un leve ascenso).
+@export var light_hit_air_boost := -40.0
 @export var light_combo_window := 0.3
 @export var light_finisher_duration := 0.22
 @export var light_finisher_cooldown := 0.38
@@ -4232,8 +4233,9 @@ func _land_heavy_attack_on_floor() -> void:
 	_update_impact_wave_visual()
 
 func _apply_light_hit_air_boost() -> void:
-	# Cada golpe ligero que conecta en el aire da un pequeño impulso hacia arriba.
-	velocity.y = min(velocity.y, light_hit_air_boost)
+	# Cada golpe ligero que conecta en el aire la deja suspendida junto al enemigo: corta la caída y
+	# también el impulso hacia arriba que trajera (salto), para seguir pegándole a la misma altura.
+	velocity.y = clampf(velocity.y, light_hit_air_boost, 0.0)
 
 func _get_attack_damage() -> int:
 	var multiplier := 2 if riposte_attack else 1

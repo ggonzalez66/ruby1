@@ -125,7 +125,7 @@ func request() -> bool:
 	player._set_attack_active(false)
 	player.light_combo_step = step + 1
 	if not player.is_on_floor() and air_stall:
-		player.velocity.y = minf(player.velocity.y, -50.0)
+		player.velocity.y = clampf(player.velocity.y, player.light_hit_air_boost, 0.0)
 	return true
 
 func blocks_dash() -> bool:
@@ -156,7 +156,11 @@ func apply_movement(delta: float, horizontal: float) -> void:
 	if player.is_on_floor():
 		player.velocity.y = 0.0
 	elif air_stall:
-		player.velocity.y = minf(player.velocity.y + player.gravity * delta * 0.08, 85.0)
+		# Suspendida: sin subir más (el impulso que quede se frena con la gravedad normal) y cayendo muy lento.
+		if player.velocity.y < 0.0:
+			player.velocity.y = minf(player.velocity.y + player.gravity * delta, 0.0)
+		else:
+			player.velocity.y = minf(player.velocity.y + player.gravity * delta * 0.08, 85.0)
 	else:
 		# Sin golpear a nadie el string no sostiene en el aire: nada de vuelo infinito.
 		player._apply_gravity(delta)

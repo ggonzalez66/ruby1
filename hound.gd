@@ -2,15 +2,16 @@ extends "res://chaser_dummy.gd"
 
 # Sabueso: cuadrúpedo rápido que persigue a Viridy, salta a las plataformas y se le lanza encima. Si la
 # alcanza la deja inmovilizada en el suelo (no quita vida) para que los demás le peguen; machacar el
-# ligero la suelta. El salto se parrea con el rugido (lo deja aturdido y con el rubí abierto) y la guardia
-# lo bloquea. Es débil pero muy móvil.
+# ligero la suelta. Su embestida es rápida y agresiva: solo la para el parry (los frames explosivos del
+# rugido, que lo dejan aturdido y con el rubí abierto); la guardia sostenida no la bloquea. Es débil pero
+# muy móvil.
 
-@export var pounce_range := 240.0
-@export var pounce_speed_y := -380.0
-@export var pounce_time := 0.42
+@export var pounce_range := 330.0
+@export var pounce_speed_y := -300.0
+@export var pounce_time := 0.27
 @export var jump_speed := 760.0
 @export var mash_count := 7
-@export var pin_cooldown := 1.6
+@export var pin_cooldown := 1.0
 
 const HOUND_COLOR := Color(0.22, 0.24, 0.28)
 const STRIPE_COLOR := Color(0.9, 0.18, 0.15)
@@ -24,12 +25,12 @@ var leap_hit_done := false
 
 func _init() -> void:
 	max_health = 6
-	speed = 270.0
+	speed = 340.0
 	detect_range = 720.0
 	attack_range = pounce_range
 	attack_damage = 0
-	telegraph_time = 0.4
-	recover_time = 0.7
+	telegraph_time = 0.24
+	recover_time = 0.4
 	impact_offset = Vector2(0, -26)
 
 func _build() -> void:
@@ -230,8 +231,9 @@ func _check_pounce(player: Node2D, from: Vector2, to: Vector2) -> void:
 	if not (reach or aura):
 		return
 	leap_hit_done = true
-	if player.roar_active:
-		# Rugido: el parry lo desvía (on_deflected) y la guardia lo bloquea; en ningún caso inmoviliza.
+	if player._is_roar_invincible():
+		# Solo el parry (frames explosivos del rugido) lo desvía (on_deflected). La guardia no lo para:
+		# la embestida la atraviesa e inmoviliza igual.
 		player.take_damage(0, global_position + Vector2(0, -16), self)
 		if state == State.SWING:
 			air_velocity = Vector2(-facing * 220.0, -200.0)

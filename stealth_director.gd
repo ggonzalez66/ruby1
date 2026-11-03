@@ -6,16 +6,20 @@ extends Node2D
 #   cuando nadie la ve durante EVASION_TIME.
 # - Precaución: al apagarse queda una marca en la última posición conocida y durante CAUTION_TIME ven más
 #   lejos, y que uno la descubra activa la alarma al instante.
+# - Cámaras de seguridad (security_camera.gd): si la ven cargan la alarma en un instante
+#   (CAMERA_FILL_TIME), en alarma la mantienen y en precaución la disparan.
 # - Bush: dentro es invisible. Tras CLOAK_CHARGE dentro, al salir conserva la invisibilidad CLOAK_TIME.
 #   Cualquier ataque la corta, pero ese ataque aún puede ejecutar a un enemigo normal.
 
 enum Alert { CALM, ALARM, CAUTION }
 
 const BUSH_SCRIPT := preload("res://bush.gd")
-const FILL_TIME := 3.5
+# La alarma carga rápido: la idea es pasar la mayor parte del combate en alarma.
+const FILL_TIME := 1.2
 const EXTRA_SPOTTER_RATE := 1.0
 const DRAIN_TIME := 5.0
-const EVASION_TIME := 6.0
+const EVASION_TIME := 9.0
+const CAMERA_FILL_TIME := 0.35
 const CAUTION_TIME := 25.0
 const CAUTION_VISION := 1.25
 const CLOAK_CHARGE := 2.0
@@ -113,6 +117,24 @@ func cloak_strike() -> bool:
 func on_discovered() -> void:
 	if alert == Alert.CAUTION:
 		trigger_alarm()
+
+func camera_spotted(delta: float) -> bool:
+	# Una cámara ve a Viridy este frame. Devuelve true si con eso salta la alarma.
+	if not running or not is_instance_valid(player) or player_cloaked():
+		return false
+	last_known = player.global_position
+	match alert:
+		Alert.ALARM:
+			evasion_left = EVASION_TIME
+		Alert.CAUTION:
+			trigger_alarm()
+			return true
+		Alert.CALM:
+			level += delta / CAMERA_FILL_TIME
+			if level >= 1.0:
+				trigger_alarm()
+				return true
+	return false
 
 func trigger_alarm() -> void:
 	if not running or alert == Alert.ALARM:

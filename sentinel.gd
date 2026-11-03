@@ -11,7 +11,7 @@ extends "res://chaser_dummy.gd"
 @export var alarm_radius := 1100.0
 @export var alert_duration := 8.0
 @export var alarm_cooldown := 6.0
-@export var reinforcements := 2
+@export var reinforcements := 4
 
 const SHELL_COLOR := Color(0.3, 0.32, 0.36)
 const SIREN_COLOR := Color(1.0, 0.15, 0.12)
@@ -161,7 +161,8 @@ func _call_reinforcements(player: Node2D) -> void:
 	for index in range(reinforcements):
 		var side: float = -1.0 if index % 2 == 0 else 1.0
 		var enemy: Area2D = HOUND_SCRIPT.new() if index % 2 == 0 else load("res://chaser_dummy.gd").new()
-		var x: float = player.global_position.x + side * 420.0
+		# De dos en dos por cada lado, un poco escalonados.
+		var x: float = player.global_position.x + side * (420.0 + (index / 2) * 110.0)
 		enemy.position = Vector2(x, global_position.y - 40.0)
 		enemy.alert(alert_duration)
 		var director := get_tree().get_first_node_in_group(&"gauntlet_director")
