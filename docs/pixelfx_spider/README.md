@@ -16,7 +16,7 @@ licencia en `assets/fx/pixelfx/LICENSE-pixelfx.txt`).
 
 ## Cámaras destructibles
 
-`security_camera.gd` es un `Area2D` en la capa de enemigos: se rompe con tres impactos (golpes, lanza o
+`security_camera.gd` es un `Area2D` en la capa de enemigos: se rompe de un solo golpe (golpes, lanza o
 balas), da estilo ("CÁMARA DESTRUIDA") pero no rubíes, no alerta a los guardias y, rota, ya no ve.
 
 ## La Araña Colosal

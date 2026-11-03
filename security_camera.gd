@@ -4,7 +4,7 @@ extends Area2D
 # de visión. Si ve a Viridy (sin paredes en medio y sin estar invisible por un bush) la sigue con la lente y
 # carga la alarma global en un instante (stealth_director.camera_spotted). Cuando su alarma salta llama
 # refuerzos una vez, como el centinela.
-# Se puede destruir (golpes, lanza o disparos; `hits` impactos): no da rubíes pero sí estilo, y una cámara
+# Se destruye de un golpe (golpes, lanza o disparos; `hits` impactos): no da rubíes pero sí estilo, y una cámara
 # rota ya no ve, así que romperlas ayuda a mantener el sigilo. Romperla no alerta a los guardias.
 
 @export var aim_angle := 90.0
@@ -14,7 +14,7 @@ extends Area2D
 @export var cone_half := 17.0
 @export var reinforcements := 4
 @export var alert_duration := 8.0
-@export var hits := 3
+@export var hits := 1
 
 const HOUND_SCRIPT := preload("res://hound.gd")
 const CHASER_SCRIPT := preload("res://chaser_dummy.gd")

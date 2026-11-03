@@ -100,10 +100,7 @@ func cameras() -> void:
 	var style: Node = root.get_node("Ferocity")
 	var points: float = style.points
 	camera.take_hit(player().global_position, 1, 1)
-	camera.take_hit(player().global_position, 1, 1)
-	check(not camera.destroyed, "aguanta un par de golpes")
-	camera.take_hit(player().global_position, 1, 1)
-	check(camera.destroyed, "al tercer golpe se rompe")
+	check(camera.destroyed, "se rompe de un solo golpe")
 	check(upgrades.rubies == rubies and style.points > points, "romperla da estilo pero no rubíes")
 	check(not stealth.alarm_active() and stealth.level == 0.0, "romperla no alerta a los guardias")
 	# Rota, ya no ve aunque apunte a Viridy.

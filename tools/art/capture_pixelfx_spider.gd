@@ -111,8 +111,7 @@ func cameras() -> void:
 	await frames(20)
 	await view(camera.global_position + Vector2(-80, 120), 1.0)
 	await capture("camera_intact")
-	for i in range(3):
-		camera.take_hit(player.global_position, 1, 1)
+	camera.take_hit(player.global_position, 1, 1)
 	await frames(12)
 	await capture("camera_destroyed")
 
