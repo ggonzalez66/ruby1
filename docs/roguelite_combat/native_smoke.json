@@ -1,13 +1,21 @@
 {
-  "verified_at_utc": "2026-11-01T16:49:03.021934+00:00",
+  "verified_at_utc": "2026-11-03T17:09:15.496110+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "source_base_commit": "ffbed90a0276be32dd67899bfc880f8f0c1b0e10",
-  "working_tree": "clean at source_base_commit: ranged arsenal with replace confirmation, Focus spell and Time Stop, round scaling, elemental enemy variants, faster alarm, rifleman pistol bullets, harder SSS",
+  "source_base_commit": "a3ca5c8",
+  "working_tree": "clean at source_base_commit (except untracked assets/sprites/references): hex-map run from the Mother Tree (map, three-phase factory, fountain, fox shop, tower, sun, parkour, Ruby), planted mecha missiles, semi-automatic pistol",
   "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
   "scenes": [
     "main_menu",
     "level_testing",
     "sanctuary",
+    "mother_tree",
+    "run_map",
+    "factory_outdoor",
+    "factory_indoor",
+    "factory_boss",
+    "tower_finale",
+    "fountain",
+    "fox_shop",
     "main",
     "stage2",
     "stage3",
@@ -18,22 +26,22 @@
   "platforms": {
     "linux": {
       "mode": "headless",
-      "scene_checks_passed": 9,
-      "scene_checks_total": 9,
+      "scene_checks_passed": 17,
+      "scene_checks_total": 17,
       "exit_codes": 0,
       "script_errors": 0
     },
     "windows": {
-      "mode": "headless, launched from WSL (main_menu, gauntlet, sanctuary, main)",
-      "scenes_ran_without_script_errors": 4,
-      "scene_checks_total": 4,
+      "mode": "headless, launched from WSL out of a Windows temp folder (main_menu, mother_tree, run_map, factory_outdoor, factory_indoor, factory_boss, tower_finale, fountain, fox_shop, gauntlet)",
+      "scenes_ran_without_script_errors": 10,
+      "scene_checks_total": 10,
       "exit_codes": 1,
-      "exit_code_note": "Every Windows run returns 1 when launched from WSL, including builds of earlier commits; release logs do not show per-scene loading. level_testing runs ~1000 fps uncapped (300 frames 2.4 s, 900 frames 3.0 s), so its short time is not a crash."
+      "exit_code_note": "Every Windows run returns 1 when launched from WSL, as with earlier builds; each scene ran 2.5-4.2 s for 300 frames."
     }
   },
   "gameplay_and_tools": {
-    "passed": 1515,
-    "total": 1515,
+    "passed": 1594,
+    "total": 1594,
     "runner": "tests/run_tests.sh"
   },
   "export_exit_codes": {
