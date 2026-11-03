@@ -1,8 +1,8 @@
 {
-  "verified_at_utc": "2026-11-03T22:39:27.320120+00:00",
+  "verified_at_utc": "2026-11-03T22:50:07.154305+00:00",
   "godot": "4.2.2.stable.official.15073afe3",
-  "source_base_commit": "0f18052",
-  "working_tree": "clean at source_base_commit (except untracked assets/sprites/references): PixelFX effects, destructible cameras, Colossal Spider in the Tower, sun spirit world parkour, Ira encadenada upgrade",
+  "source_base_commit": "d319333",
+  "working_tree": "clean at source_base_commit (except untracked assets/sprites/references): one-hit security cameras on top of PixelFX effects, Colossal Spider, sun spirit world and Ira encadenada",
   "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
   "scenes": [
     "main_menu",
