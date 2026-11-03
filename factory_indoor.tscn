@@ -1,0 +1,272 @@
+[gd_scene load_steps=18 format=3]
+
+[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
+[ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
+[ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
+[ext_resource type="Script" path="res://hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://music_player.gd" id="6_music"]
+[ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
+[ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
+[ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
+[ext_resource type="Script" path="res://boss_spawner.gd" id="10_spawner"]
+[ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
+[ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
+[ext_resource type="Script" path="res://platform.gd" id="13_platform"]
+[ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
+[ext_resource type="Script" path="res://factory_decor.gd" id="21_decor"]
+[ext_resource type="Script" path="res://factory_door.gd" id="22_door"]
+[ext_resource type="Script" path="res://run_encounter.gd" id="20_run_director"]
+
+[node name="Main" type="Node2D"]
+
+[node name="FactoryDecor" type="Node2D" parent="."]
+script = ExtResource("21_decor")
+mode = "indoor"
+area = Rect2(-200, -1500, 4000, 1900)
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-30, -520)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1760)
+style = 5
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(3630, -520)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1760)
+style = 5
+
+[node name="Ceiling" type="StaticBody2D" parent="."]
+position = Vector2(1800, -1350)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3720, 60)
+style = 5
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(1800, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3600, 300)
+style = 5
+
+[node name="TitleIndoor" type="Label" parent="."]
+offset_left = 140
+offset_top = -330
+offset_right = 1040
+offset_bottom = -270
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "LA FÁBRICA · DENTRO"
+
+[node name="F2Slab0" type="StaticBody2D" parent="."]
+position = Vector2(1490, -410)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(2980, 60)
+style = 5
+
+[node name="F2Slab3340" type="StaticBody2D" parent="."]
+position = Vector2(3470, -410)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(260, 60)
+style = 5
+
+[node name="F1Step1" type="StaticBody2D" parent="."]
+position = Vector2(3060, -160)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F1Step2" type="StaticBody2D" parent="."]
+position = Vector2(3260, -300)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F3Slab0" type="StaticBody2D" parent="."]
+position = Vector2(130, -850)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(260, 60)
+style = 5
+
+[node name="F3Slab620" type="StaticBody2D" parent="."]
+position = Vector2(2110, -850)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(2980, 60)
+style = 5
+
+[node name="F2Step1" type="StaticBody2D" parent="."]
+position = Vector2(540, -600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F2Step2" type="StaticBody2D" parent="."]
+position = Vector2(340, -740)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F1Crate" type="StaticBody2D" parent="."]
+position = Vector2(1325, -55)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 110)
+style = 5
+
+[node name="F1Crate2" type="StaticBody2D" parent="."]
+position = Vector2(2360, -45)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(120, 90)
+style = 5
+
+[node name="F2Catwalk" type="StaticBody2D" parent="."]
+position = Vector2(1700, -600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(400, 20)
+style = 5
+
+[node name="F3Crate" type="StaticBody2D" parent="."]
+position = Vector2(1680, -935)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 110)
+style = 5
+
+[node name="BossDoor" type="Area2D" parent="."]
+position = Vector2(3420, -880)
+script = ExtResource("22_door")
+label_text = "GUARDIÁN →"
+
+[node name="Spawns" type="Node2D" parent="."]
+
+[node name="Spawn1" type="Marker2D" parent="Spawns"]
+position = Vector2(900, 0)
+metadata/kind = "melee"
+metadata/min_depth = 1
+
+[node name="Spawn2" type="Marker2D" parent="Spawns"]
+position = Vector2(1700, 0)
+metadata/kind = "shooter"
+metadata/min_depth = 1
+
+[node name="Spawn3" type="Marker2D" parent="Spawns"]
+position = Vector2(2700, 0)
+metadata/kind = "rifleman"
+metadata/min_depth = 1
+
+[node name="Spawn4" type="Marker2D" parent="Spawns"]
+position = Vector2(2500, -440)
+metadata/kind = "melee"
+metadata/min_depth = 1
+
+[node name="Spawn5" type="Marker2D" parent="Spawns"]
+position = Vector2(1200, -440)
+metadata/kind = "shooter"
+metadata/min_depth = 1
+
+[node name="Spawn6" type="Marker2D" parent="Spawns"]
+position = Vector2(1000, -880)
+metadata/kind = "melee"
+metadata/min_depth = 1
+
+[node name="Spawn7" type="Marker2D" parent="Spawns"]
+position = Vector2(2000, -880)
+metadata/kind = "rifleman"
+metadata/min_depth = 1
+
+[node name="Spawn8" type="Marker2D" parent="Spawns"]
+position = Vector2(1700, -990)
+metadata/kind = "shooter_high"
+metadata/min_depth = 1
+
+[node name="Spawn9" type="Marker2D" parent="Spawns"]
+position = Vector2(2100, 0)
+metadata/kind = "shield"
+metadata/min_depth = 2
+
+[node name="Spawn10" type="Marker2D" parent="Spawns"]
+position = Vector2(600, -440)
+metadata/kind = "hound"
+metadata/min_depth = 2
+
+[node name="Spawn11" type="Marker2D" parent="Spawns"]
+position = Vector2(1700, -610)
+metadata/kind = "sentinel"
+metadata/min_depth = 2
+
+[node name="Spawn12" type="Marker2D" parent="Spawns"]
+position = Vector2(2200, -640)
+metadata/kind = "stinger"
+metadata/min_depth = 3
+
+[node name="Spawn13" type="Marker2D" parent="Spawns"]
+position = Vector2(2280, -680)
+metadata/kind = "stinger"
+metadata/min_depth = 3
+
+[node name="Spawn14" type="Marker2D" parent="Spawns"]
+position = Vector2(2900, -880)
+metadata/kind = "shield"
+metadata/min_depth = 3
+
+[node name="Spawn15" type="Marker2D" parent="Spawns"]
+position = Vector2(1400, -300)
+metadata/kind = "restorer"
+metadata/min_depth = 3
+
+[node name="Spawn16" type="Marker2D" parent="Spawns"]
+position = Vector2(3100, -440)
+metadata/kind = "melee"
+metadata/min_depth = 4
+
+[node name="Spawn17" type="Marker2D" parent="Spawns"]
+position = Vector2(2500, -880)
+metadata/kind = "hound"
+metadata/min_depth = 4
+
+[node name="Spawn18" type="Marker2D" parent="Spawns"]
+position = Vector2(2600, -1100)
+metadata/kind = "flyer"
+metadata/min_depth = 5
+
+[node name="RunDirector" type="Node2D" parent="."]
+script = ExtResource("20_run_director")
+spawns_path = NodePath("../Spawns")
+stage = 1
+exit_path = NodePath("../BossDoor")
+
+[node name="Playerr" parent="." instance=ExtResource("1_player")]
+position = Vector2(160, -2)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+process_mode = 3
+script = ExtResource("6_music")
+volume_db = -6.0
+bus = &"Music"
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("7_pause")
+
+[node name="DemoComplete" type="CanvasLayer" parent="."]
+script = ExtResource("11_demo")
+title_text = "RUN"
+final_screen = true

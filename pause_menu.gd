@@ -55,6 +55,7 @@ var remap_rows: VBoxContainer
 var resume_button: Button
 var checkpoint_button: Button
 var restart_stage_button: Button
+var abandon_run_button: Button
 var music_slider: HSlider
 var music_value_label: Label
 var sfx_slider: HSlider
@@ -197,6 +198,11 @@ func _go_to_main_menu() -> void:
 	TimeControl.set_slow_motion(false)
 	get_tree().change_scene_to_file(MAIN_MENU)
 
+func _abandon_run() -> void:
+	# Se pierde la run y se vuelve al Árbol Madre.
+	root_control.visible = false
+	RunState.return_to_hub()
+
 func _go_to_level_testing() -> void:
 	get_tree().paused = false
 	TimeControl.set_slow_motion(false)
@@ -213,7 +219,9 @@ func _show_main_page() -> void:
 	main_page.visible = true
 	var player := get_tree().get_first_node_in_group(&"player")
 	checkpoint_button.visible = is_instance_valid(player) and player.respawn_enabled
-	restart_stage_button.visible = testing_mode or (get_tree().current_scene != null and get_tree().current_scene.scene_file_path in RunSession.MODES)
+	var in_run: bool = RunState.active and RunState.in_run_scene(get_tree().current_scene)
+	restart_stage_button.visible = not in_run and (testing_mode or (get_tree().current_scene != null and get_tree().current_scene.scene_file_path in RunSession.MODES))
+	abandon_run_button.visible = in_run
 	resume_button.grab_focus()
 
 func _show_options_page() -> void:
@@ -287,6 +295,8 @@ func _build() -> void:
 	restart_stage_button = _button("Reiniciar Etapa", _restart_stage)
 	main_page.add_child(restart_stage_button)
 	main_page.add_child(_button("Opciones", _show_options_page))
+	abandon_run_button = _button("Abandonar run", _abandon_run)
+	main_page.add_child(abandon_run_button)
 	if testing_mode:
 		main_page.add_child(_button("Level Testing", _go_to_level_testing))
 	main_page.add_child(_button("Menú principal", _go_to_main_menu))

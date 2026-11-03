@@ -28,6 +28,7 @@ Rumble="*res://rumble.gd"
 InputViewer="*res://input_viewer.gd"
 RunSession="*res://run_session.gd"
 Upgrades="*res://run_upgrades.gd"
+RunState="*res://run_state.gd"
 
 [display]
 

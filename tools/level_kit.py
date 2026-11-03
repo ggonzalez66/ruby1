@@ -9,7 +9,7 @@ from pathlib import Path
 
 PROJECT = Path(__file__).resolve().parent.parent
 
-GROUND, SLAB_STYLE, PLATFORM, WALL, CLIMB_WALL = range(5)
+GROUND, SLAB_STYLE, PLATFORM, WALL, CLIMB_WALL, METAL = range(6)
 
 
 def esc(text):

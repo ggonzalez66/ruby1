@@ -175,6 +175,12 @@ func _merge(player: Node2D) -> void:
 
 func _finish(layer: CanvasLayer) -> void:
 	var screen := get_tree().get_first_node_in_group(&"demo_complete")
+	# En la run del mapa: el sol de la Torre lleva al parkour final y el Ruby termina la run.
+	if RunState.active and goal_style == "sun":
+		RunState.go_to_parkour()
+		return
+	if RunState.active and screen:
+		RunState.finish_victory(screen)
 	if screen:
 		screen.show_results()
 	# El blanco se desvanece por detrás de la pantalla de logros.

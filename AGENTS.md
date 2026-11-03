@@ -24,6 +24,7 @@
 | Rubíes, mejoras y elementos del Gauntlet | `run_upgrades.gd`, `upgrade_menu.gd`, `element_status.gd`, `spirit_*.gd` |
 | Armas a distancia, Enfoque y elementos enemigos del Gauntlet | `pistol_shot.gd`, `ice_grenade.gd`, `rail_beam.gd`, `focus_spell.gd`, `player_ailments.gd`, `element_aura.gd` |
 | Sigilo del Gauntlet | `stealth_director.gd`, `stealth_agent.gd`, `bush.gd` |
+| Run con mapa de hexágonos: hub, mapa, fábrica en 3 fases, fuente, zorro y Torre | `run_state.gd` (autoload `RunState`), `run_map.gd`, `run_encounter.gd`, `fountain.gd`, `fox_shop.gd`, `sanctuary.gd` (`hub_mode`); escenas de combate generadas por `tools/generate_run_stages.py` |
 | Enemigos y desplazamiento contra terreno | `hawk.gd`, `chaser_dummy.gd`, `shield_bearer.gd`, `training_dummy.gd`, `enemy_launch_motion.gd` |
 | Estilo, reloj, fantasmas y récords | `ferocity.gd`, `run_session.gd` |
 | Presentación, audio y opciones | `fx.gd`, `shine.gd`, `sfx.gd`, `pause_menu.gd`, `hud.gd` |

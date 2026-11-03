@@ -687,6 +687,7 @@ func _ready() -> void:
 	shine_durability = shine_max_durability
 	_emit_shine_changed.call_deferred()
 	RunSession.attach_player.call_deferred(self)
+	RunState.attach_player.call_deferred(self)
 
 func _physics_process(delta: float) -> void:
 	var wrath_owned_movement: bool = wrath.controls_movement()

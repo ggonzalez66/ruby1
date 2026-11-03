@@ -50,7 +50,8 @@ func _run() -> void:
 	if current_scene.scene_file_path != "res://level_testing.tscn":
 		quit(1)
 		return
-	check(current_scene.level_buttons.size() == 1 and current_scene.level_buttons[0].text.begins_with("Santuario"), "el selector presenta el santuario")
+	check(current_scene.level_buttons.size() == 2 and current_scene.level_buttons[0].text.begins_with("Santuario"), "el selector presenta el santuario")
+	check(current_scene.level_buttons[1].text.begins_with("Gauntlet por oleadas"), "y el Gauntlet por oleadas de antes")
 	check(not session.running and not session.countdown_active, "el selector no inicia un modo cronometrado")
 	await ui_press("ui_accept")
 	await frames(25)

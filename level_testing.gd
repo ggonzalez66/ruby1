@@ -7,6 +7,11 @@ const LEVELS := [
 		"description": "El Árbol Madre · Laguna y senderos entre raíces",
 		"scene": "res://sanctuary.tscn",
 	},
+	{
+		"title": "Gauntlet por oleadas",
+		"description": "El modo de rondas infinitas con portales (antes del mapa de la run)",
+		"scene": "res://gauntlet.tscn",
+	},
 ]
 const MAIN_MENU := "res://main_menu.tscn"
 const JUNGLE := preload("res://jungle_background.gd")

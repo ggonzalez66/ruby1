@@ -1,12 +1,14 @@
 extends Node2D
 
-# Menú principal: Subir Torre (la partida de cuatro etapas), Entrar al Gauntlet (oleadas y guardianes),
+# Menú principal: Subir Torre (la partida de cuatro etapas), Entrar al Gauntlet (el Árbol Madre, hub de la
+# run con mapa de hexágonos; el Gauntlet por oleadas sigue en Level Testing),
 # Escalera al Cielo (plataformeo puro hasta fundirse con el sol), Level Testing, Opciones (las mismas del menú de
 # pausa) y Salir. De fondo, Rengar corre sin fin por la jungla con el efecto de rango SSS (brillo de
 # imparable y afterimages del color del rango).
 
 const TOWER_SCENE := "res://main.tscn"
 const GAUNTLET_SCENE := "res://gauntlet.tscn"
+const HUB_SCENE := "res://mother_tree.tscn"
 const SKY_SCENE := "res://sky_stairs.tscn"
 const TESTING_SCENE := "res://level_testing.tscn"
 const JUNGLE_SCRIPT := preload("res://jungle_background.gd")
@@ -60,6 +62,9 @@ var glint_time := -1.0
 
 func _ready() -> void:
 	RunSession._clear_run()
+	# Volver al menú termina la run en curso.
+	if RunState.active:
+		RunState.abort_run()
 	get_tree().paused = false
 	# En el menú principal siempre a velocidad normal.
 	TimeControl.set_slow_motion(false)
@@ -250,7 +255,7 @@ func _build() -> void:
 	panel.add_child(buttons)
 	first_button = _button("Subir Torre", _start.bind(TOWER_SCENE))
 	buttons.add_child(first_button)
-	buttons.add_child(_button("Entrar al Gauntlet", _start.bind(GAUNTLET_SCENE)))
+	buttons.add_child(_button("Entrar al Gauntlet", _start.bind(HUB_SCENE)))
 	buttons.add_child(_button("Escalera al Cielo", _start.bind(SKY_SCENE)))
 	buttons.add_child(_button("Level Testing", _start.bind(TESTING_SCENE)))
 	buttons.add_child(_button("Mejores tiempos", RunSession.show_records))

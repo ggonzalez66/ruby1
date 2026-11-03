@@ -1,6 +1,8 @@
 extends Node2D
 
 # Santuario de pruebas: geometría fija, sin portales, progresión, enemigos ni récords.
+# Con hub_mode (mother_tree.tscn) es el Árbol Madre, el hub de la run: saliendo por la derecha empieza una
+# run nueva y aparece el mapa de hexágonos (RunState).
 const PLAYER := preload("res://playerr.tscn")
 const TERRAIN := preload("res://sanctuary_ground.gd")
 const VISUALS := preload("res://sanctuary_visuals.gd")
@@ -8,6 +10,8 @@ const WATER := preload("res://shaders/sanctuary_water.gdshader")
 const PAUSE := preload("res://pause_menu.gd")
 const LAGOON_DETAILS := preload("res://sanctuary_lagoon_details.gd")
 const SPAWN := Vector2(2940, -70)
+const RUN_EXIT := preload("res://run_exit.gd")
+const HUB_EXIT_X := 6240.0
 const WATER_SURFACE := 96.0
 
 # Nombre, izquierda, derecha, altura, grosor: raíces y cornisas del circuito libre.
@@ -41,6 +45,8 @@ var lagoon: Area2D
 var water_visual: Polygon2D
 var water_texture: ImageTexture
 var footer: Label
+var run_exit: Area2D
+@export var hub_mode := false
 
 func _ready() -> void:
 	RunSession._clear_run()
@@ -66,10 +72,25 @@ func _ready() -> void:
 	add_child(player)
 	pause_menu = PAUSE.new()
 	pause_menu.name = "PauseMenu"
-	pause_menu.testing_mode = true
+	pause_menu.testing_mode = not hub_mode
 	add_child(pause_menu)
+	if hub_mode:
+		# Volver al hub siempre deja atrás la run anterior.
+		if RunState.active:
+			RunState.abort_run()
+		run_exit = RUN_EXIT.new()
+		run_exit.name = "RunExit"
+		run_exit.position = Vector2(HUB_EXIT_X, -80)
+		run_exit.label_text = "COMENZAR RUN"
+		run_exit.color = Color(1.0, 0.82, 0.4)
+		run_exit.entered.connect(_start_run)
+		add_child(run_exit)
 	_build_ui()
 	Music.play_game_music()
+
+func _start_run() -> void:
+	RunState.start_run()
+	RunState.return_to_map()
 
 func _physics_process(_delta: float) -> void:
 	# Salvaguarda de la zona de pruebas, también para lanzamientos extremos de movilidad.
@@ -254,7 +275,7 @@ func _build_ui() -> void:
 	add_child(layer)
 	var title := Label.new()
 	title.position = Vector2(28, 20)
-	title.text = "SANTUARIO"
+	title.text = "ÁRBOL MADRE" if hub_mode else "SANTUARIO"
 	title.add_theme_font_size_override("font_size", 22)
 	title.add_theme_color_override("font_color", Color("f3edc9"))
 	title.add_theme_color_override("font_outline_color", Color("203c2e"))
@@ -262,7 +283,7 @@ func _build_ui() -> void:
 	layer.add_child(title)
 	var subtitle := Label.new()
 	subtitle.position = Vector2(29, 48)
-	subtitle.text = "El corazón de la naturaleza"
+	subtitle.text = "Sal por la derecha para comenzar la run" if hub_mode else "El corazón de la naturaleza"
 	subtitle.add_theme_font_size_override("font_size", 13)
 	subtitle.modulate = Color("cee0b8")
 	layer.add_child(subtitle)
@@ -281,4 +302,5 @@ func _build_ui() -> void:
 	InputHints.device_changed.connect(_refresh_hint)
 
 func _refresh_hint() -> void:
-	footer.text = "Explora a tu ritmo  ·  %s: pausa y menú" % InputHints.binding("pause")
+	var lead := "Sal por la derecha para comenzar la run" if hub_mode else "Explora a tu ritmo"
+	footer.text = "%s  ·  %s: pausa y menú" % [lead, InputHints.binding("pause")]

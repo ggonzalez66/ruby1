@@ -2,10 +2,11 @@
 extends StaticBody2D
 
 # Bloque del escenario: crea su colisión y se dibuja solo según su tamaño y estilo
-# (tierra con musgo, losa de piso, plataforma, muro de ladrillo o muro trepable con enredaderas).
+# (tierra con musgo, losa de piso, plataforma, muro de ladrillo, muro trepable con enredaderas o chapa
+# de acero de las fábricas de la run).
 # Es @tool para que también se vea en el editor.
 
-enum Style { GROUND, SLAB, PLATFORM, WALL, CLIMB_WALL }
+enum Style { GROUND, SLAB, PLATFORM, WALL, CLIMB_WALL, METAL }
 
 @export var size := Vector2(200, 40):
 	set(value):
@@ -27,7 +28,10 @@ const PALETTES := {
 	Style.PLATFORM: [Color(0.5, 0.33, 0.2), Color(0.32, 0.2, 0.12)],
 	Style.WALL: [Color(0.38, 0.32, 0.29), Color(0.22, 0.18, 0.17)],
 	Style.CLIMB_WALL: [Color(0.3, 0.36, 0.27), Color(0.17, 0.21, 0.15)],
+	Style.METAL: [Color(0.36, 0.39, 0.42), Color(0.17, 0.19, 0.22)],
 }
+const HAZARD_YELLOW := Color(0.95, 0.72, 0.12)
+const HAZARD_DARK := Color(0.1, 0.09, 0.08)
 
 var collision: CollisionShape2D
 
@@ -54,6 +58,9 @@ func _draw() -> void:
 	# Cuerpo con degradado vertical.
 	draw_polygon(PackedVector2Array([Vector2(-half.x, -half.y), Vector2(half.x, -half.y), Vector2(half.x, half.y), Vector2(-half.x, half.y)]),
 		PackedColorArray([palette[0], palette[0], palette[1], palette[1]]))
+	if style == Style.METAL:
+		_draw_metal(half, palette)
+		return
 	match style:
 		Style.WALL:
 			_draw_bricks(half, palette[1].darkened(0.25), rng)
@@ -72,6 +79,37 @@ func _draw() -> void:
 	# Musgo y hierba arriba (en los muros solo un remate).
 	var moss_depth: float = 4.0 if style in [Style.WALL, Style.CLIMB_WALL] else min(9.0, size.y * 0.45)
 	_draw_moss_top(half, moss_depth, rng, style not in [Style.WALL, Style.CLIMB_WALL])
+
+func _draw_metal(half: Vector2, palette: Array) -> void:
+	# Planchas remachadas con juntas y, arriba, una franja de peligro amarilla y negra.
+	var seam: Color = palette[1].darkened(0.3)
+	var plate := 96.0
+	var x := -half.x + plate
+	while x < half.x - 8.0:
+		draw_line(Vector2(x, -half.y + 8.0), Vector2(x, half.y), seam, 2.0)
+		x += plate
+	var y := -half.y + 8.0 + 48.0
+	while y < half.y - 6.0:
+		draw_line(Vector2(-half.x, y), Vector2(half.x, y), seam, 1.5)
+		y += 48.0
+	x = -half.x + 10.0
+	while x < half.x - 4.0:
+		for rivet_y in [-half.y + 16.0, half.y - 8.0]:
+			if rivet_y > -half.y + 10.0 and rivet_y < half.y:
+				draw_circle(Vector2(x, rivet_y), 2.2, palette[0].lightened(0.25))
+		x += 32.0
+	var stripe := minf(8.0, size.y * 0.4)
+	draw_rect(Rect2(-half.x, -half.y, size.x, stripe), HAZARD_YELLOW)
+	x = -half.x
+	while x < half.x:
+		var a := maxf(x, -half.x)
+		var b := minf(x + 9.0, half.x)
+		draw_colored_polygon(PackedVector2Array([Vector2(a, -half.y + stripe), Vector2(minf(a + stripe, half.x), -half.y), Vector2(minf(b + stripe, half.x), -half.y), Vector2(b, -half.y + stripe)]), HAZARD_DARK)
+		x += 18.0
+	draw_line(Vector2(-half.x, -half.y + stripe), Vector2(half.x, -half.y + stripe), palette[1].darkened(0.4), 1.5)
+	if side_borders:
+		draw_line(Vector2(-half.x, -half.y), Vector2(-half.x, half.y), palette[1].darkened(0.4), 2.0)
+		draw_line(Vector2(half.x, -half.y), Vector2(half.x, half.y), palette[1].darkened(0.4), 2.0)
 
 func _draw_moss_top(half: Vector2, depth: float, rng: RandomNumberGenerator, with_grass: bool) -> void:
 	var points := PackedVector2Array([Vector2(-half.x, -half.y), Vector2(half.x, -half.y)])

@@ -66,6 +66,9 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	if RunSession.level == get_parent():
 		elapsed_time = RunSession.elapsed
+	elif RunState.in_run_scene(get_parent()):
+		# En la run del mapa, el reloj lleva el tiempo total de la run.
+		elapsed_time = Stats.total_time
 	else:
 		elapsed_time += delta
 	_update_timer_text()
@@ -185,7 +188,9 @@ func _build_death_screen() -> void:
 func _on_player_died() -> void:
 	death_hint.text = "Pausa (%s) → Reiniciar desde Checkpoint" % InputHints.binding("pause")
 	# En el Gauntlet no hay checkpoint: al morir se termina.
-	if get_tree().get_first_node_in_group(&"gauntlet_director"):
+	if RunState.active and not get_tree().get_first_node_in_group(&"player").respawn_enabled:
+		death_hint.text = "Fin de la run"
+	elif get_tree().get_first_node_in_group(&"gauntlet_director"):
 		death_hint.text = "Fin del Gauntlet"
 	death_panel.visible = true
 	# En el tercio superior para que se vea a Rengar salir despedido (la cámara lo centra).

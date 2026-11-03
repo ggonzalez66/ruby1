@@ -44,6 +44,9 @@ func attach_player(new_player: Node2D) -> void:
 	# Escenas instanciadas por herramientas o pruebas no inician una partida de la aplicación.
 	if scene != get_tree().current_scene or scene.scene_file_path not in MODES:
 		return
+	# Dentro de una run del mapa no hay cuenta atrás ni récords por etapa (el parkour final es stage4).
+	if RunState.active:
+		return
 	begin_run(new_player, OS.get_environment("RUBY1_SKIP_COUNTDOWN") != "1")
 
 func begin_run(new_player: Node2D, with_countdown: bool = true) -> void:

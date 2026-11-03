@@ -1,0 +1,138 @@
+[gd_scene load_steps=17 format=3]
+
+[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
+[ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
+[ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
+[ext_resource type="Script" path="res://hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://music_player.gd" id="6_music"]
+[ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
+[ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
+[ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
+[ext_resource type="Script" path="res://boss_spawner.gd" id="10_spawner"]
+[ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
+[ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
+[ext_resource type="Script" path="res://platform.gd" id="13_platform"]
+[ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
+[ext_resource type="Script" path="res://factory_decor.gd" id="21_decor"]
+[ext_resource type="Script" path="res://run_encounter.gd" id="20_run_director"]
+
+[node name="Main" type="Node2D"]
+
+[node name="FactoryDecor" type="Node2D" parent="."]
+script = ExtResource("21_decor")
+mode = "hall"
+area = Rect2(-200, -1700, 4200, 2100)
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-30, -620)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1960)
+style = 5
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(3830, -620)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1960)
+style = 5
+
+[node name="BoundaryTop" type="StaticBody2D" parent="."]
+position = Vector2(1900, -1630)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3920, 60)
+style = 5
+
+[node name="Ground" type="StaticBody2D" parent="."]
+position = Vector2(1900, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3800, 300)
+style = 5
+
+[node name="TitleArena" type="Label" parent="."]
+offset_left = 140
+offset_top = -460
+offset_right = 1040
+offset_bottom = -400
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "LA FÁBRICA · EL GUARDIÁN"
+
+[node name="PlatLowL" type="StaticBody2D" parent="."]
+position = Vector2(910, -180)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 5
+
+[node name="PlatMidL" type="StaticBody2D" parent="."]
+position = Vector2(1460, -340)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 5
+
+[node name="PlatTop" type="StaticBody2D" parent="."]
+position = Vector2(1920, -510)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(240, 20)
+style = 5
+
+[node name="PlatMidR" type="StaticBody2D" parent="."]
+position = Vector2(2410, -340)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 5
+
+[node name="PlatLowR" type="StaticBody2D" parent="."]
+position = Vector2(2960, -180)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(220, 20)
+style = 5
+
+[node name="BossSpawner" type="Node2D" parent="."]
+script = ExtResource("10_spawner")
+spawn_point = Vector2(2500, 0)
+arena_min_x = 300
+arena_max_x = 3600
+forced_boss = 4
+trio_chance = 0
+auto_spawn = false
+entry_from_left = true
+
+[node name="Spawns" type="Node2D" parent="."]
+
+[node name="RunDirector" type="Node2D" parent="."]
+script = ExtResource("20_run_director")
+spawns_path = NodePath("../Spawns")
+stage = 2
+spawner_path = NodePath("../BossSpawner")
+right_portal_x = 3550
+
+[node name="Playerr" parent="." instance=ExtResource("1_player")]
+position = Vector2(200, -2)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+process_mode = 3
+script = ExtResource("6_music")
+volume_db = -6.0
+bus = &"Music"
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("7_pause")
+
+[node name="DemoComplete" type="CanvasLayer" parent="."]
+script = ExtResource("11_demo")
+title_text = "RUN"
+final_screen = true

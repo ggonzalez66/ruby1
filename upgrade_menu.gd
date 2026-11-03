@@ -3,6 +3,8 @@ extends CanvasLayer
 # Pantalla de mejoras al superar una ronda del Gauntlet: primero una mejora gratis de tres (con reroll
 # pagado en rubíes) y después una tienda para gastar los que queden. Cambiar de arma a distancia pide
 # confirmación porque reemplaza la actual. Pausa el juego hasta cerrarse.
+# En la run del mapa: el guardián da solo la mejora gratis (free_only) y el zorro comerciante abre una tienda
+# con un stock limitado que se conserva mientras dure la visita (open_shop); su reroll cambia solo lo no vendido.
 
 signal closed
 
@@ -28,6 +30,11 @@ var confirm_label: Label
 var confirm_accept: Button
 var confirm_back: Button
 var pending_index := -1
+# Tras la mejora gratis se cierra sin pasar por la tienda.
+var free_only := false
+# Tienda del zorro: stock fijo de la visita.
+var persistent_shop := false
+var card_size := Vector2(290, 250)
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -48,6 +55,17 @@ func open() -> void:
 		closed.emit()
 		return
 	bought.clear()
+	root_control.show()
+	get_tree().paused = true
+	_render()
+
+func open_shop(count: int) -> void:
+	# El stock se elige una vez por visita: cerrar y volver a abrir conserva lo vendido.
+	persistent_shop = true
+	stage = Stage.SHOP
+	if cards.is_empty():
+		cards = Upgrades.offers(count)
+		bought.clear()
 	root_control.show()
 	get_tree().paused = true
 	_render()
@@ -104,6 +122,9 @@ func _take(index: int) -> void:
 	if stage == Stage.FREE:
 		Upgrades.grant(card)
 		Sfx.play("upgrade_pick")
+		if free_only:
+			close()
+			return
 		_open_shop()
 		return
 	if not Upgrades.buy(card):
@@ -116,9 +137,27 @@ func reroll() -> void:
 	if not Upgrades.spend(Upgrades.REROLL_COST):
 		return
 	Sfx.play("ui_select")
-	bought.clear()
-	cards = Upgrades.offers(CARDS)
+	if persistent_shop:
+		_reroll_stock()
+	else:
+		bought.clear()
+		cards = Upgrades.offers(CARDS)
 	_render()
+
+func _reroll_stock() -> void:
+	# Lo ya vendido se queda en su sitio; el resto se cambia por otras mejoras.
+	var shown: Array = cards.map(func(card): return card["key"])
+	var fresh: Array = Upgrades.offers(cards.size() - bought.size(), shown)
+	var next_cards: Array = []
+	var next_bought: Array = []
+	for index in range(cards.size()):
+		if index in bought:
+			next_bought.append(next_cards.size())
+			next_cards.append(cards[index])
+		elif not fresh.is_empty():
+			next_cards.append(fresh.pop_front())
+	cards = next_cards
+	bought = next_bought
 
 func _open_shop() -> void:
 	stage = Stage.SHOP
@@ -131,7 +170,7 @@ func _open_shop() -> void:
 
 func _render() -> void:
 	var free: bool = stage == Stage.FREE
-	title_label.text = "ELIGE UNA MEJORA GRATIS" if free else "TIENDA · GASTA TUS RUBÍES"
+	title_label.text = "ELIGE UNA MEJORA GRATIS" if free else ("EL ZORRO COMERCIANTE · GASTA TUS RUBÍES" if persistent_shop else "TIENDA · GASTA TUS RUBÍES")
 	rubies_label.text = "RUBÍES: %d" % Upgrades.rubies
 	for child in card_row.get_children():
 		card_row.remove_child(child)
@@ -143,8 +182,9 @@ func _render() -> void:
 		if first == null and not button.disabled:
 			first = button
 	reroll_button.text = "Reroll (−%d rubíes)" % Upgrades.REROLL_COST
-	reroll_button.disabled = Upgrades.rubies < Upgrades.REROLL_COST
+	reroll_button.disabled = Upgrades.rubies < Upgrades.REROLL_COST or (persistent_shop and bought.size() >= cards.size())
 	continue_button.visible = not free
+	continue_button.text = "Salir de la tienda" if persistent_shop else "Continuar"
 	if first != null:
 		first.grab_focus()
 	elif not reroll_button.disabled:
@@ -157,7 +197,7 @@ func _make_card(index: int) -> Button:
 	var free: bool = stage == Stage.FREE
 	var sold: bool = index in bought
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(290, 250)
+	button.custom_minimum_size = card_size
 	button.disabled = not _can_choose(index)
 	button.add_theme_stylebox_override("normal", _card_style(card["color"], 2))
 	button.add_theme_stylebox_override("hover", _card_style(card["color"], 3))
