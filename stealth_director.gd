@@ -18,7 +18,6 @@ const DRAIN_TIME := 5.0
 const EVASION_TIME := 6.0
 const CAUTION_TIME := 25.0
 const CAUTION_VISION := 1.25
-const SIREN_INTERVAL := 1.5
 const CLOAK_CHARGE := 2.0
 const CLOAK_TIME := 6.0
 const LONG_CLOAK_BONUS := 4.0
@@ -40,7 +39,6 @@ var level := 0.0
 var evasion_left := 0.0
 var caution_left := 0.0
 var last_known := Vector2.ZERO
-var siren_wait := 0.0
 var bush_time := 0.0
 var in_bush := false
 var cloak_left := 0.0
@@ -122,7 +120,8 @@ func trigger_alarm() -> void:
 	alert = Alert.ALARM
 	level = 1.0
 	evasion_left = EVASION_TIME
-	siren_wait = 0.0
+	# La sirena suena una sola vez al saltar la alarma.
+	Sfx.play("alarm_siren")
 	_clear_mark()
 	if is_instance_valid(player):
 		last_known = player.global_position
@@ -161,10 +160,6 @@ func _update_alarm(delta: float) -> void:
 				level = maxf(level - delta / DRAIN_TIME, 0.0)
 		Alert.ALARM:
 			evasion_left = EVASION_TIME if seen else evasion_left - delta
-			siren_wait -= delta
-			if siren_wait <= 0.0:
-				siren_wait = SIREN_INTERVAL
-				Sfx.play("alarm_siren")
 			if evasion_left <= 0.0:
 				_end_alarm()
 		Alert.CAUTION:

@@ -752,8 +752,8 @@ func _physics_process(delta: float) -> void:
 				# Durante el dash el salto se guarda y sale al terminar (salto largo si sigue corriendo).
 				dash_jump_buffered = true
 
-	# Aim + RT lanza la lanza jade; con LT se recupera (light_combo.gd). La pistola dispara mientras se mantiene.
-	if combo.aim and not _blocks_actions() and (Input.is_action_just_pressed("dash") or (Input.is_action_pressed("dash") and Upgrades.ranged_weapon() == "pistol")):
+	# Aim + RT lanza la lanza jade; con LT se recupera (light_combo.gd). La pistola es semiautomática.
+	if combo.aim and not _blocks_actions() and Input.is_action_just_pressed("dash"):
 		_throw_spear()
 
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():

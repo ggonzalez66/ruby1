@@ -9,7 +9,7 @@ Elegir un arma pide confirmación, porque reemplaza la actual (`upgrade_menu.gd`
 | Arma | Precio | Disparo | Enfriamiento |
 | --- | --- | --- | --- |
 | Lanza de jade | 8 | La de siempre: marca, atrae y se llama de vuelta | 1 s |
-| Pistola | 14 | Mantener RT. 1 de daño. El elemento sale cada 3 disparos | 0,12 s |
+| Pistola | 14 | Semiautomática: un disparo por toque de RT. 1 de daño. El elemento sale cada 3 disparos | 0,12 s |
 | Granada de hielo | 16 | 6 de daño en zona y 5 racimos de 2. Siempre hiela. Las paredes cubren | 4 s |
 | Railgun | 18 | 12 de daño instantáneo a todos en línea, ignora escudos. Al conectar: 0,16 s de hitstop y retroceso | 1,8 s |
 

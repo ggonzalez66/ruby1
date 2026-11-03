@@ -160,11 +160,24 @@ func _run() -> void:
 	Input.action_press("dash")
 	await frames(62)
 	Input.action_release("dash")
+	await frames(20)
+	check(60 - target.current_health == 1, "semiautomática: mantener el gatillo dispara una sola bala (%d)" % (60 - target.current_health))
+	for _i in range(8):
+		Input.action_press("dash")
+		await frames(2)
+		Input.action_release("dash")
+		await frames(6)
+	await frames(20)
+	check(60 - target.current_health == 9, "cada toque es una bala de 1 de daño (%d)" % (60 - target.current_health))
+	for _i in range(6):
+		Input.action_press("dash")
+		await frames(2)
+		Input.action_release("dash")
+		await frames(2)
 	Input.action_release("throw_knife")
 	await frames(20)
-	var lost: int = 60 - target.current_health
-	check(lost >= 6, "mantener el gatillo dispara solo: %d impactos en 1 s" % lost)
-	check(lost <= 9, "cada bala hace 1 de daño")
+	var lost: int = 60 - target.current_health - 9
+	check(lost >= 1 and lost < 6, "tocar más rápido que la cadencia no suma balas (%d de 6)" % lost)
 	await reset()
 	upgrades.grant(upgrades._weapon_card("pistol"))
 	upgrades.grant(upgrades._element_card("ice", upgrades.RANGED_SLOT))

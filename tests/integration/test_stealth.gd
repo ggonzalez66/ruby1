@@ -67,7 +67,8 @@ func _run() -> void:
 		graceful = graceful and enemy.ruby_core.spawn_grace_left == 0.0
 	check(unaware, "todos empiezan con la IA dormida, sin saber nada")
 	check(graceful, "ya no hay dos segundos de preparación")
-	check(stealth.bushes.size() <= 4, "los bushes son pocos (%d)" % stealth.bushes.size())
+	var bush_xs: Array = stealth.bushes.map(func(bush): return bush.position.x)
+	check(bush_xs == [100.0, 4300.0], "solo dos bushes, en los bordes izquierdo y derecho (%s)" % [bush_xs])
 
 	print("== Patrulla, visión larga, investigar")
 	await clear_field(Vector2(2000, ground_y - 2))
@@ -286,6 +287,7 @@ func _run() -> void:
 	check(stealth.level == 0.0 and not stealth.alarm_active(), "lejos de todos no pasa nada")
 	player.position = Vector2(2700, ground_y - 2)
 	stealth.trigger_alarm()
+	var siren_at: int = root.get_node("Sfx").last_played.get("alarm_siren", -1)
 	player.current_health = player.max_health
 	var moved := 0
 	var start: Dictionary = {}
@@ -297,6 +299,7 @@ func _run() -> void:
 			moved += 1
 	check(moved >= director.enemies.size() / 3, "en alarma van a por ella (%d/%d)" % [moved, director.enemies.size()])
 	check(player.current_health < player.max_health or player.dead, "y la atacan (%d)" % player.current_health)
+	check(siren_at >= 0 and root.get_node("Sfx").last_played.get("alarm_siren", -1) == siren_at, "la sirena suena una sola vez al saltar la alarma")
 
 	print("== Morir apaga el sigilo")
 	stealth.trigger_alarm()

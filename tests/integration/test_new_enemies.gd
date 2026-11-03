@@ -265,14 +265,17 @@ func _run() -> void:
 	check(mecha.get_script() == load("res://boss_mecha.gd") and mecha.boss_name == "GUARDIÁN MECHA", "el selector de guardianes trae al mecha")
 	check(spawner.BOSSES.size() == 4 and spawner.TRIO_MEMBERS == [0, 1, 2], "el trío sigue siendo pesado, ágil y arquero")
 	var missiles := 0
+	var marked_on_floor := true
 	for i in range(300):
 		await frames(1)
 		for node in get_nodes_in_group(&"projectiles"):
 			if node.get_script() == load("res://missile.gd"):
 				missiles += 1
+				marked_on_floor = marked_on_floor and absf(node.target.y) < 1.0
 		if missiles > 0:
 			break
 	check(missiles > 0, "de lejos lanza una salva de misiles")
+	check(marked_on_floor, "las cruces de los misiles quedan sobre el suelo")
 	await frames(150)
 	# Sin reset(): reaparecer a Viridy haría que el selector (sin auto_spawn) quitara al guardián.
 	mecha.missile_cooldown = 99.0
@@ -295,6 +298,38 @@ func _run() -> void:
 		await frames(80)
 	spawner.clear_bosses()
 	spawner.queue_free()
+	clear_enemies()
+	await frames(2)
+
+	print("== Misiles del mecha: se clavan y estallan solos en área")
+	for case in [[60.0, true, "a 60 px la explosión la alcanza"], [300.0, false, "a 300 px queda fuera del área"]]:
+		await reset()
+		player.invulnerability_timer = 0.0
+		health = player.current_health
+		var missile: Area2D = load("res://missile.gd").new()
+		missile.target = Vector2(GROUND.x + case[0], 0.0)
+		missile.velocity = Vector2(0, -560)
+		level.add_child(missile)
+		missile.global_position = GROUND + Vector2(500, -200)
+		var planted_at := -1
+		var spot := Vector2.ZERO
+		var still := true
+		var blew_at := -1
+		for i in range(360):
+			await frames(1)
+			if not is_instance_valid(missile) or missile.exploded:
+				blew_at = i
+				break
+			if missile.planted:
+				if planted_at < 0:
+					planted_at = i
+					spot = missile.global_position
+				still = still and missile.global_position == spot
+		check(planted_at >= 0 and absf(spot.y) < 12.0, "se clava en el suelo (y = %.1f)" % spot.y)
+		check(still, "clavado no se mueve")
+		check(blew_at - planted_at >= 60, "espera la mecha antes de estallar (%d frames)" % (blew_at - planted_at))
+		check(blew_at >= 0, "estalla sola sin que Viridy la toque")
+		check((player.current_health < health) == case[1], case[2])
 	clear_enemies()
 	await frames(2)
 

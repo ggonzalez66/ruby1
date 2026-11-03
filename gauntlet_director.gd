@@ -48,8 +48,8 @@ const VARIANT_BASE := 0.1
 const VARIANT_PER_ROUND := 0.06
 const MAX_VARIANT_CHANCE := 0.5
 const VARIANT_TINT := 0.4
-# Pocos bushes: tres en el suelo de la arena.
-const BUSH_SPOTS := [1820.0, 2830.0, 3640.0]
+# Solo dos bushes, pegados a los bordes izquierdo y derecho de la etapa (muros en x = 0 y x = 4400).
+const BUSH_SPOTS := [100.0, 4300.0]
 # Plataformas altas de la arena donde aparecen enemigos en las oleadas mayores: [x, altura del suelo de
 # la plataforma respecto al suelo, piso (1 = la más baja)].
 const UPPER_SPOTS := [

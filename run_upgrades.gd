@@ -31,7 +31,7 @@ const WEAPONS := {
 	"spear": {"title": "Lanza de jade", "price": 8, "color": Color(0.8, 1.0, 0.65),
 		"text": "Vuelve a la lanza: marca, atrae y se llama de vuelta."},
 	"pistol": {"title": "Pistola", "price": 14, "color": Color(1.0, 0.9, 0.6),
-		"text": "Mantén el gatillo: muchos disparos de poco daño. El elemento sale cada 3 disparos."},
+		"text": "Semiautomática: un disparo por toque, rápido y de poco daño. El elemento sale cada 3 disparos."},
 	"grenade": {"title": "Granada de hielo", "price": 16, "color": Color(0.55, 0.85, 1.0),
 		"text": "Explota, hiela y suelta mini racimos. Tiene enfriamiento."},
 	"railgun": {"title": "Railgun", "price": 18, "color": Color(0.75, 0.55, 1.0),

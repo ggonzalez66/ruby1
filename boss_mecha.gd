@@ -240,6 +240,10 @@ func _launch_missile(player: Node2D, index: int) -> void:
 	# Repartidos alrededor de Viridy; el del medio, justo donde está.
 	var spread: float = (index - (missile_count - 1) * 0.5) * 95.0
 	missile.target = Vector2(center.x + spread + randf_range(-20.0, 20.0), center.y - 6.0)
+	# La cruz va sobre el suelo bajo ese punto (aunque Viridy esté saltando), que es donde se clava.
+	var floor_hit := get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(missile.target + Vector2(0, -40), missile.target + Vector2(0, 600), MISSILE_SCRIPT.WORLD_MASK))
+	if not floor_hit.is_empty():
+		missile.target = floor_hit.position
 	missile.velocity = Vector2(-facing * randf_range(60.0, 140.0), -560.0)
 	missile.damage = missile_damage
 	missile.shooter = self
