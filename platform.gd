@@ -6,7 +6,7 @@ extends StaticBody2D
 # de acero de las fábricas de la run).
 # Es @tool para que también se vea en el editor.
 
-enum Style { GROUND, SLAB, PLATFORM, WALL, CLIMB_WALL, METAL }
+enum Style { GROUND, SLAB, PLATFORM, WALL, CLIMB_WALL, METAL, SUN }
 
 @export var size := Vector2(200, 40):
 	set(value):
@@ -29,7 +29,10 @@ const PALETTES := {
 	Style.WALL: [Color(0.38, 0.32, 0.29), Color(0.22, 0.18, 0.17)],
 	Style.CLIMB_WALL: [Color(0.3, 0.36, 0.27), Color(0.17, 0.21, 0.15)],
 	Style.METAL: [Color(0.36, 0.39, 0.42), Color(0.17, 0.19, 0.22)],
+	Style.SUN: [Color(1.0, 0.68, 0.26), Color(0.74, 0.3, 0.08)],
 }
+const SUN_CREST := Color(1.0, 0.96, 0.75)
+const SUN_GLYPH := Color(1.0, 0.86, 0.5, 0.55)
 const HAZARD_YELLOW := Color(0.95, 0.72, 0.12)
 const HAZARD_DARK := Color(0.1, 0.09, 0.08)
 
@@ -61,6 +64,9 @@ func _draw() -> void:
 	if style == Style.METAL:
 		_draw_metal(half, palette)
 		return
+	if style == Style.SUN:
+		_draw_sun(half, palette, rng)
+		return
 	match style:
 		Style.WALL:
 			_draw_bricks(half, palette[1].darkened(0.25), rng)
@@ -79,6 +85,23 @@ func _draw() -> void:
 	# Musgo y hierba arriba (en los muros solo un remate).
 	var moss_depth: float = 4.0 if style in [Style.WALL, Style.CLIMB_WALL] else min(9.0, size.y * 0.45)
 	_draw_moss_top(half, moss_depth, rng, style not in [Style.WALL, Style.CLIMB_WALL])
+
+func _draw_sun(half: Vector2, palette: Array, rng: RandomNumberGenerator) -> void:
+	# Piedra solar del mundo espiritual: vetas claras, glifos y un borde superior incandescente.
+	for index in range(int(size.x * size.y / 9000.0) + 1):
+		var y := rng.randf_range(-half.y + 10.0, half.y - 6.0)
+		var x := rng.randf_range(-half.x + 6.0, half.x - 40.0)
+		draw_line(Vector2(x, y), Vector2(x + rng.randf_range(16.0, 40.0), y + rng.randf_range(-3.0, 3.0)), palette[1].lightened(0.25), 2.0)
+	for index in range(int(size.x / 160.0)):
+		var c := Vector2(-half.x + (index + 0.5) * size.x / int(size.x / 160.0), clampf(0.0, -half.y + 14.0, half.y - 14.0))
+		if size.y >= 40.0:
+			draw_arc(c, 7.0, 0.0, TAU, 10, SUN_GLYPH, 1.5)
+			draw_line(c + Vector2(-11, 0), c + Vector2(11, 0), SUN_GLYPH, 1.0)
+	draw_rect(Rect2(-half.x, -half.y, size.x, 4.0), SUN_CREST)
+	draw_rect(Rect2(-half.x, -half.y + 4.0, size.x, 3.0), palette[0].lightened(0.3))
+	if side_borders:
+		draw_line(Vector2(-half.x, -half.y), Vector2(-half.x, half.y), palette[1].darkened(0.2), 2.0)
+		draw_line(Vector2(half.x, -half.y), Vector2(half.x, half.y), palette[1].darkened(0.2), 2.0)
 
 func _draw_metal(half: Vector2, palette: Array) -> void:
 	# Planchas remachadas con juntas y, arriba, una franja de peligro amarilla y negra.

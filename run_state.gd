@@ -18,7 +18,7 @@ const FIGHT_SCENES := ["res://factory_outdoor.tscn", "res://factory_indoor.tscn"
 const FOUNTAIN_SCENE := "res://fountain.tscn"
 const SHOP_SCENE := "res://fox_shop.tscn"
 const TOWER_SCENE := "res://tower_finale.tscn"
-const PARKOUR_SCENE := "res://stage4.tscn"
+const PARKOUR_SCENE := "res://sun_world.tscn"
 const RUN_SCENES := ["res://factory_outdoor.tscn", "res://factory_indoor.tscn", "res://factory_boss.tscn",
 	FOUNTAIN_SCENE, SHOP_SCENE, TOWER_SCENE, PARKOUR_SCENE]
 

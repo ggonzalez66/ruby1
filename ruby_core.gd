@@ -334,6 +334,10 @@ func _physics_process(delta: float) -> void:
 		queue_redraw()
 
 func core_radius() -> float:
+	# Un enemigo puede pedir un núcleo más grande (la araña y sus patas).
+	var custom: Variant = enemy.get("core_size")
+	if custom != null:
+		return custom
 	return 15.0 if boss else (7.0 if enemy.get("patrol_width") != null else 9.0)
 
 func health_polygon(radius: float, ratio: float) -> PackedVector2Array:
@@ -394,6 +398,7 @@ func _draw() -> void:
 		draw_polyline(PackedVector2Array([Vector2(1, -radius), Vector2(-2, -2), Vector2(3, 2), Vector2(-1, radius)]), Color(0.10, 0.0, 0.01), 2.0)
 
 func _essence(by: Node2D, center: Vector2) -> void:
+	Fx.collect(enemy.get_parent(), center, RED.lightened(0.15), 0.8)
 	for index in range(6):
 		var mote := Polygon2D.new()
 		mote.polygon = PackedVector2Array([Vector2(0, -4), Vector2(3, 0), Vector2(0, 4), Vector2(-3, 0)])
@@ -407,7 +412,7 @@ func _essence(by: Node2D, center: Vector2) -> void:
 func _impact_feedback(center: Vector2) -> void:
 	Sfx.play("guard_break", 1.0, 1.25)
 	Fx.shatter(enemy.get_parent(), center, RED, BLAST_RADIUS)
-	Fx.puff(enemy.get_parent(), center, RED)
+	Fx.ruby_critical(enemy.get_parent(), center, RED)
 
 func _blast(center: Vector2, executed := false) -> void:
 	# El estallido de una ejecución reinicia el DYING de los vecinos para encadenar otra;

@@ -19,8 +19,9 @@ una run y aparece el mapa: un panal de hexágonos entre el Árbol Madre y la Tor
 - **Fuente de curación** (`fountain.gd`): meterse en el agua cura toda la vida, una vez.
 - **Zorro comerciante** (`fox_shop.gd`, `fox_stall.gd`): 4 mejoras por visita, reroll de 5 rubíes que cambia
   solo lo no vendido. Los rubíes de las ejecuciones se guardan para aquí.
-- **La Torre** (`tower_finale.tscn`): los tres guardianes juntos; al vencerlos aparece el sol. El sol absorbe a
-  Viridy y lleva al parkour final (`stage4.tscn`); fundirse con el Ruby termina la run.
+- **La Torre** (`tower_finale.tscn`): los tres guardianes juntos y, tras ellos, la Araña Colosal; al vencerla
+  aparece el sol. El sol absorbe a Viridy y lleva al mundo espiritual del sol (`sun_world.tscn`, ver
+  `docs/pixelfx_spider/README.md`); fundirse con el Ruby termina la run.
 
 La vida se conserva entre escenas. Morir en un combate termina la run (vuelta al Árbol Madre o al menú).
 El Gauntlet por oleadas sigue disponible en Level Testing.

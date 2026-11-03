@@ -126,6 +126,10 @@ func _update_boss_banner() -> void:
 	var bosses := get_tree().get_nodes_in_group(&"boss")
 	if bosses.is_empty():
 		return
+	# Tras el trío llega otro guardián (la araña de la Torre): se presenta el primero que siga en pie.
+	var standing := bosses.filter(func(b): return not b.is_defeated())
+	if not standing.is_empty():
+		bosses = standing
 	var boss: Node = bosses[0]
 	var fighting: bool = boss.combat_started and not boss.is_defeated()
 	if fighting and banner_boss != boss:

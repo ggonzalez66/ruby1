@@ -46,7 +46,10 @@ func _physics_process(delta: float) -> void:
 	global_position = to
 	trail.points = PackedVector2Array([from - velocity * delta * 0.5, to])
 	if finished or not wall.is_empty():
-		Fx.impact(get_parent(), to, Fx.SILVER, 0.5)
+		if wall.is_empty():
+			Fx.impact(get_parent(), to, Fx.SILVER, 0.5)
+		else:
+			Fx.bullet_impact(get_parent(), to, Fx.SILVER[1], (-velocity).angle())
 		queue_free()
 
 func _hit_enemies(from: Vector2, to: Vector2) -> bool:

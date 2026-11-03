@@ -59,7 +59,7 @@ func _ready() -> void:
 	_build_body()
 	_build_ui()
 	_update_health_bar()
-	ruby_core = RUBY_CORE_SCRIPT.new()
+	ruby_core = _core_script().new()
 	ruby_core.name = "RubyCore"
 	add_child(ruby_core)
 
@@ -105,6 +105,9 @@ func _physics_process(delta: float) -> void:
 	_boss_process(delta, player)
 
 # ---------- Para sobrescribir
+
+func _core_script() -> Script:
+	return RUBY_CORE_SCRIPT
 
 func _configure() -> void:
 	pass

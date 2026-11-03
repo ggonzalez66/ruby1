@@ -51,7 +51,7 @@ def decor(K, mode, area, **extra):
 def camera(K, name, x, y, aim, sweep=35, period=4.0):
     """Cámara de seguridad (security_camera.gd): aim en grados (0 derecha, 90 abajo)."""
     script = K.S.ext_res("Script", "res://security_camera.gd", "23_camera")
-    K.S.node(name, "Node2D", {"position": K.vec(x, y), "script": f'ExtResource("{script}")',
+    K.S.node(name, "Area2D", {"position": K.vec(x, y), "script": f'ExtResource("{script}")',
                               "aim_angle": f"{aim:g}", "sweep": f"{sweep:g}", "period": f"{period:g}"})
 
 

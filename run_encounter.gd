@@ -15,6 +15,11 @@ extends "res://gauntlet_director.gd"
 enum Stage { OUTDOOR, INDOOR, BOSS, TOWER }
 
 const SUN_SCRIPT := preload("res://ruby_crystal.gd")
+const SPIDER_SCRIPT := preload("res://spider_boss.gd")
+const SPIDER_DELAY := 2.6
+# Vida de la araña: el núcleo central y cada pata (escalan con la profundidad como los guardianes).
+const SPIDER_HEALTH := 90
+const SPIDER_LEG_HEALTH := 36
 const STAGE_NAMES := ["FÁBRICA · AFUERAS", "FÁBRICA · DENTRO", "FÁBRICA · GUARDIÁN", "LA TORRE"]
 
 @export var stage := Stage.OUTDOOR
@@ -26,6 +31,9 @@ var cleared := false
 var exit_door: Node
 var sun: Node2D
 var standalone := false
+# La Torre: tras el trío llega la araña; el sol aparece al vencerla.
+var spider: Node2D
+var spider_called := false
 
 func _ready() -> void:
 	add_to_group(&"gauntlet_director")
@@ -146,6 +154,14 @@ func on_bosses_defeated() -> void:
 		return
 	rounds_cleared = round_number
 	if stage == Stage.TOWER:
+		# Cada guardián del trío avisa al caer: solo cuenta la araña vencida para pasar al sol.
+		if not (is_instance_valid(spider) and spider.is_defeated()):
+			if not spider_called:
+				spider_called = true
+				_show_banner("¡ALGO ENORME SE ACERCA!", Color(1.0, 0.45, 0.35))
+				Sfx.play("boss_alert", 2.0, 0.6)
+				get_tree().create_timer(SPIDER_DELAY).timeout.connect(_spawn_spider)
+			return
 		phase = Phase.PORTALS
 		_show_banner("¡EL SOL TE LLAMA!", Color(1.0, 0.85, 0.4))
 		_spawn_sun()
@@ -168,6 +184,29 @@ func _back_to_map() -> void:
 	phase = Phase.DONE
 	focus.cancel()
 	RunState.complete_fight()
+
+func _spawn_spider() -> void:
+	if phase != Phase.BOSS or is_instance_valid(spider):
+		return
+	var scale_factor: float = 1.0 + GUARDIAN_HEALTH_PER_ROUND * (round_number - 1)
+	spider = Area2D.new()
+	spider.set_script(SPIDER_SCRIPT)
+	spider.boss_name = "LA ARAÑA COLOSAL"
+	spider.boss_subtitle = "Cuatro patas, cinco rubíes"
+	spider.max_health = ceili(SPIDER_HEALTH * scale_factor)
+	spider.leg_health = ceili(SPIDER_LEG_HEALTH * scale_factor)
+	spider.min_x = spawner.arena_min_x if spawner != null else 300.0
+	spider.max_x = spawner.arena_max_x if spawner != null else 3600.0
+	var player := get_tree().get_first_node_in_group(&"player") as Node2D
+	# Entra por el lado contrario al de Viridy.
+	var middle: float = (spider.min_x + spider.max_x) * 0.5
+	var from_right: bool = player == null or player.global_position.x < middle
+	spider.position = Vector2(spider.max_x - 400.0 if from_right else spider.min_x + 400.0, ground_y)
+	spider.facing = -1 if from_right else 1
+	spider.set_meta(&"spawn_grace", spawn_grace_time)
+	get_parent().add_child(spider)
+	Fx.big_explosion(get_parent(), spider.position, 0.9)
+	_show_banner("¡LA ARAÑA COLOSAL!", Color(1.0, 0.45, 0.35))
 
 func _spawn_sun() -> void:
 	sun = SUN_SCRIPT.new()

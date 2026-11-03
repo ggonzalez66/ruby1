@@ -235,8 +235,7 @@ func _update_gravity(delta: float) -> void:
 func _explode() -> void:
 	Ferocity.add("void_kill", 40.0, "AL VACÍO", Ferocity.BONUS_COLOR)
 	var center := global_position + impact_offset
-	Fx.impact(get_parent(), center, Fx.GOLD, 2.4)
-	Fx.puff(get_parent(), center, Color(1.0, 0.6, 0.2, 0.9))
+	Fx.explosion(get_parent(), center, 0.8)
 	Fx.text(get_parent(), center + Vector2(0, -30), "¡BOOM!", Color(1.0, 0.75, 0.4))
 	current_health = 0
 	_update_health_bar()

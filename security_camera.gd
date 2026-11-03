@@ -1,9 +1,11 @@
-extends Node2D
+extends Area2D
 
 # Cámara de seguridad de las fábricas de la run: colgada de un soporte, barre de un lado a otro con un cono
 # de visión. Si ve a Viridy (sin paredes en medio y sin estar invisible por un bush) la sigue con la lente y
 # carga la alarma global en un instante (stealth_director.camera_spotted). Cuando su alarma salta llama
-# refuerzos una vez, como el centinela. No se puede destruir: hay que esquivar su barrido.
+# refuerzos una vez, como el centinela.
+# Se puede destruir (golpes, lanza o disparos; `hits` impactos): no da rubíes pero sí estilo, y una cámara
+# rota ya no ve, así que romperlas ayuda a mantener el sigilo. Romperla no alerta a los guardias.
 
 @export var aim_angle := 90.0
 @export var sweep := 35.0
@@ -12,6 +14,7 @@ extends Node2D
 @export var cone_half := 17.0
 @export var reinforcements := 4
 @export var alert_duration := 8.0
+@export var hits := 3
 
 const HOUND_SCRIPT := preload("res://hound.gd")
 const CHASER_SCRIPT := preload("res://chaser_dummy.gd")
@@ -30,15 +33,68 @@ var lock_left := 0.0
 var called_reinforcements := false
 var stealth: Node
 var player: Node2D
+var impact_offset := Vector2.ZERO
+var hits_left := 0
+var destroyed := false
+var flash_left := 0.0
+var spark_left := 0.0
 
 func _ready() -> void:
 	add_to_group(&"security_cameras")
 	z_index = 4
 	angle = deg_to_rad(aim_angle)
 	time = randf() * period
+	hits_left = hits
+	# Hurtbox en la capa de los enemigos: la encuentran los golpes, la lanza y las balas.
+	collision_layer = 8
+	collision_mask = 0
+	monitoring = false
+	monitorable = true
+	var shape := CollisionShape2D.new()
+	var circle := CircleShape2D.new()
+	circle.radius = 24.0
+	shape.shape = circle
+	add_child(shape)
+
+func take_hit(_source_position: Vector2, _direction: int = 1, _damage: int = 1, _play_sound: bool = true) -> void:
+	if destroyed:
+		return
+	hits_left -= 1
+	flash_left = 0.1
+	Fx.zap(get_parent(), global_position, Color(0.5, 0.8, 1.0), 0.5)
+	if hits_left <= 0:
+		_destroy()
+	queue_redraw()
+
+func _destroy() -> void:
+	destroyed = true
+	spotting = false
+	lock_left = 0.0
+	set_deferred("monitorable", false)
+	# Sin rubíes: solo estilo.
+	Ferocity.add("camera_destroyed", 30.0, "CÁMARA DESTRUIDA", Ferocity.BONUS_COLOR)
+	Stats.add("cameras_destroyed")
+	Sfx.play("grenade_blast", -8.0, 1.5)
+	Fx.explosion(get_parent(), global_position, 0.35)
+	Fx.zap(get_parent(), global_position, Color(0.5, 0.8, 1.0), 0.9)
+	# Queda colgando del soporte, apagada.
+	var drop := deg_to_rad(aim_angle) + 0.9 * (1.0 if cos(deg_to_rad(aim_angle)) >= 0.0 else -1.0)
+	create_tween().tween_property(self, "angle", drop, 0.5).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	spark_left = 1.0
+	queue_redraw()
 
 func _physics_process(delta: float) -> void:
 	time += delta
+	flash_left = maxf(flash_left - delta, 0.0)
+	if destroyed:
+		# Chispazos de vez en cuando.
+		spark_left -= delta
+		if spark_left <= 0.0:
+			spark_left = randf_range(1.5, 3.0)
+			if is_visible_in_tree():
+				Fx.zap(get_parent(), global_position + Vector2.from_angle(angle) * 16.0, Color(0.5, 0.8, 1.0), 0.3)
+		queue_redraw()
+		return
 	if stealth == null or not is_instance_valid(stealth):
 		stealth = get_tree().get_first_node_in_group(&"stealth_director")
 	player = get_tree().get_first_node_in_group(&"player") as Node2D
@@ -96,7 +152,7 @@ func _call_reinforcements() -> void:
 			director.add_reinforcement(enemy)
 		else:
 			get_parent().add_child.call_deferred(enemy)
-		Fx.puff(get_parent(), enemy.position + Vector2(0, -20), Color(1.0, 0.3, 0.25, 0.9))
+		Fx.warp_in(get_parent(), enemy.position, Color(1.0, 0.3, 0.25))
 
 func _draw() -> void:
 	# Cono de visión (guía visual: no se recorta con las paredes) y la cámara sobre su soporte.
@@ -105,7 +161,7 @@ func _draw() -> void:
 	for index in range(9):
 		var a := angle - deg_to_rad(cone_half) + deg_to_rad(cone_half * 2.0) * index / 8.0
 		cone.append(Vector2.from_angle(a) * view_range)
-	var active: bool = stealth != null and is_instance_valid(stealth) and stealth.running
+	var active: bool = not destroyed and stealth != null and is_instance_valid(stealth) and stealth.running
 	if active:
 		draw_colored_polygon(cone, CONE_SPOT if spotting else CONE_IDLE)
 	# Soporte hacia la pared o el techo (el lado opuesto al que mira por defecto).
@@ -114,9 +170,13 @@ func _draw() -> void:
 	draw_circle(mount, 7.0, BODY.darkened(0.2))
 	var side := direction.orthogonal()
 	var body := PackedVector2Array([-direction * 14.0 + side * 10.0, direction * 18.0 + side * 8.0, direction * 18.0 - side * 8.0, -direction * 14.0 - side * 10.0])
-	draw_colored_polygon(body, BODY)
+	draw_colored_polygon(body, Color(1.0, 0.8, 0.75) if flash_left > 0.0 else (BODY.darkened(0.35) if destroyed else BODY))
 	draw_line(-direction * 14.0 + side * 10.0, direction * 18.0 + side * 8.0, BODY_LIGHT, 2.0)
 	draw_circle(direction * 20.0, 6.0, Color(0.08, 0.1, 0.14))
+	if destroyed:
+		# Lente rota.
+		draw_line(direction * 20.0 + side * 4.0, direction * 20.0 - side * 4.0, Color(0.5, 0.55, 0.6), 1.5)
+		return
 	draw_circle(direction * 20.0, 3.0, Color(0.4, 0.75, 1.0) if not spotting else LED)
 	var blink: bool = spotting or int(time * 2.0) % 2 == 0
 	if active and blink:

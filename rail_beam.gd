@@ -15,6 +15,8 @@ func fire(shooter: Node2D, start: Vector2, direction: Vector2, damage: int) -> v
 	if not wall.is_empty():
 		end = wall.position
 	_draw_beam(start, end)
+	if not wall.is_empty():
+		Fx.bullet_impact(get_parent(), end, COLOR, (start - end).angle())
 	if _hit_enemies(start, end, damage):
 		shooter.on_rail_hit(direction.normalized())
 
@@ -38,6 +40,7 @@ func _hit_enemies(start: Vector2, end: Vector2, damage: int) -> bool:
 		enemy.take_hit(start, 1 if end.x >= start.x else -1, Upgrades.strike(enemy, Upgrades.RANGED_SLOT, damage))
 		Ferocity.add("rail_hit", 16.0, "RAILGUN")
 		Fx.impact(get_parent(), hit.position, Fx.GOLD, 1.2)
+		Fx.zap(get_parent(), hit.position, COLOR, 0.8)
 	return connected
 
 func _draw_beam(start: Vector2, end: Vector2) -> void:

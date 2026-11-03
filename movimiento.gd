@@ -1892,7 +1892,9 @@ func return_to_checkpoint(amount: int) -> void:
 	if dead:
 		return
 	var from := global_position
-	take_damage(amount, global_position + Vector2(0.0, 40.0))
+	# La lava del sol (amount 0) solo devuelve al checkpoint.
+	if amount > 0:
+		take_damage(amount, global_position + Vector2(0.0, 40.0))
 	if dead:
 		return
 	_cancel_all_states()
@@ -2044,6 +2046,7 @@ func heal(amount: int) -> int:
 	Stats.add("health_healed", healed)
 	health_changed.emit(current_health, max_health)
 	Fx.text(get_parent(), global_position + Vector2(0, -52), "+%d" % healed, Color(0.45, 1.0, 0.5))
+	Fx.heal(self)
 	return healed
 
 func _update_riposte_visual() -> void:
@@ -4145,39 +4148,10 @@ func _spawn_wall_explosion_visual(center: Vector2) -> void:
 		tween.chain().tween_callback(burst.queue_free)
 		return
 
-	var palette: Array[Color] = EFFECT_PALETTE_GOLD
-	var core := Polygon2D.new()
-	core.polygon = _circle_points(9.0, 16)
-	core.color = palette[2]
-	burst.add_child(core)
-	tween.tween_property(core, "scale", Vector2.ONE * 2.4, duration * 0.35)
-	tween.tween_property(core, "modulate:a", 0.0, duration * 0.35)
-
-	var ring := Line2D.new()
-	var ring_points := _circle_points(wall_explosion_radius * 0.35, 24)
-	ring_points.append(ring_points[0])
-	ring.points = ring_points
-	ring.width = 3.0
-	ring.default_color = palette[1]
-	burst.add_child(ring)
-	tween.tween_property(ring, "scale", Vector2.ONE * (1.0 / 0.35), duration)
-	tween.tween_property(ring, "width", 0.5, duration)
-	tween.tween_property(ring, "modulate:a", 0.0, duration)
-
-	for index in range(10):
-		var angle: float = TAU * index / 10.0 + randf_range(-0.2, 0.2)
-		var direction := Vector2(cos(angle), sin(angle))
-		var length: float = randf_range(14.0, 24.0)
-		var spark := Line2D.new()
-		spark.points = PackedVector2Array([Vector2.ZERO, direction * length])
-		spark.width = 2.5
-		spark.default_color = palette[2] if index % 2 == 0 else palette[1]
-		spark.position = direction * 6.0
-		burst.add_child(spark)
-		tween.tween_property(spark, "position", direction * wall_explosion_radius * randf_range(0.7, 1.0), duration)
-		tween.tween_property(spark, "scale", Vector2.ONE * 0.3, duration)
-		tween.tween_property(spark, "modulate:a", 0.0, duration)
-	tween.chain().tween_callback(burst.queue_free)
+	# Explosión dorada de PixelFX del tamaño del radio de daño.
+	burst.queue_free()
+	Fx.shatter(level, center, EFFECT_PALETTE_GOLD[1], wall_explosion_radius)
+	Fx.explosion(level, center, wall_explosion_radius / 120.0)
 
 func _circle_points(radius: float, segments: int) -> PackedVector2Array:
 	var points := PackedVector2Array()

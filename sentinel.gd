@@ -170,7 +170,7 @@ func _call_reinforcements(player: Node2D) -> void:
 			director.add_reinforcement(enemy)
 		else:
 			get_parent().add_child.call_deferred(enemy)
-		Fx.puff(get_parent(), enemy.position + Vector2(0, -20), Color(1.0, 0.3, 0.25, 0.9))
+		Fx.warp_in(get_parent(), enemy.position, Color(1.0, 0.3, 0.25))
 
 func take_hit(source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
 	var alarming := state == State.TELEGRAPH

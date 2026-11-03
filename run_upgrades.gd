@@ -60,6 +60,8 @@ const CATALOG := {
 		"text": "La invisibilidad al salir de un bush dura 4 s más."},
 	"temper": {"title": "Temple elemental", "price": 10, "color": Color(0.85, 0.85, 0.9),
 		"text": "Los elementos enemigos te duran la mitad."},
+	"wrath_chain": {"title": "Ira encadenada", "price": 16, "color": Color(1.0, 0.18, 0.4),
+		"text": "En la Ira de la Naturaleza, al morder a un enemigo eliges otra dirección y te vuelves a lanzar, cada vez más rápido. Mantén el ataque ligero para pasar de largo."},
 }
 const PIERCING_WEAPONS := ["spear", "pistol"]
 const FOCUS_MAX := 100.0

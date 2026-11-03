@@ -26,6 +26,11 @@ const CENTER := Vector2(0, -42)
 const GALLOP_FEET := [355.0, 358.0, 365.0, 364.0]
 const CROUCH_FEET := 353.0
 const CAPTURE_RADIUS := 58.0
+# Mejora "wrath_chain" (Ira encadenada): al morder a un enemigo la bestia se detiene, se elige otra de las
+# 8 direcciones y se vuelve a lanzar, cada vez más rápido. Mantener el ataque ligero pasa de largo.
+const CHAIN_SPEEDUP := 0.22
+const CHAIN_AIM_TIME := 0.34
+const MAX_CHAINS := 12
 
 var player: CharacterBody2D
 var state := State.IDLE
@@ -46,6 +51,9 @@ var galloping := false
 var gallop_frame := -1
 var aura: Node2D
 var recovery_ghost: Sprite2D
+var chain_count := 0
+var current_speed := 0.0
+var aim_time := 0.5
 
 func _ready() -> void:
 	player = get_parent()
@@ -59,7 +67,8 @@ func controls_movement() -> bool:
 	return state in [State.AIM, State.RUSH, State.RECOIL, State.SHATTER, State.RECOVERY]
 
 func uses_beast() -> bool:
-	return state in [State.RUSH, State.RECOIL, State.SHATTER]
+	# En la Ira encadenada la bestia sigue a la vista mientras se elige la siguiente dirección.
+	return state in [State.RUSH, State.RECOIL, State.SHATTER] or (state == State.AIM and chain_count > 0)
 
 func invulnerable() -> bool:
 	return state in [State.AIM, State.RUSH, State.RECOIL, State.SHATTER, State.RECOVERY]
@@ -105,9 +114,9 @@ func tick(delta: float) -> void:
 					if not (landed and _blocked_on_ground(candidate)):
 						direction = candidate
 				player.velocity = Vector2.ZERO
-				Ferocity.special_progress = maxf(1.0 - elapsed / aim_duration, 0.0)
-				if elapsed >= aim_duration:
-					launch(direction)
+				Ferocity.special_progress = maxf(1.0 - elapsed / aim_time, 0.0)
+				if elapsed >= aim_time:
+					launch(direction, chain_count > 0)
 			State.RUSH:
 				if Input.is_action_just_pressed("heavy_attack"):
 					_brake()
@@ -169,6 +178,8 @@ func begin_aim() -> bool:
 	player.knife_throw_pose_timer = 0.0
 	state = State.AIM
 	elapsed = 0.0
+	aim_time = aim_duration
+	chain_count = 0
 	landed = player.is_on_floor()
 	var pose: StringName = player.ANIMATION_CROUCH if landed else player.ANIMATION_AERIAL_STALL
 	player.animated_sprite.play(pose)
@@ -176,7 +187,7 @@ func begin_aim() -> bool:
 	Sfx.play("wrath_aim")
 	return true
 
-func launch(input_direction: Vector2) -> bool:
+func launch(input_direction: Vector2, keep_captured: bool = false) -> bool:
 	if not is_ready() or input_direction.length_squared() < 0.01 or player.execution_core != null:
 		return false
 	direction = Vector2(signf(input_direction.x), signf(input_direction.y)).normalized()
@@ -188,7 +199,10 @@ func launch(input_direction: Vector2) -> bool:
 	player.knife_throw_pose_timer = 0.0
 	player.animated_sprite.modulate = Color.WHITE
 	player.charge_glow_material.set_shader_parameter("glow_amount", 0.0)
-	player.velocity = direction * rush_speed
+	if not keep_captured:
+		chain_count = 0
+	current_speed = rush_speed * (1.0 + CHAIN_SPEEDUP * chain_count)
+	player.velocity = direction * current_speed
 	player.facing = -1 if direction.x < -0.01 else (1 if direction.x > 0.01 else player.facing)
 	player._update_facing_visual()
 	state = State.RUSH
@@ -199,22 +213,26 @@ func launch(input_direction: Vector2) -> bool:
 	gallop_frame = -1
 	afterimage_wait = 0.0
 	trail_wait = 0.0
-	captured.clear()
+	if not keep_captured:
+		captured.clear()
 	_pose()
-	Sfx.play("wrath_launch")
+	Sfx.play("wrath_launch", 0.0, 1.0 + 0.06 * chain_count)
 	Sfx.start_loop("wrath_rush")
 	Stats.add("wrath_launched")
 	return true
 
 func _rush(delta: float) -> void:
 	var from := player.global_position
-	var remaining := minf(rush_speed * delta, maxf(max_distance - distance, 0.0))
-	player.velocity = direction * rush_speed
+	var remaining := minf(current_speed * delta, maxf(max_distance - distance, 0.0))
+	player.velocity = direction * current_speed
 	var collision := player.move_and_collide(direction * remaining)
 	var to := player.global_position
 	distance += from.distance_to(to)
 	galloping = _touches_ground()
-	_capture_segment(from + CENTER, to + CENTER + direction * MOUTH_AHEAD)
+	var caught := _capture_segment(from + CENTER, to + CENTER + direction * MOUTH_AHEAD)
+	if caught > 0 and _chains():
+		_start_chain()
+		return
 	Ferocity.special_progress = maxf(1.0 - distance / max_distance, 0.0)
 	afterimage_wait -= delta
 	if afterimage_wait <= 0.0:
@@ -262,7 +280,7 @@ func _brake() -> void:
 	Fx.jade_burst(player.get_parent(), player.global_position + Vector2(0, -42), 0.8)
 	landed = player.test_move(player.global_transform, Vector2.DOWN * 4.0)
 	# Frenada gradual: parte de la mitad de la velocidad del avance y se apaga con suavidad.
-	recoil = direction * rush_speed * brake_speed_ratio
+	recoil = direction * current_speed * brake_speed_ratio
 	recoil_time = brake_duration
 	braking = true
 	state = State.RECOIL
@@ -281,7 +299,26 @@ func _wall_bounce(normal: Vector2, point: Vector2) -> void:
 	state = State.RECOIL
 	elapsed = 0.0
 
-func _capture_segment(from: Vector2, to: Vector2) -> void:
+func _chains() -> bool:
+	return Upgrades.has("wrath_chain") and not Input.is_action_pressed("attack") and chain_count < MAX_CHAINS
+
+func _start_chain() -> void:
+	# Se queda mordiendo al enemigo y elige la siguiente dirección.
+	Sfx.stop_loop("wrath_rush")
+	Sfx.play("wrath_impact", -2.0, 1.0 + 0.08 * chain_count)
+	chain_count += 1
+	player._camera_kick(0.35, 0.03)
+	Fx.text(player.get_parent(), player.global_position + Vector2(0, -96), "CADENA ×%d" % chain_count, SSS_COLOR.lightened(0.3))
+	state = State.AIM
+	elapsed = 0.0
+	aim_time = CHAIN_AIM_TIME
+	landed = false
+	galloping = false
+	player.velocity = Vector2.ZERO
+	Stats.add("wrath_chains")
+
+func _capture_segment(from: Vector2, to: Vector2) -> int:
+	var caught := 0
 	var shape := CapsuleShape2D.new()
 	shape.radius = CAPTURE_RADIUS
 	shape.height = from.distance_to(to) + CAPTURE_RADIUS * 2.0
@@ -302,8 +339,10 @@ func _capture_segment(from: Vector2, to: Vector2) -> void:
 			continue
 		if core.claim_wrath(player):
 			captured.append(core)
+			caught += 1
 			Fx.impact(player.get_parent(), core.global_position, [JADE.darkened(0.7), JADE, Color(0.8, 1.0, 0.7)], 1.3)
 			Sfx.play("wrath_hit", -2.0, 1.0 + minf(captured.size() * 0.025, 0.2), true)
+	return caught
 
 func _shatter() -> void:
 	var count := captured.size()
@@ -383,6 +422,7 @@ func cancel() -> void:
 	state = State.IDLE
 	elapsed = 0.0
 	ready_left = 0.0
+	chain_count = 0
 	aura.queue_redraw()
 	queue_redraw()
 

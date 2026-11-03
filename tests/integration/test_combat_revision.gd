@@ -113,9 +113,9 @@ func _run() -> void:
 	boss.ruby_core.complete(player)
 	var critical_shards := 0
 	for child in arena.get_children():
-		if child not in before_critical and child.get_child_count() == 16 and child.get_child(0) is Line2D:
+		if child not in before_critical and String(child.name).begins_with("ShatterBurst"):
 			critical_shards += 1
-	check(critical_shards == 1 and boss.ruby_core.visible and not boss.ruby_core.broken and boss.ruby_core.cracks == 1, "el crítico emite la explosión de 16 fragmentos y conserva el Ruby agrietado")
+	check(critical_shards == 1 and boss.ruby_core.visible and not boss.ruby_core.broken and boss.ruby_core.cracks == 1, "el crítico emite el estallido de PixelFX y conserva el Ruby agrietado")
 	var critical_mix := false
 	var completion_mix := false
 	for voice in sounds.players:
@@ -138,7 +138,7 @@ func _run() -> void:
 	boss.ruby_core.complete(player)
 	var final_shards := 0
 	for child in arena.get_children():
-		if child not in before_final and child.get_child_count() == 16 and child.get_child(0) is Line2D:
+		if child not in before_final and String(child.name).begins_with("ShatterBurst"):
 			final_shards += 1
 	check(final_shards == critical_shards and boss.ruby_core.broken and not boss.ruby_core.visible, "el remate usa la misma explosión y sí rompe/oculta el Ruby")
 	print("RESULTADO: %d/%d OK" % [checks - fails, checks])

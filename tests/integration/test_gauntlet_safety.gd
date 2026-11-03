@@ -49,6 +49,13 @@ func _run() -> void:
 	agent._turn(-1)
 	agent.timer = 999.0
 	player.position = chaser.global_position + Vector2(60, -2)
+	# Con la alarma rápida, cualquier otro guardia que mire hacia Viridy la descubriría en menos de un
+	# segundo: todos dan la espalda (lo que se mide es que, sin descubrirla, nadie combate).
+	for other in director.enemies:
+		var other_agent: Node = other.get_node_or_null("StealthAgent")
+		if other != chaser and other_agent != null:
+			other_agent._turn(-1 if player.position.x >= other.global_position.x else 1)
+			other_agent.timer = 999.0
 	# Debajo de la plataforma: al vencer la gracia debe tener línea de visión despejada.
 	hawk.position = player.position + Vector2(0, -90)
 	hawk.home = hawk.position

@@ -141,6 +141,6 @@ func _destroy() -> void:
 			var covered: bool = not get_world_2d().direct_space_state.intersect_ray(PhysicsRayQueryParameters2D.create(center, body, WORLD_MASK)).is_empty()
 			if body.distance_to(center) <= blast_radius and not covered:
 				player.take_damage(Shine.damage(damage, shine_level), center)
-	Fx.impact(get_parent(), center, [Color(0.4, 0.08, 0.04), FLAME, Color(1.0, 0.95, 0.7)], blast_radius / 24.0 if planted else 1.1)
+	Fx.explosion(get_parent(), center, clampf(blast_radius / 110.0, 0.45, 1.0) if planted else 0.5)
 	Sfx.play("grenade_blast", -4.0, 1.15)
 	super._destroy()

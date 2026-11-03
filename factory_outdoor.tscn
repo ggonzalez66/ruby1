@@ -114,21 +114,21 @@ position = Vector2(3550, 0)
 script = ExtResource("22_door")
 label_text = "ENTRAR"
 
-[node name="CameraGate" type="Node2D" parent="."]
+[node name="CameraGate" type="Area2D" parent="."]
 position = Vector2(905, -300)
 script = ExtResource("23_camera")
 aim_angle = 50
 sweep = 25
 period = 3.6
 
-[node name="CameraDoor" type="Node2D" parent="."]
+[node name="CameraDoor" type="Area2D" parent="."]
 position = Vector2(3550, -330)
 script = ExtResource("23_camera")
 aim_angle = 125
 sweep = 30
 period = 4.2
 
-[node name="CameraFacade" type="Node2D" parent="."]
+[node name="CameraFacade" type="Area2D" parent="."]
 position = Vector2(2640, -620)
 script = ExtResource("23_camera")
 aim_angle = 120

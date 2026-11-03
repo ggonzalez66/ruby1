@@ -49,47 +49,13 @@ static func jade_burst(parent: Node, point: Vector2, size: float = 1.0) -> void:
 	impact(parent, point, [Color(0.03, 0.15, 0.1), Color(0.22, 0.8, 0.45), Color(0.85, 1.0, 0.75)], size * 1.5)
 	tween.chain().tween_callback(burst.queue_free)
 
-# Impacto al conectar un golpe: estrella de puntas que se abre y chispas.
+# Impacto al conectar un golpe (PixelFX): chispa direccional; los fuertes suman el golpe contundente.
+# La hoja es gris y se tiñe con la paleta [oscuro, medio, brillante] del golpe.
 static func impact(parent: Node, point: Vector2, palette: Array[Color], size: float = 1.0) -> void:
-	var burst := _spawn(parent, point)
-	burst.z_index = 5
-	var tween := burst.create_tween().set_parallel(true)
-	var duration := 0.18
-
-	var star := Polygon2D.new()
-	var points := PackedVector2Array()
-	var spikes := 6
-	var rotation := randf() * TAU
-	for index in range(spikes * 2):
-		var radius: float = (22.0 if index % 2 == 0 else 6.0) * size
-		var angle: float = rotation + PI * index / spikes
-		points.append(Vector2(cos(angle), sin(angle)) * radius)
-	star.polygon = points
-	star.color = palette[2]
-	burst.add_child(star)
-	star.scale = Vector2.ONE * 0.4
-	tween.tween_property(star, "scale", Vector2.ONE * 1.25, duration)
-	tween.tween_property(star, "modulate:a", 0.0, duration)
-
-	var ring := Line2D.new()
-	ring.points = _circle(10.0 * size, 18, true)
-	ring.width = 3.0
-	ring.default_color = palette[1]
-	burst.add_child(ring)
-	tween.tween_property(ring, "scale", Vector2.ONE * 2.4, duration)
-	tween.tween_property(ring, "modulate:a", 0.0, duration)
-
-	for index in range(5):
-		var angle: float = randf() * TAU
-		var direction := Vector2(cos(angle), sin(angle))
-		var spark := Line2D.new()
-		spark.points = PackedVector2Array([Vector2.ZERO, direction * 9.0 * size])
-		spark.width = 2.0
-		spark.default_color = palette[2] if index % 2 == 0 else palette[1]
-		burst.add_child(spark)
-		tween.tween_property(spark, "position", direction * 30.0 * size, duration)
-		tween.tween_property(spark, "modulate:a", 0.0, duration)
-	tween.chain().tween_callback(burst.queue_free)
+	var options := {"rotation": randf_range(-0.6, 0.6), "flip": randf() < 0.5, "speed": 1.35, "z": 5}
+	PixelFx.play(parent, "hit_spark", point, clampf(size * 1.3, 0.9, 3.0), palette, options)
+	if size >= 1.5:
+		PixelFx.play(parent, "hit_heavy", point + Vector2(0, 12), size * 0.75, palette, {"speed": 1.4, "z": 5})
 
 # Ondas del rugido durante la apertura del parry; son visuales, sin hitbox adicional.
 static func parry_wave(parent: Node, point: Vector2, radius: float, duration: float) -> void:
@@ -114,28 +80,15 @@ static func parry_wave(parent: Node, point: Vector2, radius: float, duration: fl
 
 # Destello grande del deflect: anillo doble y rayos.
 static func deflect(parent: Node, point: Vector2) -> void:
-	impact(parent, point, ROAR, 2.0)
-	impact(parent, point, GOLD, 1.3)
+	PixelFx.play(parent, "parry", point + Vector2(0, 50), 1.3, [], {"speed": 1.3, "z": 6})
+	impact(parent, point, ROAR, 1.4)
 	text(parent, point + Vector2(0, -40), "¡DEFLECT!", Color(1.0, 0.95, 0.7))
 
-# Polvo: bolitas que salen en abanico hacia "direction" y se desvanecen.
-static func dust(parent: Node, point: Vector2, direction: Vector2, count: int = 4, size: float = 1.0, spread: float = 0.9) -> void:
-	var burst := _spawn(parent, point)
-	var tween := burst.create_tween().set_parallel(true)
-	var duration := 0.32
-	var base_angle := direction.angle()
-	for index in range(count):
-		var puff := Polygon2D.new()
-		puff.polygon = _circle(randf_range(2.5, 4.5) * size, 8, false)
-		puff.color = DUST
-		burst.add_child(puff)
-		var angle: float = base_angle + randf_range(-spread, spread)
-		var distance: float = randf_range(10.0, 22.0) * size
-		var target := Vector2(cos(angle), sin(angle)) * distance + Vector2(0, -4.0 * size)
-		tween.tween_property(puff, "position", target, duration).set_ease(Tween.EASE_OUT)
-		tween.tween_property(puff, "scale", Vector2.ONE * 1.6, duration)
-		tween.tween_property(puff, "modulate:a", 0.0, duration)
-	tween.chain().tween_callback(burst.queue_free)
+# Polvo (PixelFX): nube baja que se abre hacia "direction" desde los pies.
+static func dust(parent: Node, point: Vector2, direction: Vector2, count: int = 4, size: float = 1.0, _spread: float = 0.9) -> void:
+	var scale: float = size * clampf(0.3 + count * 0.05, 0.35, 1.0)
+	var palette: Array[Color] = [DUST.darkened(0.3), DUST.lightened(0.15), Color(1.0, 0.98, 0.92)]
+	PixelFx.play(parent, "dust", point, scale, palette, {"flip": direction.x < 0.0, "speed": 1.5, "z": 3, "modulate": Color(1, 1, 1, 0.9)})
 
 # Anillo de aire del doble salto.
 static func air_ring(parent: Node, point: Vector2) -> void:
@@ -190,76 +143,61 @@ static func shine(parent: Node, point: Vector2, color: Color, radius: float = 36
 	tween.chain().tween_callback(burst.queue_free)
 	impact(parent, point, [color.darkened(0.6), color, Color(1.0, 0.97, 0.95)], 1.2)
 
-# Rotura del shine: fragmentos de líneas que salen despedidos girando y se apagan.
+# Rotura (PixelFX): estallido de energía del color de lo que se rompe, del tamaño de su radio.
 static func shatter(parent: Node, point: Vector2, color: Color, radius: float = 46.0) -> void:
-	var burst := _spawn(parent, point)
-	burst.z_index = 6
-	var tween := burst.create_tween().set_parallel(true)
-	for index in range(16):
-		var angle: float = TAU * index / 16.0 + randf_range(-0.2, 0.2)
-		var direction := Vector2(cos(angle), sin(angle))
-		var shard := Line2D.new()
-		var length: float = randf_range(10.0, 22.0)
-		shard.points = PackedVector2Array([Vector2(-length * 0.5, 0), Vector2(length * 0.5, 0)])
-		shard.width = 2.5
-		shard.default_color = color if index % 2 == 0 else color.lightened(0.4)
-		shard.position = direction * radius * randf_range(0.3, 1.0)
-		shard.rotation = randf() * TAU
-		burst.add_child(shard)
-		var travel: Vector2 = shard.position + direction * randf_range(40.0, 80.0) + Vector2(0, 30)
-		tween.tween_property(shard, "position", travel, 0.5).set_ease(Tween.EASE_OUT)
-		tween.tween_property(shard, "rotation", shard.rotation + randf_range(-6.0, 6.0), 0.5)
-		tween.tween_property(shard, "modulate:a", 0.0, 0.5).set_delay(0.15)
-	tween.chain().tween_callback(burst.queue_free)
+	var sprite: AnimatedSprite2D = PixelFx.play(parent, "burst", point + Vector2(0, 8), clampf(radius / 80.0, 0.5, 2.0), _palette(color), {"speed": 1.4, "z": 6})
+	if sprite != null:
+		sprite.name = "ShatterBurst"
 	impact(parent, point, [color.darkened(0.6), color, Color(1.0, 0.9, 0.85)], 1.8)
 
-# Crítico al núcleo: destello, onda partida y chorros de energía; el cristal sigue entero.
+# Crítico al núcleo (PixelFX): destello, anillo partido y chispas; el cristal sigue entero.
 static func ruby_critical(parent: Node, point: Vector2, color: Color) -> void:
-	var burst := _spawn(parent, point)
-	burst.z_index = 14
-	var tween := burst.create_tween().set_parallel(true)
-	var flash := Polygon2D.new()
-	flash.polygon = PackedVector2Array([Vector2(0, -26), Vector2(17, 0), Vector2(0, 26), Vector2(-17, 0)])
-	flash.color = Color(1.0, 0.9, 0.86)
-	burst.add_child(flash)
-	tween.tween_property(flash, "scale", Vector2.ONE * 1.5, 0.10).set_ease(Tween.EASE_OUT)
-	tween.tween_property(flash, "modulate:a", 0.0, 0.14)
-	for index in range(4):
-		var arc := Line2D.new()
-		var points := PackedVector2Array()
-		for segment in range(9):
-			var angle := index * PI * 0.5 + segment * PI / 24.0
-			points.append(Vector2.from_angle(angle) * 16.0)
-		arc.points = points
-		arc.width = 3.0
-		arc.default_color = color.lightened(0.35)
-		burst.add_child(arc)
-		tween.tween_property(arc, "scale", Vector2.ONE * 3.8, 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(arc, "modulate:a", 0.0, 0.28)
-	for index in range(8):
-		var direction := Vector2.from_angle(TAU * index / 8.0 + randf_range(-0.12, 0.12))
-		var jet := Polygon2D.new()
-		jet.polygon = PackedVector2Array([Vector2(-10, 0), Vector2(5, -2.5), Vector2(12, 0), Vector2(5, 2.5)])
-		jet.rotation = direction.angle()
-		jet.position = direction * 10.0
-		jet.color = color if index % 2 == 0 else color.lightened(0.6)
-		burst.add_child(jet)
-		tween.tween_property(jet, "position", direction * randf_range(40.0, 68.0), 0.26).set_ease(Tween.EASE_OUT)
-		tween.tween_property(jet, "scale", Vector2(0.4, 0.2), 0.26)
-		tween.tween_property(jet, "modulate:a", 0.0, 0.26).set_delay(0.05)
-	tween.chain().tween_callback(burst.queue_free)
+	PixelFx.play(parent, "crit", point + Vector2(0, 30), 1.0, _palette(color), {"speed": 1.2, "z": 14})
 
-# Nubecilla para cosas que desaparecen (proyectiles contra la pared).
+# Nubecilla para cosas que desaparecen (proyectiles contra la pared, refuerzos que llegan).
 static func puff(parent: Node, point: Vector2, color: Color) -> void:
-	var burst := _spawn(parent, point)
-	var tween := burst.create_tween().set_parallel(true)
-	var dot := Polygon2D.new()
-	dot.polygon = _circle(7.0, 12, false)
-	dot.color = color
-	burst.add_child(dot)
-	tween.tween_property(dot, "scale", Vector2.ONE * 2.2, 0.2)
-	tween.tween_property(dot, "modulate:a", 0.0, 0.2)
-	tween.chain().tween_callback(burst.queue_free)
+	PixelFx.play(parent, "poof", point + Vector2(0, 14), 0.45, _palette(color), {"speed": 1.8, "z": 5})
+
+# Explosión de fuego (PixelFX): misiles, enemigos que caen al vacío, cámaras destruidas.
+static func explosion(parent: Node, point: Vector2, size: float = 1.0) -> void:
+	PixelFx.play(parent, "explosion", point + Vector2(0, 28) * size, size, [], {"speed": 1.6, "z": 7})
+
+# Explosión enorme con hongo de humo (la caída de la araña).
+static func big_explosion(parent: Node, point: Vector2, size: float = 1.0) -> void:
+	PixelFx.play(parent, "big_explosion", point, size, [], {"speed": 1.15, "z": 7})
+
+# Curación: anillo de luz con destellos a los pies de quien se cura; lo sigue mientras dura.
+static func heal(target: Node2D, color: Color = Color(0.45, 1.0, 0.6)) -> void:
+	if target == null or not target.is_inside_tree():
+		return
+	PixelFx.play(target, "heal", Vector2.ZERO, 0.55, _palette(color), {"follow": target, "speed": 1.3, "z": 2})
+
+# Portal de aparición en el suelo (refuerzos que llegan).
+static func warp_in(parent: Node, point: Vector2, color: Color) -> void:
+	PixelFx.play(parent, "warp_in", point + Vector2(0, 6), 0.75, _palette(color), {"speed": 1.6, "z": 3})
+
+# Carga de energía (railgun, embestidas): devuelve el sprite para poder quitarlo si se interrumpe.
+static func charge(parent: Node, point: Vector2, color: Color, size: float = 1.0, speed: float = 1.0) -> AnimatedSprite2D:
+	return PixelFx.play(parent, "charge", point + Vector2(0, 26) * size, size, _palette(color), {"speed": speed, "z": 7})
+
+# Descarga eléctrica (cámaras destruidas, impactos del railgun).
+static func zap(parent: Node, point: Vector2, color: Color, size: float = 1.0) -> void:
+	PixelFx.play(parent, "zap", point, size, _palette(color), {"flip": randf() < 0.5, "speed": 1.3, "z": 7})
+
+# Estallido de partículas que se recogen (rubíes absorbidos).
+static func collect(parent: Node, point: Vector2, color: Color, size: float = 1.0) -> void:
+	PixelFx.play(parent, "collect", point + Vector2(0, 16) * size, size, _palette(color), {"speed": 1.5, "z": 8})
+
+# Golpe contra un escudo (lo que está protegido).
+static func shield_hit(parent: Node, point: Vector2, color: Color, flip: bool = false) -> void:
+	PixelFx.play(parent, "shield", point + Vector2(0, 30), 1.0, _palette(color), {"flip": flip, "speed": 1.4, "z": 7})
+
+# Impacto de bala contra el suelo o una pared.
+static func bullet_impact(parent: Node, point: Vector2, color: Color, rotation: float = 0.0) -> void:
+	PixelFx.play(parent, "bullet_impact", point, 1.0, _palette(color), {"rotation": rotation, "speed": 1.3, "z": 6})
+
+static func _palette(color: Color) -> Array[Color]:
+	return [color.darkened(0.65), color, color.lightened(0.7)]
 
 # Texto flotante que sube y se desvanece.
 static func text(parent: Node, point: Vector2, message: String, color: Color) -> void:

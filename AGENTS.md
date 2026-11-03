@@ -27,7 +27,8 @@
 | Run con mapa de hexágonos: hub, mapa, fábrica en 3 fases, fuente, zorro y Torre | `run_state.gd` (autoload `RunState`), `run_map.gd`, `run_encounter.gd`, `fountain.gd`, `fox_shop.gd`, `sanctuary.gd` (`hub_mode`); escenas de combate generadas por `tools/generate_run_stages.py` |
 | Enemigos y desplazamiento contra terreno | `hawk.gd`, `chaser_dummy.gd`, `shield_bearer.gd`, `training_dummy.gd`, `enemy_launch_motion.gd` |
 | Estilo, reloj, fantasmas y récords | `ferocity.gd`, `run_session.gd` |
-| Presentación, audio y opciones | `fx.gd`, `shine.gd`, `sfx.gd`, `pause_menu.gd`, `hud.gd` |
+| Torre final: Araña Colosal y mundo espiritual del sol | `spider_boss.gd`, `spider_leg.gd`, `spider_core.gd`; `sun_world.tscn` generado por `tools/generate_sun_world.py` con `lava.gd`, `lava_geyser.gd`, `falling_platform.gd`, `sun_background.gd` |
+| Presentación, audio y opciones | `fx.gd` (efectos con PixelFX vía `pixel_fx.gd`; hojas en `assets/fx/pixelfx`, exportadas con `tools/art/export_pixelfx.py`), `shine.gd`, `sfx.gd`, `pause_menu.gd`, `hud.gd` |
 | Mapas generados | `tools/generate_*.py`, utilidades `tools/level_kit.py` |
 | Arte del jugador | `assets/sprites/player/viridy/`, `tools/art/`, `tools/normalize_sheet.py` |
 
