@@ -1,53 +1,57 @@
 {
-  "verified_at_utc": "2026-11-03T22:50:07.154305+00:00",
-  "godot": "4.2.2.stable.official.15073afe3",
-  "source_base_commit": "d319333",
-  "working_tree": "clean at source_base_commit (except untracked assets/sprites/references): one-hit security cameras on top of PixelFX effects, Colossal Spider, sun spirit world and Ira encadenada",
-  "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
-  "scenes": [
-    "main_menu",
-    "level_testing",
-    "sanctuary",
-    "mother_tree",
-    "run_map",
-    "factory_outdoor",
-    "factory_indoor",
-    "factory_boss",
-    "tower_finale",
-    "sun_world",
-    "fountain",
-    "fox_shop",
-    "main",
-    "stage2",
-    "stage3",
-    "stage4",
-    "gauntlet",
-    "sky_stairs"
-  ],
-  "platforms": {
-    "linux": {
-      "mode": "headless",
-      "scene_checks_passed": 18,
-      "scene_checks_total": 18,
-      "exit_codes": 0,
-      "script_errors": 0
-    },
-    "windows": {
-      "mode": "headless, launched from WSL out of a Windows temp folder (main_menu, mother_tree, run_map, factory_outdoor, factory_indoor, factory_boss, tower_finale, sun_world, fountain, fox_shop, gauntlet)",
-      "scenes_ran_without_script_errors": 11,
-      "scene_checks_total": 11,
-      "exit_codes": 1,
-      "exit_code_note": "Every Windows run returns 1 when launched from WSL, as with earlier builds; each scene ran 2.7-4.3 s for 300 frames."
-    }
+ "verified_at_utc": "2026-11-04T17:47:07.814828+00:00",
+ "godot": "4.2.2.stable.official.15073afe3",
+ "source_base_commit": "ace2286",
+ "working_tree": "clean at source_base_commit (except untracked assets/sprites/references): batch 2026-11-04 (knee combo, water, catwalks, factory variants, PixelFX effects, dramatic death)",
+ "scope": "Both embedded-PCK builds run outside the project with temporary user data (XDG_DATA_HOME / APPDATA), each scene for 300 frames.",
+ "scenes": [
+  "main_menu",
+  "level_testing",
+  "sanctuary",
+  "mother_tree",
+  "run_map",
+  "factory_outdoor",
+  "factory_outdoor_b",
+  "factory_outdoor_c",
+  "factory_indoor",
+  "factory_indoor_b",
+  "factory_indoor_c",
+  "factory_boss",
+  "tower_finale",
+  "sun_world",
+  "fountain",
+  "fox_shop",
+  "main",
+  "stage2",
+  "stage3",
+  "stage4",
+  "gauntlet",
+  "sky_stairs"
+ ],
+ "platforms": {
+  "linux": {
+   "mode": "headless",
+   "scene_checks_passed": 22,
+   "scene_checks_total": 22,
+   "exit_codes": 0,
+   "script_errors": 0
   },
-  "gameplay_and_tools": {
-    "passed": 1668,
-    "total": 1670,
-    "runner": "tests/run_tests.sh",
-    "note": "The 2 failures were tests updated mid-run (test_combat_revision, test_gauntlet_safety); rerun alone they pass 34/34 and 37/37 (4 runs)."
-  },
-  "export_exit_codes": {
-    "windows": 0,
-    "linux": 0
+  "windows": {
+   "mode": "headless, launched from WSL out of a Windows temp folder (main_menu, mother_tree, run_map, factory_outdoor, factory_outdoor_b, factory_outdoor_c, factory_indoor, factory_indoor_b, factory_indoor_c, factory_boss, tower_finale, sun_world, fountain, fox_shop, gauntlet)",
+   "scenes_ran_without_script_errors": 15,
+   "scene_checks_total": 15,
+   "exit_codes": 1,
+   "exit_code_note": "Every Windows run returns 1 when launched from WSL, as with earlier builds; each scene ran 2.6-4.3 s for 300 frames."
   }
+ },
+ "gameplay_and_tools": {
+  "passed": 1744,
+  "total": 1744,
+  "runner": "tests/run_tests.sh",
+  "note": "Full run on the committed batch, no script errors."
+ },
+ "export_exit_codes": {
+  "windows": 0,
+  "linux": 0
+ }
 }
