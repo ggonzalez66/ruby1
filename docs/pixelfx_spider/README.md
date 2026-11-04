@@ -5,8 +5,11 @@
 Los efectos breves del juego se dibujan con hojas de [PixelFX](https://github.com/patch-gg/pixelfx) (MIT;
 licencia en `assets/fx/pixelfx/LICENSE-pixelfx.txt`).
 
-- `tools/art/export_pixelfx.py --pixelfx <copia de pixelfx>` renderiza cada efecto con Node, corta las colas
-  largas, recorta el espacio vacío y escribe `assets/fx/pixelfx/<nombre>.png` y `pixel_fx_data.gd`.
+- La copia de PixelFX vive fija fuera del repo, en `~/tools/pixelfx` (commit `a841596`, v0.3.0). Para
+  instalarla: `git clone https://github.com/patch-gg/pixelfx ~/tools/pixelfx && (cd ~/tools/pixelfx && npm install)`.
+- `python3 tools/art/export_pixelfx.py [nombre ...]` la usa por defecto (otra ruta: `--pixelfx` o la variable
+  `PIXELFX`). Renderiza cada efecto con Node, corta las colas largas, recorta el espacio vacío y escribe
+  `assets/fx/pixelfx/<nombre>.png` y `pixel_fx_data.gd`.
 - `pixel_fx.gd` (`PixelFx.play`) los reproduce como `AnimatedSprite2D` con filtro nearest. Las hojas "grises"
   se tiñen en vivo con la paleta del golpe (shader de mapa de degradado).
 - `fx.gd` conserva su API: `impact`, `deflect`, `dust`, `puff`, `shatter` y `ruby_critical` usan PixelFX, y se
@@ -38,7 +41,7 @@ Llega a la Torre al caer el trío (`run_encounter.gd`); el sol solo aparece al v
 
 - Tiene seis pisos de plataformeo en zigzag y un séptimo con el Ruby en el centro.
 - En cada piso hay lava (`lava.gd`), que devuelve al checkpoint sin quitar vida, y un checkpoint al empezar.
-- Hay plataformas que se caen (`falling_platform.gd`), géiseres (`lava_geyser.gd`) y espíritus en los que se
+- Hay plataformas que se caen (`falling_platform.gd`), géiseres (`lava_geyser.gd`: dañan solo mientras se ve la columna de fuego) y espíritus en los que se
   rebota con el pesado.
 
 ## Ira encadenada
