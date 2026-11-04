@@ -32,6 +32,7 @@ const MIX := {
 	"ruby_gain": [-6.0, 0.0], "upgrade_pick": [-6.0, 0.0], "stealth_spot": [-4.0, 0.0], "alarm_siren": [-9.0, 0.0],
 	"pistol_shot": [-5.0, 0.06], "bush_rustle": [-8.0, 0.1], "rail_shot": [-3.0, 0.0], "grenade_blast": [-4.0, 0.08], "time_stop": [-5.0, 0.0],
 	"sun_hit": [-6.0, 0.06], "hawk_screech": [-7.0, 0.04], "hawk_dive": [-8.0, 0.05], "guard_break": [-3.0, 0.04],
+	"hound_alert": [-4.0, 0.0], "hound_catch": [-2.0, 0.04], "hound_mash": [-6.0, 0.12], "death_crit": [1.0, 0.0],
 }
 # Sonidos en bucle (se arrancan con start_loop y se paran con stop_loop).
 const LOOPS := ["shine_hold", "wrath_charge", "wrath_rush", "fire_breath"]

@@ -5,6 +5,8 @@ extends Node2D
 # recovery; dentro del recovery lo cancela al instante.
 const MODE := 8
 const CHAIN_WINDOW := 0.55
+const KICK_COLOR := Color(0.62, 1.0, 0.78)
+const AIM_LENGTH := 420.0
 const THROW_SPEED := 1300.0
 # Enfriamiento que llena el anillo de la mira.
 const WEAPON_COOLDOWN_RING := 4.0
@@ -45,7 +47,8 @@ static func hit(kind: String, damage: int, frames: Vector3i, reach: float, heigh
 		"stagger": stagger, "push": push}
 
 static func chain() -> Array:
-	return [hit("claw", 1, Vector3i(2, 3, 5), 80, 80), hit("claw", 1, Vector3i(2, 3, 5), 80, 80), hit("claw", 2, Vector3i(3, 4, 6), 105, 100),
+	# Dos zarpazos, rodillazo y dos patadas.
+	return [hit("claw", 1, Vector3i(2, 3, 5), 80, 80), hit("claw", 1, Vector3i(2, 3, 5), 80, 80), hit("knee", 2, Vector3i(3, 4, 6), 96, 90, 0.25, 260),
 		hit("kick", 2, Vector3i(3, 4, 7), 118, 65, 0.35, 340), hit("kick", 2, Vector3i(4, 5, 8), 132, 75, 0.5, 440)]
 
 func _ready() -> void:
@@ -56,13 +59,17 @@ func tick(delta: float) -> void:
 	if player.is_on_floor():
 		air_stall = false
 	window = maxf(window - delta, 0.0)
-	# LT: con la lanza en la mano se apunta mientras se mantiene; con la lanza clavada, un toque la recupera.
+	# LT: con la lanza en la mano se apunta mientras se mantiene y al soltarlo se lanza; con la lanza fuera,
+	# volver a pulsarlo la recupera. Las demás armas apuntan con LT y disparan con RT.
+	var was_aiming := aim
 	if Input.is_action_just_pressed("throw_knife"):
 		if player.has_knife:
 			aim_armed = true
 		else:
 			player.recall_spear()
 	if not Input.is_action_pressed("throw_knife"):
+		if was_aiming and aim_armed and Upgrades.ranged_weapon() == Upgrades.DEFAULT_WEAPON:
+			player._throw_spear()
 		aim_armed = false
 	if not Input.is_action_pressed("dash"):
 		dash_latch = false
@@ -90,6 +97,9 @@ func tick(delta: float) -> void:
 func _advance(previous: float) -> void:
 	if previous < startup and elapsed >= startup:
 		Sfx.play("swing_light", 0.0, [1.0, 1.0, 1.12, 0.94, 0.88][step])
+		# Rodillazo y patadas: un barrido de PixelFX que ocupa justo su zona de golpe.
+		if move.kind != "claw":
+			Fx.kick_arc(player, attack_rect(), player.facing, KICK_COLOR)
 	# Revisar todo el intervalo: un frame largo no puede saltarse la ventana de daño.
 	if elapsed >= startup and previous < startup + active_time:
 		_strike()
@@ -166,6 +176,9 @@ func apply_movement(delta: float, horizontal: float) -> void:
 		player._apply_gravity(delta)
 
 func _finish() -> void:
+	# La suspensión aérea solo dura mientras se sigue conectando: un golpe al aire la corta.
+	if hit_set.is_empty():
+		air_stall = false
 	var next := queued
 	active = false
 	queued = &""
@@ -269,7 +282,7 @@ func _strike() -> void:
 		var core: Node = enemy.get_node_or_null("RubyCore")
 		if core != null:
 			core.stagger(float(move.stagger))
-		if enemy.has_method("on_shine_hit") and move.kind == "kick":
+		if enemy.has_method("on_shine_hit") and move.kind != "claw":
 			enemy.on_shine_hit(direction, float(move.push))
 		player._spawn_hit_feedback(enemy)
 		Ferocity.add("light_combo", 6.0 + step * 2.0, "COMBO %d" % (step + 1))
@@ -300,7 +313,8 @@ func throw_velocity() -> Vector2:
 func _draw() -> void:
 	if aim:
 		var origin := Vector2(0, -26)
-		var end := origin + aim_direction * 165.0
+		# Mira larga para apuntar con precisión a lo lejos.
+		var end := origin + aim_direction * AIM_LENGTH
 		var weapon: String = Upgrades.ranged_weapon()
 		var color: Color = Upgrades.WEAPONS[weapon]["color"]
 		draw_line(origin + aim_direction * 40, end, Color(0.5, 1, 0.75, 0.6) if weapon == Upgrades.DEFAULT_WEAPON else Color(color, 0.6), 2, true)
@@ -308,13 +322,21 @@ func _draw() -> void:
 		# Enfriamiento del arma alrededor de la mira.
 		if player.jade_fire_cooldown_timer > 0.05:
 			draw_arc(end, 13, -PI * 0.5, -PI * 0.5 + TAU * minf(player.jade_fire_cooldown_timer / WEAPON_COOLDOWN_RING, 1.0), 24, Color(color, 0.8), 2, true)
+		# Balas que quedan en el cargador de la pistola, en un arco junto a la mira.
+		if weapon == "pistol":
+			var magazine: int = player.PISTOL_MAGAZINE
+			for index in range(magazine):
+				var angle := -PI * 0.5 + (index - (magazine - 1) * 0.5) * 0.16
+				var dot := end + Vector2.from_angle(angle + PI) * 20.0
+				var loaded: bool = index < player.pistol_ammo and player.jade_fire_cooldown_timer <= player.PISTOL_COOLDOWN
+				draw_circle(dot, 1.8, Color(color, 0.95) if loaded else Color(0.3, 0.3, 0.32, 0.6))
 		if weapon in ["pistol", "railgun"]:
 			# El arma en la mano, apuntando; la railgun es más larga.
 			var side := aim_direction.orthogonal()
 			var length: float = 40.0 if weapon == "pistol" else 62.0
 			draw_colored_polygon(PackedVector2Array([origin + aim_direction * 16 + side * 4, origin + aim_direction * length + side * 4, origin + aim_direction * length - side * 3, origin + aim_direction * 16 - side * 3]), Color(0.22, 0.23, 0.27))
 			draw_colored_polygon(PackedVector2Array([origin + aim_direction * 18 - side * 3, origin + aim_direction * 26 - side * 3, origin + aim_direction * 24 - side * 12, origin + aim_direction * 16 - side * 12]), Color(0.35, 0.22, 0.14))
-	if phase == Phase.ACTIVE and move.kind == "kick":
+	if phase == Phase.ACTIVE and move.kind != "claw":
 		var rect := attack_rect()
 		if player.show_hitbox_debug:
 			draw_rect(rect, Color(0.5, 1, 0.7, 0.15))

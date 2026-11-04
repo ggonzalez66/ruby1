@@ -398,20 +398,15 @@ func _draw() -> void:
 		draw_polyline(PackedVector2Array([Vector2(1, -radius), Vector2(-2, -2), Vector2(3, 2), Vector2(-1, radius)]), Color(0.10, 0.0, 0.01), 2.0)
 
 func _essence(by: Node2D, center: Vector2) -> void:
+	# La energía del ruby roto: orbes rojos que salen despedidos y se curvan hasta Viridy, que los absorbe.
 	Fx.collect(enemy.get_parent(), center, RED.lightened(0.15), 0.8)
-	for index in range(6):
-		var mote := Polygon2D.new()
-		mote.polygon = PackedVector2Array([Vector2(0, -4), Vector2(3, 0), Vector2(0, 4), Vector2(-3, 0)])
-		mote.color = RED.lightened(0.15)
-		enemy.get_parent().add_child(mote)
-		mote.global_position = center + Vector2(randf_range(-14, 14), randf_range(-14, 14))
-		var tween := mote.create_tween()
-		tween.tween_property(mote, "global_position", by.global_position + Vector2(0, -26), 0.18 + index * 0.025)
-		tween.tween_callback(mote.queue_free)
+	Fx.absorb_orbs(enemy.get_parent(), center, by, RED.lightened(0.1), 12 if boss else 8)
 
 func _impact_feedback(center: Vector2) -> void:
 	Sfx.play("guard_break", 1.0, 1.25)
-	Fx.shatter(enemy.get_parent(), center, RED, BLAST_RADIUS)
+	# Nube en forma de rombo, como la gema.
+	Fx.ruby_burst(enemy.get_parent(), center, RED, BLAST_RADIUS)
+	Fx.impact(enemy.get_parent(), center, [RED.darkened(0.6), RED, Color(1.0, 0.9, 0.85)], 1.8)
 	Fx.ruby_critical(enemy.get_parent(), center, RED)
 
 func _blast(center: Vector2, executed := false) -> void:

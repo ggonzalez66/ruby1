@@ -1,0 +1,359 @@
+[gd_scene load_steps=20 format=3]
+
+[ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
+[ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
+[ext_resource type="PackedScene" path="res://sun_enemy.tscn" id="3_sun"]
+[ext_resource type="Script" path="res://jungle_background.gd" id="4_jungle"]
+[ext_resource type="Script" path="res://hud.gd" id="5_hud"]
+[ext_resource type="Script" path="res://music_player.gd" id="6_music"]
+[ext_resource type="Script" path="res://pause_menu.gd" id="7_pause"]
+[ext_resource type="Script" path="res://hazard.gd" id="8_hazard"]
+[ext_resource type="Script" path="res://checkpoint.gd" id="9_checkpoint"]
+[ext_resource type="Script" path="res://boss_spawner.gd" id="10_spawner"]
+[ext_resource type="Script" path="res://demo_complete.gd" id="11_demo"]
+[ext_resource type="Script" path="res://chaser_dummy.gd" id="12_chaser"]
+[ext_resource type="Script" path="res://platform.gd" id="13_platform"]
+[ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
+[ext_resource type="Script" path="res://factory_decor.gd" id="21_decor"]
+[ext_resource type="Script" path="res://water_zone.gd" id="24_water"]
+[ext_resource type="Script" path="res://factory_door.gd" id="22_door"]
+[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
+[ext_resource type="Script" path="res://run_encounter.gd" id="20_run_director"]
+
+[node name="Main" type="Node2D"]
+
+[node name="FactoryDecor" type="Node2D" parent="."]
+script = ExtResource("21_decor")
+mode = "indoor"
+area = Rect2(-200, -1500, 4000, 1900)
+
+[node name="BoundaryLeft" type="StaticBody2D" parent="."]
+position = Vector2(-30, -520)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1760)
+style = 5
+
+[node name="BoundaryRight" type="StaticBody2D" parent="."]
+position = Vector2(3630, -520)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(60, 1760)
+style = 5
+
+[node name="Ceiling" type="StaticBody2D" parent="."]
+position = Vector2(1800, -1350)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(3720, 60)
+style = 5
+
+[node name="TitleIndoor" type="Label" parent="."]
+offset_left = 140
+offset_top = -330
+offset_right = 1040
+offset_bottom = -270
+theme_override_colors/font_color = Color(1, 0.88, 0.55, 0.55)
+theme_override_colors/font_outline_color = Color(0.05, 0.08, 0.05, 0.6)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 34
+text = "LA FÁBRICA · SÓTANO INUNDADO"
+
+[node name="GroundWest" type="StaticBody2D" parent="."]
+position = Vector2(400, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(800, 300)
+style = 5
+
+[node name="FloodBed" type="StaticBody2D" parent="."]
+position = Vector2(1400, 230)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1200, 140)
+style = 5
+
+[node name="GroundEast" type="StaticBody2D" parent="."]
+position = Vector2(2800, 150)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(1600, 300)
+style = 5
+
+[node name="FloodWater" type="Node2D" parent="."]
+position = Vector2(1400, 30)
+script = ExtResource("24_water")
+size = Vector2(1200, 130)
+
+[node name="FloodStepWest" type="StaticBody2D" parent="."]
+position = Vector2(850, 90)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(100, 20)
+style = 5
+
+[node name="FloodStepEast" type="StaticBody2D" parent="."]
+position = Vector2(1950, 90)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(100, 20)
+style = 5
+
+[node name="FloodWalk" type="StaticBody2D" parent="."]
+position = Vector2(1400, -140)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(500, 20)
+style = 5
+one_way = true
+
+[node name="F2Slab0" type="StaticBody2D" parent="."]
+position = Vector2(130, -410)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(260, 60)
+style = 5
+
+[node name="F2Slab620" type="StaticBody2D" parent="."]
+position = Vector2(2110, -410)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(2980, 60)
+style = 5
+
+[node name="F1Step1" type="StaticBody2D" parent="."]
+position = Vector2(340, -160)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F1Step2" type="StaticBody2D" parent="."]
+position = Vector2(540, -300)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F3Slab0" type="StaticBody2D" parent="."]
+position = Vector2(1490, -850)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(2980, 60)
+style = 5
+
+[node name="F3Slab3340" type="StaticBody2D" parent="."]
+position = Vector2(3470, -850)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(260, 60)
+style = 5
+
+[node name="F2Step1" type="StaticBody2D" parent="."]
+position = Vector2(3260, -600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F2Step2" type="StaticBody2D" parent="."]
+position = Vector2(3060, -740)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 20)
+style = 5
+
+[node name="F1Crate" type="StaticBody2D" parent="."]
+position = Vector2(2575, -55)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 110)
+style = 5
+
+[node name="F2Crate" type="StaticBody2D" parent="."]
+position = Vector2(1975, -495)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(150, 110)
+style = 5
+
+[node name="F2Catwalk" type="StaticBody2D" parent="."]
+position = Vector2(1400, -600)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(400, 20)
+style = 5
+one_way = true
+
+[node name="F3Crate" type="StaticBody2D" parent="."]
+position = Vector2(1380, -935)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(160, 110)
+style = 5
+
+[node name="F3Catwalk" type="StaticBody2D" parent="."]
+position = Vector2(800, -1050)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(400, 20)
+style = 5
+one_way = true
+
+[node name="BossDoor" type="Area2D" parent="."]
+position = Vector2(180, -880)
+script = ExtResource("22_door")
+label_text = "GUARDIÁN →"
+
+[node name="CameraFlood" type="Area2D" parent="."]
+position = Vector2(1400, -372)
+script = ExtResource("23_camera")
+aim_angle = 90
+sweep = 45
+period = 4.4
+
+[node name="CameraEntrance" type="Area2D" parent="."]
+position = Vector2(3200, -372)
+script = ExtResource("23_camera")
+aim_angle = 120
+sweep = 25
+period = 3.8
+
+[node name="CameraF2" type="Area2D" parent="."]
+position = Vector2(2400, -812)
+script = ExtResource("23_camera")
+aim_angle = 90
+sweep = 45
+period = 4
+
+[node name="CameraF3" type="Area2D" parent="."]
+position = Vector2(1100, -1312)
+script = ExtResource("23_camera")
+aim_angle = 90
+sweep = 45
+period = 4.4
+
+[node name="CameraF3Door" type="Area2D" parent="."]
+position = Vector2(500, -1312)
+script = ExtResource("23_camera")
+aim_angle = 70
+sweep = 30
+period = 3.6
+
+[node name="Spawns" type="Node2D" parent="."]
+
+[node name="Spawn1" type="Marker2D" parent="Spawns"]
+position = Vector2(600, 0)
+metadata/kind = "melee"
+metadata/min_depth = 1
+
+[node name="Spawn2" type="Marker2D" parent="Spawns"]
+position = Vector2(2300, 0)
+metadata/kind = "shooter"
+metadata/min_depth = 1
+
+[node name="Spawn3" type="Marker2D" parent="Spawns"]
+position = Vector2(2900, 0)
+metadata/kind = "rifleman"
+metadata/min_depth = 1
+
+[node name="Spawn4" type="Marker2D" parent="Spawns"]
+position = Vector2(1100, -440)
+metadata/kind = "melee"
+metadata/min_depth = 1
+
+[node name="Spawn5" type="Marker2D" parent="Spawns"]
+position = Vector2(2500, -440)
+metadata/kind = "shooter"
+metadata/min_depth = 1
+
+[node name="Spawn6" type="Marker2D" parent="Spawns"]
+position = Vector2(2000, -880)
+metadata/kind = "melee"
+metadata/min_depth = 1
+
+[node name="Spawn7" type="Marker2D" parent="Spawns"]
+position = Vector2(1500, -880)
+metadata/kind = "rifleman"
+metadata/min_depth = 1
+
+[node name="Spawn8" type="Marker2D" parent="Spawns"]
+position = Vector2(1380, -990)
+metadata/kind = "shooter_high"
+metadata/min_depth = 1
+
+[node name="Spawn9" type="Marker2D" parent="Spawns"]
+position = Vector2(2750, 0)
+metadata/kind = "shield"
+metadata/min_depth = 2
+
+[node name="Spawn10" type="Marker2D" parent="Spawns"]
+position = Vector2(2800, -440)
+metadata/kind = "hound"
+metadata/min_depth = 2
+
+[node name="Spawn11" type="Marker2D" parent="Spawns"]
+position = Vector2(1400, -610)
+metadata/kind = "sentinel"
+metadata/min_depth = 2
+
+[node name="Spawn12" type="Marker2D" parent="Spawns"]
+position = Vector2(1400, -300)
+metadata/kind = "stinger"
+metadata/min_depth = 3
+
+[node name="Spawn13" type="Marker2D" parent="Spawns"]
+position = Vector2(1480, -340)
+metadata/kind = "stinger"
+metadata/min_depth = 3
+
+[node name="Spawn14" type="Marker2D" parent="Spawns"]
+position = Vector2(700, -880)
+metadata/kind = "shield"
+metadata/min_depth = 3
+
+[node name="Spawn15" type="Marker2D" parent="Spawns"]
+position = Vector2(2200, -300)
+metadata/kind = "restorer"
+metadata/min_depth = 3
+
+[node name="Spawn16" type="Marker2D" parent="Spawns"]
+position = Vector2(3100, -440)
+metadata/kind = "melee"
+metadata/min_depth = 4
+
+[node name="Spawn17" type="Marker2D" parent="Spawns"]
+position = Vector2(2600, -880)
+metadata/kind = "hound"
+metadata/min_depth = 4
+
+[node name="Spawn18" type="Marker2D" parent="Spawns"]
+position = Vector2(1400, -1100)
+metadata/kind = "flyer"
+metadata/min_depth = 5
+
+[node name="RunDirector" type="Node2D" parent="."]
+script = ExtResource("20_run_director")
+spawns_path = NodePath("../Spawns")
+stage = 1
+exit_path = NodePath("../BossDoor")
+
+[node name="Playerr" parent="." instance=ExtResource("1_player")]
+position = Vector2(3300, -2)
+
+[node name="HUD" type="CanvasLayer" parent="."]
+script = ExtResource("5_hud")
+
+[node name="Music" type="AudioStreamPlayer" parent="."]
+process_mode = 3
+script = ExtResource("6_music")
+volume_db = -6.0
+bus = &"Music"
+
+[node name="PauseMenu" type="CanvasLayer" parent="."]
+script = ExtResource("7_pause")
+
+[node name="DemoComplete" type="CanvasLayer" parent="."]
+script = ExtResource("11_demo")
+title_text = "RUN"
+final_screen = true

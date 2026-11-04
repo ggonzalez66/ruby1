@@ -327,7 +327,8 @@ func _run() -> void:
 	check(player.dead, "Select / R no revive al jugador (taunt)")
 	var end_demo: Node = get_first_node_in_group(&"demo_complete")
 	check(not end_demo.root_control.visible, "la pantalla no sale al instante")
-	await frames(170)
+	# El golpe letal congela el juego un instante (cinemática de muerte): la pantalla sale algo después.
+	await frames(240)
 	var end_buttons: Array = end_demo.continue_button.get_parent().get_children().filter(func(b): return not b.is_queued_for_deletion()).map(func(b): return b.text)
 	check(end_demo.root_control.visible and end_demo.title_label.text == "FIN DEL GAUNTLET" and end_demo.message_label.text == "Oleadas sobrevividas: 0", "tras un momento: %s / %s" % [end_demo.title_label.text, end_demo.message_label.text])
 	check(end_buttons == ["Empezar de nuevo", "Menú principal"], "botones: %s" % [end_buttons])

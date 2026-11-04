@@ -15,6 +15,7 @@ Ejecutar desde la raíz de Ruby1. Elegir las filas relacionadas con el cambio; n
 | Run con mapa: panal, hub, fases de fábrica, fuente, zorro, muerte y Torre | `test_run_map.gd` |
 | Cámaras, refuerzos, embestida del sabueso, visión del halcón y ligeros aéreos | `test_run_difficulty.gd` |
 | Efectos PixelFX, cámaras destructibles, Araña Colosal, mundo del sol e Ira encadenada | `test_spider_sun.gd` |
+| Variantes de la fábrica, agua, pasarelas atravesables, enemigos contra el terreno, Ejecución certera, Lanza punzante, dron sanador y pose de caída | `test_level_variants.gd` |
 | Movimiento, velocidad y bunnyhop | `test_movement_polish.gd`, `test_regression.gd` |
 | Animación, escala y separación entre pose y gameplay | `test_sprites.gd`, `test_art_refresh.gd` |
 | Enemigos, detección y ataques | `test_enemigos.gd` |

@@ -43,6 +43,9 @@ var slow_left := 0.0
 var frozen_left := 0.0
 var ice_cooldown := 0.0
 var flames: CPUParticles2D
+# Estados visibles con PixelFX: llamas (quemándose) y bloque de hielo (congelado), en bucle sobre el enemigo.
+var burn_fx: AnimatedSprite2D
+var ice_fx: AnimatedSprite2D
 
 func _ready() -> void:
 	enemy = get_parent()
@@ -66,7 +69,24 @@ func _ready() -> void:
 	ramp.set_color(0, Color(1.0, 0.9, 0.4))
 	ramp.set_color(1, Color(FIRE.darkened(0.3), 0.0))
 	flames.color_ramp = ramp
+	# El fuego se ve con la hoja "burning"; las partículas quedan solo como estado (emitting).
+	flames.visible = false
 	add_child(flames)
+
+# Escala de las hojas de estado según el alto del enemigo (impact_offset ≈ medio cuerpo).
+func _body_scale(base: float) -> float:
+	var half: float = absf(enemy.impact_offset.y) if enemy.get("impact_offset") != null else 26.0
+	return base * clampf(half / 26.0, 0.7, 2.2)
+
+func _drop_burn() -> void:
+	if is_instance_valid(burn_fx):
+		burn_fx.queue_free()
+	burn_fx = null
+
+func _drop_ice() -> void:
+	if is_instance_valid(ice_fx):
+		ice_fx.queue_free()
+	ice_fx = null
 
 func is_frozen() -> bool:
 	return frozen_left > 0.0
@@ -115,6 +135,10 @@ func _stun(target: Node2D, time: float) -> void:
 	if target_core == null:
 		return
 	target_core.stagger(time)
+	# Estrellas de aturdido sobre la cabeza mientras dura.
+	var stars: AnimatedSprite2D = Fx.status(target, "stunned", target.impact_offset + Vector2(0, -30), 1.0)
+	if stars != null:
+		stars.create_tween().tween_callback(stars.queue_free).set_delay(time)
 	var fx: Node2D = ELECTRIC_FX.new()
 	fx.target = target
 	fx.center_offset = target.impact_offset
@@ -155,6 +179,8 @@ func ignite() -> void:
 	if burn_wait <= 0.0:
 		burn_wait = BURN_TICK
 	flames.emitting = true
+	if not is_instance_valid(burn_fx):
+		burn_fx = Fx.status(enemy, "burning", Vector2(0, 2), _body_scale(1.4))
 
 # ---------- Hielo
 
@@ -177,6 +203,8 @@ func _freeze() -> void:
 	if core.stagger_left <= 0.0:
 		return
 	frozen_left = core.stagger_left
+	if not is_instance_valid(ice_fx):
+		ice_fx = Fx.status(enemy, "ice_block", Vector2(0, 4), _body_scale(1.4), Color(1, 1, 1, 0.62))
 	Fx.text(enemy.get_parent(), enemy.global_position + enemy.impact_offset + Vector2(0, -44), "¡CONGELADO!", ICE)
 	Sfx.play("guard_break", -3.0, 1.5)
 
@@ -186,7 +214,8 @@ func shatter(damage: int) -> int:
 	if core != null:
 		core.stagger_left = 0.0
 	var center: Vector2 = enemy.global_position + enemy.impact_offset
-	Fx.shatter(enemy.get_parent(), center, ICE, 60.0)
+	_drop_ice()
+	Fx.ice_shatter(enemy.get_parent(), enemy.global_position + Vector2(0, 4), _body_scale(1.1))
 	Fx.text(enemy.get_parent(), center + Vector2(0, -44), "¡HIELO ROTO!", ICE.lightened(0.3))
 	Sfx.play("guard_break", 2.0, 1.3)
 	queue_redraw()
@@ -215,6 +244,7 @@ func _physics_process(delta: float) -> void:
 		frozen_left = maxf(frozen_left - delta, 0.0)
 		if frozen_left == 0.0:
 			ice_cooldown = ICE_COOLDOWN
+			_drop_ice()
 	slow_left = maxf(slow_left - delta, 0.0)
 	# Ralentizado: el enemigo se salta un tick de cada dos.
 	core.slow_skip = slow_left > 0.0 and not core.slow_skip
@@ -232,6 +262,7 @@ func _update_burn(delta: float) -> void:
 		core.apply_element_burn(damage)
 	if burn_left == 0.0:
 		flames.emitting = false
+		_drop_burn()
 
 func _update_tint() -> void:
 	var tint: Color = enemy.get_meta(&"tint", Color.WHITE)
@@ -249,6 +280,8 @@ func _clear() -> void:
 	marks = 0
 	ice_stacks = 0
 	flames.emitting = false
+	_drop_burn()
+	_drop_ice()
 	if core != null:
 		core.slow_skip = false
 	var tint: Color = enemy.get_meta(&"tint", Color.WHITE)

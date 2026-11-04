@@ -60,6 +60,10 @@ const CATALOG := {
 		"text": "La invisibilidad al salir de un bush dura 4 s más."},
 	"temper": {"title": "Temple elemental", "price": 10, "color": Color(0.85, 0.85, 0.9),
 		"text": "Los elementos enemigos te duran la mitad."},
+	"sure_execution": {"title": "Ejecución certera", "price": 14, "color": Color(1.0, 0.82, 0.35),
+		"text": "Si un ataque pesado deja al enemigo sin vida, lo ejecuta al instante."},
+	"spear_sting": {"title": "Lanza punzante", "price": 10, "color": Color(0.45, 1.0, 0.75),
+		"text": "El enemigo con la lanza clavada recibe un 25 % más de daño."},
 	"wrath_chain": {"title": "Ira encadenada", "price": 16, "color": Color(1.0, 0.18, 0.4),
 		"text": "En la Ira de la Naturaleza, al morder a un enemigo eliges otra dirección y te vuelves a lanzar, cada vez más rápido. Mantén el ataque ligero para pasar de largo."},
 }
@@ -68,6 +72,7 @@ const FOCUS_MAX := 100.0
 const FOCUS_PER_RESERVE := 40.0
 const FOCUS_PER_HIT := 2.0
 const FOCUS_PER_EXECUTION := 30.0
+const SPEAR_STING_BONUS := 1.25
 
 var active := false
 var rubies := 0
@@ -216,11 +221,21 @@ func strike(enemy: Node2D, slot: String, damage: int, aerial_heavy := false) -> 
 	# Sin tipo de ataque (las balas sin cargar de la pistola) no recarga Enfoque.
 	if not slot.is_empty():
 		add_focus(FOCUS_PER_HIT)
+	# Lanza punzante: con la lanza clavada recibe más daño.
+	if has("spear_sting") and is_speared(enemy):
+		damage = ceili(damage * SPEAR_STING_BONUS)
 	var status: Node = enemy.get_node_or_null(STATUS_NAME)
 	if status != null and aerial_heavy and status.is_frozen():
 		return status.shatter(damage)
 	var element := element_for(slot)
 	return damage if element.is_empty() else status_of(enemy).apply(element, damage)
+
+func is_speared(enemy: Node2D) -> bool:
+	var player: Node = get_tree().get_first_node_in_group(&"player")
+	if player == null or not is_instance_valid(player.get("thrown_knife")):
+		return false
+	var spear: Node = player.thrown_knife
+	return spear.state == spear.State.MARKED and spear.target == enemy
 
 func imbue(enemy: Node2D, element: String, damage: int) -> int:
 	# Un arma con su propio elemento (la granada siempre hiela).

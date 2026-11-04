@@ -1,6 +1,7 @@
 extends Node
 
-# Hechizo de RB en el Gauntlet: mientras se mantiene gasta Enfoque (Upgrades.focus) y pone cámara lenta.
+# Hechizo de RB en el Gauntlet: es un toggle (un toque lo activa y otro lo apaga). Activo gasta Enfoque
+# (Upgrades.focus) y pone cámara lenta; se apaga solo al vaciarse el Enfoque o al morir Viridy.
 # Con la mejora Reloj detenido, en cambio, enemigos y proyectiles se paran y Viridy sigue a velocidad normal.
 # El Enfoque vuelve solo, despacio, y sobre todo golpeando y ejecutando (Upgrades).
 # Gasta en tiempo real: la cámara lenta no alarga el hechizo.
@@ -39,23 +40,26 @@ func _process(_delta: float) -> void:
 		player = get_tree().get_first_node_in_group(&"player")
 		return
 	var held: bool = Input.is_action_pressed("slow_motion") and not player.dead
+	var pressed: bool = held and not was_held and not get_tree().paused
+	was_held = held
 	if casting:
 		Upgrades.add_focus(-(STOP_DRAIN if world_stopped else SLOW_DRAIN) * step)
-		if not held or Upgrades.focus <= 0.0:
+		if pressed or player.dead or Upgrades.focus <= 0.0:
 			cancel()
 		elif world_stopped:
 			# También lo que aparezca durante el hechizo.
 			_hold_world(true)
-	elif held and not was_held and Upgrades.focus >= MIN_CAST:
+	elif pressed and Upgrades.focus >= MIN_CAST:
 		_cast()
 	else:
 		Upgrades.add_focus(REGEN * step)
-	was_held = held
 	_update_hud()
 
 func _cast() -> void:
 	casting = true
 	world_stopped = Upgrades.has("time_stop")
+	# Reloj de PixelFX que se abre alrededor de Viridy.
+	Fx.time_stop(player.get_parent(), player.global_position + Vector2(0, -30), COLOR)
 	if world_stopped:
 		_hold_world(true)
 		overlay.show()

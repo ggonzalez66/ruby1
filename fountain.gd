@@ -15,6 +15,7 @@ var water: Polygon2D
 var pool_area: Area2D
 var cross: Node2D
 var sparkles: CPUParticles2D
+var wade_left := 0.0
 
 func _title() -> String:
 	return "FUENTE DE CURACIÓN"
@@ -94,6 +95,13 @@ func _build_water() -> void:
 	shape.polygon = water.polygon
 	pool_area.add_child(shape)
 	add_child(pool_area)
+	# Física de agua (water_zone.gd): dentro de la poza Viridy se mueve lenta y pesada. La poza ya se dibuja.
+	var zone: Node2D = preload("res://water_zone.gd").new()
+	zone.name = "PoolWater"
+	zone.draw_body = false
+	zone.position = Vector2(2000, SURFACE_Y)
+	zone.size = Vector2(1500, 150)
+	add_child(zone)
 	sparkles = CPUParticles2D.new()
 	sparkles.position = Vector2(2000, SURFACE_Y)
 	sparkles.z_index = 2
@@ -114,11 +122,24 @@ func _build_water() -> void:
 	fade.offsets = PackedFloat32Array([0.0, 0.3, 1.0])
 	sparkles.color_ramp = fade
 	add_child(sparkles)
+	# Ondas de PixelFX que laten sobre la superficie de la poza, desfasadas.
+	for index in range(6):
+		var ripple: AnimatedSprite2D = PixelFx.play(self, "ripples", Vector2(1380 + index * 250 + randf_range(-40, 40), SURFACE_Y + 26 + (index % 2) * 34), randf_range(0.9, 1.3), [], {"loop": true, "z": 2, "modulate": Color(1, 1, 1, 0.55)})
+		if ripple != null:
+			ripple.name = "PoolRipple%d" % index
+			ripple.frame = randi() % ripple.sprite_frames.get_frame_count(&"default")
 
-func _physics_process(_delta: float) -> void:
-	if used or not is_instance_valid(player) or player.dead:
+func _physics_process(delta: float) -> void:
+	if not is_instance_valid(player) or player.dead:
 		return
 	var inside: bool = pool_area.overlaps_body(player) and player.global_position.y > SURFACE_Y + 10.0
+	# Al vadear, la poza se ondula donde está Viridy.
+	wade_left -= delta
+	if inside and wade_left <= 0.0:
+		wade_left = 0.45 if absf(player.velocity.x) > 40.0 else 0.9
+		PixelFx.play(self, "ripples", Vector2(player.global_position.x, SURFACE_Y + 4.0), 0.7, [], {"speed": 1.6, "z": 3, "modulate": Color(1, 1, 1, 0.8)})
+	if used:
+		return
 	if not inside:
 		hint_label.text = "Métete en el agua de la fuente para curarte"
 		return
@@ -134,6 +155,8 @@ func heal_player() -> int:
 	Sfx.play("ruby_gain", 0.0, 0.8)
 	Fx.text(self, player.global_position + Vector2(0, -110), "¡CURACIÓN!", HEAL_COLOR)
 	Fx.puff(self, player.global_position + Vector2(0, -30), Color(HEAL_COLOR, 0.9))
+	# Una flor de luz se abre junto a Viridy al curarse.
+	Fx.bloom(self, player.global_position + Vector2(-player.facing * 34.0, 0.0), 1.3)
 	sparkles.emitting = false
 	cross.create_tween().tween_property(cross, "modulate:a", 0.15, 1.0)
 	hint_label.text = "La fuente te devolvió %d de vida" % healed

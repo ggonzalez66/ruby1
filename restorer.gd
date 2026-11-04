@@ -20,6 +20,8 @@ extends "res://hawk.gd"
 const BRASS := Color(0.62, 0.45, 0.2)
 const BEAM := Color(1.0, 0.65, 0.2)
 const PULSE := Color(0.55, 0.85, 1.0)
+# Lo que un golpe interrumpe su vuelo.
+const HIT_FLINCH := 0.3
 
 var target: Node2D
 var repair_timer := 0.0
@@ -232,6 +234,10 @@ func take_hit(source_position: Vector2, direction: int = 1, damage: int = 1) -> 
 		state = State.STAGGER
 		state_timer = 0.4
 		warning_label.visible = false
+	elif state in [State.PATROL, State.CLIMB]:
+		# Cualquier golpe le corta el vuelo un instante: se tambalea y cae un poco antes de seguir.
+		state = State.STAGGER
+		state_timer = HIT_FLINCH
 
 func _update_visual(delta: float) -> void:
 	visual.scale = Vector2(facing, 1.0)

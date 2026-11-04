@@ -1,5 +1,7 @@
 extends Area2D
 
+const PLATFORM_SCRIPT := preload("res://platform.gd")
+
 const RUBY_CORE_SCRIPT := preload("res://ruby_core.gd")
 const LAUNCH_MOTION := preload("res://enemy_launch_motion.gd")
 var ruby_core: Node2D
@@ -155,6 +157,7 @@ func _physics_process(delta: float) -> void:
 	if launched:
 		_update_launch(delta)
 		return
+	_escape_terrain()
 	var grounded := _apply_gravity(delta)
 	if state == State.DEAD:
 		return
@@ -296,9 +299,11 @@ func _move_horizontally(amount: float, stop_at_ledges: bool) -> void:
 		return
 	var direction: float = sign(amount)
 	var space := get_world_2d().direct_space_state
-	# Pared delante: no avanza.
-	var wall := space.intersect_ray(PhysicsRayQueryParameters2D.create(global_position + Vector2(0, -20), global_position + Vector2(direction * 16.0 + amount, -20), 2))
-	if not wall.is_empty():
+	# Pared delante: no avanza (las pasarelas atravesables no cuentan como pared).
+	if not terrain_ray(global_position + Vector2(0, -20), global_position + Vector2(direction * 16.0 + amount, -20)).is_empty():
+		return
+	# Y el cuerpo entero no puede acabar dentro de un bloque (contenedores bajos, bordes de losas).
+	if _body_in_terrain(global_position + Vector2(amount, 0.0)) and not _body_in_terrain(global_position):
 		return
 	# Sin suelo delante: al perseguir no se tira (el retroceso sí puede tirarlo).
 	if stop_at_ledges:
@@ -307,6 +312,48 @@ func _move_horizontally(amount: float, stop_at_ledges: bool) -> void:
 		if floor_hit.is_empty():
 			return
 	global_position.x += amount
+
+# Rayo contra el terreno (capa 2) que atraviesa las pasarelas one_way: no son paredes ni techos.
+func terrain_ray(from: Vector2, to: Vector2) -> Dictionary:
+	var query := PhysicsRayQueryParameters2D.create(from, to, 2)
+	var excluded: Array[RID] = []
+	for _i in range(4):
+		query.exclude = excluded
+		var hit := get_world_2d().direct_space_state.intersect_ray(query)
+		if hit.is_empty() or not PLATFORM_SCRIPT.is_one_way(hit.collider):
+			return hit
+		excluded.append(hit.rid)
+	return {}
+
+func _body_in_terrain(at: Vector2) -> bool:
+	if collision_shape == null or not (collision_shape.shape is RectangleShape2D):
+		return false
+	var box := RectangleShape2D.new()
+	# Un poco más chico que el cuerpo y despegado del suelo: pisar o rozar no cuenta.
+	box.size = (collision_shape.shape as RectangleShape2D).size - Vector2(8, 14)
+	var query := PhysicsShapeQueryParameters2D.new()
+	query.shape = box
+	query.transform = Transform2D(0.0, at + collision_shape.position + Vector2(0, -3))
+	query.collision_mask = 2
+	for hit in get_world_2d().direct_space_state.intersect_shape(query, 4):
+		if not PLATFORM_SCRIPT.is_one_way(hit.collider):
+			return true
+	return false
+
+# Si algo lo dejó metido dentro de un bloque, sale por el lado libre más cercano (o por encima).
+func _escape_terrain() -> void:
+	if not _body_in_terrain(global_position):
+		return
+	for distance in range(8, 260, 8):
+		for side in [-1, 1]:
+			var spot := global_position + Vector2(side * distance, 0.0)
+			if not _body_in_terrain(spot):
+				global_position = spot
+				return
+		var above := global_position + Vector2(0.0, -distance)
+		if not _body_in_terrain(above):
+			global_position = above
+			return
 
 func take_hit(_source_position: Vector2, direction: int = 1, damage: int = 1) -> void:
 	if ruby_core != null and ruby_core.locked:

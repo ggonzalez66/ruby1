@@ -36,6 +36,8 @@ func pixel_sprites(parent: Node, sheet: String) -> Array:
 	return parent.get_children().filter(func(n): return n is AnimatedSprite2D and String(n.name).begins_with("PixelFx_" + sheet))
 
 func _run() -> void:
+	# Todas las cámaras colocadas: las variantes de nivel se prueban aparte.
+	load("res://run_encounter.gd").layout_variants = false
 	root.size = Vector2i(1152, 648)
 	upgrades = root.get_node("Upgrades")
 	await pixel_fx()
@@ -267,6 +269,33 @@ func sun_world() -> void:
 	hero.global_position = pool.global_position + Vector2(0, 30)
 	await frames(4)
 	check(hero.global_position.distance_to(hero.spawn_position) < 2.0 and hero.current_health == 100, "la lava te devuelve al checkpoint sin quitar vida")
+	# Géiser: la zona de daño dura lo que la columna de fuego que se ve.
+	var geyser: Area2D = lava.filter(func(n): return n.get_script() == load("res://lava_geyser.gd"))[0]
+	hero.global_position = geyser.global_position + Vector2(-200, -100)
+	hero.set_physics_process(false)
+	var flame_seen := false
+	var off_with_flame := false
+	var on_without_flame := false
+	# La animación avanza después de la física: se tolera un fotograma de retraso al apagarse.
+	var late_frames := 0
+	for _i in range(int(geyser.period * 60.0) * 2):
+		await frames(1)
+		var sprite: AnimatedSprite2D = geyser.pillar
+		if is_instance_valid(sprite):
+			flame_seen = true
+			var standing: bool = sprite.frame < geyser.HIT_FRAMES
+			if standing and geyser.shape.disabled and sprite.frame > 0:
+				off_with_flame = true
+			if not standing and not geyser.shape.disabled:
+				late_frames += 1
+				on_without_flame = late_frames > 1
+		elif geyser.erupting and flame_seen:
+			on_without_flame = true
+		if flame_seen and not geyser.erupting:
+			break
+	hero.set_physics_process(true)
+	check(flame_seen and not on_without_flame and not off_with_flame, "el pilar de fuego daña solo mientras se ve en pie (%s %s %s)" % [flame_seen, on_without_flame, off_with_flame])
+	check(geyser.burst_time() < 1.0 and geyser.shape.shape.size.y < geyser.height, "dura %.2f s y su zona mide lo que la llama (%.0f px)" % [geyser.burst_time(), geyser.shape.shape.size.y])
 	# Una plataforma que cae.
 	var platform: StaticBody2D = get_nodes_in_group(&"falling_platforms")[0]
 	hero.global_position = platform.global_position + Vector2(0, -20)

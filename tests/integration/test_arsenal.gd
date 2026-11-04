@@ -194,6 +194,26 @@ func _run() -> void:
 	await frames(16)
 	check(target.get_node("ElementStatus").ice_stacks == 1, "el tercero lleva el elemento")
 
+	print("== Cargador de la pistola")
+	await reset()
+	upgrades.grant(upgrades._weapon_card("pistol"))
+	player.pistol_ammo = player.PISTOL_MAGAZINE
+	# Hacia arriba: las balas no alcanzan a nadie de las pruebas siguientes.
+	player.combo.aim_direction = Vector2(0, -1)
+	for _i in range(player.PISTOL_MAGAZINE - 1):
+		player.jade_fire_cooldown_timer = 0.0
+		player._throw_spear()
+	check(player.pistol_ammo == 1 and is_equal_approx(player.jade_fire_cooldown_timer, player.PISTOL_COOLDOWN), "cada disparo gasta una bala (queda %d)" % player.pistol_ammo)
+	player.jade_fire_cooldown_timer = 0.0
+	player._throw_spear()
+	check(player.pistol_ammo == player.PISTOL_MAGAZINE and is_equal_approx(player.jade_fire_cooldown_timer, player.PISTOL_RELOAD), "al vaciarse recarga (%.2f s)" % player.jade_fire_cooldown_timer)
+	var shots_before: int = player.pistol_shots
+	player._throw_spear()
+	check(player.pistol_shots == shots_before, "mientras recarga no dispara")
+	for shot in player.get_parent().get_children().filter(func(node): return node.get_script() == load("res://pistol_shot.gd")):
+		shot.queue_free()
+	await frames(2)
+
 	print("== Elemento en la lanza")
 	await reset()
 	upgrades.grant(upgrades._element_card("ice", upgrades.RANGED_SLOT))
@@ -278,14 +298,20 @@ func _run() -> void:
 	Input.action_press("slow_motion")
 	await process_frame
 	await process_frame
-	check(director.focus.casting and time_control.slow_motion, "mantener RB pone cámara lenta")
-	var spent: float = upgrades.focus
-	await create_timer(0.4, true, false, true).timeout
-	check(upgrades.focus < spent - 5.0, "gasta Enfoque (%.0f → %.0f)" % [spent, upgrades.focus])
+	check(director.focus.casting and time_control.slow_motion, "pulsar RB pone cámara lenta")
 	Input.action_release("slow_motion")
 	await process_frame
 	await process_frame
-	check(not director.focus.casting and not time_control.slow_motion and is_equal_approx(Engine.time_scale, 1.0), "soltar lo termina")
+	check(director.focus.casting and time_control.slow_motion, "es un toggle: soltar RB no lo termina")
+	var spent: float = upgrades.focus
+	await create_timer(0.4, true, false, true).timeout
+	check(upgrades.focus < spent - 5.0, "gasta Enfoque (%.0f → %.0f)" % [spent, upgrades.focus])
+	Input.action_press("slow_motion")
+	await process_frame
+	await process_frame
+	Input.action_release("slow_motion")
+	await process_frame
+	check(not director.focus.casting and not time_control.slow_motion and is_equal_approx(Engine.time_scale, 1.0), "pulsar RB otra vez lo termina")
 	upgrades.focus = 10.0
 	Input.action_press("slow_motion")
 	await process_frame
@@ -298,6 +324,8 @@ func _run() -> void:
 	await process_frame
 	await process_frame
 	check(director.focus.casting, "lo mínimo alcanza")
+	Input.action_release("slow_motion")
+	await process_frame
 	upgrades.focus = 0.5
 	await create_timer(0.1, true, false, true).timeout
 	await process_frame
@@ -359,7 +387,12 @@ func _run() -> void:
 	Input.action_release("slow_motion")
 	await process_frame
 	await process_frame
-	check(not target.ruby_core.time_stopped, "al soltar vuelve el tiempo")
+	check(target.ruby_core.time_stopped, "es un toggle: soltar RB no lo termina")
+	Input.action_press("slow_motion")
+	await process_frame
+	await process_frame
+	Input.action_release("slow_motion")
+	check(not target.ruby_core.time_stopped, "pulsar RB otra vez vuelve el tiempo")
 	await frames(10)
 	check(bullet.global_position != bullet_at, "y los proyectiles siguen")
 	bullet.queue_free()

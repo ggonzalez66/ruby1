@@ -28,6 +28,7 @@ func _ready() -> void:
 	_build_tree_layer(Vector2(0.12, 0.04), 2048.0, 430.0, FAR_TREE_COLOR, 14, Vector2(150.0, 300.0), 11, false)
 	_build_tree_layer(Vector2(0.3, 0.1), 1600.0, 500.0, MID_TREE_COLOR, 9, Vector2(220.0, 420.0), 23, true)
 	_build_mist()
+	_build_ambient()
 
 func _build_sky() -> void:
 	# Capa fija a la pantalla: degradado vertical y luciérnagas flotando.
@@ -46,27 +47,6 @@ func _build_sky() -> void:
 		sky_layer.add_child(ray)
 		rays.append(ray)
 
-	var fireflies := CPUParticles2D.new()
-	fireflies.amount = 36
-	fireflies.lifetime = 6.0
-	fireflies.preprocess = 6.0
-	fireflies.position = Vector2(576, 340)
-	fireflies.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	fireflies.emission_rect_extents = Vector2(760, 420)
-	fireflies.direction = Vector2(0, -1)
-	fireflies.spread = 180.0
-	fireflies.gravity = Vector2.ZERO
-	fireflies.initial_velocity_min = 4.0
-	fireflies.initial_velocity_max = 14.0
-	fireflies.scale_amount_min = 1.5
-	fireflies.scale_amount_max = 3.0
-	var fade := Gradient.new()
-	fade.set_color(0, Color(FIREFLY_COLOR, 0.0))
-	fade.set_color(1, Color(FIREFLY_COLOR, 0.0))
-	fade.add_point(0.3, FIREFLY_COLOR)
-	fade.add_point(0.7, FIREFLY_COLOR)
-	fireflies.color_ramp = fade
-	sky_layer.add_child(fireflies)
 
 func _process(_delta: float) -> void:
 	var camera := get_viewport().get_camera_2d()
@@ -136,6 +116,72 @@ func _build_mist() -> void:
 		band.polygon = _ellipse_points(Vector2(x, y), Vector2(w * 0.5, rng.randf_range(18.0, 34.0)))
 		band.color = MIST_COLOR
 		mist_layer.add_child(band)
+
+# Luciérnagas y hojas que caen girando (hojas de PixelFX propias del juego, animadas por partícula),
+# delante de los árboles del fondo y fijas a la pantalla.
+func _build_ambient() -> void:
+	var ambient := _new_layer(Vector2.ZERO, Vector2.ZERO)
+	var fireflies := _sheet_particles("firefly", 3.0)
+	fireflies.name = "Fireflies"
+	fireflies.amount = 26
+	fireflies.lifetime = 6.0
+	fireflies.preprocess = 6.0
+	fireflies.position = Vector2(576, 340)
+	fireflies.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	fireflies.emission_rect_extents = Vector2(760, 420)
+	fireflies.direction = Vector2(0, -1)
+	fireflies.spread = 180.0
+	fireflies.gravity = Vector2.ZERO
+	fireflies.initial_velocity_min = 4.0
+	fireflies.initial_velocity_max = 16.0
+	fireflies.scale_amount_min = 1.2
+	fireflies.scale_amount_max = 1.8
+	var fade := Gradient.new()
+	fade.set_color(0, Color(1, 1, 1, 0.0))
+	fade.set_color(1, Color(1, 1, 1, 0.0))
+	fade.add_point(0.2, Color(1, 1, 1, 0.95))
+	fade.add_point(0.8, Color(1, 1, 1, 0.95))
+	fireflies.color_ramp = fade
+	ambient.add_child(fireflies)
+	var leaves := _sheet_particles("leaf", 7.0)
+	leaves.name = "FallingLeaves"
+	leaves.amount = 9
+	leaves.lifetime = 9.0
+	leaves.preprocess = 9.0
+	leaves.position = Vector2(576, -30)
+	leaves.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+	leaves.emission_rect_extents = Vector2(820, 10)
+	leaves.direction = Vector2(0.4, 1.0)
+	leaves.spread = 25.0
+	leaves.gravity = Vector2(6, 14)
+	leaves.initial_velocity_min = 30.0
+	leaves.initial_velocity_max = 55.0
+	leaves.angular_velocity_min = -40.0
+	leaves.angular_velocity_max = 40.0
+	leaves.angle_min = -180.0
+	leaves.angle_max = 180.0
+	leaves.scale_amount_min = 1.4
+	leaves.scale_amount_max = 2.2
+	leaves.color = Color(1, 1, 1, 0.85)
+	ambient.add_child(leaves)
+
+func _sheet_particles(sheet: String, cycles: float) -> CPUParticles2D:
+	var info: Dictionary = PixelFx.DATA.SHEETS[sheet]
+	var particles := CPUParticles2D.new()
+	particles.texture = load(PixelFx.SHEET_DIR % sheet)
+	particles.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	var anim := CanvasItemMaterial.new()
+	anim.particles_animation = true
+	anim.particles_anim_h_frames = int(info["columns"])
+	anim.particles_anim_v_frames = ceili(float(info["count"]) / float(info["columns"]))
+	anim.particles_anim_loop = true
+	particles.material = anim
+	# Ciclos de la animación durante la vida de cada partícula (cada una empieza en otro punto).
+	particles.anim_speed_min = cycles * 0.85
+	particles.anim_speed_max = cycles * 1.15
+	particles.anim_offset_min = 0.0
+	particles.anim_offset_max = 1.0
+	return particles
 
 func _new_layer(motion: Vector2, mirroring: Vector2) -> ParallaxLayer:
 	var parallax_layer := ParallaxLayer.new()

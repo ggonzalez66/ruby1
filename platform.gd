@@ -5,6 +5,8 @@ extends StaticBody2D
 # (tierra con musgo, losa de piso, plataforma, muro de ladrillo, muro trepable con enredaderas o chapa
 # de acero de las fábricas de la run).
 # Es @tool para que también se vea en el editor.
+# one_way: plataforma atravesable (pasarela de rejilla): se sube desde abajo saltando a través y se baja
+# con abajo + salto; los enemigos caminan por encima pero no la tratan como pared.
 
 enum Style { GROUND, SLAB, PLATFORM, WALL, CLIMB_WALL, METAL, SUN }
 
@@ -17,6 +19,10 @@ enum Style { GROUND, SLAB, PLATFORM, WALL, CLIMB_WALL, METAL, SUN }
 @export var style := Style.GROUND:
 	set(value):
 		style = value
+		_rebuild()
+@export var one_way := false:
+	set(value):
+		one_way = value
 		_rebuild()
 
 const MOSS := Color(0.29, 0.47, 0.22)
@@ -51,13 +57,26 @@ func _rebuild() -> void:
 	var rect := RectangleShape2D.new()
 	rect.size = size
 	collision.shape = rect
+	collision.one_way_collision = one_way
+	collision.one_way_collision_margin = 10.0
+	if one_way:
+		add_to_group(&"one_way_platforms")
+	elif is_in_group(&"one_way_platforms"):
+		remove_from_group(&"one_way_platforms")
 	queue_redraw()
+
+# Para los rayos de los enemigos: lo atravesable no es pared ni techo.
+static func is_one_way(collider: Object) -> bool:
+	return collider is Node and (collider as Node).is_in_group(&"one_way_platforms")
 
 func _draw() -> void:
 	var half := size * 0.5
 	var rng := RandomNumberGenerator.new()
 	rng.seed = int(position.x * 7.0 + position.y * 13.0 + size.x)
 	var palette: Array = PALETTES[style]
+	if one_way:
+		_draw_catwalk(half, palette)
+		return
 	# Cuerpo con degradado vertical.
 	draw_polygon(PackedVector2Array([Vector2(-half.x, -half.y), Vector2(half.x, -half.y), Vector2(half.x, half.y), Vector2(-half.x, half.y)]),
 		PackedColorArray([palette[0], palette[0], palette[1], palette[1]]))
@@ -133,6 +152,32 @@ func _draw_metal(half: Vector2, palette: Array) -> void:
 	if side_borders:
 		draw_line(Vector2(-half.x, -half.y), Vector2(-half.x, half.y), palette[1].darkened(0.4), 2.0)
 		draw_line(Vector2(half.x, -half.y), Vector2(half.x, half.y), palette[1].darkened(0.4), 2.0)
+
+func _draw_catwalk(half: Vector2, palette: Array) -> void:
+	# Pasarela de rejilla: chapa fina arriba con franja de peligro, celosía calada debajo (se ve el fondo).
+	var deck := minf(8.0, size.y)
+	var rail: Color = palette[0].lightened(0.2)
+	var truss: Color = palette[0].lightened(0.05)
+	draw_rect(Rect2(-half.x, -half.y, size.x, deck), rail)
+	var x := -half.x
+	while x < half.x:
+		var b := minf(x + 9.0, half.x)
+		draw_colored_polygon(PackedVector2Array([Vector2(x, -half.y + 3.0), Vector2(minf(x + 3.0, half.x), -half.y), Vector2(minf(b + 3.0, half.x), -half.y), Vector2(b, -half.y + 3.0)]), HAZARD_DARK)
+		x += 18.0
+	draw_rect(Rect2(-half.x, -half.y, size.x, 3.0), HAZARD_YELLOW)
+	draw_line(Vector2(-half.x, -half.y + deck), Vector2(half.x, -half.y + deck), truss, 2.0)
+	draw_line(Vector2(-half.x, half.y - 1.0), Vector2(half.x, half.y - 1.0), truss, 2.0)
+	# Celosía en zigzag entre la chapa y la barra de abajo.
+	var step := 24.0
+	x = -half.x
+	var up := true
+	while x < half.x - 1.0:
+		var next := minf(x + step, half.x)
+		draw_line(Vector2(x, -half.y + deck if up else half.y - 1.0), Vector2(next, half.y - 1.0 if up else -half.y + deck), truss, 2.0)
+		up = not up
+		x = next
+	for end in [-half.x + 1.0, half.x - 1.0]:
+		draw_line(Vector2(end, -half.y), Vector2(end, half.y), palette[1].darkened(0.3), 2.0)
 
 func _draw_moss_top(half: Vector2, depth: float, rng: RandomNumberGenerator, with_grass: bool) -> void:
 	var points := PackedVector2Array([Vector2(-half.x, -half.y), Vector2(half.x, -half.y)])

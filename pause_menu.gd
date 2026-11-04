@@ -196,7 +196,7 @@ func _restart_stage() -> void:
 func _go_to_main_menu() -> void:
 	get_tree().paused = false
 	TimeControl.set_slow_motion(false)
-	get_tree().change_scene_to_file(MAIN_MENU)
+	SceneFade.go(MAIN_MENU)
 
 func _abandon_run() -> void:
 	# Se pierde la run y se vuelve al Árbol Madre.
@@ -206,7 +206,7 @@ func _abandon_run() -> void:
 func _go_to_level_testing() -> void:
 	get_tree().paused = false
 	TimeControl.set_slow_motion(false)
-	get_tree().change_scene_to_file("res://level_testing.tscn")
+	SceneFade.go("res://level_testing.tscn")
 
 func _show_main_page() -> void:
 	if menu_mode:

@@ -11,12 +11,17 @@ extends "res://gauntlet_director.gd"
 # Los enemigos salen de los Marker2D hijos de "spawns_path": metadata "kind" (tipo) y "min_depth" (desde
 # qué enfrentamiento aparece). kind "bush" pone un bush para esconderse.
 # Morir termina la run (pantalla de fin con vuelta al Árbol Madre).
+# Variantes de nivel: cada cámara de seguridad colocada puede no estar (CAMERA_SKIP_CHANCE), siempre queda
+# al menos una, así dos visitas al mismo territorio no se juegan igual.
 
 enum Stage { OUTDOOR, INDOOR, BOSS, TOWER }
 
 const SUN_SCRIPT := preload("res://ruby_crystal.gd")
 const SPIDER_SCRIPT := preload("res://spider_boss.gd")
 const SPIDER_DELAY := 2.6
+const CAMERA_SKIP_CHANCE := 0.35
+# Las pruebas que cuentan cámaras lo apagan antes de abrir la escena.
+static var layout_variants := true
 # Vida de la araña: el núcleo central y cada pata (escalan con la profundidad como los guardianes).
 const SPIDER_HEALTH := 90
 const SPIDER_LEG_HEALTH := 36
@@ -45,6 +50,8 @@ func _ready() -> void:
 	if standalone:
 		Upgrades.begin_run()
 	_build_banner()
+	if layout_variants:
+		_vary_layout()
 	stealth = STEALTH_SCRIPT.new()
 	add_child(stealth)
 	var bush_points: Array = _markers().filter(func(marker): return marker.get_meta(&"kind", "") == "bush").map(func(marker): return marker.global_position)
@@ -62,6 +69,14 @@ func _ready() -> void:
 	if exit_door != null:
 		exit_door.entered.connect(_on_exit_entered)
 	_start.call_deferred()
+
+func _vary_layout() -> void:
+	var cameras: Array = get_parent().get_children().filter(func(node): return node.is_in_group(&"security_cameras"))
+	cameras.shuffle()
+	for index in range(1, cameras.size()):
+		if randf() < CAMERA_SKIP_CHANCE:
+			cameras[index].remove_from_group(&"security_cameras")
+			cameras[index].queue_free()
 
 func _exit_tree() -> void:
 	if standalone:

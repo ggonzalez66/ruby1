@@ -251,7 +251,7 @@ func _test_chimney() -> void:
 				Input.action_release("move_right" if side < 0 else "move_left")
 				Input.action_press("move_left" if side < 0 else "move_right")
 				Input.action_press("jump")
-	check(reached and jumps >= 10 and not checkpoint_return, "se alcanza el piso superior con walljumps precisos, sin recibir daño")
+	check(reached and jumps >= 10 and not checkpoint_return, "se alcanza el piso superior con walljumps precisos, sin recibir daño (llegó %s, %d saltos, volvió %s, y %.0f)" % [reached, jumps, checkpoint_return, player.position.y])
 	release_all()
 	player.global_position = Vector2(7294, -700)
 	await frames(4)

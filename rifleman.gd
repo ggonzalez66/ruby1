@@ -194,7 +194,7 @@ func _fire() -> void:
 	get_parent().add_child(shot)
 	shot.global_position = _muzzle()
 	Sfx.play("pistol_shot")
-	Fx.puff(get_parent(), _muzzle(), Color(1.0, 0.6, 0.3, 0.8))
+	Fx.muzzle(get_parent(), _muzzle(), aim_direction.angle(), Color(1.0, 0.7, 0.35), 0.9)
 	knock_velocity = -facing * 60.0
 
 func take_hit(source_position: Vector2, direction: int = 1, damage: int = 1) -> void:

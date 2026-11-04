@@ -16,12 +16,15 @@ extends "res://chaser_dummy.gd"
 const HOUND_COLOR := Color(0.22, 0.24, 0.28)
 const STRIPE_COLOR := Color(0.9, 0.18, 0.15)
 const CONTACT_RADIUS := 34.0
+const TRAIL_EVERY := 0.03
 
 var air_velocity := Vector2.ZERO
 var airborne := false
 var pinning := false
 var cooldown := 0.0
 var leap_hit_done := false
+var skin: Sprite2D
+var trail_left := 0.0
 
 func _init() -> void:
 	max_health = 6
@@ -29,7 +32,8 @@ func _init() -> void:
 	detect_range = 720.0
 	attack_range = pounce_range
 	attack_damage = 0
-	telegraph_time = 0.24
+	# Aviso dramático ("!" de PixelFX y gruñido); sigue siendo una embestida rápida.
+	telegraph_time = 0.28
 	recover_time = 0.4
 	impact_offset = Vector2(0, -26)
 
@@ -50,7 +54,7 @@ func _build() -> void:
 	visual.add_child(legs)
 	var stripe := _poly([Vector2(-20, -10), Vector2(14, -11), Vector2(14, -8), Vector2(-20, -7)], STRIPE_COLOR)
 	visual.add_child(stripe)
-	ENEMY_SKIN.new().dress(visual, body_poly, "hound", [body_poly, legs, stripe])
+	skin = ENEMY_SKIN.new().dress(visual, body_poly, "hound", [body_poly, legs, stripe])
 	# El chaser anima "arm" (aquí, las fauces): queda como pivote invisible.
 	arm = Node2D.new()
 	arm.position = Vector2(30, -20)
@@ -72,6 +76,13 @@ func _build() -> void:
 	bar.add_child(_poly([Vector2(-17, -4), Vector2(17, -4), Vector2(17, 4), Vector2(-17, 4)], Color(0.16, 0.15, 0.16, 0.8)))
 	health_fill = _poly([], Color(0.95, 0.35, 0.3))
 	bar.add_child(health_fill)
+
+func _start_telegraph() -> void:
+	super._start_telegraph()
+	Sfx.play("hound_alert")
+	# El "!" de PixelFX reemplaza la etiqueta de texto de los demás enemigos.
+	warning_label.visible = false
+	Fx.exclamation(self, Vector2(0, -12), Color(1.0, 0.22, 0.15), 1.4)
 
 func reset_dummy() -> void:
 	_drop_pin()
@@ -117,6 +128,8 @@ func _physics_process(delta: float) -> void:
 		_update_look()
 		return
 	var grounded := false
+	if not airborne:
+		_escape_terrain()
 	if airborne:
 		grounded = _update_air(delta, player)
 	else:
@@ -173,9 +186,8 @@ func _update_look() -> void:
 		visual.rotation = clampf(air_velocity.y / 1400.0, -0.45, 0.45) * facing
 
 func _can_jump_up() -> bool:
-	var space := get_world_2d().direct_space_state
-	var ceiling := space.intersect_ray(PhysicsRayQueryParameters2D.create(global_position + Vector2(0, -34), global_position + Vector2(0, -120), 2))
-	return ceiling.is_empty()
+	# Las pasarelas atravesables no son techo: salta a través de ellas.
+	return terrain_ray(global_position + Vector2(0, -34), global_position + Vector2(0, -120)).is_empty()
 
 func _leap(initial: Vector2, pounce: bool) -> void:
 	air_velocity = initial
@@ -194,10 +206,10 @@ func _update_air(delta: float, player: Node2D) -> bool:
 	var space := get_world_2d().direct_space_state
 	var step := air_velocity * delta
 	# Pared delante: corta el avance horizontal.
-	if step.x != 0.0 and not space.intersect_ray(PhysicsRayQueryParameters2D.create(global_position + Vector2(0, -16), global_position + Vector2(signf(step.x) * 28.0 + step.x, -16), 2)).is_empty():
+	if step.x != 0.0 and not terrain_ray(global_position + Vector2(0, -16), global_position + Vector2(signf(step.x) * 28.0 + step.x, -16)).is_empty():
 		step.x = 0.0
 		air_velocity.x = 0.0
-	if step.y < 0.0 and not space.intersect_ray(PhysicsRayQueryParameters2D.create(global_position + Vector2(0, -32), global_position + Vector2(0, -34 + step.y), 2)).is_empty():
+	if step.y < 0.0 and not terrain_ray(global_position + Vector2(0, -32), global_position + Vector2(0, -34 + step.y)).is_empty():
 		step.y = 0.0
 		air_velocity.y = 0.0
 	global_position.x += step.x
@@ -219,8 +231,28 @@ func _update_air(delta: float, player: Node2D) -> bool:
 	if fall_distance > 3000.0:
 		_die()
 	if state == State.SWING and not leap_hit_done:
+		_spawn_trail()
 		_check_pounce(player, from, global_position)
 	return false
+
+# Estela al lanzarse: copias rojizas del cuerpo que se quedan atrás y se apagan.
+func _spawn_trail() -> void:
+	trail_left -= get_physics_process_delta_time()
+	if trail_left > 0.0 or skin == null or not is_instance_valid(skin):
+		return
+	trail_left = TRAIL_EVERY
+	var ghost := Sprite2D.new()
+	ghost.texture = skin.texture
+	ghost.offset = skin.offset
+	ghost.texture_filter = skin.texture_filter
+	ghost.modulate = Color(1.0, 0.3, 0.2, 0.55)
+	ghost.z_index = z_index - 1
+	get_parent().add_child(ghost)
+	ghost.global_transform = skin.global_transform
+	var tween := ghost.create_tween().set_parallel(true)
+	tween.tween_property(ghost, "modulate:a", 0.0, 0.22)
+	tween.tween_property(ghost, "scale", ghost.scale * Vector2(1.0, 0.85), 0.22)
+	tween.chain().tween_callback(ghost.queue_free)
 
 func _check_pounce(player: Node2D, from: Vector2, to: Vector2) -> void:
 	if player == null or player.current_health <= 0:
@@ -242,8 +274,8 @@ func _check_pounce(player: Node2D, from: Vector2, to: Vector2) -> void:
 		pinning = true
 		airborne = false
 		air_velocity = Vector2.ZERO
-		Sfx.play("enemy_swing", 0.0, 0.5)
 		Fx.dust(get_parent(), player.global_position, Vector2.UP, 6, 1.2, 1.5)
+		Fx.impact(get_parent(), player.global_position + Vector2(0, -20), [Color(0.3, 0.02, 0.02), Color(1.0, 0.3, 0.2), Color(1.0, 0.95, 0.85)], 1.6)
 
 func on_deflected(by: Node) -> void:
 	if state != State.SWING:

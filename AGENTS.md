@@ -24,11 +24,12 @@
 | Rubíes, mejoras y elementos del Gauntlet | `run_upgrades.gd`, `upgrade_menu.gd`, `element_status.gd`, `spirit_*.gd` |
 | Armas a distancia, Enfoque y elementos enemigos del Gauntlet | `pistol_shot.gd`, `ice_grenade.gd`, `rail_beam.gd`, `focus_spell.gd`, `player_ailments.gd`, `element_aura.gd` |
 | Sigilo del Gauntlet | `stealth_director.gd`, `stealth_agent.gd`, `bush.gd` |
-| Run con mapa de hexágonos: hub, mapa, fábrica en 3 fases, fuente, zorro y Torre | `run_state.gd` (autoload `RunState`), `run_map.gd`, `run_encounter.gd`, `fountain.gd`, `fox_shop.gd`, `sanctuary.gd` (`hub_mode`); escenas de combate generadas por `tools/generate_run_stages.py` |
+| Run con mapa de hexágonos: hub, mapa, fábrica en 3 fases (afueras y dentro con 3 variantes cada una), fuente, zorro y Torre | `run_state.gd` (autoload `RunState`, `FIGHT_VARIANTS`), `run_map.gd`, `run_encounter.gd`, `fountain.gd`, `fox_shop.gd`, `sanctuary.gd` (`hub_mode`); escenas de combate generadas por `tools/generate_run_stages.py` |
 | Enemigos y desplazamiento contra terreno | `hawk.gd`, `chaser_dummy.gd`, `shield_bearer.gd`, `training_dummy.gd`, `enemy_launch_motion.gd` |
 | Estilo, reloj, fantasmas y récords | `ferocity.gd`, `run_session.gd` |
 | Torre final: Araña Colosal y mundo espiritual del sol | `spider_boss.gd`, `spider_leg.gd`, `spider_core.gd`; `sun_world.tscn` generado por `tools/generate_sun_world.py` con `lava.gd`, `lava_geyser.gd`, `falling_platform.gd`, `sun_background.gd` |
-| Presentación, audio y opciones | `fx.gd` (efectos con PixelFX vía `pixel_fx.gd`; hojas en `assets/fx/pixelfx`, exportadas con `tools/art/export_pixelfx.py`), `shine.gd`, `sfx.gd`, `pause_menu.gd`, `hud.gd` |
+| Presentación, audio y opciones | `fx.gd` (efectos con PixelFX vía `pixel_fx.gd`; hojas en `assets/fx/pixelfx`, exportadas con `tools/art/export_pixelfx.py`; efectos propios en `tools/art/pixelfx_fx/`), `scene_fade.gd` (autoload `SceneFade`), `death_cinematic.gd`, `shine.gd`, `sfx.gd`, `pause_menu.gd`, `hud.gd` |
+| Terreno: plataformas atravesables y agua | `platform.gd` (`one_way`), `water_zone.gd`; los enemigos usan `terrain_ray` / `_escape_terrain` de `chaser_dummy.gd` |
 | Mapas generados | `tools/generate_*.py`, utilidades `tools/level_kit.py` |
 | Arte del jugador | `assets/sprites/player/viridy/`, `tools/art/`, `tools/normalize_sheet.py` |
 

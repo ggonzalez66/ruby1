@@ -196,6 +196,100 @@ static func shield_hit(parent: Node, point: Vector2, color: Color, flip: bool = 
 static func bullet_impact(parent: Node, point: Vector2, color: Color, rotation: float = 0.0) -> void:
 	PixelFx.play(parent, "bullet_impact", point, 1.0, _palette(color), {"rotation": rotation, "speed": 1.3, "z": 6})
 
+# Onda expansiva en el suelo (PixelFX propio): anillo que corre por el suelo con dos crestas de aire.
+static func shockwave(parent: Node, point: Vector2, color: Color, size: float = 1.0) -> void:
+	PixelFx.play(parent, "shockwave", point, size, _palette(color), {"speed": 1.2, "z": 4})
+
+# Brasas que se levantan del suelo y quedan suspendidas un momento (PixelFX propio).
+static func embers(parent: Node, point: Vector2, color: Color, size: float = 1.0) -> void:
+	PixelFx.play(parent, "embers", point, size, _palette(color), {"flip": randf() < 0.5, "z": 6})
+
+# Estallido del ruby (PixelFX propio): nube con forma de rombo, como la gema.
+static func ruby_burst(parent: Node, point: Vector2, color: Color, radius: float = 46.0) -> AnimatedSprite2D:
+	var sprite: AnimatedSprite2D = PixelFx.play(parent, "ruby_burst", point, clampf(radius / 54.0, 0.5, 2.2), _palette(color), {"speed": 1.15, "z": 6})
+	if sprite != null:
+		sprite.name = "RubyBurst"
+	return sprite
+
+# Orbes de energía del ruby roto que salen despedidos y se curvan hasta "target" (lo siguen si se mueve).
+static func absorb_orbs(parent: Node, point: Vector2, target: Node2D, color: Color, count: int = 8, offset := Vector2(0, -26)) -> void:
+	if target == null or not is_instance_valid(target):
+		return
+	for index in range(count):
+		var orb: AnimatedSprite2D = PixelFx.play(parent, "energy_orb", point, randf_range(1.4, 1.9), _palette(color), {"loop": true, "z": 9})
+		if orb == null:
+			continue
+		orb.name = "RubyOrb"
+		var angle := TAU * index / count + randf_range(-0.3, 0.3)
+		var start := point + Vector2.from_angle(angle) * randf_range(6.0, 16.0)
+		var control := point + Vector2.from_angle(angle) * randf_range(55.0, 95.0) + Vector2(0, -30)
+		var life := randf_range(0.42, 0.62) + index * 0.03
+		var tween := orb.create_tween()
+		tween.tween_method(func(q: float) -> void:
+			if not is_instance_valid(target):
+				return
+			var goal: Vector2 = target.global_position + offset
+			var a := start.lerp(control, q)
+			var b := control.lerp(goal, q)
+			orb.global_position = a.lerp(b, q)
+			orb.scale = Vector2.ONE * lerpf(1.8, 0.8, q), 0.0, 1.0, life).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		tween.tween_callback(func() -> void:
+			if is_instance_valid(target) and index % 3 == 0:
+				PixelFx.play(target, "hit_spark", offset, 0.6, _palette(color), {"follow": target, "speed": 1.6, "z": 9})
+			orb.queue_free())
+
+# Corte que el uppercut deja en el aire: se queda flotando y se deshace (PixelFX propio).
+static func air_cut(parent: Node, point: Vector2, color: Color, flip: bool, size: float = 1.0) -> void:
+	PixelFx.play(parent, "air_cut", point, size, _palette(color), {"flip": flip, "z": 4})
+
+# Barrido de patada o rodillazo que ocupa la zona de golpe "rect" (en coordenadas de quien patea).
+static func kick_arc(parent: Node2D, rect: Rect2, facing: int, color: Color) -> void:
+	var info: Dictionary = PixelFx.DATA.SHEETS["kick_arc"]
+	var frame: Vector2 = info["frame"]
+	var sprite: AnimatedSprite2D = PixelFx.play(parent, "kick_arc", Vector2.ZERO, 1.0, _palette(color), {"follow": parent, "flip": facing < 0, "speed": 1.2, "z": 6})
+	if sprite == null:
+		return
+	# El arco llena el rectángulo de golpe: su pivote (la cadera) va al borde trasero del rectángulo.
+	sprite.scale = Vector2(rect.size.x / (frame.x - info["pivot"].x), rect.size.y / frame.y) * 1.05
+	sprite.position = Vector2(rect.position.x if facing > 0 else rect.end.x, rect.get_center().y)
+
+# Burbujas que suben bajo el agua (estela de Viridy al moverse sumergida).
+static func bubbles(parent: Node, point: Vector2, size: float = 1.0) -> void:
+	PixelFx.play(parent, "bubbles", point, size, [], {"flip": randf() < 0.5, "z": 8})
+
+# Fogonazo del cañón al disparar.
+static func muzzle(parent: Node, point: Vector2, rotation: float, color: Color, size: float = 1.0) -> void:
+	PixelFx.play(parent, "muzzle", point, size, _palette(color), {"rotation": rotation, "speed": 1.4, "z": 7})
+
+# Signo de exclamación de aviso sobre quien va a atacar (lo sigue).
+static func exclamation(target: Node2D, offset: Vector2, color: Color, size: float = 1.0) -> AnimatedSprite2D:
+	if target == null or not target.is_inside_tree():
+		return null
+	return PixelFx.play(target, "exclamation", offset, size, [color.darkened(0.7), color, Color(1.0, 0.98, 0.9)], {"follow": target, "speed": 1.5, "z": 12})
+
+# Estados en bucle que siguen a quien los sufre (burning, ice_block, stunned): devuelve el sprite.
+static func status(target: Node2D, sheet: String, offset: Vector2, size: float = 1.0, modulate := Color.WHITE) -> AnimatedSprite2D:
+	if target == null or not target.is_inside_tree():
+		return null
+	return PixelFx.play(target, sheet, offset, size, [], {"follow": target, "loop": true, "z": 7, "modulate": modulate})
+
+# Hielo que estalla en esquirlas.
+static func ice_shatter(parent: Node, point: Vector2, size: float = 1.0) -> void:
+	PixelFx.play(parent, "ice_shatter", point, size, [], {"speed": 1.4, "z": 7})
+
+# Reloj del Enfoque al activarse.
+static func time_stop(parent: Node, point: Vector2, color: Color) -> void:
+	PixelFx.play(parent, "time_stop", point, 1.2, _palette(color), {"speed": 1.6, "z": 9})
+
+# Flor que se abre al curarse en la fuente.
+static func bloom(parent: Node, point: Vector2, size: float = 1.0) -> void:
+	PixelFx.play(parent, "bloom", point, size, [], {"speed": 1.3, "z": 4})
+
+# Explosión de fuego jade (la muerte de Viridy).
+static func jade_blast(parent: Node, point: Vector2, size: float = 1.0) -> AnimatedSprite2D:
+	var jade: Array[Color] = [Color(0.01, 0.08, 0.05), Color(0.2, 0.85, 0.45), Color(0.88, 1.0, 0.8)]
+	return PixelFx.play(parent, "jade_blast", point, size, jade, {"speed": 1.1, "z": 12})
+
 static func _palette(color: Color) -> Array[Color]:
 	return [color.darkened(0.65), color, color.lightened(0.7)]
 

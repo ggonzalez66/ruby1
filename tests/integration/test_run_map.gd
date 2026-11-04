@@ -52,6 +52,8 @@ func kill_bosses(director: Node) -> void:
 		boss.ruby_core.complete(player())
 
 func _run() -> void:
+	# La fábrica original en cada fase: las variantes se prueban en test_level_variants.
+	root.get_node("RunState").layout_variants = false
 	root.size = Vector2i(1152, 648)
 	state = root.get_node("RunState")
 	upgrades = root.get_node("Upgrades")

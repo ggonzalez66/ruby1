@@ -24,7 +24,10 @@ class Scene:
 
     def ext_res(self, kind, path, rid, uid=None):
         uid_part = f' uid="{uid}"' if uid else ""
-        self.ext.append(f'[ext_resource type="{kind}"{uid_part} path="{path}" id="{rid}"]')
+        line = f'[ext_resource type="{kind}"{uid_part} path="{path}" id="{rid}"]'
+        # Cada recurso una sola vez aunque varios nodos lo pidan.
+        if line not in self.ext:
+            self.ext.append(line)
         return rid
 
     def node(self, name, kind=None, props=None, instance=None, parent="."):
@@ -94,6 +97,18 @@ def block(name, x0, x1, y_top, y_bottom, style=GROUND):
         "script": f'ExtResource("{PLATFORM_SCRIPT}")',
         "size": vec(x1 - x0, y_bottom - y_top),
         "style": style,
+    })
+
+
+def catwalk(name, x0, x1, y_top, thickness=20, style=METAL):
+    """Pasarela atravesable (platform.gd one_way): se sube saltando a través y se baja con abajo + salto."""
+    S.node(name or unique("Catwalk"), "StaticBody2D", {
+        "position": vec((x0 + x1) / 2, y_top + thickness / 2),
+        "collision_layer": 2,
+        "script": f'ExtResource("{PLATFORM_SCRIPT}")',
+        "size": vec(x1 - x0, thickness),
+        "style": style,
+        "one_way": "true",
     })
 
 

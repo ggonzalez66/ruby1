@@ -52,7 +52,7 @@ func _run() -> void:
 	arena.add_child(target)
 	await frames(2)
 	var w = player.combo
-	check(w.chain().size() == 5 and w.chain()[3].kind == "kick" and w.chain()[4].kind == "kick", "Combo ligero: tres zarpazos y dos patadas")
+	check(w.chain().size() == 5 and w.chain()[1].kind == "claw" and w.chain()[2].kind == "knee" and w.chain()[3].kind == "kick" and w.chain()[4].kind == "kick", "Combo ligero: dos zarpazos, rodillazo y dos patadas")
 	for step in w.chain().size():
 		var label: String = "ligero %d" % (step + 1)
 		start(step)

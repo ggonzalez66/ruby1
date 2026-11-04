@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="PackedScene" uid="uid://b50evv40bm1pk" path="res://playerr.tscn" id="1_player"]
 [ext_resource type="PackedScene" uid="uid://dhdb26xjccjmn" path="res://training_dummy.tscn" id="2_dummy"]
@@ -16,8 +16,6 @@
 [ext_resource type="Script" path="res://tutorial_sign.gd" id="14_sign"]
 [ext_resource type="Script" path="res://factory_decor.gd" id="21_decor"]
 [ext_resource type="Script" path="res://factory_door.gd" id="22_door"]
-[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
-[ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
 [ext_resource type="Script" path="res://security_camera.gd" id="23_camera"]
 [ext_resource type="Script" path="res://run_encounter.gd" id="20_run_director"]
 
@@ -94,6 +92,7 @@ collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(400, 20)
 style = 5
+one_way = true
 
 [node name="CatwalkHigh" type="StaticBody2D" parent="."]
 position = Vector2(3550, -510)
@@ -101,6 +100,7 @@ collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(500, 20)
 style = 5
+one_way = true
 
 [node name="CatwalkRight" type="StaticBody2D" parent="."]
 position = Vector2(4200, -290)
@@ -108,6 +108,15 @@ collision_layer = 2
 script = ExtResource("13_platform")
 size = Vector2(500, 20)
 style = 5
+one_way = true
+
+[node name="CatwalkCrates" type="StaticBody2D" parent="."]
+position = Vector2(1400, -240)
+collision_layer = 2
+script = ExtResource("13_platform")
+size = Vector2(320, 20)
+style = 5
+one_way = true
 
 [node name="FactoryDoor" type="Area2D" parent="."]
 position = Vector2(3550, 0)

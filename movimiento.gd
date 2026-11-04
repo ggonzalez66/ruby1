@@ -26,6 +26,9 @@ var execution_chain_timer := 0.0
 # Mejoras del Gauntlet.
 const PISTOL_SHOT_SCRIPT := preload("res://pistol_shot.gd")
 const PISTOL_COOLDOWN := 0.12
+# Cargador de la pistola: al vaciarse recarga (como el enfriamiento de la railgun).
+const PISTOL_MAGAZINE := 12
+const PISTOL_RELOAD := 1.3
 const ICE_GRENADE_SCRIPT := preload("res://ice_grenade.gd")
 const RAIL_BEAM_SCRIPT := preload("res://rail_beam.gd")
 const PISTOL_DAMAGE := 1
@@ -81,6 +84,14 @@ const KNIFE_MISSING_CUE_SCRIPT := preload("res://knife_missing_cue.gd")
 const ELECTRIC_FX_SCRIPT := preload("res://electric_fx.gd")
 const MANE_EMITTER_SCRIPT := preload("res://mane_emitter.gd")
 const KNIFE_SCRAPE_SCRIPT := preload("res://knife_scrape_fx.gd")
+const DEATH_CINEMATIC_SCRIPT := preload("res://death_cinematic.gd")
+const WATER_ZONE_SCRIPT := preload("res://water_zone.gd")
+# Bajo el agua (water_zone.gd), estilo Metroid: lenta y pesada al moverse; los ataques no cambian.
+const WATER_SCALES := {"max_speed": 0.55, "air_max_speed": 0.55, "sprint_speed": 0.55, "ground_acceleration": 0.5, "air_acceleration": 0.5,
+	"jump_velocity": 0.72, "wall_jump_vertical_speed": 0.72, "wall_jump_horizontal_speed": 0.6, "max_fall_speed": 0.42, "gravity": 0.8}
+const WATER_BUBBLE_EVERY := 0.12
+# Tiempo que la pasarela atravesada hacia abajo deja de chocar con Viridy.
+const DROP_THROUGH_TIME := 0.3
 const CHARGE_GLOW_SHADER: Shader = preload("res://shaders/charge_glow.gdshader")
 # Sprites nuevos (hojas en cuadrícula: celdas de ancho fijo con el borde de abajo recortado a los pies).
 const STANDING_SHEET: Texture2D = preload("res://assets/sprites/player/viridy/viridy_idle.png")
@@ -153,9 +164,11 @@ const ANIMATION_LIGHT_FINISHER := &"light_finisher"
 # Patadas 4 y 5 del combo ligero.
 const ANIMATION_KICK_ONE := &"kick_one"
 const ANIMATION_KICK_TWO := &"kick_two"
+# Tercer golpe del combo ligero: rodillazo (poses de rodilla de viridy_kick1_v2_arcade.png).
+const ANIMATION_KNEE := &"knee"
 # Frames de las patadas por fase del combo (Phase.STARTUP, ACTIVE, RECOVERY).
 const KICK_FRAMES := {1: [0, 1, 2], 2: [3], 3: [4, 5]}
-const LIGHT_COMBO_ANIMATIONS := [ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_KICK_ONE, ANIMATION_KICK_TWO]
+const LIGHT_COMBO_ANIMATIONS := [ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_KNEE, ANIMATION_KICK_ONE, ANIMATION_KICK_TWO]
 const ANIMATION_ROAR := &"roar"
 # Rugido mantenido (tras los frames explosivos del parry).
 const ANIMATION_ROAR_HOLD := &"roar_hold"
@@ -189,7 +202,9 @@ const ANIMATION_PROUD := &"proud"
 # Agachado justo al despegar de un salto desde el suelo.
 const ANIMATION_JUMP_SQUAT := &"jump_squat"
 const LIGHT_FINISHER_CENTER_OFFSET := Vector2(12.0, 0.0)
-const ARCADE_ANIMATIONS := [ANIMATION_KNIFE_THROW, ANIMATION_WALK, ANIMATION_SPRINT, ANIMATION_CHARGE, ANIMATION_HURT, ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_KICK_ONE, ANIMATION_KICK_TWO, ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH, ANIMATION_RUBY_SPIN]
+const ARCADE_ANIMATIONS := [ANIMATION_KNIFE_THROW, ANIMATION_WALK, ANIMATION_SPRINT, ANIMATION_CHARGE, ANIMATION_HURT, ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_KICK_ONE, ANIMATION_KICK_TWO, ANIMATION_KNEE, ANIMATION_GROUND_HEAVY, ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH, ANIMATION_RUBY_SPIN]
+# Hojas arcade dibujadas más pequeñas que la pose de pie: se agrandan para que Viridy no encoja al atacar.
+const ARCADE_SIZE_FIX := {ANIMATION_LIGHT_HIT: 1.12, ANIMATION_KICK_ONE: 1.36, ANIMATION_KICK_TWO: 1.36, ANIMATION_KNEE: 1.36}
 
 # Los sprites están dibujados a tamaños distintos; este factor los iguala al de idle/walk.
 const ANIMATION_VISUAL_SCALES := {
@@ -242,6 +257,8 @@ const BRAKE_RECOVER_TIME := 0.2
 const PROUD_ROAR_TIME := 0.7
 const PROUD_FPS := 4.0
 const PROUD_WAVE_COLOR := Color(0.62, 0.95, 0.6)
+# Verde de las brasas y la onda del aterrizaje del picado.
+const LANDING_JADE := Color(0.3, 0.95, 0.55)
 
 # Uppercut: cuánto por delante de Viridy y como mínimo cuánto más arriba deja al enemigo, cuánto tarda
 # en subir y cuánto flota.
@@ -279,7 +296,9 @@ const DAMAGE_HEAVY_GROUND := 3
 const DAMAGE_UPPERCUT := 3
 const DAMAGE_WALL_EXPLOSION := 2
 
-@export var max_speed := 320.0
+@export var max_speed := 400.0
+# Velocidad horizontal que se puede ganar en el aire con el stick (la de antes de subir la de caminar).
+@export var air_max_speed := 320.0
 @export var ground_acceleration := 2200.0
 @export var air_acceleration := 1400.0
 @export var ground_friction := 2600.0
@@ -489,6 +508,7 @@ var light_combo_queued := false
 var jump_cut_available := false
 var has_knife := true
 var pistol_shots := 0
+var pistol_ammo := PISTOL_MAGAZINE
 # Elementos enemigos sobre Viridy (solo en el Gauntlet, ver player_ailments.gd).
 var ailments: Node2D
 var combo: Node2D
@@ -516,6 +536,8 @@ var roar_air_stall_available := true
 var roar_lock_timer := 0.0
 var roar_aura_on := false
 var step_fx_timer := 0.0
+var wall_slide_fx_timer := 0.0
+var wall_slide_fx_counter := 0
 var still_time := 0.0
 var jump_squat_timer := 0.0
 var uppercut_pose_timer := 0.0
@@ -552,6 +574,14 @@ var mane_emitter: CPUParticles2D
 var beast_trail: Node2D
 var screw_embers: CPUParticles2D
 var knife_scrape: Node2D
+var death_cinematic: Node
+var drop_through_platform: Node = null
+var in_water := false
+# Velocidad horizontal con la que pisaba el suelo (el impulso que conserva al saltar caminando).
+var ground_momentum := 0.0
+var water_base := {}
+var water_bubble_timer := 0.0
+var drop_through_timer := 0.0
 var death_spin := 0.0
 var death_rest_angle := 0.0
 var riposte_attack := false
@@ -705,6 +735,7 @@ func _physics_process(delta: float) -> void:
 		_update_pin(delta)
 		return
 	var was_on_floor: bool = is_on_floor()
+	_update_water(delta)
 	_update_wall_state()
 	_update_timers(delta)
 	combo.tick(delta)
@@ -728,8 +759,11 @@ func _physics_process(delta: float) -> void:
 		_start_roar()
 
 	var stunned: bool = block_stun_timer > 0.0
+	_update_drop_through(delta)
 	if Input.is_action_just_pressed("jump") and not stunned:
-		if roar_active:
+		if Input.is_action_pressed("move_down") and _try_drop_through():
+			pass
+		elif roar_active:
 			# El rugido solo se cancela saltando.
 			_try_roar_jump_cancel()
 		elif attack_mode == ATTACK_GROUND_CHARGED or attack_mode == ATTACK_LIGHT_CHARGED_AIR:
@@ -754,8 +788,9 @@ func _physics_process(delta: float) -> void:
 				# Durante el dash el salto se guarda y sale al terminar (salto largo si sigue corriendo).
 				dash_jump_buffered = true
 
-	# Aim + RT lanza la lanza jade; con LT se recupera (light_combo.gd). La pistola es semiautomática.
-	if combo.aim and not _blocks_actions() and Input.is_action_just_pressed("dash"):
+	# La lanza jade se lanza al soltar LT y se recupera pulsándolo otra vez (light_combo.gd). Las demás armas
+	# disparan con Aim + RT; la pistola es semiautomática.
+	if combo.aim and Upgrades.ranged_weapon() != Upgrades.DEFAULT_WEAPON and not _blocks_actions() and Input.is_action_just_pressed("dash"):
 		_throw_spear()
 
 	if Input.is_action_just_pressed("attack") and not _blocks_actions():
@@ -953,6 +988,16 @@ func _update_movement_fx(delta: float, was_on_floor: bool, air_jumps_before: int
 		Fx.dust(level, feet, Vector2.LEFT, 4, 1.4, 0.5)
 		Fx.dust(level, feet, Vector2.RIGHT, 4, 1.4, 0.5)
 		Sfx.play("land", clamp((fall_speed - 380.0) / 150.0, 0.0, 4.0))
+	# Deslizándose por la pared (no en el wallrun): polvo y chispitas donde las garras rozan la pared.
+	wall_slide_fx_timer = maxf(wall_slide_fx_timer - delta, 0.0)
+	if _is_wall_sliding() and not wall_embedded and not wallride_active and velocity.y > 40.0 and wall_slide_fx_timer <= 0.0:
+		var side: int = -wall_contact_direction
+		var contact := feet + Vector2(side * 13.0, -20.0)
+		PixelFx.play(level, "dust", contact, 0.42, [Fx.DUST.darkened(0.35), Fx.DUST, Color(1.0, 0.98, 0.92)], {"rotation": -side * PI * 0.5, "speed": 1.8, "z": 3, "modulate": Color(1, 1, 1, 0.8)})
+		wall_slide_fx_counter += 1
+		if wall_slide_fx_counter % 3 == 0:
+			PixelFx.play(level, "hit_spark", contact + Vector2(0, 6), 0.45, Fx.SILVER, {"rotation": -PI * 0.5, "speed": 1.8, "z": 4})
+		wall_slide_fx_timer = 0.08
 	# Pasos y derrape al frenar.
 	step_fx_timer = max(step_fx_timer - delta, 0.0)
 	if not is_on_floor() or abs(velocity.x) <= 60.0 or step_fx_timer > 0.0:
@@ -980,7 +1025,7 @@ func _configure_character_animations() -> void:
 	_add_grid_animation(frames, ANIMATION_PROUD_ROAR, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(0, 0)], 1.0, false)
 	_add_grid_animation(frames, ANIMATION_PROUD, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(1, 0), Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, false)
 	_add_grid_animation(frames, ANIMATION_PROUD_LOOP, PROUD_SHEET, Vector2(768, 768), 704, [Vector2i(2, 0), Vector2i(3, 0)], PROUD_FPS, true)
-	_add_arcade_animation(frames, ANIMATION_WALK, WALKING_SHEET, 8, 12.0, true)
+	_add_arcade_animation(frames, ANIMATION_WALK, WALKING_SHEET, 8, 15.0, true)
 	# Salto: el agachado al despegar (pose aparte, está dibujado a otra escala) y los 3 frames del aire.
 	_add_region_animation(frames, ANIMATION_JUMP_SQUAT, JUMP_SQUAT_SHEET, [JUMP_SQUAT_REGION], 1.0, false)
 	_add_region_animation(frames, ANIMATION_JUMP, JUMP_AIR_SHEET, JUMP_AIR_REGIONS, 10.0, false)
@@ -998,6 +1043,8 @@ func _configure_character_animations() -> void:
 	_add_arcade_animation(frames, ANIMATION_LIGHT_FINISHER, LIGHT_THREE_SHEET, 3, 14.0, false)
 	_add_arcade_animation(frames, ANIMATION_KICK_ONE, KICK_ONE_SHEET, 6, 14.0, false, Vector2(768, 512))
 	_add_arcade_animation(frames, ANIMATION_KICK_TWO, KICK_TWO_SHEET, 6, 14.0, false, Vector2(768, 512))
+	# Guardia → rodilla recogida → rodillazo arriba (se sostiene) → baja la pierna.
+	_add_arcade_animation(frames, ANIMATION_KNEE, KICK_ONE_SHEET, 5, 14.0, false, Vector2(768, 512), 480.0, [0, 2, 1, 1, 4])
 	_add_arcade_animation(frames, ANIMATION_KNIFE_THROW, JAVELIN_THROW_SHEET, 4, 4.0 / JAVELIN_THROW_DURATION, false, Vector2(768, 640), 608.0)
 	# Wrath of Nature: la bestia completa, con la cabeza de león abierta al embestir y mordiendo al masticar.
 	# Wrath: por el suelo galopa (frames con patas); en el aire o en diagonal, las llamaradas estiradas.
@@ -1195,7 +1242,12 @@ func _update_character_animation() -> void:
 	elif aerial_stall_pose and attack_mode == ATTACK_NONE and not is_on_floor():
 		next_animation = ANIMATION_AERIAL_STALL
 	elif not is_on_floor():
-		next_animation = ANIMATION_FALL if velocity.y > 0.0 else ANIMATION_JUMP
+		# Bajando de un salto normal (sin carrera) usa la pose del aerial stall; con la carrera, la de caída.
+		var running_jump: bool = is_sprinting or absf(velocity.x) > max_speed + 20.0
+		if velocity.y > 0.0:
+			next_animation = ANIMATION_FALL if running_jump else ANIMATION_AERIAL_STALL
+		else:
+			next_animation = ANIMATION_JUMP
 	elif heavy_landing_pose_timer > 0.0:
 		# Al aterrizar el heavy aéreo, la bestia cierra la mordida un instante.
 		next_animation = ANIMATION_HEAVY_LANDING
@@ -1263,7 +1315,7 @@ func _sync_action_sprite(animation_name: StringName) -> void:
 	var duration := 0.0
 	var remaining := attack_timer
 	match animation_name:
-		ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_KICK_ONE, ANIMATION_KICK_TWO:
+		ANIMATION_LIGHT_HIT, ANIMATION_LIGHT_HIT_2, ANIMATION_LIGHT_FINISHER, ANIMATION_KICK_ONE, ANIMATION_KICK_TWO, ANIMATION_KNEE:
 			duration = _get_light_attack_duration()
 		ANIMATION_CHARGE:
 			duration = charged_ground_duration
@@ -1412,6 +1464,7 @@ func arcade_frame_layout(animation_name: StringName, texture: Texture2D) -> Tran
 		factor = LIQUID_SPIN_CANVAS_SIZE / texture.get_width()
 	elif animation_name in [ANIMATION_HEAVY_AERIAL, ANIMATION_RUBY_CHEW, ANIMATION_LIQUID_LAUNCH, ANIMATION_GROUND_HEAVY]:
 		factor = LIQUID_BEAST_CANVAS_SIZE / texture.get_width()
+	factor *= ARCADE_SIZE_FIX.get(animation_name, 1.0)
 	var offset := Vector2(0, -33.0) if animation_name == ANIMATION_RUBY_SPIN else Vector2(0, -texture.get_height() * factor * 0.5)
 	return Transform2D(0.0, Vector2.ONE * factor, 0.0, offset)
 
@@ -1527,6 +1580,7 @@ func _consume_jump_buffer() -> void:
 		air_jumps_remaining = max_air_jumps
 		air_uppercut_available = true
 		velocity.x = wall_contact_direction * wall_jump_horizontal_speed
+		ground_momentum = 0.0
 		velocity.y = wall_jump_vertical_speed
 		jump_cut_available = true
 		facing = wall_contact_direction
@@ -1580,6 +1634,15 @@ func _apply_horizontal_movement(move_input: float, delta: float) -> void:
 		control_multiplier = attack_move_multiplier
 
 	var target_speed: float = move_input * max_speed * control_multiplier
+	if is_on_floor():
+		ground_momentum = absf(velocity.x)
+	else:
+		# En el aire manda el control aéreo de siempre (los niveles se diseñaron con él); el impulso de
+		# caminar más rápido con el que despegó se conserva mientras siga en esa dirección.
+		var air_cap: float = air_max_speed
+		if signf(velocity.x) == signf(move_input):
+			air_cap = clampf(ground_momentum, air_max_speed, max_speed)
+		target_speed = move_input * air_cap * control_multiplier
 
 	if move_input == 0.0:
 		var friction: float = ground_friction if is_on_floor() else air_friction
@@ -1924,7 +1987,6 @@ func _start_death(source_position: Vector2, amount: int) -> void:
 	wrath.cancel()
 	# Sale despedido por el golpe que lo mató: más lejos cuanto más fuerte fue.
 	dead = true
-	Sfx.play("death")
 	mane_emitter.emitting = false
 	Ferocity.reset()
 	_cancel_all_states()
@@ -1935,10 +1997,13 @@ func _start_death(source_position: Vector2, amount: int) -> void:
 	velocity = Vector2(push_direction * (220.0 + strength * 12.0), -(260.0 + strength * 9.0))
 	death_spin = push_direction * (10.0 + strength * 0.4)
 	death_rest_angle = PI * 0.5 * push_direction
-	animated_sprite.play(ANIMATION_FALL)
-	_align_character_animation(ANIMATION_FALL)
 	animated_sprite.modulate = Color(1.0, 0.75, 0.75)
 	shadow.visible = false
+	# Cinemática: congelado con zoom y negativo, vuelo girando y estallido de fuego verde (death_cinematic.gd).
+	if is_instance_valid(death_cinematic):
+		death_cinematic.cancel()
+	death_cinematic = DEATH_CINEMATIC_SCRIPT.new()
+	add_child(death_cinematic)
 	died.emit()
 
 func _update_death(delta: float) -> void:
@@ -1964,6 +2029,78 @@ func _update_death(delta: float) -> void:
 		animated_sprite.rotation = lerp_angle(animated_sprite.rotation, death_rest_angle, 10.0 * delta)
 	else:
 		animated_sprite.rotation += death_spin * delta
+
+# ---------- Agua
+
+func _update_water(delta: float) -> void:
+	var zone: Node2D = WATER_ZONE_SCRIPT.at(get_tree(), global_position + Vector2(0, -24))
+	var now: bool = zone != null and not dead
+	if now != in_water:
+		in_water = now
+		_apply_water(now)
+		# Chapoteo en la superficie al entrar o salir.
+		var surface := Vector2(global_position.x, zone.surface_y() if zone != null else global_position.y - 24.0)
+		PixelFx.play(get_parent(), "ripples", surface, 0.9, [], {"speed": 1.8, "z": 8})
+		Fx.dust(get_parent(), surface, Vector2.UP, 5, 1.0, 1.2)
+		Sfx.play("bush_rustle", 0.0, 0.6)
+	if not in_water:
+		return
+	# Estela de burbujas mientras se mueve bajo el agua.
+	water_bubble_timer -= delta
+	if water_bubble_timer <= 0.0 and (velocity.length() > 40.0 or _is_attack_active()):
+		water_bubble_timer = WATER_BUBBLE_EVERY
+		Fx.bubbles(get_parent(), global_position + Vector2(-facing * 8.0, -34.0))
+
+func _apply_water(on: bool) -> void:
+	for property in WATER_SCALES:
+		if on:
+			water_base[property] = get(property)
+			set(property, get(property) * WATER_SCALES[property])
+		elif water_base.has(property):
+			set(property, water_base[property])
+	if not on:
+		water_base.clear()
+
+# ---------- Plataformas atravesables (platform.gd one_way)
+
+func _floor_one_way_platform() -> Node:
+	if not is_on_floor():
+		return null
+	var query := PhysicsPointQueryParameters2D.new()
+	query.position = global_position + Vector2(0, 4)
+	query.collision_mask = 2
+	for hit in get_world_2d().direct_space_state.intersect_point(query, 8):
+		if hit.collider is Node and hit.collider.is_in_group(&"one_way_platforms"):
+			return hit.collider
+	return null
+
+# Abajo + salto sobre una pasarela: la atraviesa hacia abajo en vez de saltar.
+func _try_drop_through() -> bool:
+	var platform := _floor_one_way_platform()
+	if platform == null or not (platform is PhysicsBody2D):
+		return false
+	_release_drop_through()
+	drop_through_platform = platform
+	drop_through_timer = DROP_THROUGH_TIME
+	add_collision_exception_with(platform)
+	global_position.y += 2.0
+	velocity.y = maxf(velocity.y, 120.0)
+	coyote_timer = 0.0
+	jump_buffer_timer = 0.0
+	Fx.dust(get_parent(), global_position, Vector2.DOWN, 3, 0.8)
+	return true
+
+func _update_drop_through(delta: float) -> void:
+	if drop_through_platform == null:
+		return
+	drop_through_timer -= delta
+	if drop_through_timer <= 0.0:
+		_release_drop_through()
+
+func _release_drop_through() -> void:
+	if drop_through_platform != null and is_instance_valid(drop_through_platform):
+		remove_collision_exception_with(drop_through_platform)
+	drop_through_platform = null
 
 func _cancel_all_states() -> void:
 	if combo != null:
@@ -2154,7 +2291,7 @@ func pin(by: Node2D, mash_count: int) -> bool:
 	pin_mash_left = maxi(mash_count, 1)
 	pin_time = 0.0
 	velocity = Vector2.ZERO
-	Sfx.play("grab", 2.0, 0.8)
+	Sfx.play("hound_catch")
 	_camera_kick(0.4)
 	if pin_label == null:
 		pin_label = Label.new()
@@ -2202,7 +2339,10 @@ func _update_pin(delta: float) -> void:
 	move_and_slide()
 	if Input.is_action_just_pressed("attack"):
 		pin_mash_left -= 1
-		Sfx.play("grab", 0.0, 1.0 + randf() * 0.2)
+		# Cada machaque suena (más agudo según se acerca a soltarse) y sacude un poco.
+		Sfx.play("hound_mash", 0.0, 0.9 + 0.08 * maxi(6 - pin_mash_left, 0) + randf() * 0.06)
+		Fx.dust(get_parent(), global_position, Vector2(randf_range(-1.0, 1.0), -1.0), 3, 0.8)
+		_camera_kick(0.06)
 		_update_pin_label()
 	var holder_free: bool = not is_instance_valid(pinned_by) or not pinned_by.visible or (pinned_by.has_method("holds_pin") and not pinned_by.holds_pin())
 	if pin_mash_left <= 0 or pin_time >= PIN_MAX_TIME or holder_free:
@@ -2311,8 +2451,17 @@ func _fire_ranged_weapon() -> void:
 			get_parent().add_child(shot)
 			pistol_shots += 1
 			shot.fire(muzzle, aim, (PISTOL_DAMAGE + bonus) * power, bonus, pistol_shots % PISTOL_ELEMENT_EVERY == 0)
-			jade_fire_cooldown_timer = PISTOL_COOLDOWN
+			pistol_ammo -= 1
+			if pistol_ammo <= 0:
+				# Sin balas: recarga entera antes del siguiente disparo.
+				pistol_ammo = PISTOL_MAGAZINE
+				jade_fire_cooldown_timer = PISTOL_RELOAD
+				Fx.text(get_parent(), global_position + Vector2(0, -78), "RECARGANDO", Color(1.0, 0.85, 0.45))
+				Sfx.play("knife_catch", -2.0, 0.7)
+			else:
+				jade_fire_cooldown_timer = PISTOL_COOLDOWN
 			Sfx.play("pistol_shot")
+			Fx.muzzle(get_parent(), muzzle, aim.angle(), Color(1.0, 0.85, 0.45), 0.8)
 			_camera_kick(0.05)
 		"grenade":
 			var grenade: Node2D = ICE_GRENADE_SCRIPT.new()
@@ -2326,6 +2475,7 @@ func _fire_ranged_weapon() -> void:
 			beam.fire(self, muzzle, aim, (RAIL_DAMAGE + bonus) * power)
 			jade_fire_cooldown_timer = RAIL_COOLDOWN
 			Sfx.play("rail_shot")
+			Fx.muzzle(get_parent(), muzzle, aim.angle(), Color(0.55, 0.9, 1.0), 1.25)
 			_camera_kick(0.3)
 	knife_throw_pose_timer = PISTOL_POSE_TIME
 
@@ -3321,6 +3471,8 @@ func _start_uppercut_attack(from_air: bool) -> void:
 	jump_squat_timer = 0.0
 	velocity.x = facing * max(abs(velocity.x), light_uppercut_forward_speed)
 	velocity.y = light_uppercut_velocity
+	# Corte en el aire por donde sube el uppercut: se queda flotando y se desvanece.
+	Fx.air_cut(get_parent(), global_position + Vector2(facing * 14.0, 6.0), Ferocity.style_color(), facing < 0, 1.5)
 	_set_attack_active(true)
 	_update_attack_animation()
 	_refresh_attack_hits()
@@ -3510,7 +3662,7 @@ func _update_attack_animation() -> void:
 	if combo.active:
 		claw_slash_sprite.hide()
 		attack_effects.visible = false
-		if combo.phase == combo.Phase.ACTIVE and combo.step < 3:
+		if combo.phase == combo.Phase.ACTIVE and combo.move.kind == "claw":
 			attack_effects.visible = not show_hitbox_debug
 			_effect_claw_slash()
 		return
@@ -3623,10 +3775,14 @@ func _effect_claw_slash() -> void:
 	claw_slash_sprite.visible = true
 	claw_slash_sprite.z_index = 2
 	claw_slash_sprite.flip_h = finisher
+	# Golpe 1 de arriba abajo: las marcas bajan (volteadas en vertical); golpe 2 de abajo arriba, a la
+	# altura del brazo que sube.
+	claw_slash_sprite.flip_v = light_combo_step == 1
 	claw_slash_sprite.frame = (4 if finisher else 0) + mini(int(progress * 4.0), 3)
-	claw_slash_sprite.position = claw_arc_center + _get_claw_center_offset() + Vector2(26.0, -4.0)
+	var lift := Vector2(0.0, -14.0) if light_combo_step == 2 else Vector2.ZERO
+	claw_slash_sprite.position = claw_arc_center + _get_claw_center_offset() + Vector2(26.0, -4.0) + lift
 	claw_slash_sprite.scale = Vector2.ONE * (142.0 if finisher else 112.0) / 512.0
-	claw_slash_sprite.rotation = deg_to_rad(25.0 if light_combo_step == 1 else (-30.0 if light_combo_step == 2 else -10.0))
+	claw_slash_sprite.rotation = deg_to_rad(-20.0 if light_combo_step == 1 else (-30.0 if light_combo_step == 2 else -10.0))
 	claw_slash_sprite.modulate.a = _effect_fade(progress, 0.6)
 
 func _effect_claw_slash_legacy() -> void:
@@ -3944,6 +4100,13 @@ func _hit_area(area: Area2D) -> void:
 	if area.has_method("take_hit"):
 		var damage: int = int(round(_get_attack_damage() * Ferocity.damage_multiplier()))
 		area.take_hit(global_position, facing, Upgrades.strike(area, _element_slot(), damage, attack_mode == ATTACK_HEAVY))
+		# Mejora Ejecución certera: si el ataque fuerte lo deja sin vida, lo ejecuta en el acto.
+		if attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_UPPERCUT] and Upgrades.has("sure_execution"):
+			var dying_core: Node2D = area.get_node_or_null("RubyCore")
+			if dying_core != null and area.get("current_health") != null and area.current_health <= 0 and dying_core.claim(self):
+				Fx.text(get_parent(), _get_target_center(area) + Vector2(0, -40), "¡EJECUCIÓN CERTERA!", Color(1.0, 0.82, 0.35))
+				_queue_execution(dying_core)
+				return
 		var heavy_hit: bool = attack_mode in [ATTACK_HEAVY, ATTACK_HEAVY_GROUND, ATTACK_SPIN, ATTACK_UPPERCUT]
 		Sfx.play("hit_heavy" if heavy_hit else "hit_light")
 		# Más estilo, más impacto: los perseguidores salen despedidos más lejos.
@@ -4148,10 +4311,12 @@ func _spawn_wall_explosion_visual(center: Vector2) -> void:
 		tween.chain().tween_callback(burst.queue_free)
 		return
 
-	# Explosión dorada de PixelFX del tamaño del radio de daño.
+	# Discreto: chispa de impacto contra la pared y un poco de polvo (el daño en área no cambia).
 	burst.queue_free()
-	Fx.shatter(level, center, EFFECT_PALETTE_GOLD[1], wall_explosion_radius)
-	Fx.explosion(level, center, wall_explosion_radius / 120.0)
+	var wall_side := -wall_embed_normal
+	var contact := center + Vector2(wall_side * 12.0, 0.0)
+	Fx.impact(level, contact, Fx.GOLD, 0.8)
+	PixelFx.play(level, "bullet_impact", contact, 0.9, [Fx.DUST.darkened(0.4), Fx.DUST, Color.WHITE], {"rotation": PI if wall_side > 0 else 0.0, "speed": 1.4, "z": 6})
 
 func _circle_points(radius: float, segments: int) -> PackedVector2Array:
 	var points := PackedVector2Array()
@@ -4203,8 +4368,10 @@ func _land_heavy_attack_on_floor() -> void:
 	velocity.y = 0.0
 	heavy_ground_impact_wave_timer = heavy_ground_impact_wave_duration
 	heavy_landing_pose_timer = HEAVY_LANDING_POSE_TIME
-	_set_impact_wave_active(true)
-	_update_impact_wave_visual()
+	# Onda expansiva (recrea las ondas de polígonos originales) y brasas verdes que se levantan del suelo y
+	# quedan suspendidas un momento; las dos de PixelFX.
+	Fx.shockwave(get_parent(), global_position, LANDING_JADE, 1.1)
+	Fx.embers(get_parent(), global_position + Vector2(facing * 10.0, 0.0), LANDING_JADE, 1.7)
 
 func _apply_light_hit_air_boost() -> void:
 	# Cada golpe ligero que conecta en el aire la deja suspendida junto al enemigo: corta la caída y
@@ -4251,6 +4418,11 @@ func _can_start_air_uppercut() -> bool:
 	return air_uppercut_available
 
 func _respawn_player() -> void:
+	if is_instance_valid(death_cinematic):
+		death_cinematic.cancel()
+	death_cinematic = null
+	animated_sprite.show()
+	pistol_ammo = PISTOL_MAGAZINE
 	if ailments != null:
 		ailments.clear()
 	release_pin(false)

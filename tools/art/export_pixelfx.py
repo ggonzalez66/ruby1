@@ -2,7 +2,10 @@
 """Exporta los efectos de PixelFX (https://github.com/patch-gg/pixelfx, MIT) que usa el juego.
 
 Uso (desde la raíz del proyecto, con Node 18+):
-    python3 tools/art/export_pixelfx.py --pixelfx /ruta/a/pixelfx [nombre ...]
+    python3 tools/art/export_pixelfx.py [--pixelfx /ruta/a/pixelfx] [nombre ...]
+
+La copia de PixelFX vive fija en ~/tools/pixelfx (o donde diga la variable PIXELFX). Para instalarla:
+    git clone https://github.com/patch-gg/pixelfx ~/tools/pixelfx && (cd ~/tools/pixelfx && npm install)
 
 Por cada efecto de EFFECTS:
   1. `node tools/render.mjs <id> --sheet --no-actor` en la copia de PixelFX (a una carpeta temporal).
@@ -11,10 +14,14 @@ Por cada efecto de EFFECTS:
      (pixel_fx.gd, shader de mapa de degradado).
   4. Recorta todos los fotogramas al rectángulo común con contenido y los vuelve a empaquetar.
 Escribe assets/fx/pixelfx/<nombre>.png y pixel_fx_data.gd (tamaño, columnas, fps y pivote de cada hoja).
+
+Los efectos propios del juego (ids "ruby1/...") viven en tools/art/pixelfx_fx/*.js: antes de renderizar se
+copian a src/fx/ruby1/ de la copia de PixelFX y se regenera su índice (node tools/index.mjs).
 """
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -27,6 +34,8 @@ PROJECT = Path(__file__).resolve().parents[2]
 OUT_DIR = PROJECT / "assets" / "fx" / "pixelfx"
 DATA_SCRIPT = PROJECT / "pixel_fx_data.gd"
 MAX_SHEET_WIDTH = 2048
+CUSTOM_DIR = PROJECT / "tools" / "art" / "pixelfx_fx"
+DEFAULT_PIXELFX = os.environ.get("PIXELFX", str(Path.home() / "tools" / "pixelfx"))
 
 # nombre: (id de PixelFX, gris, inicio, fin, paso, opciones extra)
 EFFECTS = {
@@ -53,7 +62,41 @@ EFFECTS = {
     # Mundo espiritual del sol: soles que laten (bucle) y columnas de lava que brotan.
     "sunburst": ("holy/sunburst", False, 0, 120, 2, {}),
     "flame_pillar": ("fire/flame-pillar", False, 20, 110, 2, {}),
+    # Estados elementales de enemigos y de Viridy: quemándose (sin los destellos de silueta), bloque de hielo
+    # (congelado), hielo roto, aturdido (estrellas) y el fogonazo de los disparos.
+    "burning": ("status/burning", False, 4, 18, 1, {}),
+    "ice_block": ("ice/ice-shatter", False, 0, 9, 1, {}),
+    "ice_shatter": ("ice/ice-shatter", False, 20, 84, 2, {}),
+    "stunned": ("status/stunned", False, 0, 60, 2, {}),
+    "muzzle": ("projectiles/muzzle-pistol", True, 0, 30, 1, {}),
+    # Aviso de ataque (el "!" del sabueso), ondas y flor de la fuente, Enfoque y transición de escena.
+    "exclamation": ("ui/exclamation", True, 0, 43, 1, {}),
+    "ripples": ("water/ripples", False, 0, 60, 2, {}),
+    "bloom": ("nature/healing-bloom", False, 0, 100, 2, {}),
+    "time_stop": ("arcane/time-stop", True, 0, 66, 2, {}),
+    "burn_away": ("transitions/burn-away", True, 0, 91, 2, {}),
+    # Explosión de fuego (gris: el juego la tiñe de jade al morir Viridy).
+    "jade_blast": ("explosions/big-explosion", True, 0, 100, 2, {}),
+    # Efectos propios (tools/art/pixelfx_fx).
+    "shockwave": ("ruby1/shockwave", True, 0, 23, 1, {}),
+    "embers": ("ruby1/ember-rise", True, 0, 45, 1, {}),
+    "ruby_burst": ("ruby1/ruby-burst", True, 0, 33, 1, {}),
+    "energy_orb": ("ruby1/energy-orb", True, 0, 12, 1, {}),
+    "air_cut": ("ruby1/air-cut", True, 0, 30, 1, {}),
+    "kick_arc": ("ruby1/kick-arc", True, 0, 9, 1, {}),
+    "mane_wisp": ("ruby1/mane-wisp", True, 0, 18, 1, {}),
+    "firefly": ("ruby1/firefly", False, 0, 60, 1, {}),
+    "leaf": ("ruby1/leaf", False, 0, 36, 1, {}),
+    "bubbles": ("ruby1/bubble-trail", False, 0, 41, 1, {}),
 }
+
+
+def install_custom(pixelfx):
+    target = pixelfx / "src" / "fx" / "ruby1"
+    target.mkdir(parents=True, exist_ok=True)
+    for source in sorted(CUSTOM_DIR.glob("*.js")):
+        shutil.copy(source, target / source.name)
+    subprocess.run(["node", "tools/index.mjs"], cwd=pixelfx, check=True, stdout=subprocess.DEVNULL)
 
 
 def render(pixelfx, effect_id, extra, tmp):
@@ -125,13 +168,15 @@ def write_data(data):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pixelfx", required=True, help="copia local de github.com/patch-gg/pixelfx")
+    parser.add_argument("--pixelfx", default=DEFAULT_PIXELFX, help=f"copia local de github.com/patch-gg/pixelfx (por defecto {DEFAULT_PIXELFX})")
     parser.add_argument("names", nargs="*", help="solo estos efectos (por defecto, todos)")
     args = parser.parse_args()
     pixelfx = Path(args.pixelfx).resolve()
     if not (pixelfx / "tools" / "render.mjs").exists():
-        sys.exit(f"No es una copia de PixelFX: {pixelfx}")
+        sys.exit(f"No es una copia de PixelFX: {pixelfx}\n"
+                 "Clónala con: git clone https://github.com/patch-gg/pixelfx ~/tools/pixelfx && (cd ~/tools/pixelfx && npm install)")
     OUT_DIR.mkdir(parents=True, exist_ok=True)
+    install_custom(pixelfx)
     shutil.copy(pixelfx / "LICENSE", OUT_DIR / "LICENSE-pixelfx.txt")
     names = args.names or list(EFFECTS)
     data = {}

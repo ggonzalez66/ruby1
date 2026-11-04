@@ -1,41 +1,58 @@
 extends CPUParticles2D
 
-# Melena evanescente de Viridy: motas del color del rango de estilo que se desprenden de la melena, suben
-# y se quedan atrás (en coordenadas del mundo) al moverse. La zona de la melena sale del contorno del frame que se está
-# dibujando (arriba y hacia atrás), así sirve para cualquier animación, volteada o girando.
+# Melena evanescente de Viridy: llamitas espirituales (hoja "mane_wisp" de PixelFX, propia del juego) del
+# color del rango de estilo que se desprenden de la melena, se enroscan hacia arriba y se deshacen en humo,
+# quedándose atrás (en coordenadas del mundo) al moverse. La zona de la melena sale del contorno del frame
+# que se está dibujando (arriba y hacia atrás), así sirve para cualquier animación, volteada o girando.
 
 # Dentro del contorno visible del frame (0..1): centro y medio tamaño de la zona de la melena.
 const MANE_CENTER := Vector2(0.42, 0.22)
 const MANE_HALF_SIZE := Vector2(0.22, 0.14)
+const SHEET := "mane_wisp"
 
 var _bounds_cache := {}
 var _color := Color.TRANSPARENT
 var _atlas_images := {}
 
 func _init() -> void:
-	amount = 26
-	lifetime = 0.9
+	amount = 20
+	lifetime = 0.75
 	local_coords = false
 	emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
 	direction = Vector2(0, -1)
-	spread = 40.0
-	gravity = Vector2(0, -26)
-	initial_velocity_min = 8.0
-	initial_velocity_max = 26.0
+	spread = 35.0
+	gravity = Vector2(0, -30)
+	initial_velocity_min = 10.0
+	initial_velocity_max = 28.0
 	damping_min = 4.0
 	damping_max = 10.0
-	scale_amount_min = 1.0
-	scale_amount_max = 2.5
+	scale_amount_min = 0.38
+	scale_amount_max = 0.62
+	angle_min = -18.0
+	angle_max = 18.0
+	texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
+	# Cada partícula reproduce la hoja entera durante su vida (nace, se enrosca, se hace humo).
+	var info: Dictionary = PixelFx.DATA.SHEETS[SHEET]
+	texture = load(PixelFx.SHEET_DIR % SHEET)
+	var material_anim := CanvasItemMaterial.new()
+	material_anim.particles_animation = true
+	material_anim.particles_anim_h_frames = int(info["columns"])
+	material_anim.particles_anim_v_frames = ceili(float(info["count"]) / float(info["columns"]))
+	material_anim.particles_anim_loop = false
+	material = material_anim
+	anim_speed_min = 1.0
+	anim_speed_max = 1.0
 	set_style_color(Color(0.45, 0.75, 1.0))
 
 func set_style_color(color: Color) -> void:
 	if color.is_equal_approx(_color):
 		return
 	_color = color
-	var glow: Color = color.lerp(Color.WHITE, 0.55)
+	# La hoja es gris: el color de la partícula la tiñe (blanco → color del rango, aclarado en el núcleo).
+	var glow: Color = color.lerp(Color.WHITE, 0.35)
 	var ramp := Gradient.new()
-	ramp.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
-	ramp.colors = PackedColorArray([Color(glow, 0.95), Color(color, 0.85), Color(color, 0.0)])
+	ramp.offsets = PackedFloat32Array([0.0, 0.5, 1.0])
+	ramp.colors = PackedColorArray([Color(glow, 1.0), Color(color, 0.95), Color(color, 0.6)])
 	color_ramp = ramp
 
 func follow(sprite: AnimatedSprite2D, facing: float, active: bool, color: Color = Color.TRANSPARENT) -> void:

@@ -112,7 +112,13 @@ func _run() -> void:
 	await frames(15)
 	check(player.combo.air_stall and player.position.y - air_y < 35.0 and not player.is_on_floor(), "Tras conectar en el aire, el combo ligero mantiene aerial stall")
 	aerial.queue_free()
-	# Aim (LT) + RT lanza la lanza; un toque de LT con la lanza clavada la recupera.
+	await frames(1)
+	air_y = player.position.y
+	for i in range(8):
+		await tap("attack")
+		await frames(6)
+	check(not player.combo.air_stall and (player.is_on_floor() or player.position.y > air_y + 150.0), "Tras conectar, seguir atacando al aire ya no sostiene (%.0f px)" % (player.position.y - air_y))
+	# LT mantenido apunta, al soltarlo se lanza la lanza; un toque de LT con la lanza clavada la recupera.
 	await reset()
 	# Mando sin stick derecho: apunta hacia donde mira Viridy.
 	var hints: Node = root.get_node("InputHints")
@@ -122,7 +128,10 @@ func _run() -> void:
 	await frames(10)
 	check(player.combo.aim and player.has_knife and not player.is_sprinting and absf(player.velocity.x) <= player.max_speed, "Mantener Aim permite caminar, impide correr y no lanza solo")
 	await tap("dash")
-	check(not player.has_knife and is_instance_valid(player.thrown_knife) and player.dash_timer <= 0.0, "Aim + RT lanza la lanza sin hacer dash")
+	check(player.has_knife and player.combo.aim and player.dash_timer <= 0.0, "Con la lanza, RT durante Aim no lanza ni dashea")
+	Input.action_release("throw_knife")
+	await frames(1)
+	check(not player.has_knife and is_instance_valid(player.thrown_knife) and player.dash_timer <= 0.0, "Soltar LT lanza la lanza")
 	release()
 	await frames(2)
 	await tap("attack")
@@ -146,21 +155,21 @@ func _run() -> void:
 	check(player.has_knife and not player.combo.aim, "Recuperada, mantener LT no reabre Aim hasta volver a pulsarlo")
 	release()
 	await frames(2)
-	# Apuntando, RT nunca dashea: ni al lanzar, ni con LT aún mantenido, ni al soltar LT con RT pulsado.
+	# Apuntando, RT nunca dashea: ni con LT mantenido, ni al soltar LT (que lanza) con RT pulsado.
 	await reset()
 	Input.action_press("throw_knife")
 	await frames(3)
 	Input.action_press("dash")
 	await frames(6)
-	check(not player.has_knife and player.dash_timer <= 0.0 and not player.is_sprinting, "Aim + RT mantenido lanza y no dashea ni corre")
+	check(player.has_knife and player.dash_timer <= 0.0 and not player.is_sprinting, "Aim + RT mantenido no lanza, ni dashea ni corre")
 	Input.action_release("dash")
 	await frames(1)
 	Input.action_press("dash")
 	await frames(6)
-	check(player.dash_timer <= 0.0 and not player.is_sprinting, "Con LT mantenido tras lanzar, RT no dashea ni corre")
+	check(player.dash_timer <= 0.0 and not player.is_sprinting, "Con LT mantenido, volver a pulsar RT no dashea ni corre")
 	Input.action_release("throw_knife")
 	await frames(6)
-	check(player.dash_timer <= 0.0 and not player.is_sprinting, "Soltar LT con RT aún mantenido tampoco dashea")
+	check(not player.has_knife and player.dash_timer <= 0.0 and not player.is_sprinting, "Soltar LT con RT aún mantenido lanza y no dashea")
 	Input.action_release("dash")
 	await frames(2)
 	await tap("dash")

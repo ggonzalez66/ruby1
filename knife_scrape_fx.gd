@@ -64,8 +64,9 @@ func begin(tip: Vector2, facing: int, color: Color) -> void:
 	var start: Vector2 = tip - Vector2(facing * DRAG_LENGTH, 0.0)
 	trail.add_point(start)
 	trail_core.add_point(start)
+	# Las chispas que caían las reemplazan las brasas que suben y quedan suspendidas (Fx.embers, al aterrizar).
 	sparks.direction = Vector2(-facing, -1.2).normalized()
-	sparks.emitting = true
+	sparks.emitting = false
 	follow(tip)
 
 func follow(tip: Vector2) -> void:

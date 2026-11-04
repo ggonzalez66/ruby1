@@ -54,6 +54,8 @@ func aim_at_player(camera: Node2D) -> void:
 	camera.angle = direction.angle()
 
 func _run() -> void:
+	# Todas las cámaras colocadas: las variantes de nivel se prueban aparte.
+	load("res://run_encounter.gd").layout_variants = false
 	root.size = Vector2i(1152, 648)
 	upgrades = root.get_node("Upgrades")
 
@@ -221,6 +223,21 @@ func _run() -> void:
 	check(start_y - highest < 45.0, "el string no la eleva (subió %.0f px)" % (start_y - highest))
 	check(lowest - start_y < 45.0 and not player().is_on_floor(), "ni la deja caer (bajó %.0f px)" % (lowest - start_y))
 	release()
+
+	print("== Variantes de nivel: cámaras")
+	load("res://run_encounter.gd").layout_variants = true
+	var counts := {}
+	for _i in range(6):
+		await open("res://factory_indoor.tscn")
+		var count: int = get_nodes_in_group(&"security_cameras").size()
+		counts[count] = true
+		check(count >= 1 and count <= 5, "entre una y cinco cámaras dentro (%d)" % count)
+		await open("res://factory_outdoor.tscn")
+		count = get_nodes_in_group(&"security_cameras").size()
+		counts[count] = true
+		check(count >= 1 and count <= 3, "entre una y tres cámaras afuera (%d)" % count)
+	check(counts.size() > 1, "no siempre salen las mismas cámaras (%s)" % str(counts.keys()))
+	load("res://run_encounter.gd").layout_variants = false
 
 	print("RESULTADO: %d/%d" % [checks - fails, checks])
 	quit(1 if fails else 0)

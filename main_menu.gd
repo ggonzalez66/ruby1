@@ -188,7 +188,7 @@ func _start(scene: String) -> void:
 	Ferocity.reset()
 	# La partida de tres etapas empieza sin guardianes vencidos.
 	Stats.set_meta(&"defeated_bosses", [])
-	get_tree().change_scene_to_file(scene)
+	SceneFade.go(scene)
 
 func _open_options() -> void:
 	menu_root.visible = false

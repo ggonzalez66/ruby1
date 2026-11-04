@@ -36,12 +36,12 @@ func _unhandled_input(event: InputEvent) -> void:
 		_back()
 
 func _back() -> void:
-	get_tree().change_scene_to_file(MAIN_MENU)
+	SceneFade.go(MAIN_MENU)
 
 func _open_level(scene: String) -> void:
 	Stats.reset()
 	Ferocity.reset()
-	get_tree().change_scene_to_file(scene)
+	SceneFade.go(scene)
 
 func _build_menu() -> void:
 	var layer := CanvasLayer.new()

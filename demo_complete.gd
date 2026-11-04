@@ -276,12 +276,12 @@ func _restart() -> void:
 func _next_stage() -> void:
 	get_tree().paused = false
 	Engine.time_scale = TimeControl.base_scale()
-	get_tree().change_scene_to_file(next_scene)
+	SceneFade.go(next_scene)
 
 func _main_menu() -> void:
 	get_tree().paused = false
 	TimeControl.set_slow_motion(false)
-	get_tree().change_scene_to_file(MAIN_MENU)
+	SceneFade.go(MAIN_MENU)
 
 func _label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()

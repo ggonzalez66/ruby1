@@ -775,6 +775,47 @@ def go():
     return finish(mul(chord, env(d, 0.005, 0.28)), 0.75)
 
 
+# ---------- Sabueso guardián y muerte de Viridy
+
+def hound_alert():
+    # Aviso dramático antes de la embestida: gruñido grave que sube y un doble destello agudo encima.
+    d = 0.5
+    growl = lowpass(mul(osc(d, sweep(70, 120, d, 0.6), "saw", 0.08, 24), env(d, 0.02, 0.4, 2.0)), 900)
+    growl = tremolo(growl, 32, 0.6)
+    sting = mul(osc(0.3, sweep(1400, 2350, 0.08), "square"), env(0.3, 0.002, 0.2, 3.0))
+    sting2 = delay(mul(osc(0.26, 3135, "triangle"), env(0.26, 0.002, 0.22, 3.0)), 0.07)
+    return finish(mix(gain(drive(growl, 2.0), 0.9), gain(lowpass(sting, 5200), 0.55), gain(sting2, 0.45)), 0.85)
+
+
+def hound_catch():
+    # Le cae encima: chasquido de fauces, golpe seco contra el suelo y un raspón.
+    d = 0.42
+    snap = mul(highpass(noise(d, 71), 1800), env(d, 0.001, 0.025))
+    jaw = mul(osc(d, sweep(520, 180, 0.05), "square"), env(d, 0.001, 0.05))
+    thud = mul(osc(d, sweep(130, 45, 0.2)), env(d, 0.002, 0.26, 2.5))
+    scrape = delay(mul(bandpass(noise(0.2, 72), 500, 2600), env(0.2, 0.01, 0.15)), 0.06)
+    return finish(drive(mix(gain(snap, 0.9), gain(lowpass(jaw, 3000), 0.5), thud, gain(scrape, 0.4)), 1.8), 0.9)
+
+
+def hound_mash():
+    # Cada machaque para soltarse: forcejeo corto (tela y un golpe sordo); el tono varía en el juego.
+    d = 0.11
+    struggle = mul(bandpass(noise(d, 73), 600, 3200), env(d, 0.003, 0.06))
+    knock = mul(osc(d, sweep(220, 110, 0.05)), env(d, 0.001, 0.05))
+    return finish(mix(struggle, gain(knock, 0.8)), 0.7)
+
+
+def death_crit():
+    # Golpe letal: impacto crítico enorme con eco que se aleja (tres rebotes cada vez más apagados).
+    d = 0.7
+    crack = mul(highpass(noise(d, 74), 1200), env(d, 0.001, 0.05))
+    boom = mul(osc(d, sweep(160, 38, 0.35)), env(d, 0.002, 0.5, 2.2))
+    metal = gain(partials(d, [1180, 1735, 2490, 3320], [0.5, 0.38, 0.3, 0.2], 75), 0.6)
+    hit = drive(mix(gain(crack, 0.9), boom, metal), 2.2)
+    echoes = [gain(lowpass(hit, 3200 - 800 * i), 0.5 * (0.55 ** i)) for i in range(3)]
+    return finish(mix(hit, delay(echoes[0], 0.21), delay(echoes[1], 0.43), delay(echoes[2], 0.66)), 0.92)
+
+
 SOUNDS = {name: fn for name, fn in globals().items() if callable(fn) and fn.__module__ == __name__
           and name not in {"n_samples", "lerp", "env", "osc", "noise", "crackle", "lowpass", "highpass", "bandpass",
                            "mul", "gain", "mix", "delay", "drive", "tremolo", "partials", "sweep", "finish", "write", "main",

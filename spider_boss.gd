@@ -438,6 +438,7 @@ func _fire_rail(player: Node2D) -> void:
 	_update_sight()
 	var from := _muzzle_world()
 	Sfx.play("rail_shot", 2.0, 0.7)
+	Fx.muzzle(get_parent(), from, aim_angle, RAIL_COLOR, 1.8)
 	var beam := Node2D.new()
 	beam.z_index = 8
 	get_parent().add_child(beam)

@@ -343,7 +343,9 @@ func _run() -> void:
 	var scrape: Node2D = player.knife_scrape
 	var tip: Vector2 = player.global_position + Vector2(player.facing * player.HEAVY_LANDING_CONTACT.x, player.HEAVY_LANDING_CONTACT.y)
 	check(scrape.active and scrape.visible and scrape.glow.visible and scrape.glow.global_position.distance_to(tip) < 1.0, "el contacto de la bestia deja un brillo de energía en el suelo")
-	check(scrape.sparks.emitting, "saltan chispas")
+	var embers: Array = player.get_parent().get_children().filter(func(n): return String(n.name).begins_with("PixelFx_embers"))
+	var waves: Array = player.get_parent().get_children().filter(func(n): return String(n.name).begins_with("PixelFx_shockwave"))
+	check(not scrape.sparks.emitting and embers.size() >= 1 and waves.size() >= 1, "se levantan brasas que quedan suspendidas y corre la onda expansiva (PixelFX)")
 	var start_point: Vector2 = scrape.trail.get_point_position(0)
 	await frames(3)
 	var length: float = scrape.trail.get_point_position(scrape.trail.get_point_count() - 1).distance_to(start_point)

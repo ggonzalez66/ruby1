@@ -28,6 +28,8 @@ var ice_left := 0.0
 var marks := 0
 var marks_left := 0.0
 var sparks: CPUParticles2D
+# Con PixelFX: llamas mientras arde y estrellas de aturdido cuando el hielo o la electricidad la paran.
+var burn_fx: AnimatedSprite2D
 
 func _ready() -> void:
 	player = get_parent()
@@ -57,6 +59,8 @@ func apply(element: String) -> void:
 	match element:
 		"fire":
 			burn_left = _span(BURN_TIME)
+			if not is_instance_valid(burn_fx):
+				burn_fx = Fx.status(player, "burning", Vector2(0, 2), 1.9)
 			if burn_wait <= 0.0:
 				burn_wait = BURN_TICK
 			_say("¡QUEMADA!", FIRE)
@@ -67,6 +71,7 @@ func apply(element: String) -> void:
 			if ice_stacks >= STACKS_TO_PROC:
 				ice_stacks = 0
 				player.apply_element_stun(_span(STUN_TIME))
+				_stun_fx("ice_block", _span(STUN_TIME), Color(1, 1, 1, 0.6), 1.8, Vector2(0, 4))
 				_say("¡CONGELADA!", ICE)
 		"electric":
 			marks_left = _span(STACK_TIME)
@@ -75,6 +80,8 @@ func apply(element: String) -> void:
 			if marks >= STACKS_TO_PROC:
 				marks = 0
 				player.apply_element_stun(_span(STUN_TIME))
+				_stun_fx("stunned", _span(STUN_TIME), Color.WHITE, 1.1, Vector2(0, -66))
+				Fx.zap(player.get_parent(), player.global_position + Vector2(0, -30), ELECTRIC, 1.0)
 				_say("¡ELECTROCUTADA!", ELECTRIC)
 				Sfx.play("zap", 0.0, 0.8)
 	queue_redraw()
@@ -88,7 +95,15 @@ func clear() -> void:
 	marks = 0
 	marks_left = 0.0
 	sparks.emitting = false
+	if is_instance_valid(burn_fx):
+		burn_fx.queue_free()
+	burn_fx = null
 	queue_redraw()
+
+func _stun_fx(sheet: String, time: float, tint: Color, size: float, offset: Vector2) -> void:
+	var sprite: AnimatedSprite2D = Fx.status(player, sheet, offset, size, tint)
+	if sprite != null:
+		sprite.create_tween().tween_callback(sprite.queue_free).set_delay(time)
 
 func _say(text: String, color: Color) -> void:
 	Fx.text(player.get_parent(), player.global_position + Vector2(0, -74), text, color)
@@ -114,8 +129,12 @@ func _physics_process(delta: float) -> void:
 		if burn_wait <= 0.0:
 			burn_wait = BURN_TICK
 			player.take_element_burn(BURN_DAMAGE)
-	sparks.emitting = burn_left > 0.0 or slow_left > 0.0
-	sparks.color = FIRE if burn_left > 0.0 else ICE
+	# Las llamas son la hoja "burning"; las chispas quedan para el frío (ralentizada).
+	if burn_left <= 0.0 and is_instance_valid(burn_fx):
+		burn_fx.queue_free()
+		burn_fx = null
+	sparks.emitting = slow_left > 0.0 and burn_left <= 0.0
+	sparks.color = ICE
 
 func _draw() -> void:
 	# Marcas acumuladas sobre la cabeza.

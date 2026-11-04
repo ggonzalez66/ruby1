@@ -124,14 +124,12 @@ func _run() -> void:
 	hints.device = hints.Device.JOYPAD
 	player.facing = 1
 	Input.action_press("throw_knife")
-	await frames(1)
-	Input.action_press("dash")
-	await frames(1)
-	Input.action_release("dash")
+	await frames(2)
 	Input.action_release("throw_knife")
+	await frames(1)
 	check(is_instance_valid(player.thrown_knife) and player.animated_sprite.animation == player.ANIMATION_KNIFE_THROW, "el input real reproduce el lanzamiento nuevo")
 	check(player.animated_sprite.sprite_frames.get_frame_count(player.ANIMATION_KNIFE_THROW) == 4, "la animación contiene cuatro poses nuevas")
-	check(is_equal_approx(player.thrown_knife.velocity.length(), 1300.0) and player.thrown_knife.straight_timer > 0.3 and player.thrown_knife.life > 3.9, "Aim + RT lanza recta a 1300 px/s y conserva tiempo de vuelo")
+	check(is_equal_approx(player.thrown_knife.velocity.length(), 1300.0) and player.thrown_knife.straight_timer > 0.3 and player.thrown_knife.life > 3.9, "soltar LT lanza recta a 1300 px/s y conserva tiempo de vuelo")
 	await frames(1)
 	player.attack_cooldown_timer = 0.0
 	player._start_heavy_attack(false)

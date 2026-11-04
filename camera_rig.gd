@@ -17,6 +17,8 @@ extends Camera2D
 @export var shake_angle := 0.025
 
 var base_zoom := Vector2.ONE
+# Zoom extra de las cinemáticas (la muerte de Viridy acerca la cámara): se multiplica al final.
+var cinematic_zoom := 1.0
 var smooth_zoom := Vector2.ONE
 var trauma := 0.0
 var punch_amount := 0.0
@@ -92,7 +94,7 @@ func _process(delta: float) -> void:
 	var zoom_factor: float = 1.0 - speed_zoom_out * speed_ratio - rank_zoom_out * rank + breathe
 	punch_amount = move_toward(punch_amount, 0.0, real_delta * 0.35)
 	smooth_zoom = smooth_zoom.lerp(base_zoom * zoom_factor, clamp(3.0 * real_delta, 0.0, 1.0))
-	zoom = smooth_zoom * (1.0 + punch_amount)
+	zoom = smooth_zoom * (1.0 + punch_amount) * cinematic_zoom
 
 	# Temblor (cuadrático con el trauma), más fuerte con más estilo.
 	trauma = max(trauma - real_delta * 1.6, 0.0)

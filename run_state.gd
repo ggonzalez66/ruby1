@@ -19,7 +19,15 @@ const FOUNTAIN_SCENE := "res://fountain.tscn"
 const SHOP_SCENE := "res://fox_shop.tscn"
 const TOWER_SCENE := "res://tower_finale.tscn"
 const PARKOUR_SCENE := "res://sun_world.tscn"
+# Variantes de nivel: cada enfrentamiento elige una versión de las afueras y otra de dentro de la fábrica
+# (la A original, el canal / sótano inundado y el patio de carga / línea de montaje).
+const FIGHT_VARIANTS := [
+	["res://factory_outdoor.tscn", "res://factory_outdoor_b.tscn", "res://factory_outdoor_c.tscn"],
+	["res://factory_indoor.tscn", "res://factory_indoor_b.tscn", "res://factory_indoor_c.tscn"],
+	["res://factory_boss.tscn"],
+]
 const RUN_SCENES := ["res://factory_outdoor.tscn", "res://factory_indoor.tscn", "res://factory_boss.tscn",
+	"res://factory_outdoor_b.tscn", "res://factory_outdoor_c.tscn", "res://factory_indoor_b.tscn", "res://factory_indoor_c.tscn",
 	FOUNTAIN_SCENE, SHOP_SCENE, TOWER_SCENE, PARKOUR_SCENE]
 
 const START := "start"
@@ -53,6 +61,9 @@ var finished := false
 var fade_layer: CanvasLayer
 var fade_rect: ColorRect
 var changing := false
+# Variante elegida para cada fase del enfrentamiento actual; las pruebas la fijan apagando layout_variants.
+var layout_variants := true
+var fight_layout: Array = [0, 0, 0]
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -174,7 +185,8 @@ func enter(cell: Vector2i) -> bool:
 	map_changed.emit()
 	match cell_type(cell):
 		FIGHT:
-			change_scene(FIGHT_SCENES[0])
+			_pick_fight_layout()
+			change_scene(fight_scene(0))
 		FOUNTAIN:
 			change_scene(FOUNTAIN_SCENE)
 		SHOP:
@@ -187,11 +199,25 @@ func depth() -> int:
 	# Dificultad de los enfrentamientos: 1 en el primero y sube con cada uno superado.
 	return fights_cleared + 1
 
+func _pick_fight_layout() -> void:
+	for phase in range(FIGHT_VARIANTS.size()):
+		fight_layout[phase] = randi() % FIGHT_VARIANTS[phase].size() if layout_variants else 0
+
+func fight_scene(phase: int) -> String:
+	var options: Array = FIGHT_VARIANTS[phase]
+	return options[clampi(int(fight_layout[phase]), 0, options.size() - 1)]
+
+func fight_phase_of(scene_path: String) -> int:
+	for phase in range(FIGHT_VARIANTS.size()):
+		if scene_path in FIGHT_VARIANTS[phase]:
+			return phase
+	return -1
+
 func next_fight_phase(scene_path: String) -> void:
-	# Afueras → dentro de la fábrica → el guardián.
-	var index := FIGHT_SCENES.find(scene_path)
-	if index >= 0 and index + 1 < FIGHT_SCENES.size():
-		change_scene(FIGHT_SCENES[index + 1])
+	# Afueras → dentro de la fábrica → el guardián (en la variante elegida para este enfrentamiento).
+	var index := fight_phase_of(scene_path)
+	if index >= 0 and index + 1 < FIGHT_VARIANTS.size():
+		change_scene(fight_scene(index + 1))
 
 func complete_fight() -> void:
 	fights_cleared += 1
@@ -261,6 +287,15 @@ func change_scene(path: String, fade := true) -> void:
 		return
 	changing = true
 	var tree := get_tree()
+	# Con pantalla, la transición de fuego jade (SceneFade); sin ella (pruebas), el fundido a negro.
+	if fade and SceneFade.available() and fade_rect.color.a <= 0.0:
+		await SceneFade.cover()
+		tree.paused = false
+		Engine.time_scale = TimeControl.base_scale()
+		tree.change_scene_to_file(path)
+		changing = false
+		SceneFade.reveal()
+		return
 	if fade:
 		fade_rect.color = Color(0.0, 0.0, 0.0, fade_rect.color.a)
 		var tween := create_tween()
