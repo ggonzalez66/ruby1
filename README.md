@@ -1,6 +1,6 @@
 # Ruby1
 
-Juego de acción y plataformas 2D para Godot 4.2.2. Abrir `project.godot` o ejecutar `godot --path .`.
+Juego de acción y plataformas 2D para Godot 4.7.2. Abrir `project.godot` o ejecutar `godot --path .`.
 
 ## Visión del juego e historia
 

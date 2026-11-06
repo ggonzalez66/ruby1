@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Corre todas las pruebas de integración headless (y las de las herramientas en Python) y resume el resultado de cada una.
-# Uso (desde cualquier carpeta): tests/run_tests.sh
+# Uso (desde cualquier carpeta): tests/run_tests.sh   (GODOT=<binario> para otra versión del motor)
 set -u
+GODOT=${GODOT:-godot}
 # La cuenta atrás se valida por separado; las suites históricas controlan los frames.
 export RUBY1_SKIP_COUNTDOWN=1
 export XDG_DATA_HOME
@@ -10,7 +11,7 @@ trap 'rm -rf "$XDG_DATA_HOME"' EXIT
 cd "$(dirname "$0")/.."
 status=0
 for test in tests/integration/test_*.gd; do
-	result=$(timeout 600 godot --headless --path . -s "res://$test" 2>&1 | grep -E "FAIL|RESULTADO|SCRIPT ERROR")
+	result=$(timeout 600 "$GODOT" --headless --path . -s "res://$test" 2>&1 | grep -E "FAIL|RESULTADO|SCRIPT ERROR")
 	echo "== $test"
 	echo "$result"
 	if ! echo "$result" | grep -q "RESULTADO" || echo "$result" | grep -qE "FAIL|SCRIPT ERROR"; then

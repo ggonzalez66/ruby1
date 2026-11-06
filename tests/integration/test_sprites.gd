@@ -116,7 +116,8 @@ func _run() -> void:
 	await frames(60)
 	Input.action_press("move_up")
 	Input.action_press("heavy_attack")
-	await frames(1)
+	# Desde Godot 4.7 la pulsación simulada cuenta en el frame siguiente: se mantiene dos frames.
+	await frames(2)
 	Input.action_release("heavy_attack")
 	Input.action_release("move_up")
 	await frames(int(player.light_uppercut_duration * 60.0) + 2)

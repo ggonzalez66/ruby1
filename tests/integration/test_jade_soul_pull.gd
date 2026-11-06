@@ -123,7 +123,7 @@ func _run() -> void:
 	await frames(130)
 	check(is_instance_valid(fire) and fire.sprite.visible, "la lanza permanece clavada después de dos segundos")
 	Input.action_press("throw_knife")
-	await frames(1)
+	await frames(2)
 	Input.action_release("throw_knife")
 	check(fire.is_returning() and fire.sprite.visible, "un toque real de LT llama la lanza desde el terreno")
 	await frames(40)

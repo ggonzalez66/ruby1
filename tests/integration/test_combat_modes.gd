@@ -128,7 +128,10 @@ func _run() -> void:
 			var hp: int = player.current_health
 			var outcome := "nada"
 			for i in range(40):
-				if mode == "parry" and chaser.state == chaser.State.SWING and not player.roar_active:
+				# Desde Godot 4.7 una pulsación simulada cuenta en el physics frame siguiente: se pulsa en el
+				# último frame del telegraph para que el rugido salga justo cuando empieza el golpe.
+				var swing_next: bool = chaser.state == chaser.State.TELEGRAPH and chaser.state_timer <= 1.0 / 60.0 + 0.0001
+				if mode == "parry" and (chaser.state == chaser.State.SWING or swing_next) and not player.roar_active:
 					Input.action_press("roar")
 				await frames(1)
 				if player.current_health < hp:

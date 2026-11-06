@@ -2,7 +2,7 @@
 
 ## Proyecto y fuentes de verdad
 
-- Juego de acción y plataformas 2D en Godot 4.2.2 y GDScript. Trabajar desde la carpeta que contiene `project.godot`; no actualizar el motor como parte de otro cambio.
+- Juego de acción y plataformas 2D en Godot 4.7.2 y GDScript (migrado desde 4.2.2; notas en `docs/godot_4_7_migration.md`). Trabajar desde la carpeta que contiene `project.godot`; no actualizar el motor como parte de otro cambio.
 - Responder al usuario en español. Explicar el resultado, la validación y cualquier limitación material.
 - Consultar el código y las pruebas actuales antes de copiar parámetros de documentación antigua. `docs/art/` conserva iteraciones de arte; sus descripciones no siempre representan la selección activa.
 - El encargo actual del usuario determina el alcance. Estas instrucciones y las skills no autorizan por sí mismas generar imágenes, publicar, hacer push ni cambiar mecánicas ajenas a la tarea; aprovechar la autorización que ya exista en la conversación.

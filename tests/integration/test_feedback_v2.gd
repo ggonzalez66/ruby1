@@ -115,9 +115,12 @@ func _run() -> void:
 	Input.action_press("attack")
 	await frames(2)
 	Input.action_release("attack")
-	player.afterimage_timer = 0.0
+	# Desde Godot 4.7 la pulsación simulada cuenta en el frame siguiente: el temporizador de estelas se
+	# vacía justo cuando el salto llega a Viridy.
 	Input.action_press("jump")
-	await frames(2)
+	await frames(1)
+	player.afterimage_timer = 0.0
+	await frames(1)
 	Input.action_release("jump")
 	var ghosts: Array = player.afterimage_container.get_children().filter(func(item): return item is Sprite2D and item.texture == player.FRONTFLIP_TEXTURE)
 	check(player.attack_mode == player.ATTACK_SPIN and not ghosts.is_empty(), "el primer salto desde dash attack ya genera estelas del screw")

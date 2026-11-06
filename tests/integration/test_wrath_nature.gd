@@ -190,7 +190,10 @@ func _run() -> void:
 		if not wrath.captured.is_empty():
 			break
 	var braked_at := player.position.x
+	# Desde Godot 4.7 la pulsación simulada cuenta en el physics frame siguiente: se espera a que cuente.
 	Input.action_press("heavy_attack")
+	if not Input.is_action_just_pressed("heavy_attack"):
+		await physics_frame
 	wrath.tick(1.0 / 60.0)
 	Input.action_release("heavy_attack")
 	check(wrath.state == wrath.State.RECOIL and wrath.recoil.dot(Vector2.RIGHT) > 0.0, "heavy durante el avance frena deslizando hacia delante")
@@ -226,7 +229,9 @@ func _run() -> void:
 	wrath.arm()
 	Input.action_press("move_up")
 	Input.action_press("heavy_attack")
-	await frames(2)
+	# Con Godot 4.7 el heavy simulado llega un frame después: arriba se mantiene un frame más para que la
+	# selección alcance a leerla antes de soltarla.
+	await frames(3)
 	Input.action_release("move_up")
 	Input.action_release("heavy_attack")
 	check(wrath.state == wrath.State.AIM and player.attack_mode == player.ATTACK_NONE, "heavy abre la selección y no activa un uppercut")
@@ -261,7 +266,8 @@ func _run() -> void:
 	player.position = Vector2(6000, -300)
 	style._set_points(650)
 	wrath.arm()
-	wrath.ready_left = 0.02
+	# Un frame y algo: con Godot 4.7 la pulsación simulada llega en el frame siguiente.
+	wrath.ready_left = 0.035
 	Input.action_press("heavy_attack")
 	await frames(2)
 	Input.action_release("heavy_attack")
@@ -274,7 +280,7 @@ func _run() -> void:
 	await frames(3)
 	Input.action_release("move_right")
 	Input.action_release("move_up")
-	await frames(24)
+	await frames(25)
 	check(wrath.state == wrath.State.RUSH and wrath.direction.is_equal_approx(Vector2(1, -1).normalized()), "elige y corrige una diagonal después del heavy, sin segundo botón")
 	Input.action_press("move_down")
 	await frames(2)

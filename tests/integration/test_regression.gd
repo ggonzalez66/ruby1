@@ -31,7 +31,7 @@ func release_all() -> void:
 
 func tap(a: String) -> void:
 	Input.action_press(a)
-	await frames(1)
+	await frames(2)
 	Input.action_release(a)
 
 func load_level(path: String) -> void:

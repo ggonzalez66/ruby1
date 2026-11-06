@@ -37,6 +37,14 @@ Mantener el log completo cuando falle. Comprobar salida del proceso, `RESULTADO`
 
 `bash tests/run_tests.sh` crea su propio directorio temporal y recorre integración y herramientas Python. Usarlo para cambios transversales cuando las pruebas pertinentes ya hayan pasado. No reutilizar totales de informes históricos como resultados de la revisión actual.
 
+## Pruebas con Godot 4.7
+
+- `GODOT=<binario> bash tests/run_tests.sh` corre la suite con otro binario (por defecto `godot`).
+- Una pulsación simulada con `Input.action_press` cuenta como «recién pulsada» en el physics frame siguiente, no en el mismo (con input real no cambia nada). Un toque de un frame se escribe `press` → `await frames(2)` → `release`, y antes de llamar a `_physics_process` o `tick()` a mano hay que esperar a que la pulsación cuente (`if not Input.is_action_just_pressed(a): await physics_frame`).
+- Un script lanzado con `-s` no compila si precarga (`preload`/`const`) scripts que usan autoloads: cargarlos con `load()` al empezar.
+- Los ejecutables exportados (release y debug) no aceptan una escena por línea de comandos. Para probar escenas sueltas del build, exportar el paquete (`--export-pack`) y abrirlo con el binario de Godot: `godot --main-pack ruby1.pck --headless --quit-after 300 res://<escena>.tscn`.
+- Para capturas con renderer, usar `--fixed-fps 60`: 4.7 compila shaders al arrancar y, sin paso fijo, la física se adelanta a los primeros frames dibujados.
+
 ## Reproducciones y mediciones
 
 Para input/cancelaciones, reproducir el orden real de pulsar/soltar y la transición a la siguiente acción, en vez de limitarse a asignar el estado final. Para terreno, probar a ambos lados y con velocidad alta, incluyendo el volumen del cuerpo y el bloqueo de visión/daño. Comprobar limpieza al reiniciar si se añaden capturas, marcas, tweens o bucles.

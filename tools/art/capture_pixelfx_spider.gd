@@ -4,9 +4,12 @@ extends SceneTree
 # mundo espiritual dentro del sol. Requiere renderer con ventana:
 #   godot --path . --rendering-driver opengl3 -s res://tools/art/capture_pixelfx_spider.gd
 const DIRECTORY := "res://docs/pixelfx_spider/runtime"
-const FX := preload("res://fx.gd")
+# Godot 4.7 no compila un script de -s que precarga scripts que usan autoloads (aún no existen al compilarlo):
+# se cargan al empezar.
+var FX: Script
 
 func _initialize() -> void:
+	FX = load("res://fx.gd")
 	_run.call_deferred()
 
 func frames(count: int) -> void:

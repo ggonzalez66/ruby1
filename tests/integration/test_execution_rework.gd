@@ -143,7 +143,7 @@ func _run() -> void:
 	check(wrath.state == wrath.State.READY, "agacharse en SSS carga Wrath sin transformarse")
 	await frames(2)
 	Input.action_press("heavy_attack")
-	await frames(1)
+	await frames(2)
 	Input.action_release("heavy_attack")
 	check(wrath.state == wrath.State.AIM, "el pesado abre la dirección de Wrath")
 	wrath.launch(Vector2.RIGHT)

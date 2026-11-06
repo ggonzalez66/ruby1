@@ -26,9 +26,10 @@ func release_all() -> void:
 	for action in ["jump", "dash", "move_left", "move_right", "attack", "heavy_attack", "roar"]:
 		Input.action_release(action)
 
+# Desde Godot 4.7 una pulsación simulada cuenta en el physics frame siguiente: el toque dura dos frames.
 func tap(action: String) -> void:
 	Input.action_press(action)
-	await frames(1)
+	await frames(2)
 	Input.action_release(action)
 
 func _run() -> void:
@@ -248,9 +249,13 @@ func _test_chimney() -> void:
 				jumps += 1
 				Input.action_release("jump")
 				await frames(1)
+				Input.action_press("jump")
+				# Desde Godot 4.7 la pulsación simulada cuenta en el physics frame siguiente: la dirección se
+				# cambia en ese mismo frame, no antes (si no, Viridy se despega del muro antes de saltar).
+				if not Input.is_action_just_pressed("jump"):
+					await frames(1)
 				Input.action_release("move_right" if side < 0 else "move_left")
 				Input.action_press("move_left" if side < 0 else "move_right")
-				Input.action_press("jump")
 	check(reached and jumps >= 10 and not checkpoint_return, "se alcanza el piso superior con walljumps precisos, sin recibir daño (llegó %s, %d saltos, volvió %s, y %.0f)" % [reached, jumps, checkpoint_return, player.position.y])
 	release_all()
 	player.global_position = Vector2(7294, -700)

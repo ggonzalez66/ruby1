@@ -29,6 +29,13 @@ func frames(n: int) -> void:
 	for _i in n:
 		await physics_frame
 
+# Desde Godot 4.7 una pulsación simulada con Input.action_press se registra como "recién pulsada" en el
+# siguiente physics frame (en 4.2 era en el mismo): se espera ese frame antes de procesar a mano.
+func press(action: String) -> void:
+	Input.action_press(action)
+	if not Input.is_action_just_pressed(action):
+		await physics_frame
+
 func start(step: int = 0) -> void:
 	player._cancel_all_states()
 	player.attack_cooldown_timer = 0
@@ -139,12 +146,12 @@ func _run() -> void:
 	# Input real: pulsaciones repetidas se guardan sin saltarse el recovery.
 	start()
 	player._cancel_all_states()
-	Input.action_press("attack")
+	await press("attack")
 	player._physics_process(1.0 / 60.0)
 	Input.action_release("attack")
 	await frames(1)
 	check(w.active and w.phase == w.Phase.STARTUP and target.hits == 0, "Input ligero real entra en startup")
-	Input.action_press("attack")
+	await press("attack")
 	player._physics_process(1.0 / 60.0)
 	Input.action_release("attack")
 	check(w.queued == &"light" and w.step == 0, "Input repetido guarda combo sin adelantar fases")

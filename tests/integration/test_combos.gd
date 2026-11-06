@@ -29,15 +29,17 @@ func release_all() -> void:
 	for a in ["move_left", "move_right", "move_up", "move_down", "jump", "attack", "heavy_attack", "dash", "throw_knife", "roar"]:
 		Input.action_release(a)
 
+# Desde Godot 4.7 una pulsación simulada cuenta en el physics frame siguiente: un toque se mantiene dos
+# frames para que Viridy lo vea pulsado (y con la dirección aún mantenida).
 func tap(a: String) -> void:
 	Input.action_press(a)
-	await frames(1)
+	await frames(2)
 	Input.action_release(a)
 
 func tap_up_heavy() -> void:
 	Input.action_press("move_up")
 	Input.action_press("heavy_attack")
-	await frames(1)
+	await frames(2)
 	Input.action_release("heavy_attack")
 	Input.action_release("move_up")
 

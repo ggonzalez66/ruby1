@@ -28,9 +28,10 @@ func release_all() -> void:
 	for a in ["move_left", "move_right", "move_up", "move_down", "jump", "attack", "heavy_attack", "dash", "throw_knife", "roar"]:
 		Input.action_release(a)
 
+# Desde Godot 4.7 una pulsación simulada cuenta en el physics frame siguiente: el toque dura dos frames.
 func tap(a: String) -> void:
 	Input.action_press(a)
-	await frames(1)
+	await frames(2)
 	Input.action_release(a)
 
 func reset(at: Vector2 = GROUND) -> void:
@@ -235,7 +236,9 @@ func _run() -> void:
 	await reset()
 	var victim: Node2D = load("res://training_dummy.tscn").instantiate()
 	victim.max_health = 99
-	victim.position = GROUND + Vector2(150, 2)
+	# El dash attack sale un frame más tarde con las pulsaciones simuladas de Godot 4.7: el muñeco (que vuelve
+	# siempre a donde apareció) un poco más lejos.
+	victim.position = GROUND + Vector2(165, 2)
 	level.add_child(victim)
 	await frames(2)
 	player.current_health = 50

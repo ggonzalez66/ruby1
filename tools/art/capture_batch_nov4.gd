@@ -7,11 +7,16 @@ extends SceneTree
 #   godot --path . --rendering-driver opengl3 -s res://tools/art/capture_batch_nov4.gd
 # CAPTURE_ONLY=claws|combo|crown|status|landing|ruby|uppercut|death|bush|catwalk|ambient|fountain|fade|hound|variants
 const DIRECTORY := "res://docs/batch_2026_11_04/runtime"
-const FX := preload("res://fx.gd")
-const CHASER := preload("res://chaser_dummy.gd")
-const HOUND := preload("res://hound.gd")
+# Godot 4.7 no compila un script de -s que precarga scripts que usan autoloads (aún no existen al compilarlo):
+# se cargan al empezar.
+var FX: Script
+var CHASER: Script
+var HOUND: Script
 
 func _initialize() -> void:
+	FX = load("res://fx.gd")
+	CHASER = load("res://chaser_dummy.gd")
+	HOUND = load("res://hound.gd")
 	_run.call_deferred()
 
 func frames(count: int) -> void:
@@ -267,6 +272,9 @@ func fade() -> void:
 	await create_timer(0.3, true, false, true).timeout
 	await capture("transition_opening")
 	await create_timer(1.0, true, false, true).timeout
+	# cover() deja el juego en pausa (SceneFade.go lo reanuda al cambiar de escena): sin esto, las secciones
+	# siguientes saldrían congeladas al correr todas seguidas.
+	paused = false
 
 func hound() -> void:
 	await wait_scene("res://factory_boss.tscn")
